@@ -218,10 +218,12 @@ pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
 #[cfg(test)]
 mod test {
     use crate::fen;
+    use crate::magics::init_magics;
 
     #[test]
     fn test_bishop_moves() {
 
+        init_magics();
         let fen = "1k6/8/8/3B4/8/8/8/5K2 w - - 0 1";
         let board = fen::from_fen(fen);
         let moves = super::gen_moves(board);
