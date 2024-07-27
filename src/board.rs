@@ -1,7 +1,7 @@
 use crate::{bits, moves::Move, moves::MoveFlag, piece::Piece, piece::Side};
 use crate::bits::Rights;
 use crate::fen;
-use crate::piece::Side::{BLACK, WHITE};
+use crate::piece::Side::{Black, White};
 
 #[derive(Clone, Copy)]
 pub struct Board {
@@ -12,26 +12,24 @@ pub struct Board {
     pub fm: u8,                    // number of full moves
     pub ep_sq: Option<u8>,         // en passant square (0-63)
     pub castle: u8,                // encoded castle rights
-    pub hash: u64,                 // unique zobrist hash for the position
 }
 
 
 impl Board {
 
     pub fn new() -> Board {
-        fen::from_fen(fen::STARTPOS)
+        Board::from_fen(fen::STARTPOS)
     }
 
     pub fn empty() -> Board {
         Board {
             bb: [0; 8],
             pcs: [None; 64],
-            stm: WHITE,
+            stm: White,
             hm: 0,
             fm: 0,
             ep_sq: None,
             castle: 0,
-            hash: 0,
         }
     }
 
@@ -40,7 +38,7 @@ impl Board {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
 
-        let piece = self.piece_at(from).expect("from sq should be occupied!");
+        let piece = self.piece_at(from).unwrap();
         let new_piece = if m.is_promo() { m.promo_piece() } else { piece };
         let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to as usize] };
 
@@ -57,13 +55,14 @@ impl Board {
         }
 
         self.ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(to)) } else { None };
-        self.fm += if side == BLACK { 1 } else { 0 };
+        self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured_piece.is_some() || piece == Piece::Pawn { 0 } else { self.hm + 1 };
         self.castle = self.calc_castle_rights(from, to, piece);
         self.stm = self.stm.flip();
 
     }
 
+    #[inline]
     pub fn toggle_sq(&mut self, sq: u8, piece: Piece, side: Side) {
         let bb = bits::bb(sq);
         self.bb[piece as usize] ^= bb;
@@ -71,11 +70,13 @@ impl Board {
         self.pcs[sq as usize] = if self.pcs[sq as usize] == Some(piece) { None } else { Some(piece) };
     }
 
+    #[inline]
     pub fn toggle_sqs(&mut self, from: u8, to: u8, piece: Piece, side: Side) {
         self.toggle_sq(from, piece, side);
         self.toggle_sq(to, piece, side);
     }
 
+    #[inline]
     fn rook_sqs(self, king_to_sq: u8) -> (u8, u8) {
         match king_to_sq {
             2 => (0, 3),
@@ -86,19 +87,21 @@ impl Board {
         }
     }
 
+    #[inline]
     fn ep_capture_sq(&self, to: u8) -> u8 {
-        if self.stm == WHITE { to - 8 } else { to + 8 }
+        if self.stm == White { to - 8 } else { to + 8 }
     }
 
+    #[inline]
     fn calc_castle_rights(&self, from: u8, to: u8, piece_type: Piece) -> u8 {
         let mut new_rights = self.castle;
-        if new_rights == Rights::NONE as u8 {
+        if new_rights == Rights::None as u8 {
             // Both sides already lost castling rights, so nothing to calculate.
             return new_rights;
         }
         // Any move by the king removes castling rights.
         if piece_type == Piece::King {
-            new_rights &= if self.stm == WHITE { Rights::BLACK as u8 } else { Rights::WHITE as u8 };
+            new_rights &= if self.stm == White { Rights::Black as u8 } else { Rights::White as u8 };
         }
         // Any move starting from/ending at a rook square removes castling rights for that corner.
         if from == 7 || to == 7    { new_rights &= !(Rights::WKS as u8); }
@@ -109,7 +112,7 @@ impl Board {
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {
-        if side == WHITE {
+        if side == White {
             self.castle & Rights::WKS as u8 != 0
         } else {
             self.castle & Rights::BKS as u8 != 0
@@ -117,7 +120,7 @@ impl Board {
     }
 
     pub fn has_queenside_rights(&self, side: Side) -> bool {
-        if side == WHITE {
+        if side == White {
             self.castle & Rights::WQS as u8 != 0
         } else {
             self.castle & Rights::BKS as u8 != 0
@@ -149,7 +152,7 @@ impl Board {
     }
 
     pub fn occ(self) -> u64 {
-        self.bb[WHITE.idx()] | self.bb[BLACK.idx()]
+        self.bb[White.idx()] | self.bb[Black.idx()]
     }
 
     pub fn pcs(self, piece: Piece) -> u64 {
@@ -165,8 +168,8 @@ impl Board {
     }
 
     pub fn side_at(self, sq: u8) -> Option<Side> {
-        if self.bb[WHITE.idx()] & bits::bb(sq) != 0 { Some(WHITE) }
-        else if self.bb[BLACK.idx()] & bits::bb(sq) != 0 { Some(BLACK) }
+        if self.bb[White.idx()] & bits::bb(sq) != 0 { Some(White) }
+        else if self.bb[Black.idx()] & bits::bb(sq) != 0 { Some(Black) }
         else { None }
     }
 
@@ -190,7 +193,7 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::fen;
+    use crate::board::Board;
     use crate::moves::{Move, MoveFlag};
 
     #[test]
@@ -257,9 +260,9 @@ mod tests {
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
-        let mut board = fen::from_fen(start_fen);
+        let mut board = Board::from_fen(start_fen);
         board.make(&m);
-        assert_eq!(fen::to_fen(&board), end_fen);
+        assert_eq!(board.to_fen(), end_fen);
     }
 
 }

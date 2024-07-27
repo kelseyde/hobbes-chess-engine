@@ -1,7 +1,7 @@
 use crate::bits;
-use crate::magics::{BISHOP_MAGIC_LOOKUP, ROOK_MAGIC_LOOKUP};
+use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 use crate::piece::{Piece, Side};
-use crate::piece::Side::WHITE;
+use crate::piece::Side::White;
 
 pub fn attacks(sq: u8, piece: Piece, side: Side, occ: u64) -> u64 {
     match piece {
@@ -16,7 +16,7 @@ pub fn attacks(sq: u8, piece: Piece, side: Side, occ: u64) -> u64 {
 
 pub fn pawn(sq: u8, side: Side) -> u64 {
     let bb = bits::bb(sq);
-    if side == WHITE {
+    if side == White {
         bits::north_east(bb) | bits::north_west(bb)
     } else {
         bits::south_east(bb) | bits::south_west(bb)
@@ -27,24 +27,16 @@ pub fn knight(sq: u8) -> u64 {
     KNIGHT[sq as usize]
 }
 
-pub fn bishop(sq: u8, occ: u64) -> u64 {
-    unsafe {
-        let lookup = &BISHOP_MAGIC_LOOKUP[sq as usize];
-        let occ = occ & lookup.mask;
-        let occ = occ.wrapping_mul(lookup.magic);
-        let occ = occ.wrapping_shr(lookup.shift as u32);
-        lookup.attacks[occ as usize]
-    }
+pub fn bishop(sq: u8, blockers: u64) -> u64 {
+    let magic = BISHOP_MAGICS[sq as usize];
+    let idx = magic.index(blockers);
+    BISHOP_ATTACKS[idx]
 }
 
-pub fn rook(sq: u8, occ: u64) -> u64 {
-    unsafe {
-        let lookup = &ROOK_MAGIC_LOOKUP[sq as usize];
-        let occ = occ & lookup.mask;
-        let occ = occ.wrapping_mul(lookup.magic);
-        let occ = occ.wrapping_shr(lookup.shift as u32);
-        lookup.attacks[occ as usize]
-    }
+pub fn rook(sq: u8, blockers: u64) -> u64 {
+    let magic = ROOK_MAGICS[sq as usize];
+    let idx = magic.index(blockers);
+    ROOK_ATTACKS[idx]
 }
 
 pub fn queen(sq: u8, occ: u64) -> u64 {

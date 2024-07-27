@@ -9,19 +9,19 @@ pub enum Piece {
     King = 5
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum Side {
     #[default]
-    WHITE,
-    BLACK
+    White,
+    Black
 }
 
 impl Side {
 
     pub fn flip(&self) -> Side {
         match self {
-            Side::WHITE => Side::BLACK,
-            Side::BLACK => Side::WHITE
+            Side::White => Side::Black,
+            Side::Black => Side::White
         }
     }
 

@@ -137,4 +137,27 @@ impl Move {
         }
     }
 
+    pub fn to_uci(self) -> String {
+        let from = Self::uci_sq(self.from());
+        let to = Self::uci_sq(self.to());
+        let promo = if self.is_promo() {
+            match self.promo_piece() {
+                Piece::Queen => "q",
+                Piece::Rook => "r",
+                Piece::Bishop => "b",
+                Piece::Knight => "n",
+                _ => panic!("Invalid promo piece")
+            }
+        } else {
+            ""
+        };
+        format!("{}{}{}", from, to, promo)
+    }
+
+    pub fn uci_sq(sq: u8) -> String {
+        let file = (sq % 8) + b'a';
+        let rank = (sq / 8) + b'1';
+        format!("{}{}", file as char, rank as char)
+    }
+
 }

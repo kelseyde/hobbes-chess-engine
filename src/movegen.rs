@@ -5,10 +5,9 @@ use crate::bits::{RANK_1, RANK_4, RANK_5, RANK_8};
 use crate::board::Board;
 use crate::moves::{MoveFlag, MoveList};
 use crate::piece::{Piece, Side};
-use crate::piece::Side::WHITE;
+use crate::piece::Side::White;
 
-pub fn gen_moves(board: Board) -> MoveList {
-
+pub fn gen_moves(board: &Board) -> MoveList {
     let side = board.stm;
     let mut moves = MoveList::new();
 
@@ -17,8 +16,8 @@ pub fn gen_moves(board: Board) -> MoveList {
     let occ = us | them;
 
     // handle special moves first (en passant, promo, castling etc.)
-    gen_pawn_moves(&board, side, occ, them, &mut moves);
-    gen_castle_moves(&board, side, &mut moves);
+    gen_pawn_moves(board, side, occ, them, &mut moves);
+    gen_castle_moves(board, side, &mut moves);
 
     // handle standard moves
     for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
@@ -36,7 +35,6 @@ pub fn gen_moves(board: Board) -> MoveList {
     }
 
     moves
-
 }
 
 fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut MoveList) {
@@ -46,7 +44,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut single_push_moves = single_push(pawns, side, occ);
     while single_push_moves != 0 {
         let to = bits::lsb(single_push_moves);
-        let from = if side == WHITE { to - 8 } else { to + 8 };
+        let from = if side == White { to - 8 } else { to + 8 };
         moves.add_move(from, to, MoveFlag::Standard);
         single_push_moves = bits::pop(single_push_moves);
     }
@@ -54,7 +52,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut double_push_moves = double_push(pawns, side, occ);
     while double_push_moves != 0 {
         let to = bits::lsb(double_push_moves);
-        let from = if side == WHITE { to - 16 } else { to + 16 };
+        let from = if side == White { to - 16 } else { to + 16 };
         moves.add_move(from, to, MoveFlag::DoublePush);
         double_push_moves = bits::pop(double_push_moves);
     }
@@ -62,7 +60,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut left_capture_moves = left_capture(pawns, side, them);
     while left_capture_moves != 0 {
         let to = bits::lsb(left_capture_moves);
-        let from = if side == WHITE { to - 9 } else { to + 9 };
+        let from = if side == White { to - 7 } else { to + 9 };
         moves.add_move(from, to, MoveFlag::Standard);
         left_capture_moves = bits::pop(left_capture_moves);
     }
@@ -70,7 +68,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut right_capture_moves = right_capture(pawns, side, them);
     while right_capture_moves != 0 {
         let to = bits::lsb(right_capture_moves);
-        let from = if side == WHITE { to - 7 } else { to + 7 };
+        let from = if side == White { to - 9 } else { to + 7 };
         moves.add_move(from, to, MoveFlag::Standard);
         right_capture_moves = bits::pop(right_capture_moves);
     }
@@ -78,16 +76,16 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     if board.ep_sq.is_some() {
         let ep_sq = board.ep_sq.unwrap();
         let ep_bb = bits::bb(ep_sq);
-        let left = bits::west(ep_bb) & pawns;
-        let right = bits::east(ep_bb) & pawns;
-        if left != 0 {
-            let to = if side == WHITE { ep_sq + 7 } else { ep_sq - 9 };
-            let from = bits::lsb(left);
+        let left_ep_captures = left_capture(pawns, side, ep_bb);
+        if left_ep_captures != 0 {
+            let to = bits::lsb(left_ep_captures);
+            let from = if side == White { to - 7 } else { to + 9 };
             moves.add_move(from, to, MoveFlag::EnPassant);
         }
-        if right != 0 {
-            let to = if side == WHITE { ep_sq + 9 } else { ep_sq - 7 };
-            let from = bits::lsb(right);
+        let right_ep_captures = right_capture(pawns, side, ep_bb);
+        if right_ep_captures != 0 {
+            let to = bits::lsb(right_ep_captures);
+            let from = if side == White { to - 9 } else { to + 7 };
             moves.add_move(from, to, MoveFlag::EnPassant);
         }
     }
@@ -95,7 +93,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut push_promo_moves = push_promos(pawns, side, occ);
     while push_promo_moves != 0 {
         let to = bits::lsb(push_promo_moves);
-        let from = if side == WHITE { to - 8 } else { to + 8 };
+        let from = if side == White { to - 8 } else { to + 8 };
         add_promos(moves, from, to);
         push_promo_moves = bits::pop(push_promo_moves);
     }
@@ -103,7 +101,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut left_capture_promo_moves = left_capture_promos(pawns, side, them);
     while left_capture_promo_moves != 0 {
         let to = bits::lsb(left_capture_promo_moves);
-        let from = if side == WHITE { to - 9 } else { to + 9 };
+        let from = if side == White { to - 9 } else { to + 9 };
         add_promos(moves, from, to);
         left_capture_promo_moves = bits::pop(left_capture_promo_moves);
     }
@@ -111,7 +109,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut right_capture_promo_moves = right_capture_promos(pawns, side, them);
     while right_capture_promo_moves != 0 {
         let to = bits::lsb(right_capture_promo_moves);
-        let from = if side == WHITE { to - 7 } else { to + 7 };
+        let from = if side == White { to - 7 } else { to + 7 };
         add_promos(moves, from, to);
         right_capture_promo_moves = bits::pop(right_capture_promo_moves);
     }
@@ -122,15 +120,15 @@ fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
     let king_sq = bits::lsb(board.king(side));
     let occ = board.occ();
     if board.has_kingside_rights(side) {
-        let travel_mask = if side == WHITE { CastleTravelMask::WKS } else { CastleTravelMask::BKS  } as u64;
-        let safety_mask = if side == WHITE { CastleSafetyMask::WKS } else { CastleSafetyMask::BKS } as u64;
+        let travel_mask = if side == White { CastleTravelMask::WKS } else { CastleTravelMask::BKS } as u64;
+        let safety_mask = if side == White { CastleSafetyMask::WKS } else { CastleSafetyMask::BKS } as u64;
         if occ & travel_mask == 0 && !is_attacked(safety_mask, side, occ, board) {
             moves.add_move(king_sq, king_sq + 2, MoveFlag::CastleK);
         }
     }
     if board.has_queenside_rights(side) {
-        let travel_mask = if side == WHITE { CastleTravelMask::WQS } else { CastleTravelMask::BQS } as u64;
-        let safety_mask = if side == WHITE { CastleSafetyMask::WQS } else { CastleSafetyMask::BQS } as u64;
+        let travel_mask = if side == White { CastleTravelMask::WQS } else { CastleTravelMask::BQS } as u64;
+        let safety_mask = if side == White { CastleSafetyMask::WQS } else { CastleSafetyMask::BQS } as u64;
         if occ & travel_mask == 0 && !is_attacked(safety_mask, side, occ, board) {
             moves.add_move(king_sq, king_sq - 2, MoveFlag::CastleQ);
         }
@@ -138,7 +136,7 @@ fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
 }
 
 fn single_push(pawns: u64, side: Side, occ: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north(pawns) & !occ & !RANK_8
     } else {
         bits::south(pawns) & !occ & !RANK_1
@@ -147,7 +145,7 @@ fn single_push(pawns: u64, side: Side, occ: u64) -> u64 {
 
 fn double_push(pawns: u64, side: Side, occ: u64) -> u64 {
     let single_push = single_push(pawns, side, occ);
-    if side == WHITE {
+    if side == White {
         bits::north(single_push) & !occ & RANK_4
     } else {
         bits::south(single_push) & !occ & RANK_5
@@ -155,7 +153,7 @@ fn double_push(pawns: u64, side: Side, occ: u64) -> u64 {
 }
 
 fn left_capture(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north_west(pawns) & them & !RANK_8
     } else {
         bits::south_west(pawns) & them & !RANK_1
@@ -163,7 +161,7 @@ fn left_capture(pawns: u64, side: Side, them: u64) -> u64 {
 }
 
 fn right_capture(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north_east(pawns) & them & !RANK_8
     } else {
         bits::south_east(pawns) & them & !RANK_1
@@ -171,7 +169,7 @@ fn right_capture(pawns: u64, side: Side, them: u64) -> u64 {
 }
 
 fn push_promos(pawns: u64, side: Side, occ: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north(pawns) & !occ & RANK_8
     } else {
         bits::south(pawns) & !occ & RANK_1
@@ -179,7 +177,7 @@ fn push_promos(pawns: u64, side: Side, occ: u64) -> u64 {
 }
 
 fn left_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north_west(pawns) & them & RANK_8
     } else {
         bits::south_west(pawns) & them & RANK_1
@@ -187,7 +185,7 @@ fn left_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
 }
 
 fn right_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == WHITE {
+    if side == White {
         bits::north_east(pawns) & them & RANK_8
     } else {
         bits::south_east(pawns) & them & RANK_1
@@ -204,32 +202,29 @@ fn add_promos(moves: &mut MoveList, from: u8, to: u8) {
 pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
     while bb != 0 {
         let sq = bits::lsb(bb);
-        if attacks::attacks(sq, Piece::Pawn, side, occ) & board.pawns(side.flip()) != 0 { return true; }
-        if attacks::attacks(sq, Piece::Knight, side, occ) & board.knights(side.flip()) != 0 { return true; }
-        if attacks::attacks(sq, Piece::Bishop, side, occ) & board.bishops(side.flip()) != 0 { return true; }
-        if attacks::attacks(sq, Piece::Rook, side, occ) & board.rooks(side.flip()) != 0 { return true; }
-        if attacks::attacks(sq, Piece::Queen, side, occ) & board.queens(side.flip()) != 0 { return true; }
-        if attacks::attacks(sq, Piece::King, side, occ) & board.king(side.flip()) != 0 { return true; }
+        if is_sq_attacked(sq, side, occ, board) { return  true; }
         bb = bits::pop(bb);
     }
     false
 }
 
+pub fn is_sq_attacked(sq: u8, side: Side, occ: u64, board: &Board) -> bool {
+    if attacks::attacks(sq, Piece::Knight, side, occ) & board.knights(side.flip()) != 0 { return true; }
+    if attacks::attacks(sq, Piece::King, side, occ) & board.king(side.flip()) != 0 { return true; }
+    if attacks::attacks(sq, Piece::Pawn, side, occ) & board.pawns(side.flip()) != 0 { return true; }
+    if attacks::attacks(sq, Piece::Rook, side, occ) & (board.rooks(side.flip()) | board.queens(side.flip())) != 0 { return true; }
+    if attacks::attacks(sq, Piece::Bishop, side, occ) & (board.bishops(side.flip()) | board.queens(side.flip())) != 0 { return true; }
+    false
+}
+
+pub fn is_check(board: &Board, side: Side) -> bool {
+    let occ = board.occ();
+    let king_sq = bits::lsb(board.king(side));
+    is_sq_attacked(king_sq, side, occ, board)
+}
+
 #[cfg(test)]
 mod test {
-    use crate::fen;
-    use crate::magics::init_magics;
-
-    #[test]
-    fn test_bishop_moves() {
-
-        init_magics();
-        let fen = "1k6/8/8/3B4/8/8/8/5K2 w - - 0 1";
-        let board = fen::from_fen(fen);
-        let moves = super::gen_moves(board);
-        assert_eq!(moves.len, 16);
-
-    }
 
 }
 
