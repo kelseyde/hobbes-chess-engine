@@ -1,7 +1,7 @@
 use bits::{CastleSafetyMask, CastleTravelMask};
 
 use crate::{attacks, bits};
-use crate::bits::{RANK_1, RANK_4, RANK_5, RANK_8};
+use crate::bits::{FILE_A, FILE_H, RANK_1, RANK_4, RANK_5, RANK_8};
 use crate::board::Board;
 use crate::moves::{MoveFlag, MoveList};
 use crate::piece::{Piece, Side};
@@ -101,7 +101,10 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut left_capture_promo_moves = left_capture_promos(pawns, side, them);
     while left_capture_promo_moves != 0 {
         let to = bits::lsb(left_capture_promo_moves);
-        let from = if side == White { to - 9 } else { to + 9 };
+        if to == 56 {
+            println!("hello")
+        }
+        let from = if side == White { to - 7 } else { to + 9 };
         add_promos(moves, from, to);
         left_capture_promo_moves = bits::pop(left_capture_promo_moves);
     }
@@ -109,7 +112,10 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut right_capture_promo_moves = right_capture_promos(pawns, side, them);
     while right_capture_promo_moves != 0 {
         let to = bits::lsb(right_capture_promo_moves);
-        let from = if side == White { to - 7 } else { to + 7 };
+        if to == 56 {
+            println!("hello")
+        }
+        let from = if side == White { to - 9 } else { to + 7 };
         add_promos(moves, from, to);
         right_capture_promo_moves = bits::pop(right_capture_promo_moves);
     }
@@ -154,17 +160,17 @@ fn double_push(pawns: u64, side: Side, occ: u64) -> u64 {
 
 fn left_capture(pawns: u64, side: Side, them: u64) -> u64 {
     if side == White {
-        bits::north_west(pawns) & them & !RANK_8
+        bits::north_west(pawns) & them & !FILE_H & !RANK_8
     } else {
-        bits::south_west(pawns) & them & !RANK_1
+        bits::south_west(pawns) & them & !FILE_H & !RANK_1
     }
 }
 
 fn right_capture(pawns: u64, side: Side, them: u64) -> u64 {
     if side == White {
-        bits::north_east(pawns) & them & !RANK_8
+        bits::north_east(pawns) & them & !FILE_A & !RANK_8
     } else {
-        bits::south_east(pawns) & them & !RANK_1
+        bits::south_east(pawns) & them & !FILE_A & !RANK_1
     }
 }
 
@@ -178,17 +184,17 @@ fn push_promos(pawns: u64, side: Side, occ: u64) -> u64 {
 
 fn left_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
     if side == White {
-        bits::north_west(pawns) & them & RANK_8
+        bits::north_west(pawns) & them & !FILE_H & RANK_8
     } else {
-        bits::south_west(pawns) & them & RANK_1
+        bits::south_west(pawns) & them & !FILE_H & RANK_1
     }
 }
 
 fn right_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
     if side == White {
-        bits::north_east(pawns) & them & RANK_8
+        bits::north_east(pawns) & them & !FILE_A & RANK_8
     } else {
-        bits::south_east(pawns) & them & RANK_1
+        bits::south_east(pawns) & them & !FILE_A & RANK_1
     }
 }
 

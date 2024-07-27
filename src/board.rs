@@ -37,7 +37,6 @@ impl Board {
 
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
-
         let piece = self.piece_at(from).unwrap();
         let new_piece = if m.is_promo() { m.promo_piece() } else { piece };
         let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to as usize] };
@@ -123,7 +122,7 @@ impl Board {
         if side == White {
             self.castle & Rights::WQS as u8 != 0
         } else {
-            self.castle & Rights::BKS as u8 != 0
+            self.castle & Rights::BQS as u8 != 0
         }
     }
 

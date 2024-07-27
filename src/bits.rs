@@ -56,35 +56,35 @@ pub fn south(bb: u64) -> u64 {
 }
 
 pub fn north_east(bb: u64) -> u64 {
-    (bb & !FILE_H) << 9
+    (bb << 9) & !FILE_A
 }
 
 pub fn north_west(bb: u64) -> u64 {
-    (bb & !FILE_A) << 7
+    (bb << 7) & !FILE_H
 }
 
 pub fn south_east(bb: u64) -> u64 {
-    (bb & !FILE_H) >> 7
+    (bb >> 7) & !FILE_A
 }
 
 pub fn south_west(bb: u64) -> u64 {
-    (bb & !FILE_A) >> 9
+    (bb >> 9) & !FILE_H
 }
 
-// pub fn print(bb: u64) {
-//     for rank in (0..8).rev() {  // Print ranks from 8 to 1
-//         for file in 0..8 {      // Print files from a to h
-//             let sq = rank * 8 + file;
-//             let bit = (bb >> sq) & 1;
-//             if bit == 1 {
-//                 print!("X ");
-//             } else {
-//                 print!("0 ");
-//             }
-//         }
-//         println!(); // Newline at the end of each rank
-//     }
-//     println!("-----------------");
-// }
+pub fn print(bb: u64) {
+    for rank in (0..8).rev() {  // Print ranks from 8 to 1
+        for file in 0..8 {      // Print files from a to h
+            let sq = rank * 8 + file;
+            let bit = (bb >> sq) & 1;
+            if bit == 1 {
+                print!("X ");
+            } else {
+                print!("0 ");
+            }
+        }
+        println!(); // Newline at the end of each rank
+    }
+    println!("-----------------");
+}
 
 

@@ -11,9 +11,9 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
             let mut new_board = *board;
             new_board.make(&mv);
             if !is_check(&new_board, board.stm) {
-                if debug {
-                    println!("{}", &mv.to_uci());
-                }
+                // if debug {
+                //     println!("{}", &mv.to_uci());
+                // }
                 nodes += 1;
             }
         }
@@ -52,34 +52,25 @@ mod test {
     use crate::board::Board;
     use crate::perft::perft;
 
-    #[test]
-    fn test_startpos() {
-        let board = Board::new();
-        // assert_eq!(perft(board, 1, 1, false), 20);
-        // assert_eq!(perft(board, 2, 2, false), 400);
-        // assert_eq!(perft(board, 3, 3, true), 8902);
-        // assert_eq!(perft(&board, 4, 4, false), 197281);
-        // assert_eq!(perft(&board, 5, 5, true), 4865609);
-        assert_eq!(perft(&board, 6, 6, false), 119060324);
-    }
+    pub const PERFT_SUITE: [(&str, &str, u8, u64); 3] = [
+        ("startpos", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 6, 119060324),
+        ("kiwipete", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690),
+        ("en_passant_funhouse", "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 6, 11030083)
+    ];
 
     #[test]
-    fn test_kiwipete() {
-        let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-        let board = Board::from_fen(fen);
-        // assert_eq!(perft(&board, 1, 1, false), 48);
-        // assert_eq!(perft(&board, 2, 2, false), 2039);
-        // assert_eq!(perft(&board, 3, 3, true), 97862);
-        assert_eq!(perft(&board, 4, 4, false), 4085603);
-        // assert_eq!(perft(board, 5, 5, false), 193690690);
-        // assert_eq!(perft(board, 6, 6, false), 8031647685);
+    fn test_perft_suite() {
+        for (name, fen, depth, nodes) in PERFT_SUITE.iter() {
+            let board = Board::from_fen(fen);
+            assert_eq!(perft(&board, *depth, *depth, false), *nodes);
+        }
     }
 
     #[test]
     fn test_debug() {
-        let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/4P3/1pN2Q1p/PPPBBPPP/2R1K2R w Kkq - 0 2";
+        let fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
         let board = Board::from_fen(fen);
-        assert_eq!(perft(&board, 1, 1, true), 47);
+        assert_eq!(perft(&board, 6, 6, false), 11030083);
     }
 
 }
