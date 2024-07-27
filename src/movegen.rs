@@ -101,9 +101,6 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut left_capture_promo_moves = left_capture_promos(pawns, side, them);
     while left_capture_promo_moves != 0 {
         let to = bits::lsb(left_capture_promo_moves);
-        if to == 56 {
-            println!("hello")
-        }
         let from = if side == White { to - 7 } else { to + 9 };
         add_promos(moves, from, to);
         left_capture_promo_moves = bits::pop(left_capture_promo_moves);
@@ -112,9 +109,6 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
     let mut right_capture_promo_moves = right_capture_promos(pawns, side, them);
     while right_capture_promo_moves != 0 {
         let to = bits::lsb(right_capture_promo_moves);
-        if to == 56 {
-            println!("hello")
-        }
         let from = if side == White { to - 9 } else { to + 7 };
         add_promos(moves, from, to);
         right_capture_promo_moves = bits::pop(right_capture_promo_moves);

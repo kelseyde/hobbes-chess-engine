@@ -11,17 +11,11 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
             let mut new_board = *board;
             new_board.make(&mv);
             if !is_check(&new_board, board.stm) {
-                // if debug {
-                //     println!("{}", &mv.to_uci());
-                // }
                 nodes += 1;
             }
         }
         return nodes;
     }
-    // if depth == 0 {
-    //     return 1;
-    // }
 
     let mut node_count: HashMap<String, u64> = HashMap::new();
 

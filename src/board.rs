@@ -6,14 +6,13 @@ use crate::piece::Side::{Black, White};
 #[derive(Clone, Copy)]
 pub struct Board {
     pub bb: [u64; 8],              // bitboards for each piece type (0-5) and for both colours (6-7)
-    pub pcs: [Option<Piece>; 64],  // piece type on each square (0-5)
+    pub pcs: [Option<Piece>; 64],  // piece type on each square
     pub stm: Side,                 // side to move (White or Black)
     pub hm: u8,                    // number of half moves since last capture or pawn move
     pub fm: u8,                    // number of full moves
     pub ep_sq: Option<u8>,         // en passant square (0-63)
     pub castle: u8,                // encoded castle rights
 }
-
 
 impl Board {
 
@@ -23,13 +22,7 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bb: [0; 8],
-            pcs: [None; 64],
-            stm: White,
-            hm: 0,
-            fm: 0,
-            ep_sq: None,
-            castle: 0,
+            bb: [0; 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0,
         }
     }
 

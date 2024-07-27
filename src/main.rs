@@ -13,6 +13,8 @@ mod fen;
 mod attacks;
 mod magics;
 mod perft;
+mod search;
+mod tt;
 
 fn main() {
 

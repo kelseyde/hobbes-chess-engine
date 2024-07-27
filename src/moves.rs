@@ -3,7 +3,7 @@ use arrayvec::ArrayVec;
 use crate::piece::Piece;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct Move(u16);
+pub struct Move(pub u16);
 
 pub const MAX_MOVES: usize = 256;
 
@@ -32,6 +32,7 @@ const FLAG_MASK: u16 = 0xF000;
 const PROMO_FLAGS: [MoveFlag; 4] = [MoveFlag::PromoQ, MoveFlag::PromoR, MoveFlag::PromoB, MoveFlag::PromoN];
 
 impl MoveList {
+
     pub fn new() -> Self {
         MoveList { list: ArrayVec::new(), len: 0 }
     }
