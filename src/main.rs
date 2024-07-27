@@ -15,6 +15,9 @@ mod magics;
 mod perft;
 mod search;
 mod tt;
+mod nnue;
+mod thread;
+mod uci;
 
 fn main() {
 
