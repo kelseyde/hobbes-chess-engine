@@ -68,11 +68,7 @@ impl TTEntry {
 impl Default for TTEntry {
     fn default() -> TTEntry {
         TTEntry {
-            key: 0,
-            best_move: 0,
-            score: 0,
-            depth: 0,
-            flag: 0,
+            key: 0, best_move: 0, score: 0, depth: 0, flag: 0,
         }
     }
 }

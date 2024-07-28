@@ -61,6 +61,6 @@ impl Network {
 fn crelu(x: i16) -> i32 {
     0.max(x).min(QA as i16) as i32
 }
-
-static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("path/to/nnue")) };
+//
+// static NNUE: Network =
+//     unsafe { std::mem::transmute(*include_bytes!("path/to/nnue")) };
