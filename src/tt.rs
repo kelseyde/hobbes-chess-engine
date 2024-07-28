@@ -14,7 +14,7 @@ pub struct TTEntry {
     flag: u8,           // 1 byte
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum TTFlag {
     Exact = 0,
     Lower = 1,
@@ -125,6 +125,33 @@ impl TT {
     fn idx(&self, hash: u64) -> usize {
         let key = (hash >> 48) as u16;
         (key as usize) & (self.table.len() - 1)
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::moves::MoveFlag;
+    use super::*;
+
+    #[test]
+    fn test_tt() {
+        let mut tt = TT::new(16);
+        let hash = 0x1234567890ABCDEF;
+        let best_move = Move::new(0, 1, MoveFlag::Standard);
+        let score = 100;
+        let depth = 5;
+        let flag = TTFlag::Exact;
+
+        tt.insert(hash, best_move, score, depth, flag);
+
+        assert!(tt.probe(0x987654321FEDCBA).is_none());
+
+        let entry = tt.probe(hash).unwrap();
+        assert_eq!(entry.best_move(), best_move);
+        assert_eq!(entry.score(), score as i16);
+        assert_eq!(entry.depth(), depth);
+        assert_eq!(entry.flag(), flag);
     }
 
 }

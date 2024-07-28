@@ -1,9 +1,11 @@
 
 pub const MAX_DEPTH: u8 = 255;
 
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Score {
     #[default]
     Draw = 0,
+    Min = -30000,
     Max = 30000,
     Mate = 30000 - MAX_DEPTH as isize,
 }

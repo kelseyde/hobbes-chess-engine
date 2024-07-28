@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::consts::Piece;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Move(pub u16);
 
 pub const MAX_MOVES: usize = 256;
@@ -43,8 +43,13 @@ impl MoveList {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Move> {
-        self.list.iter()
+        self.list.iter().take(self.len)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
 }
 
 impl Move {

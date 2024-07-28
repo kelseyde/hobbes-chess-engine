@@ -1,3 +1,5 @@
+use crate::uci::UCI;
+
 mod board;
 mod movegen;
 mod moves;
@@ -13,9 +15,10 @@ mod tt;
 mod network;
 mod thread;
 mod uci;
+mod eval;
 
 fn main() {
-    uci::run();
+    UCI::new().run();
 }
 
 

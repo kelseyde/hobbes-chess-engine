@@ -1,8 +1,8 @@
-use rand::random;
 use crate::{bits, moves::Move, moves::MoveFlag, consts::Piece, consts::Side};
 use crate::bits::Rights;
 use crate::fen;
 use crate::consts::Side::{Black, White};
+use crate::zobrist::Zobrist;
 
 #[derive(Clone, Copy)]
 pub struct Board {
@@ -28,10 +28,6 @@ impl Board {
         }
     }
 
-    pub fn eval() -> i32 {
-        random()
-    }
-
     pub fn make(&mut self, m: &Move) {
 
         let side = self.stm;
@@ -52,10 +48,11 @@ impl Board {
             self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
         }
 
-        self.ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(to)) } else { None };
+        self.ep_sq = self.calc_ep(flag, to);
+        self.castle = self.calc_castle_rights(from, to, piece);
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured_piece.is_some() || piece == Piece::Pawn { 0 } else { self.hm + 1 };
-        self.castle = self.calc_castle_rights(from, to, piece);
+        self.hash = Zobrist::toggle_stm(self.hash);
         self.stm = self.stm.flip();
 
     }
@@ -66,6 +63,7 @@ impl Board {
         self.bb[piece as usize] ^= bb;
         self.bb[side.idx()] ^= bb;
         self.pcs[sq as usize] = if self.pcs[sq as usize] == Some(piece) { None } else { Some(piece) };
+        self.hash = Zobrist::toggle_sq(self.hash, piece, side, sq);
     }
 
     #[inline]
@@ -91,7 +89,8 @@ impl Board {
     }
 
     #[inline]
-    fn calc_castle_rights(&self, from: u8, to: u8, piece_type: Piece) -> u8 {
+    fn calc_castle_rights(&mut self, from: u8, to: u8, piece_type: Piece) -> u8 {
+        self.hash = Zobrist::toggle_castle(self.hash, self.castle);
         let mut new_rights = self.castle;
         if new_rights == Rights::None as u8 {
             // Both sides already lost castling rights, so nothing to calculate.
@@ -106,7 +105,20 @@ impl Board {
         if from == 63 || to == 63  { new_rights &= !(Rights::BKS as u8); }
         if from == 0 || to == 0    { new_rights &= !(Rights::WQS as u8); }
         if from == 56 || to == 56  { new_rights &= !(Rights::BQS as u8); }
+        self.hash = Zobrist::toggle_castle(self.hash, new_rights);
         new_rights
+    }
+
+    #[inline]
+    fn calc_ep(&mut self, flag: MoveFlag, sq: u8) -> Option<u8>{
+        if self.ep_sq.is_some() {
+            self.hash = Zobrist::toggle_ep(self.hash, self.ep_sq.unwrap());
+        }
+        let ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(sq)) } else { None };
+        if ep_sq.is_some() {
+            self.hash = Zobrist::toggle_ep(self.hash, ep_sq.unwrap());
+        }
+        ep_sq
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {

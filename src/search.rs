@@ -1,7 +1,8 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::consts::MAX_DEPTH;
+use crate::consts::{MAX_DEPTH, Score};
+use crate::eval::eval;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
 use crate::thread::ThreadData;
@@ -13,16 +14,19 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_move = Move::NONE;
 
     let mut depth = 1;
-    let mut alpha = i16::MIN;
-    let mut beta = i16::MAX;
+    let mut alpha = -(Score::Max as i32);
+    let mut beta = Score::Max as i32;
     let mut best_move = Move::NONE;
     let mut score = 0;
 
-
-    while depth < MAX_DEPTH && !td.cancelled() {
+    while depth < MAX_DEPTH && !td.abort() {
         let eval = alpha_beta(board, td, depth, 0, alpha, beta);
         best_move = td.best_move;
         score = eval;
+
+        if td.main {
+            println!("info depth {} score cp {} pv {}", depth, score, best_move.to_uci());
+        }
 
         depth += 1;
     }
@@ -33,8 +37,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha: i32, mut beta: i32) -> i32 {
 
-    // If timeout is reached, exit immediately
-    if td.cancelled() { return alpha }
+    // If search is aborted, exit immediately
+    if td.abort() { return alpha }
 
     // If depth is reached, drop into quiescence search
     if depth == 0 { return qs(board, td, alpha, beta) }
@@ -42,29 +46,33 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
     let root = ply == 0;
     // let pv_node = alpha != beta - 1;
 
-    if !root {
-        let tt_entry = td.tt.probe(board.hash);
-        match tt_entry {
-            Some(entry) => {
-                if entry.depth() >= depth {
-                    if entry.flag() == TTFlag::Exact {
-                        return entry.score()
-                    } else if entry.flag() == TTFlag::Lower {
-                        alpha = alpha.max(entry.score())
-                    } else if entry.flag() == TTFlag::Upper {
-                        beta = beta.min(entry.score())
-                    }
-                    if alpha >= beta {
-                        return entry.score()
-                    }
-                }
-            }
-            None => {}
-        }
+    // if !root {
+    //     let tt_entry = td.tt.probe(board.hash);
+    //     match tt_entry {
+    //         Some(entry) => {
+    //             if entry.depth() >= depth {
+    //                 if entry.flag() == TTFlag::Exact {
+    //                     return entry.score() as i32
+    //                 } else if entry.flag() == TTFlag::Lower {
+    //                     alpha = alpha.max(entry.score() as i32)
+    //                 } else if entry.flag() == TTFlag::Upper {
+    //                     beta = beta.min(entry.score() as i32)
+    //                 }
+    //                 if alpha >= beta {
+    //                     return entry.score() as i32
+    //                 }
+    //             }
+    //         }
+    //         None => {}
+    //     }
+    // }
+
+    let mut moves = gen_moves(board, MoveFilter::All);
+    if moves.is_empty() {
+        return if is_check(board, board.stm) { -(Score::Mate as i32) } else { 0 }
     }
 
     let mut best_move: &Move = &Move::NONE;
-    let mut moves = gen_moves(board, MoveFilter::All);
     let mut flag = TTFlag::Upper;
 
     for mv in moves.iter() {
@@ -83,7 +91,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
         if score > alpha {
             alpha = score;
             best_move = mv;
-            td.best_move = *mv;
+            if root {
+                td.best_move = *mv;
+            }
             flag = TTFlag::Exact;
         }
     }
@@ -94,7 +104,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
 
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32) -> i32 {
 
-    let stand_pat = board.eval();
+    let stand_pat = eval(board);
     if stand_pat >= beta {
         return beta
     }

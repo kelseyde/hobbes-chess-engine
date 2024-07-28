@@ -1,6 +1,7 @@
 use crate::board::Board;
 use crate::consts::{Piece, Side};
 use crate::consts::Side::{Black, White};
+use crate::zobrist::Zobrist;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -9,7 +10,6 @@ impl Board {
     pub fn from_fen(fen: &str) -> Board {
         let mut board = Board::empty();
         let parts: Vec<&str> = fen.split_whitespace().collect();
-        if parts.len() != 6 { panic!("Invalid FEN string"); }
 
         let rows: Vec<&str> = parts[0].split('/').collect();
         if rows.len() != 8 { panic!("Invalid FEN string"); }
@@ -38,6 +38,7 @@ impl Board {
         board.ep_sq = parse_ep_sq(parts[3]);
         board.hm = parts[4].parse().expect("Invalid half-move clock in FEN string");
         board.fm = parts[5].parse().expect("Invalid full-move number in FEN string");
+        board.hash = Zobrist::new(&board);
         board
 
     }
