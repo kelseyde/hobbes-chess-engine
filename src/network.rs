@@ -1,4 +1,5 @@
-pub const HIDDEN_SIZE: usize = 32;
+
+pub const HIDDEN: usize = 32;
 pub const SCALE: i32 = 400;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
@@ -7,7 +8,7 @@ pub const QAB: i32 = QA * QB;
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct Accumulator {
-    vals: [i16; HIDDEN_SIZE],
+    vals: [i16; HIDDEN],
 }
 
 impl Accumulator {
@@ -34,7 +35,7 @@ impl Accumulator {
 pub struct Network {
     feature_weights: [Accumulator; 768],
     feature_bias: Accumulator,
-    output_weights: [i16; 2 * HIDDEN_SIZE],
+    output_weights: [i16; 2 * HIDDEN],
     output_bias: i16,
 }
 
@@ -43,11 +44,11 @@ impl Network {
     pub fn evaluate(&self, us: &Accumulator, them: &Accumulator) -> i32 {
         let mut output = i32::from(self.output_bias);
 
-        for (&input, &weight) in us.vals.iter().zip(&self.output_weights[..HIDDEN_SIZE]) {
+        for (&input, &weight) in us.vals.iter().zip(&self.output_weights[..HIDDEN]) {
             output += crelu(input) * i32::from(weight);
         }
 
-        for (&input, &weight) in them.vals.iter().zip(&self.output_weights[HIDDEN_SIZE..]) {
+        for (&input, &weight) in them.vals.iter().zip(&self.output_weights[HIDDEN..]) {
             output += crelu(input) * i32::from(weight);
         }
 

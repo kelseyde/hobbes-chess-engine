@@ -1,7 +1,7 @@
 mod board;
 mod movegen;
 mod moves;
-mod piece;
+mod consts;
 mod bits;
 mod zobrist;
 mod fen;
@@ -10,7 +10,7 @@ mod magics;
 mod perft;
 mod search;
 mod tt;
-mod nnue;
+mod network;
 mod thread;
 mod uci;
 

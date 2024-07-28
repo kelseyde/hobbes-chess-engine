@@ -2,6 +2,8 @@ use std::io;
 
 pub fn run() {
 
+    println!("Hobbes by Dan Kelsey (type help for a list of commands)");
+
     loop {
         let mut command = String::new();
         io::stdin()

@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::piece::Piece;
+use crate::consts::Piece;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Move(pub u16);
@@ -48,6 +48,8 @@ impl MoveList {
 }
 
 impl Move {
+
+    pub const NONE: Move = Move(0);
 
     pub fn new(from: u8, to: u8, flag: MoveFlag) -> Move {
         Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))

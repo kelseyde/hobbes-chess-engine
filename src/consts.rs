@@ -1,4 +1,14 @@
 
+pub const MAX_DEPTH: u8 = 255;
+
+pub enum Score {
+    #[default]
+    Draw = 0,
+    Max = 30000,
+    Mate = 30000 - MAX_DEPTH as isize,
+}
+
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Piece {
     Pawn = 0,

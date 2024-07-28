@@ -14,10 +14,11 @@ pub struct TTEntry {
     flag: u8,           // 1 byte
 }
 
+#[derive(Eq, PartialEq)]
 pub enum TTFlag {
     Exact = 0,
-    LowerBound = 1,
-    UpperBound = 2,
+    Lower = 1,
+    Upper = 2,
 }
 
 impl TTFlag {
@@ -25,8 +26,8 @@ impl TTFlag {
     pub fn from_u8(val: u8) -> TTFlag {
         match val {
             0 => TTFlag::Exact,
-            1 => TTFlag::LowerBound,
-            2 => TTFlag::UpperBound,
+            1 => TTFlag::Lower,
+            2 => TTFlag::Upper,
             _ => panic!("Invalid hash flag value"),
         }
     }
@@ -34,8 +35,8 @@ impl TTFlag {
     pub fn to_u8(&self) -> u8 {
         match self {
             TTFlag::Exact => 0,
-            TTFlag::LowerBound => 1,
-            TTFlag::UpperBound => 2,
+            TTFlag::Lower => 1,
+            TTFlag::Upper => 2,
         }
     }
 
@@ -111,12 +112,12 @@ impl TT {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: Option<Move>, score: i16, depth: u8, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: Move, score: i32, depth: u8, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
-        entry.best_move = match best_move { Some(mv) => mv.0, None => 0, };
-        entry.score = score;
+        entry.best_move = best_move.0;
+        entry.score = score as i16;
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }

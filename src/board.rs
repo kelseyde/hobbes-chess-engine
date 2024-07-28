@@ -1,7 +1,8 @@
-use crate::{bits, moves::Move, moves::MoveFlag, piece::Piece, piece::Side};
+use rand::random;
+use crate::{bits, moves::Move, moves::MoveFlag, consts::Piece, consts::Side};
 use crate::bits::Rights;
 use crate::fen;
-use crate::piece::Side::{Black, White};
+use crate::consts::Side::{Black, White};
 
 #[derive(Clone, Copy)]
 pub struct Board {
@@ -12,6 +13,7 @@ pub struct Board {
     pub fm: u8,                    // number of full moves
     pub ep_sq: Option<u8>,         // en passant square (0-63)
     pub castle: u8,                // encoded castle rights
+    pub hash: u64,                 // Zobrist hash
 }
 
 impl Board {
@@ -22,8 +24,12 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bb: [0; 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0,
+            bb: [0; 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0
         }
+    }
+
+    pub fn eval() -> i32 {
+        random()
     }
 
     pub fn make(&mut self, m: &Move) {

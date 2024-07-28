@@ -4,10 +4,16 @@ use crate::{attacks, bits};
 use crate::bits::{FILE_A, FILE_H, RANK_1, RANK_4, RANK_5, RANK_8};
 use crate::board::Board;
 use crate::moves::{MoveFlag, MoveList};
-use crate::piece::{Piece, Side};
-use crate::piece::Side::White;
+use crate::consts::{Piece, Side};
+use crate::consts::Side::White;
 
-pub fn gen_moves(board: &Board) -> MoveList {
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum MoveFilter {
+    All,
+    Captures
+}
+
+pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
     let side = board.stm;
     let mut moves = MoveList::new();
 
@@ -16,15 +22,22 @@ pub fn gen_moves(board: &Board) -> MoveList {
     let occ = us | them;
 
     // handle special moves first (en passant, promo, castling etc.)
-    gen_pawn_moves(board, side, occ, them, &mut moves);
-    gen_castle_moves(board, side, &mut moves);
+    gen_pawn_moves(board, side, occ, them, filter, &mut moves);
+    if filter != MoveFilter::Captures {
+        gen_castle_moves(board, side, &mut moves);
+    }
+
+    let filter_mask = match filter {
+        MoveFilter::All => bits::ALL_SQUARES,
+        MoveFilter::Captures => them
+    };
 
     // handle standard moves
     for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
         let mut pcs = board.pcs(pc) & us;
         while pcs != 0 {
             let from = bits::lsb(pcs);
-            let mut attacks = attacks::attacks(from, pc, side, occ) & !us;
+            let mut attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
             while attacks != 0 {
                 let to = bits::lsb(attacks);
                 moves.add_move(from, to, MoveFlag::Standard);
@@ -37,24 +50,26 @@ pub fn gen_moves(board: &Board) -> MoveList {
     moves
 }
 
-fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut MoveList) {
+fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, filter: MoveFilter, moves: &mut MoveList) {
 
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
-    let mut single_push_moves = single_push(pawns, side, occ);
-    while single_push_moves != 0 {
-        let to = bits::lsb(single_push_moves);
-        let from = if side == White { to - 8 } else { to + 8 };
-        moves.add_move(from, to, MoveFlag::Standard);
-        single_push_moves = bits::pop(single_push_moves);
-    }
+    if filter != MoveFilter::Captures {
+        let mut single_push_moves = single_push(pawns, side, occ);
+        while single_push_moves != 0 {
+            let to = bits::lsb(single_push_moves);
+            let from = if side == White { to - 8 } else { to + 8 };
+            moves.add_move(from, to, MoveFlag::Standard);
+            single_push_moves = bits::pop(single_push_moves);
+        }
 
-    let mut double_push_moves = double_push(pawns, side, occ);
-    while double_push_moves != 0 {
-        let to = bits::lsb(double_push_moves);
-        let from = if side == White { to - 16 } else { to + 16 };
-        moves.add_move(from, to, MoveFlag::DoublePush);
-        double_push_moves = bits::pop(double_push_moves);
+        let mut double_push_moves = double_push(pawns, side, occ);
+        while double_push_moves != 0 {
+            let to = bits::lsb(double_push_moves);
+            let from = if side == White { to - 16 } else { to + 16 };
+            moves.add_move(from, to, MoveFlag::DoublePush);
+            double_push_moves = bits::pop(double_push_moves);
+        }
     }
 
     let mut left_capture_moves = left_capture(pawns, side, them);
@@ -90,12 +105,14 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, moves: &mut Mo
         }
     }
 
-    let mut push_promo_moves = push_promos(pawns, side, occ);
-    while push_promo_moves != 0 {
-        let to = bits::lsb(push_promo_moves);
-        let from = if side == White { to - 8 } else { to + 8 };
-        add_promos(moves, from, to);
-        push_promo_moves = bits::pop(push_promo_moves);
+    if filter != MoveFilter::Captures {
+        let mut push_promo_moves = push_promos(pawns, side, occ);
+        while push_promo_moves != 0 {
+            let to = bits::lsb(push_promo_moves);
+            let from = if side == White { to - 8 } else { to + 8 };
+            add_promos(moves, from, to);
+            push_promo_moves = bits::pop(push_promo_moves);
+        }
     }
 
     let mut left_capture_promo_moves = left_capture_promos(pawns, side, them);
@@ -209,11 +226,11 @@ pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
 }
 
 pub fn is_sq_attacked(sq: u8, side: Side, occ: u64, board: &Board) -> bool {
-    if attacks::attacks(sq, Piece::Knight, side, occ) & board.knights(side.flip()) != 0 { return true; }
-    if attacks::attacks(sq, Piece::King, side, occ) & board.king(side.flip()) != 0 { return true; }
-    if attacks::attacks(sq, Piece::Pawn, side, occ) & board.pawns(side.flip()) != 0 { return true; }
-    if attacks::attacks(sq, Piece::Rook, side, occ) & (board.rooks(side.flip()) | board.queens(side.flip())) != 0 { return true; }
-    if attacks::attacks(sq, Piece::Bishop, side, occ) & (board.bishops(side.flip()) | board.queens(side.flip())) != 0 { return true; }
+    if attacks::knight(sq)      & board.knights(side.flip()) != 0 { return true; }
+    if attacks::king(sq)        & board.king(side.flip()) != 0 { return true; }
+    if attacks::pawn(sq, side)  & board.pawns(side.flip()) != 0 { return true; }
+    if attacks::rook(sq, occ)   & (board.rooks(side.flip()) | board.queens(side.flip())) != 0 { return true; }
+    if attacks::bishop(sq, occ) & (board.bishops(side.flip()) | board.queens(side.flip())) != 0 { return true; }
     false
 }
 
