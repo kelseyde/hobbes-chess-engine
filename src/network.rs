@@ -1,60 +1,106 @@
+use crate::bits;
+use crate::board::Board;
+use crate::consts::{Piece, PIECES, Side};
 
-pub const HIDDEN: usize = 32;
+pub const FEATURES: usize = 768;
+pub const HIDDEN: usize = 256;
 pub const SCALE: i32 = 400;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
 pub const QAB: i32 = QA * QB;
 
-#[derive(Clone, Copy)]
+pub const PIECE_OFFSET: usize = 64;
+pub const SIDE_OFFSET: usize = 64 * 6;
+
 #[repr(C, align(64))]
-pub struct Accumulator {
-    vals: [i16; HIDDEN],
-}
-
-impl Accumulator {
-
-    pub fn new(net: &Network) -> Self {
-        net.feature_bias
-    }
-
-    pub fn add_feature(&mut self, feature_idx: usize, net: &Network) {
-        for (i, d) in self.vals.iter_mut().zip(&net.feature_weights[feature_idx].vals) {
-            *i += *d
-        }
-    }
-
-    pub fn remove_feature(&mut self, feature_idx: usize, net: &Network) {
-        for (i, d) in self.vals.iter_mut().zip(&net.feature_weights[feature_idx].vals) {
-            *i -= *d
-        }
-    }
-
-}
-
-#[repr(C)]
 pub struct Network {
-    feature_weights: [Accumulator; 768],
-    feature_bias: Accumulator,
+    feature_weights: [i16; FEATURES * HIDDEN],
+    feature_bias: [i16; HIDDEN],
     output_weights: [i16; 2 * HIDDEN],
     output_bias: i16,
 }
 
-impl Network {
+#[derive(Clone, Copy)]
+#[repr(C, align(64))]
+pub struct Accumulator {
+    pub white_features: [i16; HIDDEN],
+    pub black_features: [i16; HIDDEN],
+}
 
-    pub fn evaluate(&self, us: &Accumulator, them: &Accumulator) -> i32 {
-        let mut output = i32::from(self.output_bias);
+impl Accumulator {
 
-        for (&input, &weight) in us.vals.iter().zip(&self.output_weights[..HIDDEN]) {
+    pub fn new() -> Self {
+        Accumulator {
+            white_features: NETWORK.feature_bias,
+            black_features: NETWORK.feature_bias,
+        }
+    }
+
+    pub fn add(&mut self, wx1: usize, bx1: usize) {
+        for i in 0..self.white_features.len() {
+            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN];
+        }
+        for i in 0..self.black_features.len() {
+            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN];
+        }
+    }
+
+}
+
+pub struct Evaluator {
+    pub acc: Accumulator
+}
+
+impl Evaluator {
+
+    pub fn new() -> Self {
+        Evaluator {
+            acc: Accumulator::new()
+        }
+    }
+
+    pub fn evaluate(&self, board: Board) -> i32 {
+        let us = match board.stm { Side::White => &self.acc.white_features, Side::Black => &self.acc.black_features };
+        let them = match board.stm { Side::White => &self.acc.black_features, Side::Black => &self.acc.white_features };
+        let mut output = i32::from(NETWORK.output_bias);
+
+        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
             output += crelu(input) * i32::from(weight);
         }
 
-        for (&input, &weight) in them.vals.iter().zip(&self.output_weights[HIDDEN..]) {
+        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
             output += crelu(input) * i32::from(weight);
         }
+        println!("output: {}", output);
 
         output *= SCALE;
+        println!("output: {}", output);
         output /= QAB;
+        println!("output: {}", output);
         output
+    }
+
+    pub fn activate_all(&mut self, board: Board) {
+        self.acc = Accumulator::new();
+        for &pc in PIECES.iter() {
+            let mut pcs = board.pcs(pc);
+            while pcs != 0 {
+                let sq = bits::lsb(pcs);
+                let side = board.side_at(sq).unwrap();
+                let white_idx = self.feature_index(sq, pc, side, Side::White);
+                let black_idx = self.feature_index(sq, pc, side, Side::Black);
+                self.acc.add(white_idx, black_idx);
+                pcs = bits::pop(pcs);
+            }
+        }
+    }
+
+    fn feature_index(&self, sq: u8, pc: Piece, side: Side, perspective: Side) -> usize {
+        let sq = if perspective == Side::White { sq } else { sq ^ 56 };
+        let pc = pc as usize;
+        let pc_offset = pc * PIECE_OFFSET;
+        let side_offset = if side == perspective { 0 } else { SIDE_OFFSET };
+        side_offset + pc_offset + sq as usize
     }
 
 }
@@ -62,6 +108,24 @@ impl Network {
 fn crelu(x: i16) -> i32 {
     0.max(x).min(QA as i16) as i32
 }
-//
-// static NNUE: Network =
-//     unsafe { std::mem::transmute(*include_bytes!("path/to/nnue")) };
+
+static NETWORK: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/woodpusher.nnue")) };
+
+#[cfg(test)]
+mod tests {
+
+    use crate::board::Board;
+    use crate::fen;
+    use super::Evaluator;
+
+    #[test]
+    fn test_startpos() {
+        let board = Board::from_fen(fen::STARTPOS);
+        let mut eval = Evaluator::new();
+        eval.activate_all(board);
+        let score = eval.evaluate(board);
+        assert_eq!(score, 0);
+    }
+
+}
