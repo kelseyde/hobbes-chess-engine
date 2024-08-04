@@ -1,8 +1,8 @@
 use std::io;
 use std::time::Duration;
-
+use consts::Side::{Black, White};
 use crate::board::Board;
-use crate::fen;
+use crate::{consts, fen};
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::perft::perft;
@@ -125,11 +125,52 @@ impl UCI {
         // Check if "movetime" is in the command arguments
         if tokens.contains(&String::from("movetime")) {
             // Attempt to parse the "movetime" argument
-            match tokens[tokens.iter().position(|x| x == "movetime").unwrap() + 1].parse::<u64>() {
+            match self.parse_int(&tokens, "movetime") {
                 Ok(movetime) => self.td.time_limit = Duration::from_millis(movetime),
-                Err(_) => println!("info error: movetime is not a valid number")
+                Err(_) => {
+                    println!("info error: movetime is not a valid number");
+                    return;
+                }
             }
-        } else {
+        }
+        else if tokens.contains(&String::from("wtime"))  {
+
+            let wtime = match self.parse_int(&tokens, "wtime") {
+                Ok(wtime) => wtime,
+                Err(_) => {
+                    println!("info error: wtime is not a valid number");
+                    return;
+                }
+            };
+
+            let btime = match self.parse_int(&tokens, "btime") {
+                Ok(btime) => btime,
+                Err(_) => {
+                    println!("info error: btime is not a valid number");
+                    return;
+                }
+            };
+
+            let winc = match self.parse_int(&tokens, "winc") {
+                Ok(winc) => winc,
+                Err(_) => {
+                    println!("info error: winc is not a valid number");
+                    return;
+                }
+            };
+
+            let binc = match self.parse_int(&tokens, "binc") {
+                Ok(binc) => binc,
+                Err(_) => {
+                    println!("info error: binc is not a valid number");
+                    return;
+                }
+            };
+
+            self.td.time_limit = Duration::from_millis(self.calc_movetime(wtime, btime, winc, binc));
+
+        }
+        else {
             // Default time limit if "movetime" is not specified
             self.td.time_limit = Duration::from_millis(1000);
         }
@@ -203,7 +244,36 @@ impl UCI {
         std::process::exit(0);
     }
 
+    fn parse_int(&self, tokens: &Vec<String>, name: &str) -> Result<u64, String> {
+        match tokens.iter().position(|x| x == name) {
+            Some(index) => {
+                match tokens.get(index + 1) {
+                    Some(value) => {
+                        match value.parse::<u64>() {
+                            Ok(num) => Ok(num),
+                            Err(_) => Err(format!("info error: {} is not a valid number", name))
+                        }
+                    },
+                    None => Err(format!("info error: {} is missing a value", name))
+                }
+            },
+            None => Err(format!("info error: {} is missing", name))
+        }
+    }
+
+    fn calc_movetime(&self, wtime: u64, btime: u64, winc: u64, binc: u64) -> u64 {
+        let time = match self.board.stm { White => wtime, Black => btime };
+        let inc = match self.board.stm { White => winc, Black => binc };
+        let overhead = 50;
+        let movetime = time - overhead;
+        let optimal_think_time = f64::min(movetime as f64 * 0.5, movetime as f64 * 0.03333 + inc as f64);
+        let min_think_time = f64::min(50.0, time as f64 * 0.25);
+        let think_time = f64::max(optimal_think_time, min_think_time);
+        think_time as u64
+    }
+
 }
+
 
 
 

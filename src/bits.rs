@@ -38,38 +38,47 @@ pub enum CastleTravelMask {
     BQS = 0x0E00000000000000,
 }
 
+#[inline(always)]
 pub const fn pop(b: u64) -> u64 {
     b & (b - 1)
 }
 
+#[inline(always)]
 pub const fn lsb(b: u64) -> u8 {
     b.trailing_zeros() as u8
 }
 
+#[inline(always)]
 pub const fn bb(sq: u8) -> u64 {
     1 << sq
 }
 
+#[inline(always)]
 pub const fn north(bb: u64) -> u64 {
     bb << 8
 }
 
+#[inline(always)]
 pub const fn south(bb: u64) -> u64 {
     bb >> 8
 }
 
+#[inline(always)]
 pub const fn north_east(bb: u64) -> u64 {
     (bb << 9) & !FILE_A
 }
 
+#[inline(always)]
 pub const fn north_west(bb: u64) -> u64 {
     (bb << 7) & !FILE_H
 }
 
+#[inline(always)]
 pub const fn south_east(bb: u64) -> u64 {
     (bb >> 7) & !FILE_A
 }
 
+#[inline(always)]
 pub const fn south_west(bb: u64) -> u64 {
     (bb >> 9) & !FILE_H
 }

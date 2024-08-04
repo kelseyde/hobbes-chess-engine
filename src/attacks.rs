@@ -3,6 +3,7 @@ use crate::consts::{Piece, Side};
 use crate::consts::Side::White;
 use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 
+#[inline(always)]
 pub fn attacks(sq: u8, piece: Piece, side: Side, occ: u64) -> u64 {
     match piece {
         Piece::Pawn => pawn(sq, side),
@@ -14,6 +15,7 @@ pub fn attacks(sq: u8, piece: Piece, side: Side, occ: u64) -> u64 {
     }
 }
 
+#[inline(always)]
 pub fn pawn(sq: u8, side: Side) -> u64 {
     let bb = bits::bb(sq);
     if side == White {
@@ -23,26 +25,31 @@ pub fn pawn(sq: u8, side: Side) -> u64 {
     }
 }
 
+#[inline(always)]
 pub fn knight(sq: u8) -> u64 {
     KNIGHT[sq as usize]
 }
 
+#[inline(always)]
 pub fn bishop(sq: u8, blockers: u64) -> u64 {
     let magic = BISHOP_MAGICS[sq as usize];
     let idx = magic.index(blockers);
     BISHOP_ATTACKS[idx]
 }
 
+#[inline(always)]
 pub fn rook(sq: u8, blockers: u64) -> u64 {
     let magic = ROOK_MAGICS[sq as usize];
     let idx = magic.index(blockers);
     ROOK_ATTACKS[idx]
 }
 
+#[inline(always)]
 pub fn queen(sq: u8, occ: u64) -> u64 {
     rook(sq, occ) | bishop(sq, occ)
 }
 
+#[inline(always)]
 pub fn king(sq: u8) -> u64 {
     KING[sq as usize]
 }

@@ -50,6 +50,7 @@ pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
     moves
 }
 
+#[inline(always)]
 fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, filter: MoveFilter, moves: &mut MoveList) {
 
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
@@ -133,6 +134,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: u64, them: u64, filter: MoveFi
 
 }
 
+#[inline(always)]
 fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
     let king_sq = bits::lsb(board.king(side));
     let occ = board.occ();
@@ -152,63 +154,64 @@ fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
     }
 }
 
-fn single_push(pawns: u64, side: Side, occ: u64) -> u64 {
-    if side == White {
-        bits::north(pawns) & !occ & !RANK_8
-    } else {
-        bits::south(pawns) & !occ & !RANK_1
+#[inline(always)]
+const fn single_push(pawns: u64, side: Side, occ: u64) -> u64 {
+    match side {
+        White => bits::north(pawns) & !occ & !RANK_8,
+        _ => bits::south(pawns) & !occ & !RANK_1
     }
 }
 
-fn double_push(pawns: u64, side: Side, occ: u64) -> u64 {
+#[inline(always)]
+const fn double_push(pawns: u64, side: Side, occ: u64) -> u64 {
     let single_push = single_push(pawns, side, occ);
-    if side == White {
-        bits::north(single_push) & !occ & RANK_4
-    } else {
-        bits::south(single_push) & !occ & RANK_5
+    match side {
+        White => bits::north(single_push) & !occ & RANK_4,
+        _ => bits::south(single_push) & !occ & RANK_5
     }
 }
 
-fn left_capture(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == White {
-        bits::north_west(pawns) & them & !FILE_H & !RANK_8
-    } else {
-        bits::south_west(pawns) & them & !FILE_H & !RANK_1
+#[inline(always)]
+const fn left_capture(pawns: u64, side: Side, them: u64) -> u64 {
+    match side {
+        White => bits::north_west(pawns) & them & !FILE_H & !RANK_8,
+        _ => bits::south_west(pawns) & them & !FILE_H & !RANK_1
     }
 }
 
-fn right_capture(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == White {
-        bits::north_east(pawns) & them & !FILE_A & !RANK_8
-    } else {
-        bits::south_east(pawns) & them & !FILE_A & !RANK_1
+#[inline(always)]
+const fn right_capture(pawns: u64, side: Side, them: u64) -> u64 {
+    match side {
+        White => bits::north_east(pawns) & them & !FILE_A & !RANK_8,
+        _ => bits::south_east(pawns) & them & !FILE_A & !RANK_1
     }
 }
 
-fn push_promos(pawns: u64, side: Side, occ: u64) -> u64 {
-    if side == White {
-        bits::north(pawns) & !occ & RANK_8
-    } else {
-        bits::south(pawns) & !occ & RANK_1
+#[inline(always)]
+const fn push_promos(pawns: u64, side: Side, occ: u64) -> u64 {
+    match side {
+        White => bits::north(pawns) & !occ & RANK_8,
+        _ => bits::south(pawns) & !occ & RANK_1
     }
 }
 
-fn left_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == White {
-        bits::north_west(pawns) & them & !FILE_H & RANK_8
-    } else {
-        bits::south_west(pawns) & them & !FILE_H & RANK_1
+#[inline(always)]
+const fn left_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
+    match side {
+        White => bits::north_west(pawns) & them & !FILE_H & RANK_8,
+        _ => bits::south_west(pawns) & them & !FILE_H & RANK_1
     }
 }
 
-fn right_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
-    if side == White {
-        bits::north_east(pawns) & them & !FILE_A & RANK_8
-    } else {
-        bits::south_east(pawns) & them & !FILE_A & RANK_1
+#[inline(always)]
+const fn right_capture_promos(pawns: u64, side: Side, them: u64) -> u64 {
+    match side {
+        White => bits::north_east(pawns) & them & !FILE_A & RANK_8,
+        _ => bits::south_east(pawns) & them & !FILE_A & RANK_1
     }
 }
 
+#[inline(always)]
 fn add_promos(moves: &mut MoveList, from: u8, to: u8) {
     moves.add_move(from, to, MoveFlag::PromoQ);
     moves.add_move(from, to, MoveFlag::PromoR);
@@ -216,6 +219,7 @@ fn add_promos(moves: &mut MoveList, from: u8, to: u8) {
     moves.add_move(from, to, MoveFlag::PromoN);
 }
 
+#[inline(always)]
 pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
     while bb != 0 {
         let sq = bits::lsb(bb);
@@ -225,6 +229,7 @@ pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
     false
 }
 
+#[inline(always)]
 pub fn is_sq_attacked(sq: u8, side: Side, occ: u64, board: &Board) -> bool {
     // if sq > 63 {
     //     println!("fen: {}, sq: {}", board.to_fen(), sq);
@@ -238,6 +243,7 @@ pub fn is_sq_attacked(sq: u8, side: Side, occ: u64, board: &Board) -> bool {
     false
 }
 
+#[inline(always)]
 pub fn is_check(board: &Board, side: Side) -> bool {
     let occ = board.occ();
     let king_sq = bits::lsb(board.king(side));
