@@ -1,7 +1,7 @@
 use crate::bits;
-use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 use crate::consts::{Piece, Side};
 use crate::consts::Side::White;
+use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 
 pub fn attacks(sq: u8, piece: Piece, side: Side, occ: u64) -> u64 {
     match piece {

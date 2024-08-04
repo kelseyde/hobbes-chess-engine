@@ -1,24 +1,29 @@
-use crate::uci::UCI;
+use crate::board::Board;
+use crate::perft::perft;
 
+mod attacks;
+mod bench;
+mod bits;
 mod board;
+mod consts;
+mod datagen;
+mod eval;
+mod fen;
+mod magics;
 mod movegen;
 mod moves;
-mod consts;
-mod bits;
-mod zobrist;
-mod fen;
-mod attacks;
-mod magics;
+mod network;
 mod perft;
 mod search;
-mod tt;
-mod network;
 mod thread;
+mod time;
+mod tt;
 mod uci;
-mod eval;
+mod zobrist;
+
 
 fn main() {
-    UCI::new().run();
+    uci::UCI::new().run();
 }
 
 

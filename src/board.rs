@@ -1,7 +1,7 @@
-use crate::{bits, moves::Move, moves::MoveFlag, consts::Piece, consts::Side};
+use crate::{bits, consts::Piece, consts::Side, moves::Move, moves::MoveFlag};
 use crate::bits::Rights;
-use crate::fen;
 use crate::consts::Side::{Black, White};
+use crate::fen;
 use crate::zobrist::Zobrist;
 
 #[derive(Clone, Copy)]

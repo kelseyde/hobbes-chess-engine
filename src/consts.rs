@@ -37,7 +37,7 @@ impl Side {
         }
     }
 
-    pub fn idx(&self) -> usize {
+    pub const fn idx(&self) -> usize {
         *self as usize + 6
     }
 

@@ -1,14 +1,13 @@
 ### Hobbes To-Do
 
-[//]: # (#### Hobbes 1.0.0)
-[//]: # ()
-[//]: # (- [X] Board representation)
+#### Hobbes MVP
+- [X] Board representation
 - [X] Move generation
-- [ ] Basic alpha-beta search
-- [ ] Quiescence search
-- [ ] Zobrist hashing
-- [ ] Transposition table
-- [ ] Iterative deepening
+- [X] Basic alpha-beta search
+- [X] Quiescence search
+- [X] Zobrist hashing
+- [X] Transposition table
+- [X] Iterative deepening
 - [ ] Data generation
 - [ ] Train basic NNUE net
 - [ ] PVS
@@ -25,6 +24,6 @@
 
 - [ ] Opening book
 - [ ] Endgame tablebases
-- [ ] Multi-threading
+- [ ] Lazy SMP
 - [ ] Razoring
 - [ ] History heuristic

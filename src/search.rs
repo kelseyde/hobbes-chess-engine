@@ -14,8 +14,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_move = Move::NONE;
 
     let mut depth = 1;
-    let mut alpha = -(Score::Max as i32);
-    let mut beta = Score::Max as i32;
+    let alpha = Score::Min as i32;
+    let beta = Score::Max as i32;
     let mut best_move = Move::NONE;
     let mut score = 0;
 
@@ -46,77 +46,87 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
     let root = ply == 0;
     // let pv_node = alpha != beta - 1;
 
-    // if !root {
-    //     let tt_entry = td.tt.probe(board.hash);
-    //     match tt_entry {
-    //         Some(entry) => {
-    //             if entry.depth() >= depth {
-    //                 if entry.flag() == TTFlag::Exact {
-    //                     return entry.score() as i32
-    //                 } else if entry.flag() == TTFlag::Lower {
-    //                     alpha = alpha.max(entry.score() as i32)
-    //                 } else if entry.flag() == TTFlag::Upper {
-    //                     beta = beta.min(entry.score() as i32)
-    //                 }
-    //                 if alpha >= beta {
-    //                     return entry.score() as i32
-    //                 }
-    //             }
-    //         }
-    //         None => {}
-    //     }
-    // }
-
-    let mut moves = gen_moves(board, MoveFilter::All);
-    if moves.is_empty() {
-        return if is_check(board, board.stm) { -(Score::Mate as i32) } else { 0 }
+    if !root {
+        let tt_entry = td.tt.probe(board.hash);
+        match tt_entry {
+            Some(entry) => {
+                if entry.depth() >= depth {
+                    if entry.flag() == TTFlag::Exact {
+                        return entry.score() as i32
+                    } else if entry.flag() == TTFlag::Lower {
+                        alpha = alpha.max(entry.score() as i32)
+                    } else if entry.flag() == TTFlag::Upper {
+                        beta = beta.min(entry.score() as i32)
+                    }
+                    if alpha >= beta {
+                        return entry.score() as i32
+                    }
+                }
+            }
+            None => {}
+        }
     }
 
+    let mut moves = gen_moves(board, MoveFilter::All);
+
+    let mut legals = 0;
     let mut best_move: &Move = &Move::NONE;
     let mut flag = TTFlag::Upper;
 
     for mv in moves.iter() {
         let mut board = *board;
-        board.make(mv);
-        if is_check(&board, board.stm) {
+        board.make(&mv);
+        if is_check(&board, board.stm.flip()) {
             continue
         }
+        legals += 1;
         let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
 
         if score >= beta {
-            td.tt.insert(board.hash, *mv, score, depth, TTFlag::Lower);
+            td.tt.insert(board.hash, mv, score, depth, TTFlag::Lower);
             return score;
         }
 
         if score > alpha {
             alpha = score;
-            best_move = mv;
+            best_move = &mv;
             if root {
-                td.best_move = *mv;
+                td.best_move = mv.clone();
             }
             flag = TTFlag::Exact;
         }
     }
 
-    td.tt.insert(board.hash, *best_move, alpha, depth, flag);
+    // handle checkmate / stalemate
+    if legals == 0 {
+        return if is_check(board, board.stm) { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
+    }
+
+    td.tt.insert(board.hash, best_move, alpha, depth, flag);
     alpha
 }
 
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32) -> i32 {
 
-    let stand_pat = eval(board);
-    if stand_pat >= beta {
-        return beta
-    }
-    if stand_pat > alpha {
-        alpha = stand_pat
+    let mut moves;
+
+    if is_check(board, board.stm) {
+        moves = gen_moves(board, MoveFilter::All);
+    } else {
+        let stand_pat = eval(board);
+        if stand_pat >= beta {
+            return beta
+        }
+        if stand_pat > alpha {
+            alpha = stand_pat
+        }
+        moves = gen_moves(board, MoveFilter::Captures);
     }
 
-    let mut moves = gen_moves(board, MoveFilter::Captures);
     for mv in moves.iter() {
         let mut board = *board;
-        board.make(mv);
-        if is_check(&board, board.stm) {
+        board.make(&mv);
+        if is_check(&board, board.stm.flip()) {
             continue
         }
         let score = -qs(&board, td, -beta, -alpha);

@@ -112,7 +112,7 @@ impl TT {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: Move, score: i32, depth: u8, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
@@ -132,6 +132,7 @@ impl TT {
 #[cfg(test)]
 mod tests {
     use crate::moves::MoveFlag;
+
     use super::*;
 
     #[test]
@@ -143,7 +144,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, depth, flag);
+        tt.insert(hash, &best_move, score, depth, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 

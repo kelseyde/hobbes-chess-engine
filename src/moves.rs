@@ -168,4 +168,8 @@ impl Move {
         format!("{}{}", file as char, rank as char)
     }
 
+    pub fn matches(self, m: &Move) -> bool {
+        self.from() ==  m.from() && self.to() == m.to()
+    }
+
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 
@@ -17,7 +18,7 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
         return nodes;
     }
 
-    let mut node_count: HashMap<String, u64> = HashMap::new();
+    //let mut node_count: HashMap<String, u64> = HashMap::new();
 
     let mut nodes = 0;
     for i in 0..moves.len {
@@ -28,15 +29,15 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
             continue;
         }
         let new_nodes = perft(&new_board, depth - 1, start_depth, debug);
-        node_count.insert(mv.to_uci(), new_nodes);
+        //node_count.insert(mv.to_uci(), new_nodes);
         nodes += new_nodes;
     }
 
-    if debug && depth == start_depth {
-        for (k, v) in node_count.iter() {
-            println!("{}: {}", k, v);
-        }
-    }
+    // if debug && depth == start_depth {
+    //     for (k, v) in node_count.iter() {
+    //         println!("{}: {}", k, v);
+    //     }
+    // }
 
     nodes
 }
