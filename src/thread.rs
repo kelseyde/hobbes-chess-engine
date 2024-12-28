@@ -1,4 +1,6 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+
 use crate::board::Board;
 use crate::moves::Move;
 use crate::tt::TT;
@@ -16,7 +18,6 @@ pub struct ThreadData {
     pub depth_limit: u8,
     pub best_move: Move,
     pub eval: i32,
-    pub cancelled: bool,
 }
 
 impl ThreadData {
@@ -35,8 +36,19 @@ impl ThreadData {
             depth_limit: 0,
             best_move: Move::NONE,
             eval: 0,
-            cancelled: false,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.time = Instant::now();
+        self.time_limit = Duration::MAX;
+        self.nodes = 0;
+        self.node_limit = 0;
+        self.depth = 0;
+        self.depth_limit = 0;
+        self.best_move = Move::NONE;
+        self.eval = 0;
+        //self.cancelled = AtomicBool::new(false);
     }
 
     pub fn time(&self) -> u128 {
@@ -44,7 +56,7 @@ impl ThreadData {
     }
 
     pub fn abort(&self) -> bool {
-        self.cancelled || self.time.elapsed() >= self.time_limit
+        self.time.elapsed() >= self.time_limit
     }
 
 }

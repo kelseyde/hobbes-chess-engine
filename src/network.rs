@@ -1,3 +1,5 @@
+use Side::{Black, White};
+
 use crate::bits;
 use crate::board::Board;
 use crate::consts::{Piece, PIECES, Side};
@@ -59,9 +61,10 @@ impl Evaluator {
         }
     }
 
-    pub fn evaluate(&self, board: Board) -> i32 {
-        let us = match board.stm { Side::White => &self.acc.white_features, Side::Black => &self.acc.black_features };
-        let them = match board.stm { Side::White => &self.acc.black_features, Side::Black => &self.acc.white_features };
+    pub fn evaluate(&mut self, board: &Board) -> i32 {
+        self.activate_all(board);
+        let us = match board.stm { White => &self.acc.white_features, Black => &self.acc.black_features };
+        let them = match board.stm { White => &self.acc.black_features, Black => &self.acc.white_features };
         let mut output = i32::from(NETWORK.output_bias);
 
         for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
@@ -71,24 +74,21 @@ impl Evaluator {
         for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
             output += crelu(input) * i32::from(weight);
         }
-        println!("output: {}", output);
 
         output *= SCALE;
-        println!("output: {}", output);
         output /= QAB;
-        println!("output: {}", output);
         output
     }
 
-    pub fn activate_all(&mut self, board: Board) {
+    pub fn activate_all(&mut self, board: &Board) {
         self.acc = Accumulator::new();
         for &pc in PIECES.iter() {
             let mut pcs = board.pcs(pc);
             while pcs != 0 {
                 let sq = bits::lsb(pcs);
                 let side = board.side_at(sq).unwrap();
-                let white_idx = self.feature_index(sq, pc, side, Side::White);
-                let black_idx = self.feature_index(sq, pc, side, Side::Black);
+                let white_idx = self.feature_index(sq, pc, side, White);
+                let black_idx = self.feature_index(sq, pc, side, Black);
                 self.acc.add(white_idx, black_idx);
                 pcs = bits::pop(pcs);
             }
@@ -96,7 +96,7 @@ impl Evaluator {
     }
 
     fn feature_index(&self, sq: u8, pc: Piece, side: Side, perspective: Side) -> usize {
-        let sq = if perspective == Side::White { sq } else { sq ^ 56 };
+        let sq = if perspective == White { sq } else { sq ^ 56 };
         let pc = pc as usize;
         let pc_offset = pc * PIECE_OFFSET;
         let side_offset = if side == perspective { 0 } else { SIDE_OFFSET };
@@ -114,18 +114,18 @@ static NETWORK: Network =
 
 #[cfg(test)]
 mod tests {
-
     use crate::board::Board;
     use crate::fen;
+
     use super::Evaluator;
 
     #[test]
     fn test_startpos() {
         let board = Board::from_fen(fen::STARTPOS);
         let mut eval = Evaluator::new();
-        eval.activate_all(board);
-        let score = eval.evaluate(board);
-        assert_eq!(score, 0);
+        eval.activate_all(&board);
+        let score = eval.evaluate(&board);
+        assert_eq!(score, 26);
     }
 
 }

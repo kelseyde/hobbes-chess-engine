@@ -1,28 +1,36 @@
 use std::io;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
+
 use consts::Side::{Black, White};
-use crate::board::Board;
+
 use crate::{consts, fen};
+use crate::board::Board;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
+use crate::network::Evaluator;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::tt::TT;
 
+pub static ABORT: AtomicBool = AtomicBool::new(false);
+
+
 pub struct UCI {
     pub tt: TT,
-    pub td: ThreadData,
     pub board: Board,
+    pub td: ThreadData
 }
 
 impl UCI {
 
     pub fn new() -> UCI {
+        let tt = TT::default();
         UCI {
             tt: TT::default(),
-            td: ThreadData::new(TT::default()),
             board: Board::new(),
+            td: ThreadData::new(tt)
         }
     }
 
@@ -74,8 +82,8 @@ impl UCI {
         //TODO
     }
 
-    fn handle_ucinewgame(&self) {
-        //TODO
+    fn handle_ucinewgame(&mut self) {
+        self.tt.clear();
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -120,11 +128,10 @@ impl UCI {
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-        // Split the command into words
 
-        // Check if "movetime" is in the command arguments
+        self.td.reset();
+
         if tokens.contains(&String::from("movetime")) {
-            // Attempt to parse the "movetime" argument
             match self.parse_int(&tokens, "movetime") {
                 Ok(movetime) => self.td.time_limit = Duration::from_millis(movetime),
                 Err(_) => {
@@ -187,7 +194,7 @@ impl UCI {
     }
 
     fn handle_eval(&self) {
-
+        println!("{}", Evaluator::new().evaluate(&self.board));
     }
 
     fn handle_fen(&self) {
@@ -220,8 +227,7 @@ impl UCI {
     }
 
     fn handle_stop(&mut self) {
-        self.td.cancelled = true;
-        println!("bestmove {}", self.td.best_move.to_uci());
+        //self.td.cancelled = true;
     }
 
     fn handle_help(&self) {

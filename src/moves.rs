@@ -31,27 +31,6 @@ const TO_MASK: u16 = 0xFC0;
 const FLAG_MASK: u16 = 0xF000;
 const PROMO_FLAGS: [MoveFlag; 4] = [MoveFlag::PromoQ, MoveFlag::PromoR, MoveFlag::PromoB, MoveFlag::PromoN];
 
-impl MoveList {
-
-    pub fn new() -> Self {
-        MoveList { list: ArrayVec::new(), len: 0 }
-    }
-
-    pub fn add_move(&mut self, from: u8, to: u8, flag: MoveFlag) {
-        self.list.push(Move::new(from, to, flag));
-        self.len += 1;
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &Move> {
-        self.list.iter().take(self.len)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
-}
-
 impl Move {
 
     pub const NONE: Move = Move(0);
@@ -170,6 +149,46 @@ impl Move {
 
     pub fn matches(self, m: &Move) -> bool {
         self.from() ==  m.from() && self.to() == m.to()
+    }
+
+}
+
+impl MoveList {
+
+    pub fn new() -> Self {
+        MoveList { list: ArrayVec::new(), len: 0 }
+    }
+
+    pub fn add_move(&mut self, from: u8, to: u8, flag: MoveFlag) {
+        self.list.push(Move::new(from, to, flag));
+        self.len += 1;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Move> {
+        self.list.iter().take(self.len)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn pick(&mut self, scores: &mut [i32; MAX_MOVES]) -> Option<Move> {
+        if self.len == 0 {
+            return None;
+        }
+
+        let mut idx = 0;
+        let mut best = i32::MIN;
+        for (i, &score) in scores.iter().enumerate().take(self.len) {
+            if score > best {
+                best = score;
+                idx = i;
+            }
+        }
+        self.len -= 1;
+        scores.swap(idx, self.len);
+        self.list.swap(idx, self.len);
+        Some(self.list[self.len])
     }
 
 }

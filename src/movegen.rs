@@ -231,10 +231,6 @@ pub fn is_attacked(mut bb: u64, side: Side, occ: u64, board: &Board) -> bool {
 
 #[inline(always)]
 pub fn is_sq_attacked(sq: u8, side: Side, occ: u64, board: &Board) -> bool {
-    // if sq > 63 {
-    //     println!("fen: {}, sq: {}", board.to_fen(), sq);
-    //     return false;
-    // }
     if attacks::knight(sq)      & board.knights(side.flip()) != 0 { return true; }
     if attacks::king(sq)        & board.king(side.flip()) != 0 { return true; }
     if attacks::pawn(sq, side)  & board.pawns(side.flip()) != 0 { return true; }

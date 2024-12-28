@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 

@@ -1,13 +1,9 @@
-use crate::board::Board;
-use crate::perft::perft;
-
 mod attacks;
 mod bench;
 mod bits;
 mod board;
 mod consts;
 mod datagen;
-mod eval;
 mod fen;
 mod magics;
 mod movegen;

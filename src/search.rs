@@ -2,9 +2,9 @@ use std::time::Instant;
 
 use crate::board::Board;
 use crate::consts::{MAX_DEPTH, Score};
-use crate::eval::eval;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
+use crate::network::Evaluator;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 
@@ -82,6 +82,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
         legals += 1;
         let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
 
+        if td.abort() { break; }
+
         if score >= beta {
             td.tt.insert(board.hash, mv, score, depth, TTFlag::Lower);
             return score;
@@ -113,7 +115,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32) -> i32 {
     if is_check(board, board.stm) {
         moves = gen_moves(board, MoveFilter::All);
     } else {
-        let stand_pat = eval(board);
+        let stand_pat = Evaluator::new().evaluate(board);
         if stand_pat >= beta {
             return beta
         }
@@ -124,6 +126,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32) -> i32 {
     }
 
     for mv in moves.iter() {
+        if td.abort() { break; }
         let mut board = *board;
         board.make(&mv);
         if is_check(&board, board.stm.flip()) {
