@@ -50,10 +50,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
 
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
-    let root = ply == 0;
+    let root_node = ply == 0;
+    let pv_node = beta - alpha > 1;
     let mut tt_move = Move::NONE;
 
-    if !root {
+    if !root_node {
         let tt_entry = td.tt.probe(board.hash);
         match tt_entry {
             Some(entry) => {
@@ -97,7 +98,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         legals += 1;
         td.nodes += 1;
 
-        let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+        let mut score;
+        if legals == 1 {
+            score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+        } else {
+            score = -alpha_beta(&board, td, depth - 1, ply + 1, -alpha - 1, -alpha);
+            if score > alpha && score < beta {
+                score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+            }
+        }
 
         if is_quiet {
             quiet_moves.push(*mv);
@@ -113,7 +122,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
             alpha = score;
             best_move = *mv;
             flag = TTFlag::Exact;
-            if root {
+            if root_node {
                 td.best_move = mv.clone();
             }
 
@@ -130,7 +139,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         return if in_check { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
     }
 
-    if !root {
+    if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth, flag);
     }
 
