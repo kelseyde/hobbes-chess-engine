@@ -76,7 +76,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
     let root_node = ply == 0;
-    let pv_node = beta - alpha > 1;
     let mut tt_move = Move::NONE;
 
     if !root_node {
@@ -103,7 +102,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
 
-    if !root_node && !pv_node && !in_check {
+    if !root_node && !in_check {
 
         if depth <= 8
             && static_eval - 80 * depth >= beta {
@@ -148,25 +147,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         move_count += 1;
         td.nodes += 1;
 
-        let mut score = Score::Min as i32;
-        let new_depth = depth - 1;
-
+        let mut reduction = 0;
         if depth >= 3 && move_count > 1 + root_node as i32 && is_quiet {
-            let reduction = td.lmr.reduction(depth, move_count) / 1024;
-
-            let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
-
-            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
-
-            if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
-            }
-        } else if !pv_node || move_count > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+            reduction = td.lmr.reduction(depth, move_count) / 1024;
         }
 
-        if pv_node && (move_count == 1 || score > alpha) {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
+        let mut score = -alpha_beta(&board, td, depth - 1 - reduction, ply + 1, -beta, -alpha);
+        if score > alpha && reduction > 0 {
+            score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
         }
 
         if is_quiet {
