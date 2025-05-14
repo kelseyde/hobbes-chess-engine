@@ -1,10 +1,10 @@
 ## Search
 
-- [ ] Iterative Deepening
-- [ ] Basic Move Ordering (captures by MVV-LVA)
-- [ ] Quiescent Search
-- [ ] Transposition Table (sort TT move first now in move ordering)
-- [ ] Butterfly history heuristic
+- [x] Iterative Deepening
+- [x] Basic Move Ordering (captures by MVV-LVA)
+- [x] Quiescent Search
+- [x] Transposition Table (sort TT move first now in move ordering)
+- [x] Butterfly history heuristic
 - [ ] PVS
 - [ ] Aspiration windows
 - [ ] RFP
