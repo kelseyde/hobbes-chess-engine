@@ -13,20 +13,45 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.time = Instant::now();
     td.best_move = Move::NONE;
 
-    let alpha = Score::Min as i32;
-    let beta = Score::Max as i32;
+    let mut alpha = Score::Min as i32;
+    let mut beta = Score::Max as i32;
     let mut score = 0;
+    let mut delta = 24;
 
     while td.depth < MAX_DEPTH && !td.abort() {
-        let eval = alpha_beta(board, td, td.depth, 0, alpha, beta);
-        score = eval;
 
-        if td.main {
-            if td.best_move.exists() {
-                println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
-            } else {
-                println!("info depth {} score cp {}", td.depth, score);
+        if td.depth >= 4 {
+            alpha = (score - delta).max(Score::Min as i32);
+            beta = (score + delta).min(Score::Max as i32);
+        }
+
+        loop {
+            score = alpha_beta(board, td, td.depth, 0, alpha, beta);
+
+            if td.abort() {
+                break;
             }
+
+            if td.main {
+                if td.best_move.exists() {
+                    println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
+                } else {
+                    println!("info depth {} score cp {}", td.depth, score);
+                }
+            }
+
+            match score {
+                s if s <= alpha => {
+                    beta = (alpha + beta) / 2;
+                    alpha = (score - delta).max(Score::Min as i32);
+                }
+                s if s >= beta => {
+                    beta = (score + delta).min(Score::Max as i32);
+                }
+                _ => break,
+            }
+
+            delta += delta / 2;
         }
 
         td.depth += 1;
