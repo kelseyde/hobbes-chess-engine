@@ -102,7 +102,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
 
-    if !root && !in_check && depth <= 8 && - 80 * depth >= beta {
+    if !root && !in_check && depth <= 8 && static_eval - 80 * depth >= beta {
         return static_eval;
     }
 
