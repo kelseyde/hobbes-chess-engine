@@ -35,13 +35,17 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha: i32, beta: i32) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut alpha: i32, beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
 
+    let in_check = is_check(board, board.stm);
+
     // If depth is reached, drop into quiescence search
-    if depth == 0 { return td.evaluator.evaluate(&board) }
+    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta) }
+
+    if depth < 0 { depth = 0; }
 
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
@@ -52,6 +56,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
     moves.sort(&scores);
 
     let mut legals = 0;
+    let mut best_score = alpha;
 
     for mv in moves.iter() {
         let mut board = *board;
@@ -65,8 +70,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
 
         if td.abort() { break; }
 
-        if score >= beta {
-            return score;
+        if (score > best_score) {
+            best_score = score;
         }
 
         if score > alpha {
@@ -74,15 +79,72 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
             if root {
                 td.best_move = mv.clone();
             }
+
+            if score >= beta {
+                return score;
+            }
         }
     }
 
     // handle checkmate / stalemate
     if legals == 0 {
-        return if is_check(board, board.stm) { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
+        return if in_check { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
     }
 
-    alpha
+    best_score
+}
+
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32) -> i32 {
+
+    // If search is aborted, exit immediately
+    if td.abort() { return alpha }
+
+    let in_check = is_check(board, board.stm);
+
+    if !in_check {
+        let eval = td.evaluator.evaluate(&board);
+        if eval > alpha {
+            alpha = eval
+        }
+        if alpha >= beta {
+            return alpha;
+        }
+    }
+
+    let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
+    let mut moves = gen_moves(board, filter);
+    let scores = score(&board, &moves);
+    moves.sort(&scores);
+    let mut legals = 0;
+
+    let mut best_score = alpha;
+
+    for mv in moves.iter() {
+        let mut board = *board;
+        board.make(&mv);
+        if is_check(&board, board.stm.flip()) {
+            continue
+        }
+        legals += 1;
+        td.nodes += 1;
+        let score = -qs(&board, td, -beta, -alpha);
+
+        if td.abort() { break; }
+
+        if score > best_score {
+            best_score = score;
+        }
+
+        if score > alpha {
+            alpha = score;
+
+            if score >= beta {
+                return score;
+            }
+        }
+    }
+
+    best_score
 }
 
 fn is_cancelled(time: Instant) -> bool {
