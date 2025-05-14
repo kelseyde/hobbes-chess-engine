@@ -10,6 +10,12 @@ pub enum Score {
     Mate = 30000 - MAX_DEPTH as isize,
 }
 
+impl Score {
+    pub fn is_mate(score: i32) -> bool {
+        score.abs() >= Score::Mate as i32 - MAX_DEPTH
+    }
+}
+
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Piece {
