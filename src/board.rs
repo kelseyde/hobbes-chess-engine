@@ -183,6 +183,10 @@ impl Board {
         self.piece_at(mv.to())
     }
 
+    pub fn is_noisy(self, mv: &Move) -> bool {
+        mv.is_promo() || self.captured(mv).is_some()
+    }
+
     pub fn side_at(self, sq: u8) -> Option<Side> {
         if self.bb[White.idx()] & bits::bb(sq) != 0 { Some(White) }
         else if self.bb[Black.idx()] & bits::bb(sq) != 0 { Some(Black) }

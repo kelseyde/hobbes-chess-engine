@@ -1,5 +1,5 @@
 use std::time::Instant;
-
+use arrayvec::ArrayVec;
 use crate::board::Board;
 use crate::consts::{Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
@@ -76,7 +76,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(&board, &moves, &tt_move);
+    let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
 
     let mut legals = 0;
@@ -84,15 +84,24 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Lower;
 
+    let mut quiet_moves = ArrayVec::<Move, 32>::new();
+
     for mv in moves.iter() {
         let mut board = *board;
         board.make(&mv);
         if is_check(&board, board.stm.flip()) {
             continue
         }
+        let captured = board.captured(&mv);
+        let is_quiet = captured.is_none();
         legals += 1;
         td.nodes += 1;
+
         let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+
+        if is_quiet {
+            quiet_moves.push(*mv);
+        }
 
         if td.abort() { break; }
 
@@ -110,6 +119,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
 
             if score >= beta {
                 flag = TTFlag::Upper;
+                td.quiet_history.update(board.stm, &mv, (120 * depth as i16 - 75).min(1200));
                 break;
             }
         }
@@ -165,7 +175,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
 
     let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
     let mut moves = gen_moves(board, filter);
-    let scores = score(&board, &moves, &tt_move);
+    let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
     let mut legals = 0;
 

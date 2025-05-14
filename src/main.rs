@@ -17,6 +17,7 @@ mod zobrist;
 mod evaluate;
 mod ordering;
 mod tt;
+mod history;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::board::Board;
 use crate::evaluate::Evaluator;
+use crate::history::QuietHistory;
 use crate::moves::Move;
 use crate::tt::TranspositionTable;
 
@@ -10,6 +11,7 @@ pub struct ThreadData {
     pub main: bool,
     pub tt: TranspositionTable,
     pub board_history: Vec<Board>,
+    pub quiet_history: QuietHistory,
     pub evaluator: Evaluator,
     pub time: Instant,
     pub time_limit: Duration,
@@ -29,6 +31,7 @@ impl ThreadData {
             main: true,
             tt: TranspositionTable::new(64),
             board_history: Vec::new(),
+            quiet_history: QuietHistory::new(),
             evaluator: Evaluator::new(),
             time: Instant::now(),
             time_limit: Duration::MAX,
@@ -47,6 +50,7 @@ impl ThreadData {
             main: true,
             tt: TranspositionTable::new(64),
             board_history: Vec::new(),
+            quiet_history: QuietHistory::new(),
             evaluator: Evaluator::new(),
             time: Instant::now(),
             time_limit: Duration::MAX,
