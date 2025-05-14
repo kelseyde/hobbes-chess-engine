@@ -1,6 +1,6 @@
 use crate::bits;
-use crate::consts::{Piece, Side};
 use crate::consts::Side::White;
+use crate::consts::{Piece, Side};
 use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 
 #[inline(always)]

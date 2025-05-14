@@ -1,11 +1,11 @@
 use bits::{CastleSafetyMask, CastleTravelMask};
 
-use crate::{attacks, bits};
 use crate::bits::{FILE_A, FILE_H, RANK_1, RANK_4, RANK_5, RANK_8};
 use crate::board::Board;
-use crate::consts::{Piece, Side};
 use crate::consts::Side::White;
+use crate::consts::{Piece, Side};
 use crate::moves::{MoveFlag, MoveList};
+use crate::{attacks, bits};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
