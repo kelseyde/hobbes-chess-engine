@@ -123,8 +123,9 @@ impl TranspositionTable {
     }
 
     fn idx(&self, hash: u64) -> usize {
-        let key = (hash >> 48) as u16;
-        (key as usize) & (self.table.len() - 1)
+        let key = hash as u128;
+        let len = self.table.len() as u128;
+        ((key * len) >> 64) as usize
     }
 
 }
