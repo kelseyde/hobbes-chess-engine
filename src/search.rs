@@ -119,6 +119,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
 
             if score >= beta {
                 flag = TTFlag::Upper;
+                td.quiet_history.update(board.stm, &mv, (120 * depth as i16 - 75).min(1200));
                 break;
             }
         }
@@ -127,18 +128,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     // handle checkmate / stalemate
     if legals == 0 {
         return if in_check { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
-    }
-
-    if best_score >= beta {
-        for quiet in quiet_moves {
-            let good = quiet == best_move;
-            let bonus: i16 = if good {
-                (120 * depth as i16 - 75).min(1200)
-            } else {
-                -(120 * depth as i16 - 75).min(1200)
-            };
-            td.quiet_history.update(board.stm, quiet, bonus);
-        }
     }
 
     if !root {
