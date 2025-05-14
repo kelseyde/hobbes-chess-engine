@@ -197,15 +197,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
     match tt_entry {
         Some(entry) => {
             tt_move = entry.best_move();
-            if entry.flag() == TTFlag::Exact {
-                return entry.score() as i32
-            } else if entry.flag() == TTFlag::Lower {
-                alpha = alpha.max(entry.score() as i32)
-            } else if entry.flag() == TTFlag::Upper {
-                beta = beta.min(entry.score() as i32)
-            }
-            if alpha >= beta {
-                return entry.score() as i32
+            match entry.flag() {
+                TTFlag::Exact => return entry.score() as i32,
+                TTFlag::Lower if entry.score() as i32 >= beta => return entry.score() as i32,
+                TTFlag::Upper if entry.score() as i32 <= alpha => return entry.score() as i32,
+                _ => {}
             }
         }
         None => {}
