@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::consts::Piece;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
 
 pub const MAX_MOVES: usize = 256;
