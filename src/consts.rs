@@ -5,9 +5,9 @@ pub const MAX_DEPTH: i32 = 255;
 pub enum Score {
     #[default]
     Draw = 0,
-    Min = -30000,
-    Max = 30000,
-    Mate = 30000 - MAX_DEPTH as isize,
+    Max = 32767,
+    Min = -32767,
+    Mate = 32766
 }
 
 impl Score {

@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::moves::Move;
 use crate::search::search;
 use crate::thread::ThreadData;
 
