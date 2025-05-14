@@ -1,8 +1,7 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::consts::{MAX_DEPTH, Score};
-use crate::evaluate::evaluate;
+use crate::consts::{Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
 use crate::thread::ThreadData;
@@ -41,9 +40,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
     if td.abort() { return alpha }
 
     // If depth is reached, drop into quiescence search
-    if depth == 0 { return evaluate(&board) }
+    if depth == 0 { return td.evaluator.evaluate(&board) }
 
-    if depth == MAX_DEPTH { return evaluate(&board) }
+    if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
     let root = ply == 0;
 

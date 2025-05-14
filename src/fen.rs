@@ -1,6 +1,6 @@
 use crate::board::Board;
-use crate::consts::{Piece, Side};
 use crate::consts::Side::{Black, White};
+use crate::consts::{Piece, Side};
 use crate::zobrist::Zobrist;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
