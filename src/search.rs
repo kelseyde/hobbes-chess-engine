@@ -84,15 +84,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             Some(entry) => {
                 tt_move = entry.best_move();
                 if entry.depth() >= depth as u8 {
-                    if entry.flag() == TTFlag::Exact {
-                        return entry.score() as i32
-                    } else if entry.flag() == TTFlag::Lower {
-                        alpha = alpha.max(entry.score() as i32)
-                    } else if entry.flag() == TTFlag::Upper {
-                        beta = beta.min(entry.score() as i32)
-                    }
-                    if alpha >= beta {
-                        return entry.score() as i32
+                    match entry.flag() {
+                        TTFlag::Exact => return entry.score() as i32,
+                        TTFlag::Lower if entry.score() as i32 >= beta => return entry.score() as i32,
+                        TTFlag::Upper if entry.score() as i32 <= alpha => return entry.score() as i32,
+                        _ => {}
                     }
                 }
             }
@@ -134,7 +130,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut legals = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
-    let mut flag = TTFlag::Lower;
+    let mut flag = TTFlag::Upper;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
@@ -170,7 +166,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             }
 
             if score >= beta {
-                flag = TTFlag::Upper;
+                flag = TTFlag::Lower;
                 td.quiet_history.update(board.stm, &mv, (120 * depth as i16 - 75).min(1200));
                 break;
             }
