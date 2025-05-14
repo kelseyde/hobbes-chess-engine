@@ -61,7 +61,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut alpha: i32, mut beta: i32) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut alpha: i32, mut beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -83,7 +83,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         match tt_entry {
             Some(entry) => {
                 tt_move = entry.best_move();
-                if entry.depth() >= depth {
+                if entry.depth() >= depth as u8 {
                     if entry.flag() == TTFlag::Exact {
                         return entry.score() as i32
                     } else if entry.flag() == TTFlag::Lower {
@@ -98,6 +98,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
             }
             None => {}
         }
+    }
+
+    let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
+
+    if !root && !in_check && depth <= 8 && static_eval - 80 * depth >= beta {
+        return static_eval;
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
@@ -156,7 +162,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     }
 
     if !root {
-        td.tt.insert(board.hash, &best_move, best_score, depth, flag);
+        td.tt.insert(board.hash, &best_move, best_score, depth as u8, flag);
     }
 
     best_score

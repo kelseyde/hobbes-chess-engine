@@ -1,5 +1,5 @@
 
-pub const MAX_DEPTH: u8 = 255;
+pub const MAX_DEPTH: i32 = 255;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Score {
