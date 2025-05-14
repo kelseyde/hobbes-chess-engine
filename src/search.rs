@@ -14,16 +14,14 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     let alpha = Score::Min as i32;
     let beta = Score::Max as i32;
-    let mut best_move = Move::NONE;
     let mut score = 0;
 
     while td.depth < MAX_DEPTH && !td.abort() {
         let eval = alpha_beta(board, td, td.depth, 0, alpha, beta);
-        best_move = td.best_move;
         score = eval;
 
         if td.main {
-            println!("info depth {} score cp {} pv {}", td.depth, score, best_move.to_uci());
+            println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
         }
 
         td.depth += 1;

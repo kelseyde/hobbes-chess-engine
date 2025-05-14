@@ -55,11 +55,9 @@ impl UCI {
                 "position" =>     self.handle_position(tokens),
                 "go" =>           self.handle_go(tokens),
                 "stop" =>         self.handle_stop(),
-                "ponderhit" =>    self.handle_ponderhit(),
                 "fen" =>          self.handle_fen(),
                 "eval" =>         self.handle_eval(),
                 "perft" =>        self.handle_perft(tokens),
-                "datagen" =>      self.handle_datagen(tokens),
                 "help" =>         self.handle_help(),
                 "quit" =>         self.handle_quit(),
                 _ =>              println!("info error: unknown command")
@@ -78,10 +76,6 @@ impl UCI {
         println!("readyok");
     }
 
-    fn handle_setoption(&self, tokens: Vec<String>) {
-        //TODO
-    }
-
     fn handle_ucinewgame(&mut self) {
         // TODO clear TT
     }
@@ -98,15 +92,15 @@ impl UCI {
         }
 
         let fen = match tokens[1].as_str() {
-            "startpos" => fen::STARTPOS,
-            "fen" => &*tokens.iter().skip(2).map(|s| s.as_str()).collect::<Vec<&str>>().join(" "),
+            "startpos" => fen::STARTPOS.to_string(),  // Convert to owned String
+            "fen" => tokens.iter().skip(2).map(|s| s.as_str()).collect::<Vec<&str>>().join(" "),  // Returns owned String
             _ => {
                 println!("info error: invalid position command");
                 return;
             }
         };
 
-        self.board = Board::from_fen(fen);
+        self.board = Board::from_fen(&fen);
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens.iter().skip(index + 1).map(|m| Move::parse_uci(m)).collect()
@@ -191,10 +185,6 @@ impl UCI {
 
         // Print the best move
         println!("bestmove {}", self.td.best_move.to_uci());
-    }
-
-    fn handle_ponderhit(&self) {
-
     }
 
     fn handle_eval(&self) {
