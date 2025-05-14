@@ -176,7 +176,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     // handle checkmate / stalemate
     if legals == 0 {
-        return if in_check { ply - Score::Max as i32 } else { Score::Draw as i32 }
+        return if in_check { ply - Score::Mate as i32 } else { Score::Draw as i32 }
     }
 
     if !root {
