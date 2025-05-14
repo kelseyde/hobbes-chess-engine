@@ -75,10 +75,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
-    let root = ply == 0;
+    let root_node = ply == 0;
+    let pv_node = beta - alpha > 1;
+
     let mut tt_move = Move::NONE;
 
-    if !root {
+    if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_move = entry.best_move();
 
@@ -99,14 +101,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
 
-    if !root
+    if !root_node
         && !in_check
         && depth <= 8
         && static_eval - 80 * depth >= beta {
         return static_eval;
     }
 
-    if !root
+    if !root_node
         && !in_check
         && depth >= 3
         && static_eval >= beta
@@ -146,6 +148,21 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         move_count += 1;
         td.nodes += 1;
 
+        let mut reduction = 0;
+        if depth >= 3 && move_count > 1 + root_node as i32 && is_quiet {
+            reduction = if pv_node { 1 } else { 2 };
+        }
+
+        let mut score = Score::Min as i32;
+        if move_count == 1 {
+            score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+        } else {
+            score = -alpha_beta(&board, td, depth - 1 - reduction, ply + 1, -alpha - 1, -alpha);
+            if score > alpha && (score < beta || reduction > 0) {
+                score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+            }
+        }
+
         let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
 
         if is_quiet {
@@ -162,7 +179,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             alpha = score;
             best_move = *mv;
             flag = TTFlag::Exact;
-            if root {
+            if root_node {
                 td.best_move = mv.clone();
             }
 
@@ -179,7 +196,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         return if in_check { -(Score::Mate as i32) + ply } else { Score::Draw as i32 }
     }
 
-    if !root {
+    if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
 
