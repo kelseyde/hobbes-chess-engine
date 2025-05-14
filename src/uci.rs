@@ -49,7 +49,6 @@ impl UCI {
             match command.split_ascii_whitespace().next().unwrap() {
                 "uci" =>          self.handle_uci(),
                 "isready" =>      self.handle_isready(),
-                "setoption" =>    self.handle_setoption(tokens),
                 "ucinewgame" =>   self.handle_ucinewgame(),
                 "bench" =>        self.handle_bench(),
                 "position" =>     self.handle_position(tokens),

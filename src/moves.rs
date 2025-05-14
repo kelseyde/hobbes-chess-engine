@@ -151,6 +151,10 @@ impl Move {
         self.from() ==  m.from() && self.to() == m.to()
     }
 
+    pub fn exists(self) -> bool {
+        self != Move::NONE
+    }
+
 }
 
 impl MoveList {

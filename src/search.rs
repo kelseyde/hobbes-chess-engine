@@ -21,7 +21,11 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         score = eval;
 
         if td.main {
-            println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
+            if (td.best_move.exists()) {
+                println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
+            } else {
+                println!("info depth {} score cp {}", td.depth, score);
+            }
         }
 
         td.depth += 1;
