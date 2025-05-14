@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::moves::{Move, MoveList, MAX_MOVES};
+use crate::thread::ThreadData;
 
 pub const TT_MOVE_BONUS: i32 = 1000000;
 pub const MVV_LVA: [[u8; 7]; 7] = [
@@ -12,7 +13,7 @@ pub const MVV_LVA: [[u8; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0],       // victim ~, attacker K, Q, R, B, N, P, ~
 ];
 
-pub fn score(board: &Board, moves: &MoveList, tt_move: &Move) -> [i32; MAX_MOVES] {
+pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move) -> [i32; MAX_MOVES] {
     let mut scores = [0; MAX_MOVES];
     let mut idx = 0;
     for m in moves.iter() {
@@ -25,6 +26,8 @@ pub fn score(board: &Board, moves: &MoveList, tt_move: &Move) -> [i32; MAX_MOVES
                 if let Some(a) = attacker {
                     scores[idx] = MVV_LVA[v as usize][a as usize] as i32;
                 }
+            } else {
+                scores[idx] = td.quiet_history.get(board.stm, *m) as i32;
             }
         }
         idx += 1;
