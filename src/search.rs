@@ -102,8 +102,29 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
 
-    if !root && !in_check && depth <= 8 && static_eval - 80 * depth >= beta {
+    if !root
+        && !in_check
+        && depth <= 8
+        && static_eval - 80 * depth >= beta {
         return static_eval;
+    }
+
+    if !root
+        && !in_check
+        && depth >= 3
+        && static_eval >= beta
+        && board.has_non_pawns() {
+
+        let mut board = *board;
+        board.make_null_move();
+        td.nodes += 1;
+
+        let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+
+        if score >= beta {
+            return score;
+        }
+
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);

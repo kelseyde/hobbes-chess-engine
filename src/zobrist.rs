@@ -66,6 +66,10 @@ impl Zobrist {
         hash ^ SIDE_KEY
     }
 
+    pub fn toggle_null_move(hash: u64) -> u64 {
+        hash ^ SIDE_KEY
+    }
+
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
     }
