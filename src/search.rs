@@ -81,6 +81,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
 
     let mut legals = 0;
     let mut best_score = Score::Min as i32;
+    let mut best_move = Move::NONE;
     let mut flag = TTFlag::Lower;
 
     for mv in moves.iter() {
@@ -101,6 +102,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
 
         if score > alpha {
             alpha = score;
+            best_move = *mv;
             flag = TTFlag::Exact;
             if root {
                 td.best_move = mv.clone();
@@ -119,7 +121,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     }
 
     if !root {
-        td.tt.insert(board.hash, &td.best_move, best_score, depth, flag);
+        td.tt.insert(board.hash, &best_move, best_score, depth, flag);
     }
 
     best_score
