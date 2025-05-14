@@ -7,7 +7,7 @@ pub struct TranspositionTable {
 
 #[derive(Clone)]
 pub struct TTEntry {
-    key: u16,           // 2 bytes
+    key: u64,           // 28 bytes
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
     depth: u8,          // 1 byte
@@ -61,7 +61,7 @@ impl TTEntry {
     }
 
     pub fn validate_key(&self, key: u64) -> bool {
-        self.key == (key & 0xFFFF) as u16
+        self.key == key
     }
 
 }
@@ -115,7 +115,7 @@ impl TranspositionTable {
     pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
-        entry.key = (hash & 0xFFFF) as u16;
+        entry.key = hash;
         entry.best_move = best_move.0;
         entry.score = score as i16;
         entry.depth = depth;
@@ -123,8 +123,9 @@ impl TranspositionTable {
     }
 
     fn idx(&self, hash: u64) -> usize {
-        let key = (hash >> 48) as u16;
-        (key as usize) & (self.table.len() - 1)
+        let key = hash as u128;
+        let len = self.table.len() as u128;
+        ((key * len) >> 64) as usize
     }
 
 }
