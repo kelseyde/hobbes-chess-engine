@@ -78,7 +78,7 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        // TODO clear TT
+        self.td.tt.clear();
     }
 
     fn handle_bench(&self) {
