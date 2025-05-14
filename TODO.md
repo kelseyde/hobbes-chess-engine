@@ -6,9 +6,9 @@
 - [x] Transposition Table (sort TT move first now in move ordering)
 - [x] Butterfly history heuristic
 - [ ] PVS
-- [ ] Aspiration windows
-- [ ] RFP
-- [ ] NMP
+- [x] Aspiration windows
+- [x] RFP
+- [x] NMP
 - [ ] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
 - [ ] Killer moves
 - [ ] LMP

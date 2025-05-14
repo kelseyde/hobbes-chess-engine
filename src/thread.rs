@@ -17,8 +17,8 @@ pub struct ThreadData {
     pub time_limit: Duration,
     pub nodes: u64,
     pub node_limit: u64,
-    pub depth: u8,
-    pub depth_limit: u8,
+    pub depth: i32,
+    pub depth_limit: i32,
     pub best_move: Move,
     pub eval: i32,
 }
@@ -44,7 +44,7 @@ impl ThreadData {
         }
     }
 
-    pub fn with_depth_limit(depth: u8) -> Self {
+    pub fn with_depth_limit(depth: i32) -> Self {
         ThreadData {
             id: 0,
             main: true,

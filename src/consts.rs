@@ -1,5 +1,5 @@
 
-pub const MAX_DEPTH: u8 = 255;
+pub const MAX_DEPTH: i32 = 255;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Score {
@@ -8,6 +8,12 @@ pub enum Score {
     Min = -30000,
     Max = 30000,
     Mate = 30000 - MAX_DEPTH as isize,
+}
+
+impl Score {
+    pub fn is_mate(score: i32) -> bool {
+        score.abs() >= Score::Mate as i32 - MAX_DEPTH
+    }
 }
 
 

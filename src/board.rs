@@ -137,6 +137,16 @@ impl Board {
         }
     }
 
+    pub fn make_null_move(&mut self) {
+        self.hm = 0;
+        self.stm = self.stm.flip();
+        self.hash = Zobrist::toggle_stm(self.hash);
+        if let Some(ep_sq) = self.ep_sq {
+            self.hash = Zobrist::toggle_ep(self.hash, ep_sq);
+            self.ep_sq = None;
+        }
+    }
+
     pub fn pawns(self, side: Side) -> u64 {
         self.bb[Piece::Pawn as usize] & self.bb[side.idx()]
     }
@@ -173,6 +183,22 @@ impl Board {
         self.bb[side.idx()]
     }
 
+    pub fn us(self) -> u64 {
+        self.bb[self.stm.idx()]
+    }
+
+    pub fn them(self) -> u64 {
+        self.bb[self.stm.flip().idx()]
+    }
+
+    pub fn our(self, piece: Piece) -> u64 {
+        self.bb[piece as usize] & self.bb[self.stm.idx()]
+    }
+
+    pub fn their(self, piece: Piece) -> u64 {
+        self.bb[piece as usize] & self.bb[self.stm.flip().idx()]
+    }
+
     pub fn piece_at(self, sq: u8) -> Option<Piece> {
         self.pcs[sq as usize]
     }
@@ -191,6 +217,10 @@ impl Board {
         if self.bb[White.idx()] & bits::bb(sq) != 0 { Some(White) }
         else if self.bb[Black.idx()] & bits::bb(sq) != 0 { Some(Black) }
         else { None }
+    }
+
+    pub fn has_non_pawns(self) -> bool {
+        self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
     }
 
     pub fn rank(sq: u8) -> u8 {

@@ -13,20 +13,45 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.time = Instant::now();
     td.best_move = Move::NONE;
 
-    let alpha = Score::Min as i32;
-    let beta = Score::Max as i32;
+    let mut alpha = Score::Min as i32;
+    let mut beta = Score::Max as i32;
     let mut score = 0;
+    let mut delta = 24;
 
     while td.depth < MAX_DEPTH && !td.abort() {
-        let eval = alpha_beta(board, td, td.depth, 0, alpha, beta);
-        score = eval;
 
-        if td.main {
-            if td.best_move.exists() {
-                println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
-            } else {
-                println!("info depth {} score cp {}", td.depth, score);
+        if td.depth >= 4 {
+            alpha = (score - delta).max(Score::Min as i32);
+            beta = (score + delta).min(Score::Max as i32);
+        }
+
+        loop {
+            score = alpha_beta(board, td, td.depth, 0, alpha, beta);
+
+            if td.abort() {
+                break;
             }
+
+            if td.main {
+                if td.best_move.exists() {
+                    println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
+                } else {
+                    println!("info depth {} score cp {}", td.depth, score);
+                }
+            }
+
+            match score {
+                s if s <= alpha => {
+                    beta = (alpha + beta) / 2;
+                    alpha = (score - delta).max(Score::Min as i32);
+                }
+                s if s >= beta => {
+                    beta = (score + delta).min(Score::Max as i32);
+                }
+                _ => break,
+            }
+
+            delta += delta / 2;
         }
 
         td.depth += 1;
@@ -36,7 +61,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut alpha: i32, mut beta: i32) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut alpha: i32, mut beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -59,7 +84,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         match tt_entry {
             Some(entry) => {
                 tt_move = entry.best_move();
-                if entry.depth() >= depth {
+                if entry.depth() >= depth as u8 {
                     if entry.flag() == TTFlag::Exact {
                         return entry.score() as i32
                     } else if entry.flag() == TTFlag::Lower {
@@ -74,6 +99,33 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
             }
             None => {}
         }
+    }
+
+    let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
+
+    if !root_node
+        && !in_check
+        && depth <= 8
+        && static_eval - 80 * depth >= beta {
+        return static_eval;
+    }
+
+    if !root_node
+        && !in_check
+        && depth >= 3
+        && static_eval >= beta
+        && board.has_non_pawns() {
+
+        let mut board = *board;
+        board.make_null_move();
+        td.nodes += 1;
+
+        let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+
+        if score >= beta {
+            return score;
+        }
+
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
@@ -99,7 +151,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         td.nodes += 1;
 
         let mut score;
-        if pv_node || legals == 1 {
+        if pv_node && legals == 1 {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
         } else {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -alpha - 1, -alpha);
@@ -140,7 +192,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     }
 
     if !root_node {
-        td.tt.insert(board.hash, &best_move, best_score, depth, flag);
+        td.tt.insert(board.hash, &best_move, best_score, depth as u8, flag);
     }
 
     best_score
