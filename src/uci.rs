@@ -3,19 +3,20 @@ use std::time::Duration;
 
 use consts::Side::{Black, White};
 
-use crate::{consts, fen};
 use crate::bench::bench;
 use crate::board::Board;
-use crate::evaluate::evaluate;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
+use crate::{consts, fen};
+use crate::evaluate::Evaluator;
 
 pub struct UCI {
     pub board: Board,
-    pub td: ThreadData
+    pub td: ThreadData,
+    pub evaluator: Evaluator
 }
 
 impl UCI {
@@ -23,7 +24,8 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::new()
+            td: ThreadData::new(),
+            evaluator: Evaluator::new()
         }
     }
 
@@ -174,10 +176,6 @@ impl UCI {
             self.td.time_limit = Duration::from_millis(self.calc_movetime(wtime, btime, winc, binc));
 
         }
-        else {
-            // Default time limit if "movetime" is not specified
-            self.td.time_limit = Duration::from_millis(1000);
-        }
 
         // Perform the search
         search(&self.board, &mut self.td);
@@ -187,7 +185,7 @@ impl UCI {
     }
 
     fn handle_eval(&self) {
-        println!("{}", evaluate(&self.board));
+        println!("{}", self.evaluator.evaluate(&self.board));
     }
 
     fn handle_fen(&self) {
@@ -228,10 +226,8 @@ impl UCI {
         println!("position    -- set up the board position");
         println!("go          -- start searching for the best move");
         println!("stop        -- stop searching and return the best move");
-        println!("ponderhit   -- opponent played the expected move");
         println!("eval        -- evaluate the current position");
         println!("perft       -- run perft on the current position");
-        println!("datagen     -- generate training data for neural network");
         println!("quit        -- exit the application");
     }
 

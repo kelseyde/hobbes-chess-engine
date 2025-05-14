@@ -1,12 +1,14 @@
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
+use crate::evaluate::Evaluator;
 use crate::moves::Move;
 
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub board_history: Vec<Board>,
+    pub evaluator: Evaluator,
     pub time: Instant,
     pub time_limit: Duration,
     pub nodes: u64,
@@ -24,6 +26,7 @@ impl ThreadData {
             id: 0,
             main: true,
             board_history: Vec::new(),
+            evaluator: Evaluator::new(),
             time: Instant::now(),
             time_limit: Duration::MAX,
             nodes: 0,
@@ -40,6 +43,7 @@ impl ThreadData {
             id: 0,
             main: true,
             board_history: Vec::new(),
+            evaluator: Evaluator::new(),
             time: Instant::now(),
             time_limit: Duration::MAX,
             nodes: 0,

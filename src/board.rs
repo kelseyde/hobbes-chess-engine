@@ -1,8 +1,8 @@
-use crate::{bits, consts::Piece, consts::Side, moves::Move, moves::MoveFlag};
 use crate::bits::Rights;
 use crate::consts::Side::{Black, White};
 use crate::fen;
 use crate::zobrist::Zobrist;
+use crate::{bits, consts::Piece, consts::Side, moves::Move, moves::MoveFlag};
 
 #[derive(Clone, Copy)]
 pub struct Board {
@@ -197,6 +197,10 @@ impl Board {
 
     pub fn is_valid_sq(sq: u8) -> bool {
         sq < 64
+    }
+
+    pub fn is_white(self) -> bool {
+        self.stm == White
     }
 
 }

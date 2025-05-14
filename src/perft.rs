@@ -33,9 +33,9 @@ pub fn perft(board: &Board, depth: u8) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use std::fs;
     use crate::board::Board;
     use crate::perft::perft;
+    use std::fs;
 
     pub const PERFT_SUITE: [(&str, &str, u8, u64); 3] = [
         ("startpos", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 6, 119060324),

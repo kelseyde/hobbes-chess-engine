@@ -23,6 +23,12 @@ pub enum Piece {
 
 pub const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
 
+impl Piece {
+    pub fn iter() -> impl Iterator<Item = Piece> {
+        PIECES.iter().copied()
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum Side {
     #[default]
