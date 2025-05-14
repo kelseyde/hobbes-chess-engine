@@ -28,16 +28,16 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta);
 
-            if td.abort() {
-                break;
-            }
-
             if td.main {
                 if td.best_move.exists() {
                     println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
                 } else {
                     println!("info depth {} score cp {}", td.depth, score);
                 }
+            }
+
+            if td.abort() || Score::is_mate(score) {
+                break;
             }
 
             match score {
@@ -69,7 +69,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let in_check = is_check(board, board.stm);
 
     // If depth is reached, drop into quiescence search
-    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta) }
+    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta, ply) }
 
     if depth < 0 { depth = 0; }
 
@@ -83,7 +83,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             tt_move = entry.best_move();
 
             if entry.depth() >= depth as u8 {
-                let score = entry.score() as i32;
+                let score = entry.score(ply) as i32;
                 match entry.flag() {
                     TTFlag::Exact => return score,
                     TTFlag::Lower => alpha = alpha.max(score),
@@ -128,7 +128,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
 
-    let mut legals = 0;
+    let mut move_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
@@ -143,7 +143,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         }
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        legals += 1;
+        move_count += 1;
         td.nodes += 1;
 
         let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
@@ -175,18 +175,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     }
 
     // handle checkmate / stalemate
-    if legals == 0 {
-        return if in_check { ply - Score::Mate as i32 } else { Score::Draw as i32 }
+    if move_count == 0 {
+        return if in_check { -(Score::Mate as i32) + ply } else { Score::Draw as i32 }
     }
 
     if !root {
-        td.tt.insert(board.hash, &best_move, best_score, depth as u8, flag);
+        td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
 
     best_score
 }
 
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -197,7 +197,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
         tt_move = entry.best_move();
-        let score = entry.score() as i32;
+        let score = entry.score(ply) as i32;
         match entry.flag() {
             TTFlag::Exact => return score,
             TTFlag::Lower => alpha = alpha.max(score),
@@ -235,7 +235,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
         }
         legals += 1;
         td.nodes += 1;
-        let score = -qs(&board, td, -beta, -alpha);
+        let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
         if td.abort() { break; }
 
