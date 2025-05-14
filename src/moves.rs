@@ -195,4 +195,17 @@ impl MoveList {
         Some(self.list[self.len])
     }
 
+    pub fn sort(&mut self, scores: &[i32; MAX_MOVES]) {
+        let mut indices: Vec<usize> = (0..self.len).collect();
+
+        indices.sort_unstable_by_key(|&i| -scores[i]); // sort descending by score
+
+        let sorted: ArrayVec<Move, MAX_MOVES> = indices
+            .into_iter()
+            .map(|i| self.list[i])
+            .collect();
+
+        self.list = sorted;
+    }
+
 }
