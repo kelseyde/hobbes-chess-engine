@@ -132,6 +132,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
+    let mut skip_quiets = false;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
@@ -143,6 +144,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         }
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+
+        if is_quiet && skip_quiets {
+            continue
+        }
+
+        if !in_check
+            && is_quiet
+            && move_count > 3 + depth * depth {
+            skip_quiets = true;
+            continue;
+        }
+
         move_count += 1;
         td.nodes += 1;
 
