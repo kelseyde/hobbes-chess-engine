@@ -1,6 +1,5 @@
 // Basic bitboards
 pub const ALL_SQUARES: u64 = !0;
-pub const NO_SQUARES: u64 = 0;
 
 // File bitboards
 pub const FILE_A: u64 = 0x0101010101010101;

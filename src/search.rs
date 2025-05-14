@@ -21,7 +21,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         score = eval;
 
         if td.main {
-            if (td.best_move.exists()) {
+            if td.best_move.exists() {
                 println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
             } else {
                 println!("info depth {} score cp {}", td.depth, score);
@@ -49,7 +49,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
 
     let moves = gen_moves(board, MoveFilter::All);
     let mut legals = 0;
-    let mut best_move: &Move = &Move::NONE;
 
     for mv in moves.iter() {
         let mut board = *board;
@@ -69,7 +68,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
 
         if score > alpha {
             alpha = score;
-            best_move = &mv;
             if root {
                 td.best_move = mv.clone();
             }

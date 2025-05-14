@@ -215,10 +215,6 @@ impl UCI {
         println!("info ms {}", elapsed);
     }
 
-    fn handle_datagen(&self, tokens: Vec<String>) {
-
-    }
-
     fn handle_stop(&mut self) {
         //self.td.cancelled = true;
     }
