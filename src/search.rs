@@ -51,11 +51,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
     let root = ply == 0;
+    let mut tt_move = Move::NONE;
 
     if !root {
         let tt_entry = td.tt.probe(board.hash);
         match tt_entry {
             Some(entry) => {
+                tt_move = entry.best_move();
                 if entry.depth() >= depth {
                     if entry.flag() == TTFlag::Exact {
                         return entry.score() as i32
@@ -74,7 +76,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(&board, &moves);
+    let scores = score(&board, &moves, &tt_move);
     moves.sort(&scores);
 
     let mut legals = 0;
@@ -131,8 +133,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
     let in_check = is_check(board, board.stm);
 
     let tt_entry = td.tt.probe(board.hash);
+    let mut tt_move = Move::NONE;
     match tt_entry {
         Some(entry) => {
+            tt_move = entry.best_move();
             if entry.flag() == TTFlag::Exact {
                 return entry.score() as i32
             } else if entry.flag() == TTFlag::Lower {
@@ -159,7 +163,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
 
     let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
     let mut moves = gen_moves(board, filter);
-    let scores = score(&board, &moves);
+    let scores = score(&board, &moves, &tt_move);
     moves.sort(&scores);
     let mut legals = 0;
 
