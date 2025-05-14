@@ -99,7 +99,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: u8, ply: u8, mut al
         td.nodes += 1;
 
         let mut score;
-        if legals == 1 {
+        if pv_node || legals == 1 {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
         } else {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -alpha - 1, -alpha);
