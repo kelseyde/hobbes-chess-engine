@@ -1,15 +1,12 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
 use crate::moves::Move;
-use crate::tt::TT;
 
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub board_history: Vec<Board>,
-    pub tt: TT,
     pub time: Instant,
     pub time_limit: Duration,
     pub nodes: u64,
@@ -22,18 +19,33 @@ pub struct ThreadData {
 
 impl ThreadData {
 
-    pub fn new(tt: TT) -> Self {
+    pub fn new() -> Self {
         ThreadData {
             id: 0,
             main: true,
             board_history: Vec::new(),
-            tt,
             time: Instant::now(),
             time_limit: Duration::MAX,
             nodes: 0,
             node_limit: 0,
             depth: 0,
             depth_limit: 0,
+            best_move: Move::NONE,
+            eval: 0,
+        }
+    }
+
+    pub fn with_depth_limit(depth: u8) -> Self {
+        ThreadData {
+            id: 0,
+            main: true,
+            board_history: Vec::new(),
+            time: Instant::now(),
+            time_limit: Duration::MAX,
+            nodes: 0,
+            node_limit: 0,
+            depth: 0,
+            depth_limit: depth,
             best_move: Move::NONE,
             eval: 0,
         }
@@ -48,7 +60,6 @@ impl ThreadData {
         self.depth_limit = 0;
         self.best_move = Move::NONE;
         self.eval = 0;
-        //self.cancelled = AtomicBool::new(false);
     }
 
     pub fn time(&self) -> u128 {
@@ -57,6 +68,8 @@ impl ThreadData {
 
     pub fn abort(&self) -> bool {
         self.time.elapsed() >= self.time_limit
+            || self.node_limit > 0 && self.nodes >= self.node_limit
+            || self.depth_limit > 0 && self.depth >= self.depth_limit
     }
 
 }

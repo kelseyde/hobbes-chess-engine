@@ -1,7 +1,7 @@
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 
-pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
+pub fn perft(board: &Board, depth: u8) -> u64 {
     let moves = gen_moves(board, MoveFilter::All);
     if depth == 1 {
         let mut nodes = 0;
@@ -16,8 +16,6 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
         return nodes;
     }
 
-    //let mut node_count: HashMap<String, u64> = HashMap::new();
-
     let mut nodes = 0;
     for i in 0..moves.len {
         let mv = moves.list[i];
@@ -26,22 +24,16 @@ pub fn perft(board: &Board, depth: u8, start_depth: u8, debug: bool) -> u64 {
         if is_check(&new_board, board.stm) {
             continue;
         }
-        let new_nodes = perft(&new_board, depth - 1, start_depth, debug);
-        //node_count.insert(mv.to_uci(), new_nodes);
+        let new_nodes = perft(&new_board, depth - 1);
         nodes += new_nodes;
     }
-
-    // if debug && depth == start_depth {
-    //     for (k, v) in node_count.iter() {
-    //         println!("{}: {}", k, v);
-    //     }
-    // }
 
     nodes
 }
 
 #[cfg(test)]
 mod test {
+    use std::fs;
     use crate::board::Board;
     use crate::perft::perft;
 
@@ -53,9 +45,24 @@ mod test {
 
     #[test]
     fn test_perft_suite() {
-        for (name, fen, depth, nodes) in PERFT_SUITE.iter() {
+
+        let perft_suite = fs::read_to_string("resources/perft_suite.epd").unwrap();
+
+        for perft_test in perft_suite.lines() {
+            let parts: Vec<&str> = perft_test.split(";").collect();
+
+            println!("Parts: {:?}", parts);
+            let fen = parts[0];
+
+            let mut depth_nodes_str = parts.last().unwrap().split_whitespace();
+            let depth_str = depth_nodes_str.next().unwrap();
+            let nodes_str = depth_nodes_str.last().unwrap();
+            let depth: u8 = depth_str[1..].parse().unwrap();
+            let nodes: u64 = nodes_str.parse().unwrap();
+
+            println!("Running test on fen for depth {}: {}", depth, fen);
             let board = Board::from_fen(fen);
-            assert_eq!(perft(&board, *depth, *depth, false), *nodes, "Failed test: {}", name);
+            assert_eq!(perft(&board, depth), nodes, "Failed test: {}", fen);
         }
     }
 
@@ -63,7 +70,7 @@ mod test {
     fn test_debug() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let board = Board::from_fen(fen);
-        assert_eq!(perft(&board, 5, 5, false), 4865609);
+        assert_eq!(perft(&board, 5), 4865609);
     }
 
 }

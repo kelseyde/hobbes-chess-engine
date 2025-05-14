@@ -1,24 +1,19 @@
 use std::io;
-use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use consts::Side::{Black, White};
 
 use crate::{consts, fen};
+use crate::bench::bench;
 use crate::board::Board;
+use crate::evaluate::evaluate;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
-use crate::network::Evaluator;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
-use crate::tt::TT;
-
-pub static ABORT: AtomicBool = AtomicBool::new(false);
-
 
 pub struct UCI {
-    pub tt: TT,
     pub board: Board,
     pub td: ThreadData
 }
@@ -26,15 +21,19 @@ pub struct UCI {
 impl UCI {
 
     pub fn new() -> UCI {
-        let tt = TT::default();
         UCI {
-            tt: TT::default(),
             board: Board::new(),
-            td: ThreadData::new(tt)
+            td: ThreadData::new()
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, args: &[String]) {
+
+        if args.len() > 1 && args[1] == "bench" {
+            println!("Running benchmark...");
+            self.handle_bench();
+            return;
+        }
 
         println!("🐅🐅🐅 Hobbes by Dan Kelsey 🐅🐅🐅");
         println!("(type 'help' for a list of commands)");
@@ -52,6 +51,7 @@ impl UCI {
                 "isready" =>      self.handle_isready(),
                 "setoption" =>    self.handle_setoption(tokens),
                 "ucinewgame" =>   self.handle_ucinewgame(),
+                "bench" =>        self.handle_bench(),
                 "position" =>     self.handle_position(tokens),
                 "go" =>           self.handle_go(tokens),
                 "stop" =>         self.handle_stop(),
@@ -83,7 +83,11 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.tt.clear();
+        // TODO clear TT
+    }
+
+    fn handle_bench(&self) {
+        bench();
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -194,7 +198,7 @@ impl UCI {
     }
 
     fn handle_eval(&self) {
-        println!("{}", Evaluator::new().evaluate(&self.board));
+        println!("{}", evaluate(&self.board));
     }
 
     fn handle_fen(&self) {
@@ -216,7 +220,7 @@ impl UCI {
         };
 
         let start = std::time::Instant::now();
-        let nodes = perft(&self.board, depth, depth, false);
+        let nodes = perft(&self.board, depth);
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);

@@ -39,6 +39,11 @@ pub enum CastleTravelMask {
 }
 
 #[inline(always)]
+pub const fn count(b: u64) -> u32 {
+    b.count_ones()
+}
+
+#[inline(always)]
 pub const fn pop(b: u64) -> u64 {
     b & (b - 1)
 }

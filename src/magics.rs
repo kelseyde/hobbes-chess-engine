@@ -1,5 +1,3 @@
-/// Magic bitboard implementation, stolen from Symbeline (thank you!):
-/// https://github.com/sroelants/simbelmyne/blob/main/chess/src/movegen/magics.rs
 
 #[derive(Debug, Copy, Clone)]
 pub struct MagicLookup {
