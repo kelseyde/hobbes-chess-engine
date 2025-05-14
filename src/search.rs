@@ -132,7 +132,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
 
-    let mut legals = 0;
+    let mut move_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Lower;
@@ -147,15 +147,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         }
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        legals += 1;
+        move_count += 1;
         td.nodes += 1;
 
         let mut score;
-        if pv_node && legals == 1 {
+        if move_count == 1 {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
         } else {
             score = -alpha_beta(&board, td, depth - 1, ply + 1, -alpha - 1, -alpha);
-            if score > alpha && score < beta {
+            if score > alpha && pv_node {
                 score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
             }
         }
@@ -187,7 +187,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     }
 
     // handle checkmate / stalemate
-    if legals == 0 {
+    if move_count == 0 {
         return if in_check { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
     }
 
