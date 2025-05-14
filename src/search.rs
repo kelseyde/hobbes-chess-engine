@@ -4,6 +4,7 @@ use crate::board::Board;
 use crate::consts::{Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
+use crate::ordering::score;
 use crate::thread::ThreadData;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
@@ -46,7 +47,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, depth: u8, ply: u8, mut alpha:
 
     let root = ply == 0;
 
-    let moves = gen_moves(board, MoveFilter::All);
+    let mut moves = gen_moves(board, MoveFilter::All);
+    let scores = score(&board, &moves);
+    moves.sort(&scores);
+
     let mut legals = 0;
 
     for mv in moves.iter() {

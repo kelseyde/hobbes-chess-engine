@@ -177,6 +177,12 @@ impl Board {
         self.pcs[sq as usize]
     }
 
+    pub fn captured(self, mv: &Move) -> Option<Piece> {
+        if mv.is_castle() { return None; }
+        if mv.is_ep() { return Some(Piece::Pawn); }
+        self.piece_at(mv.to())
+    }
+
     pub fn side_at(self, sq: u8) -> Option<Side> {
         if self.bb[White.idx()] & bits::bb(sq) != 0 { Some(White) }
         else if self.bb[Black.idx()] & bits::bb(sq) != 0 { Some(Black) }

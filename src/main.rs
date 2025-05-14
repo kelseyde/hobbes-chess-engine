@@ -15,6 +15,7 @@ mod thread;
 mod uci;
 mod zobrist;
 mod evaluate;
+mod ordering;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
