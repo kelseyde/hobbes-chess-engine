@@ -28,16 +28,16 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta);
 
-            if td.abort() {
-                break;
-            }
-
             if td.main {
                 if td.best_move.exists() {
                     println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
                 } else {
                     println!("info depth {} score cp {}", td.depth, score);
                 }
+            }
+
+            if td.abort() || Score::is_mate(score) {
+                break;
             }
 
             match score {
@@ -69,7 +69,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let in_check = is_check(board, board.stm);
 
     // If depth is reached, drop into quiescence search
-    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta) }
+    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta, ply) }
 
     if depth < 0 { depth = 0; }
 
@@ -80,24 +80,21 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut tt_move = Move::NONE;
 
     if !root_node {
-        let tt_entry = td.tt.probe(board.hash);
-        match tt_entry {
-            Some(entry) => {
-                tt_move = entry.best_move();
-                if entry.depth() >= depth as u8 {
-                    if entry.flag() == TTFlag::Exact {
-                        return entry.score() as i32
-                    } else if entry.flag() == TTFlag::Lower {
-                        alpha = alpha.max(entry.score() as i32)
-                    } else if entry.flag() == TTFlag::Upper {
-                        beta = beta.min(entry.score() as i32)
-                    }
-                    if alpha >= beta {
-                        return entry.score() as i32
-                    }
+        if let Some(entry) = td.tt.probe(board.hash) {
+            tt_move = entry.best_move();
+
+            if entry.depth() >= depth as u8 {
+                let score = entry.score(ply) as i32;
+                match entry.flag() {
+                    TTFlag::Exact => return score,
+                    TTFlag::Lower => alpha = alpha.max(score),
+                    TTFlag::Upper => beta = beta.min(score),
+                }
+
+                if alpha >= beta {
+                    return score;
                 }
             }
-            None => {}
         }
     }
 
@@ -135,7 +132,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut move_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
-    let mut flag = TTFlag::Lower;
+    let mut flag = TTFlag::Upper;
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
@@ -179,7 +176,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             }
 
             if score >= beta {
-                flag = TTFlag::Upper;
+                flag = TTFlag::Lower;
                 td.quiet_history.update(board.stm, &mv, (120 * depth as i16 - 75).min(1200));
                 break;
             }
@@ -188,17 +185,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check { ply as i32 - Score::Max as i32 } else { Score::Draw as i32 }
+        return if in_check { -(Score::Mate as i32) + ply } else { Score::Draw as i32 }
     }
 
     if !root_node {
-        td.tt.insert(board.hash, &best_move, best_score, depth as u8, flag);
+        td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
 
     best_score
 }
 
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -207,21 +204,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
-    match tt_entry {
-        Some(entry) => {
-            tt_move = entry.best_move();
-            if entry.flag() == TTFlag::Exact {
-                return entry.score() as i32
-            } else if entry.flag() == TTFlag::Lower {
-                alpha = alpha.max(entry.score() as i32)
-            } else if entry.flag() == TTFlag::Upper {
-                beta = beta.min(entry.score() as i32)
-            }
-            if alpha >= beta {
-                return entry.score() as i32
-            }
+    if let Some(entry) = tt_entry {
+        tt_move = entry.best_move();
+        let score = entry.score(ply) as i32;
+        match entry.flag() {
+            TTFlag::Exact => return score,
+            TTFlag::Lower => alpha = alpha.max(score),
+            TTFlag::Upper => beta = beta.min(score),
         }
-        None => {}
+
+        if alpha >= beta {
+            return score;
+        }
     }
 
     if !in_check {
@@ -250,7 +244,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32) -> i32 
         }
         legals += 1;
         td.nodes += 1;
-        let score = -qs(&board, td, -beta, -alpha);
+        let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
         if td.abort() { break; }
 

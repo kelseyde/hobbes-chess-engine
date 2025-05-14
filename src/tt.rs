@@ -1,3 +1,4 @@
+use crate::consts::Score;
 use crate::moves::Move;
 
 pub struct TranspositionTable {
@@ -48,8 +49,8 @@ impl TTEntry {
         Move(self.best_move)
     }
 
-    pub fn score(&self) -> i16 {
-        self.score
+    pub fn score(&self, ply: i32) -> i16 {
+        to_search(self.score as i32, ply)
     }
 
     pub fn depth(&self) -> u8 {
@@ -112,12 +113,12 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: i32, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
         entry.best_move = best_move.0;
-        entry.score = score as i16;
+        entry.score = to_tt(score, ply) as i16;
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }
@@ -127,6 +128,21 @@ impl TranspositionTable {
         (key as usize) & (self.table.len() - 1)
     }
 
+
+}
+
+fn to_tt(score: i32, ply: i32) -> i16 {
+    if !Score::is_mate(score) {
+        return score as i16 ;
+    }
+    if score > 0 { (score - ply) as i16 } else { (score + ply) as i16 }
+}
+
+fn to_search(score: i32, ply: i32) -> i16 {
+    if !Score::is_mate(score) {
+        return score as i16
+    }
+    if score > 0 { (score + ply) as i16 } else { (score - ply) as i16 }
 }
 
 #[cfg(test)]
@@ -144,13 +160,13 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, &best_move, score, depth, flag);
+        tt.insert(hash, &best_move, score, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
-        assert_eq!(entry.score(), score as i16);
+        assert_eq!(entry.score(0), score as i16);
         assert_eq!(entry.depth(), depth);
         assert_eq!(entry.flag(), flag);
     }
