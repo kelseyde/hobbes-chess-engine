@@ -9,7 +9,7 @@
 - [x] Aspiration windows
 - [x] RFP
 - [x] NMP
-- [ ] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
+- [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
 - [ ] Killer moves
 - [ ] LMP
 - [ ] Futility pruning
