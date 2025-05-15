@@ -146,7 +146,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         move_count += 1;
         td.nodes += 1;
 
-        let score = -alpha_beta(&board, td, depth - 1, ply + 1, -beta, -alpha);
+        let mut extension = 0;
+        if (in_check) {
+            extension = 1;
+        }
+
+        let score = -alpha_beta(&board, td, depth - 1 + extension, ply + 1, -beta, -alpha);
 
         if is_quiet {
             quiet_moves.push(*mv);
