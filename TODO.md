@@ -5,7 +5,7 @@
 - [x] Quiescent Search
 - [x] Transposition Table (sort TT move first now in move ordering)
 - [x] Butterfly history heuristic
-- [ ] PVS
+- [x] PVS
 - [x] Aspiration windows
 - [x] RFP
 - [x] NMP
