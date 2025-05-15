@@ -116,7 +116,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             board.make_null_move();
             td.nodes += 1;
 
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let r = 3 + depth / 3 + ((static_eval - beta) / 256).min(3);
+
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1);
             if score >= beta {
                 return score;
             }
