@@ -75,10 +75,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
 
-    let root = ply == 0;
+    let root_node = ply == 0;
+    let pv_node = beta - alpha > 1;
+
     let mut tt_move = Move::NONE;
 
-    if !root {
+    if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_move = entry.best_move();
 
@@ -99,27 +101,25 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
 
-    if !root
-        && !in_check
-        && depth <= 8
-        && static_eval - 80 * depth >= beta {
-        return static_eval;
-    }
+    if !root_node && !in_check {
 
-    if !root
-        && !in_check
-        && depth >= 3
-        && static_eval >= beta
-        && board.has_non_pawns() {
+        if depth <= 8
+            && static_eval - 80 * depth >= beta {
+            return static_eval;
+        }
 
-        let mut board = *board;
-        board.make_null_move();
-        td.nodes += 1;
+        if depth >= 3
+            && static_eval >= beta
+            && board.has_non_pawns() {
 
-        let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let mut board = *board;
+            board.make_null_move();
+            td.nodes += 1;
 
-        if score >= beta {
-            return score;
+            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            if score >= beta {
+                return score;
+            }
         }
 
     }
@@ -147,11 +147,31 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         td.nodes += 1;
 
         let mut extension = 0;
-        if (in_check) {
+        if in_check {
             extension = 1;
         }
 
-        let score = -alpha_beta(&board, td, depth - 1 + extension, ply + 1, -beta, -alpha);
+        let new_depth = depth - 1 + extension;
+
+        let mut score = Score::Min as i32;
+
+        if depth >= 3 && move_count > 1 + root_node as i32 && is_quiet {
+            let reduction = td.lmr.reduction(depth, move_count) / 1024;
+
+            let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
+
+            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
+
+            if score > alpha && new_depth > reduced_depth {
+                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+            }
+        } else if !pv_node || move_count > 1 {
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+        }
+
+        if pv_node && (move_count == 1 || score > alpha) {
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
+        }
 
         if is_quiet {
             quiet_moves.push(*mv);
@@ -167,7 +187,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             alpha = score;
             best_move = *mv;
             flag = TTFlag::Exact;
-            if root {
+            if root_node {
                 td.best_move = mv.clone();
             }
 
@@ -184,7 +204,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         return if in_check { -(Score::Mate as i32) + ply } else { Score::Draw as i32 }
     }
 
-    if !root {
+    if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
 
@@ -228,7 +248,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
     let mut moves = gen_moves(board, filter);
     let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
-    let mut legals = 0;
+    let mut move_count = 0;
 
     let mut best_score = alpha;
 
@@ -238,7 +258,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
         if is_check(&board, board.stm.flip()) {
             continue
         }
-        legals += 1;
+        move_count += 1;
         td.nodes += 1;
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
@@ -257,9 +277,38 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
         }
     }
 
+    if move_count == 0 && in_check {
+        return -(Score::Mate as i32) + ply;
+    }
+
     best_score
 }
 
 fn is_cancelled(time: Instant) -> bool {
     Instant::now() >= time
+}
+
+pub struct LmrTable {
+    table: [[i32; 64]; 64],
+}
+
+impl LmrTable {
+    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
+        self.table[depth.min(63) as usize][move_count.min(63) as usize]
+    }
+}
+
+impl Default for LmrTable {
+    fn default() -> Self {
+        let mut table = [[0; 64]; 64];
+
+        for depth in 1..64 {
+            for move_count in 1..64 {
+                let reduction = 820.0 + 455.0 * (depth as f32).ln() * (move_count as f32).ln();
+                table[depth as usize][move_count as usize] = reduction as i32;
+            }
+        }
+
+        Self { table }
+    }
 }
