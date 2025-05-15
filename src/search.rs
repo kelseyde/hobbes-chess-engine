@@ -146,7 +146,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         move_count += 1;
         td.nodes += 1;
 
-        let new_depth = depth - 1;
+        let mut extension = 0;
+        if in_check {
+            extension = 1;
+        }
+
+        let new_depth = depth - 1 + extension;
 
         let mut score = Score::Min as i32;
 
