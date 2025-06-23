@@ -10,14 +10,14 @@
 - [X] Iterative deepening
 - [ ] Data generation
 - [ ] Train basic NNUE net
-- [ ] PVS
-- [ ] NMP
-- [ ] RFP
-- [ ] LMR
-- [ ] MVV-LVA
+- [X] PVS
+- [X] NMP
+- [X] RFP
+- [X] LMR
+- [X] MVV-LVA
 - [ ] Killer heuristic
-- [ ] Aspiration windows
-- [ ] SEE
+- [X] Aspiration windows
+- [X] SEE
 - [ ] Time management
 
 #### Hobbes 2.0.0

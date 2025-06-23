@@ -134,16 +134,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
-    let mut quiet_moves = ArrayVec::<Move, 32>::new();
+    let mut quiet_moves = Vec::<Move>::new();
 
     for mv in moves.iter() {
+        let captured = board.captured(&mv);
+        let is_quiet = captured.is_none();
         let mut board = *board;
         board.make(&mv);
         if is_check(&board, board.stm.flip()) {
             continue
         }
-        let captured = board.captured(&mv);
-        let is_quiet = captured.is_none();
         move_count += 1;
         td.nodes += 1;
 
