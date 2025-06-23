@@ -18,6 +18,8 @@ mod evaluate;
 mod ordering;
 mod tt;
 mod history;
+mod see;
+mod types;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

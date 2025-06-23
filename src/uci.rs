@@ -5,13 +5,13 @@ use consts::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
+use crate::evaluate::Evaluator;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::{consts, fen};
-use crate::evaluate::Evaluator;
 
 pub struct UCI {
     pub board: Board,

@@ -78,13 +78,13 @@ impl Move {
         PROMO_FLAGS.contains(&self.flag())
     }
 
-    pub fn promo_piece(self) -> Piece {
+    pub fn promo_piece(self) -> Option<Piece> {
         match self.flag() {
-            MoveFlag::PromoQ => Piece::Queen,
-            MoveFlag::PromoR => Piece::Rook,
-            MoveFlag::PromoB => Piece::Bishop,
-            MoveFlag::PromoN => Piece::Knight,
-            _ => panic!("Invalid promo piece")
+            MoveFlag::PromoQ => Some(Piece::Queen),
+            MoveFlag::PromoR => Some(Piece::Rook),
+            MoveFlag::PromoB => Some(Piece::Bishop),
+            MoveFlag::PromoN => Some(Piece::Knight),
+            _ => None
         }
     }
 
@@ -127,8 +127,8 @@ impl Move {
     pub fn to_uci(self) -> String {
         let from = Self::uci_sq(self.from());
         let to = Self::uci_sq(self.to());
-        let promo = if self.is_promo() {
-            match self.promo_piece() {
+        let promo = if let Some(promo) = self.promo_piece() {
+            match promo {
                 Piece::Queen => "q",
                 Piece::Rook => "r",
                 Piece::Bishop => "b",
