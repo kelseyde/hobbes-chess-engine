@@ -1,5 +1,3 @@
-use std::time::Instant;
-use arrayvec::ArrayVec;
 use crate::board::Board;
 use crate::consts::{Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
@@ -7,6 +5,9 @@ use crate::moves::Move;
 use crate::ordering::score;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
+use arrayvec::ArrayVec;
+use std::time::Instant;
+use crate::see;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
@@ -254,11 +255,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
 
     for mv in moves.iter() {
         let mut board = *board;
+
+        // SEE Pruning
+        if !in_check && !see::see(&board, &mv, 0) {
+            continue;
+        }
+
         board.make(&mv);
         if is_check(&board, board.stm.flip()) {
             continue
         }
         move_count += 1;
+
         td.nodes += 1;
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
 

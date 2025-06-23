@@ -36,8 +36,8 @@ impl Board {
         board.stm = parse_stm(parts[1]);
         board.castle = parse_castle_rights(parts[2]);
         board.ep_sq = parse_ep_sq(parts[3]);
-        board.hm = parts[4].parse().expect("Invalid half-move clock in FEN string");
-        board.fm = parts[5].parse().expect("Invalid full-move number in FEN string");
+        board.hm = parts.get(4).unwrap_or(&"0").parse().unwrap_or(0);
+        board.fm = parts.get(5).unwrap_or(&"0").parse().unwrap_or(0);
         board.hash = Zobrist::new(&board);
         board
 

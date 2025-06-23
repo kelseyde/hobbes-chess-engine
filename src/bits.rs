@@ -43,8 +43,18 @@ pub const fn count(b: u64) -> u32 {
 }
 
 #[inline(always)]
+pub const fn empty(b: u64) -> bool {
+    b == 0
+}
+
+#[inline(always)]
 pub const fn pop(b: u64) -> u64 {
     b & (b - 1)
+}
+
+#[inline(always)]
+pub const fn pop_bit(b: u64, sq: u8) -> u64 {
+    b ^ bb(sq)
 }
 
 #[inline(always)]
