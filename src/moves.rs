@@ -148,7 +148,13 @@ impl Move {
     }
 
     pub fn matches(self, m: &Move) -> bool {
-        self.from() ==  m.from() && self.to() == m.to()
+        let square_match = self.from() == m.from() && self.to() == m.to();
+        let promo_match = if self.is_promo() && m.is_promo() {
+            self.promo_piece() == m.promo_piece()
+        } else {
+            true
+        };
+        square_match && promo_match
     }
 
     pub fn exists(self) -> bool {
