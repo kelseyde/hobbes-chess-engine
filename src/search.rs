@@ -287,7 +287,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
 
         if score > alpha {
             alpha = score;
-
             if score >= beta {
                 return score;
             }
