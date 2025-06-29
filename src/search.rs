@@ -125,6 +125,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     }
 
+    depth -= i32::from(depth >= 4 && !tt_move.exists());
+
     let mut moves = gen_moves(board, MoveFilter::All);
     let scores = score(&td, &board, &moves, &tt_move);
     moves.sort(&scores);
