@@ -14,13 +14,12 @@ pub mod search;
 pub mod thread;
 pub mod uci;
 pub mod zobrist;
-pub mod evaluate;
 pub mod ordering;
 pub mod tt;
 pub mod history;
 pub mod see;
 pub mod types;
-mod network;
+pub mod network;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
