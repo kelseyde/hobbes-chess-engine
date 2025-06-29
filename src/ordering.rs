@@ -41,7 +41,7 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
                         }
                     } else {
                         0
-                    };
+                    }
                 } else {
                     0
                 };
