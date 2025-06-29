@@ -31,13 +31,17 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
                 }
             } else {
                 let quiet_score = td.quiet_history.get(board.stm, *m) as i32;
-                let cont_score = if let Some(prev_mv) = td.ss[ply - 1].mv {
-                    let pc = board.piece_at(m.from()).unwrap();
-                    if let Some(prev_pc) = td.ss[ply -1].pc {
-                        td.cont_history.get(prev_mv, prev_pc, *m, pc) as i32
+                let cont_score = if ply > 0 {
+                    if let Some(prev_mv) = td.ss[ply - 1].mv {
+                        let pc = board.piece_at(m.from()).unwrap();
+                        if let Some(prev_pc) = td.ss[ply -1].pc {
+                            td.cont_history.get(prev_mv, prev_pc, *m, pc) as i32
+                        } else {
+                            0
+                        }
                     } else {
                         0
-                    }
+                    };
                 } else {
                     0
                 };
