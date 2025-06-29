@@ -36,7 +36,7 @@ impl Board {
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let piece = self.piece_at(from).unwrap();
         let new_piece = if let Some(promo) = m.promo_piece() { promo } else { piece };
-        let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to.0 as usize] };
+        let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
 
         self.toggle_sq(from, piece, side);
         if captured_piece.is_some() {
@@ -62,9 +62,9 @@ impl Board {
     #[inline]
     pub fn toggle_sq(&mut self, sq: Square, piece: Piece, side: Side) {
         let bb: Bitboard = Bitboard::of_sq(sq);
-        self.bb[piece as usize] ^= bb;
+        self.bb[piece] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq.0 as usize] = if self.pcs[sq.0 as usize] == Some(piece) { None } else { Some(piece) };
+        self.pcs[sq] = if self.pcs[sq] == Some(piece) { None } else { Some(piece) };
         self.hash = Zobrist::toggle_sq(self.hash, piece, side, sq);
     }
 
@@ -150,27 +150,27 @@ impl Board {
     }
 
     pub fn pawns(self, side: Side) -> Bitboard {
-        self.bb[Piece::Pawn as usize] & self.bb[side.idx()]
+        self.bb[Piece::Pawn] & self.bb[side.idx()]
     }
 
     pub fn knights(self, side: Side) -> Bitboard {
-        self.bb[Piece::Knight as usize] & self.bb[side.idx()]
+        self.bb[Piece::Knight] & self.bb[side.idx()]
     }
 
     pub fn bishops(self, side: Side) -> Bitboard {
-        self.bb[Piece::Bishop as usize] & self.bb[side.idx()]
+        self.bb[Piece::Bishop] & self.bb[side.idx()]
     }
 
     pub fn rooks(self, side: Side) -> Bitboard {
-        self.bb[Piece::Rook as usize] & self.bb[side.idx()]
+        self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
     pub fn queens(self, side: Side) -> Bitboard {
-        self.bb[Piece::Queen as usize] & self.bb[side.idx()]
+        self.bb[Piece::Queen] & self.bb[side.idx()]
     }
 
     pub fn king(self, side: Side) -> Bitboard {
-        self.bb[Piece::King as usize] & self.bb[side.idx()]
+        self.bb[Piece::King] & self.bb[side.idx()]
     }
 
     pub fn king_sq(self, side: Side) -> Square {
@@ -182,7 +182,7 @@ impl Board {
     }
 
     pub fn pcs(self, piece: Piece) -> Bitboard {
-        self.bb[piece as usize]
+        self.bb[piece]
     }
 
     pub fn side(self, side: Side) -> Bitboard {
@@ -198,15 +198,15 @@ impl Board {
     }
 
     pub fn our(self, piece: Piece) -> Bitboard {
-        self.bb[piece as usize] & self.bb[self.stm.idx()]
+        self.bb[piece] & self.bb[self.stm.idx()]
     }
 
     pub fn their(self, piece: Piece) -> Bitboard {
-        self.bb[piece as usize] & self.bb[self.stm.flip().idx()]
+        self.bb[piece] & self.bb[self.stm.flip().idx()]
     }
 
     pub fn piece_at(self, sq: Square) -> Option<Piece> {
-        self.pcs[sq.0 as usize]
+        self.pcs[sq]
     }
 
     pub fn captured(self, mv: &Move) -> Option<Piece> {

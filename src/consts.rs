@@ -1,3 +1,4 @@
+use std::ops::{Index, IndexMut};
 
 pub const MAX_DEPTH: i32 = 255;
 
@@ -55,4 +56,33 @@ impl Side {
         *self as usize + 6
     }
 
+}
+
+
+impl<T, const N: usize> Index<Piece> for [T; N] {
+    type Output = T;
+
+    fn index(&self, pc: Piece) -> &Self::Output {
+        &self[pc as usize]
+    }
+}
+
+impl<T, const N: usize> IndexMut<Piece> for [T; N] {
+    fn index_mut(&mut self, pc: Piece) -> &mut Self::Output {
+        &mut self[pc as usize]
+    }
+}
+
+impl<T, const N: usize> Index<Side> for [T; N] {
+    type Output = T;
+
+    fn index(&self, stm: Side) -> &Self::Output {
+        &self[stm as usize]
+    }
+}
+
+impl<T, const N: usize> IndexMut<Side> for [T; N] {
+    fn index_mut(&mut self, stm: Side) -> &mut Self::Output {
+        &mut self[stm as usize]
+    }
 }

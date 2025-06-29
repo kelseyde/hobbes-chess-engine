@@ -27,7 +27,7 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move) -
             if let Some(v) = victim {
                 let attacker = board.piece_at(m.from());
                 if let Some(a) = attacker {
-                    scores[idx] = NOISY_BONUS + MVV_LVA[v as usize][a as usize] as i32;
+                    scores[idx] = NOISY_BONUS + MVV_LVA[v][a] as i32;
                 }
             } else {
                 scores[idx] = QUIET_BONUS + td.quiet_history.get(board.stm, *m) as i32;

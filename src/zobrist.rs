@@ -30,13 +30,13 @@ impl Zobrist {
         for sq in Square::iter() {
             if let Some(piece) = board.piece_at(sq) {
                 let piece_index = Zobrist::piece_index(piece, board.side_at(sq).unwrap());
-                hash ^= PIECE_KEYS[piece_index][sq.0 as usize];
+                hash ^= PIECE_KEYS[piece_index][sq];
             }
         }
 
         // Add en passant square if it exists
         if let Some(ep_sq) = board.ep_sq {
-            hash ^= EP_KEYS[ep_sq.0 as usize];
+            hash ^= EP_KEYS[ep_sq];
         }
 
         // Add castling rights
@@ -52,11 +52,11 @@ impl Zobrist {
 
     pub fn toggle_sq(hash: u64, piece: Piece, side: Side, sq: Square) -> u64 {
         let piece_index = Zobrist::piece_index(piece, side);
-        hash ^ PIECE_KEYS[piece_index][sq.0 as usize]
+        hash ^ PIECE_KEYS[piece_index][sq]
     }
 
     pub fn toggle_ep(hash: u64, ep_sq: Square) -> u64 {
-        hash ^ EP_KEYS[ep_sq.0 as usize]
+        hash ^ EP_KEYS[ep_sq]
     }
 
     pub fn toggle_castle(hash: u64, castle: u8) -> u64 {
