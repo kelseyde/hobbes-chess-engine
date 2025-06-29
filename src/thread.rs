@@ -74,6 +74,7 @@ impl ThreadData {
     }
 
     pub fn reset(&mut self) {
+        self.ss = SearchStack::new();
         self.time = Instant::now();
         self.time_limit = Duration::MAX;
         self.nodes = 0;
