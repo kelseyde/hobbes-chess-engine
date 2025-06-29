@@ -72,5 +72,6 @@ pub fn bench() {
 
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
+
 }
 
