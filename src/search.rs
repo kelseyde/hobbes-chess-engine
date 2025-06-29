@@ -74,7 +74,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     if depth < 0 { depth = 0; }
 
-    if depth == MAX_DEPTH { return td.evaluator.evaluate(&board) }
+    if depth == MAX_DEPTH { return td.nnue.evaluate(&board) }
 
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
@@ -100,7 +100,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         }
     }
 
-    let static_eval = if in_check {Score::Min as i32} else { td.evaluator.evaluate(&board) };
+    let static_eval = if in_check {Score::Min as i32} else { td.nnue.evaluate(&board) };
 
     if !root_node && !in_check {
 
@@ -239,7 +239,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
     }
 
     if !in_check {
-        let eval = td.evaluator.evaluate(&board);
+        let eval = td.nnue.evaluate(&board);
         if eval > alpha {
             alpha = eval
         }
