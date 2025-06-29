@@ -1,6 +1,6 @@
 use crate::board::Board;
 use crate::consts::{Score, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, MoveFilter};
+use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
@@ -130,6 +130,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     moves.sort(&scores);
 
     let mut move_count = 0;
+    let mut quiet_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
@@ -137,13 +138,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
     for mv in moves.iter() {
-        let mut board = *board;
-        board.make(&mv);
-        if is_check(&board, board.stm.flip()) {
+
+        if !is_legal(&board, mv) {
             continue
         }
+
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+
+        let mut new = *board;
+        new.make(&mv);
+
         move_count += 1;
         td.nodes += 1;
 
@@ -161,20 +166,21 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
-            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
+            score = -alpha_beta(&new, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
 
             if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+                score = -alpha_beta(&new, td, new_depth, ply + 1, -alpha - 1, -alpha);
             }
         } else if !pv_node || move_count > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+            score = -alpha_beta(&new, td, new_depth, ply + 1, -alpha - 1, -alpha);
         }
 
         if pv_node && (move_count == 1 || score > alpha) {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
+            score = -alpha_beta(&new, td, new_depth, ply + 1, -beta, -alpha);
         }
 
-        if is_quiet {
+        if is_quiet && quiet_count < 32 {
+            quiet_count += 1;
             quiet_moves.push(*mv);
         }
 
