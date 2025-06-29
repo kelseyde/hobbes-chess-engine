@@ -9,7 +9,7 @@ pub struct QuietHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[[[[i16; 64]; 12]; 64]; 12]>,
+    entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
 }
 
 impl ContinuationHistory {
@@ -17,21 +17,21 @@ impl ContinuationHistory {
 
     pub fn new() -> Self {
         ContinuationHistory {
-            entries: Box::new([[[[0; 64]; 12]; 64]; 12]),
+            entries: Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
         }
     }
 
-    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece) -> i16 {
-        self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
+    pub fn get(&self, stm: Side, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece) -> i16 {
+        self.entries[stm][prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
-    pub fn update(&mut self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i16) {
-        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
+    pub fn update(&mut self, stm: Side, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i16) {
+        let entry = &mut self.entries[stm][prev_pc][prev_mv.to()][pc][mv.to()];
         *entry = gravity(*entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 64]; 12]; 64]; 12]);
+        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2]);
     }
 
 }
