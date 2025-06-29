@@ -4,6 +4,7 @@ use crate::board::Board;
 use crate::evaluate::Evaluator;
 use crate::history::QuietHistory;
 use crate::moves::Move;
+use crate::network::NNUE;
 use crate::search::LmrTable;
 use crate::tt::TranspositionTable;
 
@@ -11,10 +12,10 @@ pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub tt: TranspositionTable,
+    pub nnue: NNUE,
     pub board_history: Vec<Board>,
     pub quiet_history: QuietHistory,
     pub lmr: LmrTable,
-    pub evaluator: Evaluator,
     pub time: Instant,
     pub time_limit: Duration,
     pub nodes: u64,
@@ -32,10 +33,10 @@ impl ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
+            nnue: NNUE::new(),
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
             lmr: LmrTable::default(),
-            evaluator: Evaluator::new(),
             time: Instant::now(),
             time_limit: Duration::MAX,
             nodes: 0,
@@ -52,9 +53,9 @@ impl ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
+            nnue: NNUE::new(),
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
-            evaluator: Evaluator::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
