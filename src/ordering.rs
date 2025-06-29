@@ -16,7 +16,7 @@ pub const MVV_LVA: [[u8; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0],       // victim ~, attacker K, Q, R, B, N, P, ~
 ];
 
-pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move) -> [i32; MAX_MOVES] {
+pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, ply: usize) -> [i32; MAX_MOVES] {
     let mut scores = [0; MAX_MOVES];
     let mut idx = 0;
     for m in moves.iter() {
@@ -30,7 +30,15 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move) -
                     scores[idx] = NOISY_BONUS + MVV_LVA[v][a] as i32;
                 }
             } else {
-                scores[idx] = QUIET_BONUS + td.quiet_history.get(board.stm, *m) as i32;
+                let quiet_score = td.quiet_history.get(board.stm, *m) as i32;
+                let cont_score = if let Some(prev_mv) = td.ss[ply - 1].mv {
+                    let prev_pc = td.ss[ply - 1].pc.unwrap();
+                    let pc = board.piece_at(m.from()).unwrap();
+                    td.cont_history.get(prev_mv, prev_pc, *m, pc) as i32
+                } else {
+                    0
+                };
+                scores[idx] = QUIET_BONUS + quiet_score + cont_score;
             }
         }
         idx += 1;

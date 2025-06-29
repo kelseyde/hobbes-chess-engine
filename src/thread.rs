@@ -1,19 +1,21 @@
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
-use crate::history::QuietHistory;
+use crate::history::{ContinuationHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
-use crate::search::LmrTable;
+use crate::search::{LmrTable, SearchStack};
 use crate::tt::TranspositionTable;
 
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub tt: TranspositionTable,
+    pub ss: SearchStack,
     pub nnue: NNUE,
     pub board_history: Vec<Board>,
     pub quiet_history: QuietHistory,
+    pub cont_history: ContinuationHistory,
     pub lmr: LmrTable,
     pub time: Instant,
     pub time_limit: Duration,
@@ -32,9 +34,11 @@ impl ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
+            ss: SearchStack::new(),
             nnue: NNUE::new(),
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
+            cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
@@ -52,9 +56,11 @@ impl ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
+            ss: SearchStack::new(),
             nnue: NNUE::new(),
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
+            cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,

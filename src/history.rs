@@ -9,25 +9,43 @@ pub struct QuietHistory {
 }
 
 pub struct ContinuationHistory {
-    // [previous_piece][previous_to][current_piece][current_to]
-    entries: Box<[[[[i32; 64]; 12]; 64]; 12]>,
+    entries: Box<[[[[i16; 64]; 12]; 64]; 12]>,
 }
 
 impl ContinuationHistory {
-    const MAX_HISTORY: i32 = 16384;
+    const MAX: i16 = 16384;
 
-    pub fn get(&self, prev_pc: Piece, prev_mv: Move, pc: Piece, mv: Move) -> i32 {
+    pub fn new() -> Self {
+        ContinuationHistory {
+            entries: Box::new([[[[0; 64]; 12]; 64]; 12]),
+        }
+    }
+
+    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece) -> i16 {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
-    pub fn update(&mut self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i32) {
+    pub fn update(&mut self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry += bonus - bonus.abs() * (*entry) / Self::MAX_HISTORY;
+        *entry = gravity(*entry, bonus, Self::MAX);
     }
+
+    pub fn clear(&mut self) {
+        for entry in self.entries.iter_mut() {
+            for row in entry.iter_mut() {
+                for col in row.iter_mut() {
+                    for cell in col.iter_mut() {
+                        *cell = 0;
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 impl QuietHistory {
-    const HISTORY_MAX: i16 = 16384;
+    const MAX: i16 = 16384;
 
     pub fn new() -> Self {
         QuietHistory {
@@ -41,9 +59,8 @@ impl QuietHistory {
 
     pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
         let entry = &mut self.entries[stm][mv.from()][mv.to()];
-        *entry = gravity(*entry, bonus, Self::HISTORY_MAX);
+        *entry = gravity(*entry, bonus, Self::MAX);
     }
-
 
     pub fn clear(&mut self) {
         for entry in self.entries.iter_mut() {

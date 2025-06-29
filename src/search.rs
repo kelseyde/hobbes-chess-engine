@@ -1,5 +1,6 @@
+use std::ops::{Index, IndexMut};
 use crate::board::Board;
-use crate::consts::{Score, MAX_DEPTH};
+use crate::consts::{Piece, Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
@@ -8,6 +9,8 @@ use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::time::Instant;
+
+pub const MAX_PLY: usize = 256;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
@@ -62,7 +65,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut alpha: i32, mut beta: i32) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, mut beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -126,7 +129,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(&td, &board, &moves, &tt_move);
+    let scores = score(&td, &board, &moves, &tt_move, ply);
     moves.sort(&scores);
 
     let mut move_count = 0;
@@ -137,6 +140,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
     for mv in moves.iter() {
+
+        let pc = board.piece_at(mv.from());
+        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].pc = pc;
+
         let mut board = *board;
         board.make(&mv);
         if is_check(&board, board.stm.flip()) {
@@ -180,6 +188,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
         if td.abort() { break; }
 
+        td.ss[ply].mv = None;
+        td.ss[ply].pc = None;
+
         if score > best_score {
             best_score = score;
         }
@@ -201,11 +212,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
     if best_move.exists() {
         td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
+        if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let prev_pc = td.ss[ply - 1].pc.unwrap();
+            let pc = board.piece_at(best_move.from()).unwrap();
+            td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+        }
     }
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check { -(Score::Mate as i32) + ply } else { Score::Draw as i32 }
+        return if in_check { -(Score::Mate as i32) + ply as i32} else { Score::Draw as i32 }
     }
 
     if !root_node {
@@ -215,7 +231,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     best_score
 }
 
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i32) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: usize) -> i32 {
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
@@ -250,7 +266,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
 
     let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
     let mut moves = gen_moves(board, filter);
-    let scores = score(&td, &board, &moves, &tt_move);
+    let scores = score(&td, &board, &moves, &tt_move, ply);
     moves.sort(&scores);
     let mut move_count = 0;
 
@@ -258,6 +274,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
 
     for mv in moves.iter() {
         let mut board = *board;
+
+        let pc = board.piece_at(mv.from());
+        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].pc = pc;
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
@@ -275,6 +295,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
 
         if td.abort() { break; }
 
+        td.ss[ply].mv = None;
+        td.ss[ply].pc = None;
+
         if score > best_score {
             best_score = score;
         }
@@ -289,7 +312,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
     }
 
     if move_count == 0 && in_check {
-        return -(Score::Mate as i32) + ply;
+        return -(Score::Mate as i32) + ply as i32;
     }
 
     best_score
@@ -321,5 +344,37 @@ impl Default for LmrTable {
         }
 
         Self { table }
+    }
+}
+
+pub struct SearchStack {
+    data: [StackEntry; MAX_PLY + 8],
+}
+
+#[derive(Copy, Clone)]
+pub struct StackEntry {
+    pub mv: Option<Move>,
+    pub pc: Option<Piece>
+}
+
+impl SearchStack {
+
+    pub fn new() -> Self {
+        SearchStack { data: [StackEntry { mv: None, pc: None }; MAX_PLY + 8] }
+    }
+
+}
+
+impl Index<usize> for SearchStack {
+    type Output = StackEntry;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe { self.data.get_unchecked(index) }
+    }
+}
+
+impl IndexMut<usize> for SearchStack {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        unsafe { self.data.get_unchecked_mut(index) }
     }
 }
