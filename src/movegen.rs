@@ -36,15 +36,11 @@ pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
     // handle standard moves
     for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
         let mut pcs = board.pcs(pc) & us;
-        while !pcs.is_empty() {
-            let from = pcs.lsb();
+        for from in pcs {
             let mut attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
-            while !attacks.is_empty() {
-                let to = attacks.lsb();
+            for to in attacks {
                 moves.add_move(from, to, MoveFlag::Standard);
-                attacks = attacks.pop();
             }
-            pcs = pcs.pop();
         }
     }
 
@@ -66,6 +62,11 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
         for to in double_push(pawns, side, occ) {
             let from = if side == White { to.minus(16) } else { to.plus(16) };
             moves.add_move(from, to, MoveFlag::DoublePush);
+        }
+
+        for to in push_promos(pawns, side, occ) {
+            let from = if side == White { to.minus(8) } else { to.plus(8) };
+            add_promos(moves, from, to);
         }
 
     }
@@ -93,13 +94,6 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
             moves.add_move(from, to, MoveFlag::EnPassant);
         }
 
-    }
-
-    if filter != MoveFilter::Captures {
-        for to in push_promos(pawns, side, occ) {
-            let from = if side == White { to.minus(8) } else { to.plus(8) };
-            add_promos(moves, from, to);
-        }
     }
 
     for to in left_capture_promos(pawns, side, them) {
@@ -201,10 +195,8 @@ fn add_promos(moves: &mut MoveList, from: Square, to: Square) {
 
 #[inline(always)]
 pub fn is_attacked(mut bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
-    while !bb.is_empty() {
-        let sq = bb.lsb();
-        if is_sq_attacked(sq, side, occ, board) { return  true; }
-        bb = bb.pop();
+    for sq in bb {
+        if is_sq_attacked(sq, side, occ, board) { return true; }
     }
     false
 }
