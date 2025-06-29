@@ -1,17 +1,19 @@
 use crate::bits::Rights;
 use crate::consts::Side::{Black, White};
 use crate::fen;
+use crate::types::bitboard::Bitboard;
+use crate::types::square::Square;
 use crate::zobrist::Zobrist;
-use crate::{bits, consts::Piece, consts::Side, moves::Move, moves::MoveFlag};
+use crate::{consts::Piece, consts::Side, moves::Move, moves::MoveFlag};
 
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [u64; 8],              // bitboards for each piece type (0-5) and for both colours (6-7)
+    pub bb: [Bitboard; 8],         // bitboards for each piece type (0-5) and for both colours (6-7)
     pub pcs: [Option<Piece>; 64],  // piece type on each square
     pub stm: Side,                 // side to move (White or Black)
     pub hm: u8,                    // number of half moves since last capture or pawn move
     pub fm: u8,                    // number of full moves
-    pub ep_sq: Option<u8>,         // en passant square (0-63)
+    pub ep_sq: Option<Square>,     // en passant square (0-63)
     pub castle: u8,                // encoded castle rights
     pub hash: u64,                 // Zobrist hash
 }
@@ -24,7 +26,7 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bb: [0; 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0
+            bb: [Bitboard::empty(); 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0
         }
     }
 
@@ -34,7 +36,7 @@ impl Board {
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let piece = self.piece_at(from).unwrap();
         let new_piece = if let Some(promo) = m.promo_piece() { promo } else { piece };
-        let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to as usize] };
+        let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to.0 as usize] };
 
         self.toggle_sq(from, piece, side);
         if captured_piece.is_some() {
@@ -58,38 +60,38 @@ impl Board {
     }
 
     #[inline]
-    pub fn toggle_sq(&mut self, sq: u8, piece: Piece, side: Side) {
-        let bb = bits::bb(sq);
+    pub fn toggle_sq(&mut self, sq: Square, piece: Piece, side: Side) {
+        let bb: Bitboard = Bitboard::of_sq(sq);
         self.bb[piece as usize] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq as usize] = if self.pcs[sq as usize] == Some(piece) { None } else { Some(piece) };
+        self.pcs[sq.0 as usize] = if self.pcs[sq.0 as usize] == Some(piece) { None } else { Some(piece) };
         self.hash = Zobrist::toggle_sq(self.hash, piece, side, sq);
     }
 
     #[inline]
-    pub fn toggle_sqs(&mut self, from: u8, to: u8, piece: Piece, side: Side) {
+    pub fn toggle_sqs(&mut self, from: Square, to: Square, piece: Piece, side: Side) {
         self.toggle_sq(from, piece, side);
         self.toggle_sq(to, piece, side);
     }
 
     #[inline]
-    fn rook_sqs(self, king_to_sq: u8) -> (u8, u8) {
-        match king_to_sq {
-            2 => (0, 3),
-            6 => (7, 5),
-            58 => (56, 59),
-            62 => (63, 61),
+    fn rook_sqs(self, king_to_sq: Square) -> (Square, Square) {
+        match king_to_sq.0 {
+            2 => (Square(0), Square(3)),
+            6 => (Square(7), Square(5)),
+            58 => (Square(56), Square(59)),
+            62 => (Square(63), Square(61)),
             _ => unreachable!()
         }
     }
 
     #[inline]
-    fn ep_capture_sq(&self, to: u8) -> u8 {
-        if self.stm == White { to - 8 } else { to + 8 }
+    fn ep_capture_sq(&self, to: Square) -> Square {
+        if self.stm == White { Square(to.0 - 8) } else { Square(to.0 + 8) }
     }
 
     #[inline]
-    fn calc_castle_rights(&mut self, from: u8, to: u8, piece_type: Piece) -> u8 {
+    fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> u8 {
         self.hash = Zobrist::toggle_castle(self.hash, self.castle);
         let mut new_rights = self.castle;
         if new_rights == Rights::None as u8 {
@@ -101,16 +103,16 @@ impl Board {
             new_rights &= if self.stm == White { Rights::Black as u8 } else { Rights::White as u8 };
         }
         // Any move starting from/ending at a rook square removes castling rights for that corner.
-        if from == 7 || to == 7    { new_rights &= !(Rights::WKS as u8); }
-        if from == 63 || to == 63  { new_rights &= !(Rights::BKS as u8); }
-        if from == 0 || to == 0    { new_rights &= !(Rights::WQS as u8); }
-        if from == 56 || to == 56  { new_rights &= !(Rights::BQS as u8); }
+        if from.0 == 7 || to.0 == 7    { new_rights &= !(Rights::WKS as u8); }
+        if from.0 == 63 || to.0 == 63  { new_rights &= !(Rights::BKS as u8); }
+        if from.0 == 0 || to.0 == 0    { new_rights &= !(Rights::WQS as u8); }
+        if from.0 == 56 || to.0 == 56  { new_rights &= !(Rights::BQS as u8); }
         self.hash = Zobrist::toggle_castle(self.hash, new_rights);
         new_rights
     }
 
     #[inline]
-    fn calc_ep(&mut self, flag: MoveFlag, sq: u8) -> Option<u8>{
+    fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square>{
         if self.ep_sq.is_some() {
             self.hash = Zobrist::toggle_ep(self.hash, self.ep_sq.unwrap());
         }
@@ -147,60 +149,64 @@ impl Board {
         }
     }
 
-    pub fn pawns(self, side: Side) -> u64 {
+    pub fn pawns(self, side: Side) -> Bitboard {
         self.bb[Piece::Pawn as usize] & self.bb[side.idx()]
     }
 
-    pub fn knights(self, side: Side) -> u64 {
+    pub fn knights(self, side: Side) -> Bitboard {
         self.bb[Piece::Knight as usize] & self.bb[side.idx()]
     }
 
-    pub fn bishops(self, side: Side) -> u64 {
+    pub fn bishops(self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop as usize] & self.bb[side.idx()]
     }
 
-    pub fn rooks(self, side: Side) -> u64 {
+    pub fn rooks(self, side: Side) -> Bitboard {
         self.bb[Piece::Rook as usize] & self.bb[side.idx()]
     }
 
-    pub fn queens(self, side: Side) -> u64 {
+    pub fn queens(self, side: Side) -> Bitboard {
         self.bb[Piece::Queen as usize] & self.bb[side.idx()]
     }
 
-    pub fn king(self, side: Side) -> u64 {
+    pub fn king(self, side: Side) -> Bitboard {
         self.bb[Piece::King as usize] & self.bb[side.idx()]
     }
 
-    pub fn occ(self) -> u64 {
+    pub fn king_sq(self, side: Side) -> Square {
+        self.king(side).lsb()
+    }
+
+    pub fn occ(self) -> Bitboard {
         self.bb[White.idx()] | self.bb[Black.idx()]
     }
 
-    pub fn pcs(self, piece: Piece) -> u64 {
+    pub fn pcs(self, piece: Piece) -> Bitboard {
         self.bb[piece as usize]
     }
 
-    pub fn side(self, side: Side) -> u64 {
+    pub fn side(self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
 
-    pub fn us(self) -> u64 {
+    pub fn us(self) -> Bitboard {
         self.bb[self.stm.idx()]
     }
 
-    pub fn them(self) -> u64 {
+    pub fn them(self) -> Bitboard {
         self.bb[self.stm.flip().idx()]
     }
 
-    pub fn our(self, piece: Piece) -> u64 {
+    pub fn our(self, piece: Piece) -> Bitboard {
         self.bb[piece as usize] & self.bb[self.stm.idx()]
     }
 
-    pub fn their(self, piece: Piece) -> u64 {
+    pub fn their(self, piece: Piece) -> Bitboard {
         self.bb[piece as usize] & self.bb[self.stm.flip().idx()]
     }
 
-    pub fn piece_at(self, sq: u8) -> Option<Piece> {
-        self.pcs[sq as usize]
+    pub fn piece_at(self, sq: Square) -> Option<Piece> {
+        self.pcs[sq.0 as usize]
     }
 
     pub fn captured(self, mv: &Move) -> Option<Piece> {
@@ -213,22 +219,14 @@ impl Board {
         mv.is_promo() || self.captured(mv).is_some()
     }
 
-    pub fn side_at(self, sq: u8) -> Option<Side> {
-        if self.bb[White.idx()] & bits::bb(sq) != 0 { Some(White) }
-        else if self.bb[Black.idx()] & bits::bb(sq) != 0 { Some(Black) }
+    pub fn side_at(self, sq: Square) -> Option<Side> {
+        if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(White) }
+        else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(Black) }
         else { None }
     }
 
     pub fn has_non_pawns(self) -> bool {
         self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
-    }
-
-    pub fn rank(sq: u8) -> u8 {
-        sq >> 3
-    }
-
-    pub fn file(sq: u8) -> u8 {
-        sq & 7
     }
 
     pub fn sq_idx(rank: u8, file: u8) -> u8 {

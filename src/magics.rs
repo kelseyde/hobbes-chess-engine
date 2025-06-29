@@ -1,3 +1,4 @@
+use crate::types::bitboard::Bitboard;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MagicLookup {
@@ -15,11 +16,11 @@ impl MagicLookup {
     }
 }
 
-pub static BISHOP_ATTACKS: [u64; 5248] = gen_bishop_attacks_table();
-pub static ROOK_ATTACKS: [u64; 102400] = gen_rook_attacks_table();
+pub static BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
+pub static ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
 
-const fn gen_bishop_attacks_table() -> [u64; 5248]  {
-    let mut table = [0; 5248];
+const fn gen_bishop_attacks_table() -> [Bitboard; 5248]  {
+    let mut table = [Bitboard(0); 5248];
     let mut sq: usize = 0;
 
     while sq < 64 {
@@ -29,14 +30,14 @@ const fn gen_bishop_attacks_table() -> [u64; 5248]  {
         let attacks = gen_bishop_attacks(sq, subset);
         let blockers = subset;
         let idx = entry.index(blockers);
-        table[idx] = attacks;
+        table[idx] = Bitboard(attacks);
         subset = subset.wrapping_sub(entry.mask) & entry.mask;
 
         while subset != 0 {
             let attacks = gen_bishop_attacks(sq, subset);
             let blockers = subset;
             let idx = entry.index(blockers);
-            table[idx] = attacks;
+            table[idx] = Bitboard(attacks);
 
             subset = subset.wrapping_sub(entry.mask) & entry.mask;
         }
@@ -48,8 +49,8 @@ const fn gen_bishop_attacks_table() -> [u64; 5248]  {
 }
 
 
-const fn gen_rook_attacks_table() -> [u64; 102400] {
-    let mut table = [0; 102400];
+const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
+    let mut table = [Bitboard(0); 102400];
     let mut sq: usize = 0;
 
     while sq < 64 {
@@ -59,14 +60,14 @@ const fn gen_rook_attacks_table() -> [u64; 102400] {
         let attacks = gen_rook_attacks(sq, subset);
         let blockers = subset;
         let idx = entry.index(blockers);
-        table[idx] = attacks;
+        table[idx] = Bitboard(attacks);
         subset = subset.wrapping_sub(entry.mask) & entry.mask;
 
         while subset != 0 {
             let attacks = gen_rook_attacks(sq, subset);
             let blockers = subset;
             let idx = entry.index(blockers);
-            table[idx] = attacks;
+            table[idx] = Bitboard(attacks);
 
             subset = subset.wrapping_sub(entry.mask) & entry.mask;
         }

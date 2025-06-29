@@ -46,7 +46,9 @@ mod test {
     #[test]
     fn test_perft_suite() {
 
+        println!("reading file...");
         let perft_suite = fs::read_to_string("resources/perft_suite.epd").unwrap();
+        println!("parsed file!");
 
         for perft_test in perft_suite.lines() {
             let parts: Vec<&str> = perft_test.split(";").collect();

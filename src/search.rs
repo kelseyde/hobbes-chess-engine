@@ -3,11 +3,11 @@ use crate::consts::{Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
+use crate::see;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::time::Instant;
-use crate::see;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 

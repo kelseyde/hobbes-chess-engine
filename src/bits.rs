@@ -1,15 +1,4 @@
-// Basic bitboards
-pub const ALL_SQUARES: u64 = !0;
-
-// File bitboards
-pub const FILE_A: u64 = 0x0101010101010101;
-pub const FILE_H: u64 = 0x8080808080808080;
-
-// Rank bitboards
-pub const RANK_1: u64 = 0x00000000000000FF;
-pub const RANK_4: u64 = 0x00000000FF000000;
-pub const RANK_5: u64 = 0x000000FF00000000;
-pub const RANK_8: u64 = 0xFF00000000000000;
+use crate::types::bitboard::Bitboard;
 
 pub enum Rights {
     None = 0b0000,
@@ -22,95 +11,23 @@ pub enum Rights {
 }
 
 // Squares that must not be attacked when the king castles
-pub enum CastleSafetyMask {
-    WQS = 0x000000000000001C,
-    WKS = 0x0000000000000070,
-    BQS = 0x1C00000000000000,
-    BKS = 0x7000000000000000,
+pub struct CastleSafety;
+
+impl CastleSafety {
+    pub const WQS: Bitboard = Bitboard(0x000000000000001C);
+    pub const WKS: Bitboard = Bitboard(0x0000000000000070);
+    pub const BQS: Bitboard = Bitboard(0x1C00000000000000);
+    pub const BKS: Bitboard = Bitboard(0x7000000000000000);
 }
 
 // Squares that must be unoccupied when the king castles
-pub enum CastleTravelMask {
-    WKS = 0x0000000000000060,
-    WQS = 0x000000000000000E,
-    BKS = 0x6000000000000000,
-    BQS = 0x0E00000000000000,
-}
+pub struct CastleTravel;
 
-#[inline(always)]
-pub const fn count(b: u64) -> u32 {
-    b.count_ones()
-}
-
-#[inline(always)]
-pub const fn empty(b: u64) -> bool {
-    b == 0
-}
-
-#[inline(always)]
-pub const fn pop(b: u64) -> u64 {
-    b & (b - 1)
-}
-
-#[inline(always)]
-pub const fn pop_bit(b: u64, sq: u8) -> u64 {
-    b ^ bb(sq)
-}
-
-#[inline(always)]
-pub const fn lsb(b: u64) -> u8 {
-    b.trailing_zeros() as u8
-}
-
-#[inline(always)]
-pub const fn bb(sq: u8) -> u64 {
-    1 << sq
-}
-
-#[inline(always)]
-pub const fn north(bb: u64) -> u64 {
-    bb << 8
-}
-
-#[inline(always)]
-pub const fn south(bb: u64) -> u64 {
-    bb >> 8
-}
-
-#[inline(always)]
-pub const fn north_east(bb: u64) -> u64 {
-    (bb << 9) & !FILE_A
-}
-
-#[inline(always)]
-pub const fn north_west(bb: u64) -> u64 {
-    (bb << 7) & !FILE_H
-}
-
-#[inline(always)]
-pub const fn south_east(bb: u64) -> u64 {
-    (bb >> 7) & !FILE_A
-}
-
-#[inline(always)]
-pub const fn south_west(bb: u64) -> u64 {
-    (bb >> 9) & !FILE_H
-}
-
-pub fn print(bb: u64) {
-    for rank in (0..8).rev() {  // Print ranks from 8 to 1
-        for file in 0..8 {      // Print files from a to h
-            let sq = rank * 8 + file;
-            let bit = (bb >> sq) & 1;
-            if bit == 1 {
-                print!("X ");
-            } else {
-                print!("0 ");
-            }
-        }
-        println!(); // Newline at the end of each rank
-    }
-    println!("-----------------");
+impl CastleTravel {
+    pub const WKS: Bitboard = Bitboard(0x0000000000000060);
+    pub const WQS: Bitboard = Bitboard(0x000000000000000E);
+    pub const BKS: Bitboard = Bitboard(0x6000000000000000);
+    pub const BQS: Bitboard = Bitboard(0x0E00000000000000);
 }
 
 

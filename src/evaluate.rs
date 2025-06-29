@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::consts::{Piece, Side};
+use crate::types::square::Square;
 
 const MG_VALUE: [i32; 6] = [82, 337, 365, 477, 1025, 0];
 const EG_VALUE: [i32; 6] = [94, 281, 297, 512, 936, 0];
@@ -176,14 +177,14 @@ impl Evaluator {
         let mut eg: [i32; 2] = [0, 0];
         let mut phase: i32 = 0;
 
-        for sq in 0..64 {
+        for sq in Square::iter() {
             let pc = board.piece_at(sq);
             match pc {
                 Some(piece) => {
                     let side = board.side_at(sq).unwrap();
-                    let idx = if side == Side::White { sq } else { sq ^ 56 };
-                    mg[side as usize] += self.mg_table[piece as usize][idx as usize];
-                    eg[side as usize] += self.eg_table[piece as usize][idx as usize];
+                    let idx = if side == Side::White { sq } else { sq.flip_rank() };
+                    mg[side as usize] += self.mg_table[piece as usize][idx.0 as usize];
+                    eg[side as usize] += self.eg_table[piece as usize][idx.0 as usize];
                     phase += GAME_PHASE[piece as usize];
                 }
                 None => {}

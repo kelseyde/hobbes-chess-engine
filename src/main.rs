@@ -1,25 +1,25 @@
 use crate::uci::UCI;
 
-mod attacks;
-mod bench;
-mod bits;
-mod board;
-mod consts;
-mod fen;
-mod magics;
-mod movegen;
-mod moves;
-mod perft;
-mod search;
-mod thread;
-mod uci;
-mod zobrist;
-mod evaluate;
-mod ordering;
-mod tt;
-mod history;
-mod see;
-mod types;
+pub mod attacks;
+pub mod bench;
+pub mod bits;
+pub mod board;
+pub mod consts;
+pub mod fen;
+pub mod magics;
+pub mod movegen;
+pub mod moves;
+pub mod perft;
+pub mod search;
+pub mod thread;
+pub mod uci;
+pub mod zobrist;
+pub mod evaluate;
+pub mod ordering;
+pub mod tt;
+pub mod history;
+pub mod see;
+pub mod types;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
