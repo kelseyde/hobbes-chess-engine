@@ -150,13 +150,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
 
-        if is_quiet && !in_check && move_count >= 3 * depth * depth {
-            break;
+        if !pv_node
+            && !root_node
+            && !in_check
+            && is_quiet
+            && depth < 8
+            && static_eval + 100 * depth + 150 <= alpha {
+            continue;
         }
 
         let mut board = *board;
         board.make(&mv);
-
 
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
