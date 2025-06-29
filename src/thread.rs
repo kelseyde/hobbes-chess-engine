@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
-use crate::evaluate::Evaluator;
 use crate::history::QuietHistory;
 use crate::moves::Move;
 use crate::network::NNUE;

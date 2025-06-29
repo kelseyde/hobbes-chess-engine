@@ -5,9 +5,9 @@ use consts::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
-use crate::evaluate::Evaluator;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
+use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
@@ -16,7 +16,7 @@ use crate::{consts, fen};
 pub struct UCI {
     pub board: Board,
     pub td: ThreadData,
-    pub evaluator: Evaluator
+    pub nnue: NNUE
 }
 
 impl UCI {
@@ -25,7 +25,7 @@ impl UCI {
         UCI {
             board: Board::new(),
             td: ThreadData::new(),
-            evaluator: Evaluator::new()
+            nnue: NNUE::new()
         }
     }
 
@@ -186,8 +186,9 @@ impl UCI {
         println!("bestmove {}", self.td.best_move.to_uci());
     }
 
-    fn handle_eval(&self) {
-        println!("{}", self.evaluator.evaluate(&self.board));
+    fn handle_eval(&mut self) {
+        let eval: i32 = self.nnue.evaluate(&self.board);
+        println!("{}", eval);
     }
 
     fn handle_fen(&self) {
