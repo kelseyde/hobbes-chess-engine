@@ -57,79 +57,59 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
     if filter != MoveFilter::Captures {
-        let mut single_push_moves = single_push(pawns, side, occ);
-        while !single_push_moves.is_empty() {
-            let to = single_push_moves.lsb();
+
+        for to in single_push(pawns, side, occ) {
             let from = if side == White { to.minus(8) } else { to.plus(8) };
             moves.add_move(from, to, MoveFlag::Standard);
-            single_push_moves = single_push_moves.pop();
         }
 
-        let mut double_push_moves = double_push(pawns, side, occ);
-        while !double_push_moves.is_empty() {
-            let to = double_push_moves.lsb();
+        for to in double_push(pawns, side, occ) {
             let from = if side == White { to.minus(16) } else { to.plus(16) };
             moves.add_move(from, to, MoveFlag::DoublePush);
-            double_push_moves = double_push_moves.pop();
         }
+
     }
 
-    let mut left_capture_moves = left_capture(pawns, side, them);
-    while !left_capture_moves.is_empty() {
-        let to = left_capture_moves.lsb();
+    for to in left_capture(pawns, side, them) {
         let from = if side == White { to.minus(7) } else { to.plus(9) };
         moves.add_move(from, to, MoveFlag::Standard);
-        left_capture_moves = left_capture_moves.pop();
     }
 
-    let mut right_capture_moves = right_capture(pawns, side, them);
-    while !right_capture_moves.is_empty() {
-        let to = right_capture_moves.lsb();
+    for to in right_capture(pawns, side, them) {
         let from = if side == White { to.minus(9) } else { to.plus(7) };
         moves.add_move(from, to, MoveFlag::Standard);
-        right_capture_moves = right_capture_moves.pop();
     }
 
     if let Some(ep_sq) = board.ep_sq {
         let ep_bb = Bitboard::of_sq(ep_sq);
-        let left_ep_captures = left_capture(pawns, side, ep_bb);
-        if !left_ep_captures.is_empty() {
-            let to = left_ep_captures.lsb();
+
+        for to in left_capture(pawns, side, ep_bb) {
             let from = if side == White { to.minus(7) } else { to.plus(9) };
             moves.add_move(from, to, MoveFlag::EnPassant);
         }
-        let right_ep_captures = right_capture(pawns, side, ep_bb);
-        if !right_ep_captures.is_empty() {
-            let to = right_ep_captures.lsb();
+
+        for to in right_capture(pawns, side, ep_bb) {
             let from = if side == White { to.minus(9) } else { to.plus(7) };
             moves.add_move(from, to, MoveFlag::EnPassant);
         }
+
     }
 
     if filter != MoveFilter::Captures {
-        let mut push_promo_moves = push_promos(pawns, side, occ);
-        while !push_promo_moves.is_empty() {
-            let to = push_promo_moves.lsb();
+        for to in push_promos(pawns, side, occ) {
             let from = if side == White { to.minus(8) } else { to.plus(8) };
             add_promos(moves, from, to);
-            push_promo_moves = push_promo_moves.pop();
         }
     }
 
-    let mut left_capture_promo_moves = left_capture_promos(pawns, side, them);
-    while !left_capture_promo_moves.is_empty() {
-        let to = left_capture_promo_moves.lsb();
+    for to in left_capture_promos(pawns, side, them) {
         let from = if side == White { to.minus(7) } else { to.plus(9) };
         add_promos(moves, from, to);
-        left_capture_promo_moves = left_capture_promo_moves.pop();
     }
 
-    let mut right_capture_promo_moves = right_capture_promos(pawns, side, them);
-    while !right_capture_promo_moves.is_empty() {
-        let to = right_capture_promo_moves.lsb();
+    for to in right_capture_promos(pawns, side, them) {
         let from = if side == White { to.minus(9) } else { to.plus(7) };
         add_promos(moves, from, to);
-        right_capture_promo_moves = right_capture_promo_moves.pop();
     }
 
 }
