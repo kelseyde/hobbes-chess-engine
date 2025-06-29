@@ -18,11 +18,11 @@ impl QuietHistory {
     }
 
     pub fn get(&self, stm: Side, mv: Move) -> i16 {
-        self.entries[stm as usize][mv.from() as usize][mv.to() as usize]
+        self.entries[stm as usize][mv.from().0 as usize][mv.to().0 as usize]
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
-        let entry = &mut self.entries[stm as usize][mv.from() as usize][mv.to() as usize];
+        let entry = &mut self.entries[stm as usize][mv.from().0 as usize][mv.to().0 as usize];
         *entry = gravity(*entry, bonus, Self::HISTORY_MAX);
     }
 

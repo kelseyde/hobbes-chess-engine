@@ -1,7 +1,9 @@
+use crate::attacks;
 use crate::board::Board;
 use crate::consts::{Piece, Side};
 use crate::moves::Move;
-use crate::{attacks, bits};
+use crate::types::bitboard::Bitboard;
+use crate::types::square::Square;
 
 const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
 
@@ -27,10 +29,10 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         return true;
     }
 
-    let mut occ = board.occ() ^ bits::bb(from) ^ bits::bb(to);
+    let mut occ = board.occ() ^ Bitboard::of_sq(from) ^ Bitboard::of_sq(to);
 
-    if mv.is_ep() {
-        occ ^= bits::bb(board.ep_sq.unwrap());
+    if let Some(ep_sq) = board.ep_sq {
+        occ ^= Bitboard::of_sq(ep_sq);
     }
 
     let mut attackers = attackers_to(board, to, occ) & occ;
@@ -41,20 +43,20 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
     loop {
         let our_attackers = attackers & board.side(stm);
-        if bits::empty(our_attackers) {
+        if our_attackers.is_empty() {
             break;
         }
 
         let attacker = least_valuable_attacker(&board, our_attackers);
 
-        if attacker == Piece::King && !bits::empty(attackers & board.side(stm.flip())) {
+        if attacker == Piece::King && !(attackers & board.side(stm.flip())).is_empty() {
             break;
         }
 
         // Make the capture
         let pcs = board.pcs(attacker) & our_attackers;
-        let sq = bits::lsb(our_attackers & pcs);
-        occ = bits::pop_bit(occ, sq);
+        let sq = (our_attackers & pcs).lsb();
+        occ = occ.pop_bit(sq);
         stm = stm.flip();
 
         balance = -balance - 1 - PIECE_VALUES[attacker as usize];
@@ -87,29 +89,29 @@ fn move_value(board: &Board, mv: &Move) -> i32 {
     value
 }
 
-fn least_valuable_attacker(board: &Board, our_attackers: u64) -> Piece {
-    if (our_attackers & board.pcs(Piece::Pawn)) != 0 {
+fn least_valuable_attacker(board: &Board, our_attackers: Bitboard) -> Piece {
+    if !(our_attackers & board.pcs(Piece::Pawn)).is_empty() {
         return Piece::Pawn;
     }
-    if (our_attackers & board.pcs(Piece::Knight)) != 0 {
+    if !(our_attackers & board.pcs(Piece::Knight)).is_empty() {
         return Piece::Knight;
     }
-    if (our_attackers & board.pcs(Piece::Bishop)) != 0 {
+    if !(our_attackers & board.pcs(Piece::Bishop)).is_empty() {
         return Piece::Bishop;
     }
-    if (our_attackers & board.pcs(Piece::Rook)) != 0 {
+    if !(our_attackers & board.pcs(Piece::Rook)).is_empty() {
         return Piece::Rook;
     }
-    if (our_attackers & board.pcs(Piece::Queen)) != 0 {
+    if !(our_attackers & board.pcs(Piece::Queen)).is_empty() {
         return Piece::Queen;
     }
-    if (our_attackers & board.pcs(Piece::King)) != 0 {
+    if !(our_attackers & board.pcs(Piece::King)).is_empty() {
         return Piece::King;
     }
     panic!("No attackers found");
 }
 
-fn attackers_to(board: &Board, square: u8, occupancies: u64) -> u64 {
+fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboard {
     let diagonals = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
     let orthogonals = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
     let white_pawn_attacks = attacks::pawn(square, Side::Black) & board.pawns(Side::White);

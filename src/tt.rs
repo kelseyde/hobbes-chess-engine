@@ -147,15 +147,15 @@ fn to_search(score: i32, ply: i32) -> i16 {
 
 #[cfg(test)]
 mod tests {
-    use crate::moves::MoveFlag;
-
     use super::*;
+    use crate::moves::MoveFlag;
+    use crate::types::square::Square;
 
     #[test]
     fn test_tt() {
         let mut tt = TranspositionTable::new(16);
         let hash = 0x1234567890ABCDEF;
-        let best_move = Move::new(0, 1, MoveFlag::Standard);
+        let best_move = Move::new(Square(0), Square(1), MoveFlag::Standard);
         let score = 100;
         let depth = 5;
         let flag = TTFlag::Exact;

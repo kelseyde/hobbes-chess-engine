@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
 
 use crate::consts::Piece;
+use crate::types::square::Square;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
@@ -35,16 +36,16 @@ impl Move {
 
     pub const NONE: Move = Move(0);
 
-    pub fn new(from: u8, to: u8, flag: MoveFlag) -> Move {
-        Move((from as u16) | ((to as u16) << 6) | ((flag as u16) << 12))
+    pub fn new(from: Square, to: Square, flag: MoveFlag) -> Move {
+        Move((from.0 as u16) | ((to.0 as u16) << 6) | ((flag as u16) << 12))
     }
 
-    pub fn from(self) -> u8 {
-        (self.0 & FROM_MASK) as u8
+    pub fn from(self) -> Square {
+        Square((self.0 & FROM_MASK) as u8)
     }
 
-    pub fn to(self) -> u8 {
-        ((self.0 & TO_MASK) >> 6) as u8
+    pub fn to(self) -> Square {
+        Square(((self.0 & TO_MASK) >> 6) as u8)
     }
 
     pub fn flag(self) -> MoveFlag {
@@ -108,10 +109,10 @@ impl Move {
         Move::new(from, to, flag)
     }
 
-    fn parse_uci_sq(notation: &str) -> u8 {
+    fn parse_uci_sq(notation: &str) -> Square {
         let file = notation.chars().nth(0).unwrap() as u8 - b'a';
         let rank = notation.chars().nth(1).unwrap() as u8 - b'1';
-        rank * 8 + file
+        Square(rank * 8 + file)
     }
 
     fn get_promotion_flag(c: char) -> MoveFlag {
@@ -141,9 +142,9 @@ impl Move {
         format!("{}{}{}", from, to, promo)
     }
 
-    pub fn uci_sq(sq: u8) -> String {
-        let file = (sq % 8) + b'a';
-        let rank = (sq / 8) + b'1';
+    pub fn uci_sq(sq: Square) -> String {
+        let file = (sq.0 % 8) + b'a';
+        let rank = (sq.0 / 8) + b'1';
         format!("{}{}", file as char, rank as char)
     }
 
@@ -169,7 +170,7 @@ impl MoveList {
         MoveList { list: ArrayVec::new(), len: 0 }
     }
 
-    pub fn add_move(&mut self, from: u8, to: u8, flag: MoveFlag) {
+    pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
         self.list.push(Move::new(from, to, flag));
         self.len += 1;
     }

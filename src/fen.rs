@@ -1,6 +1,8 @@
 use crate::board::Board;
 use crate::consts::Side::{Black, White};
 use crate::consts::{Piece, Side};
+use crate::types::square::Square;
+use crate::types::{File, Rank};
 use crate::zobrist::Zobrist;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -22,7 +24,7 @@ impl Board {
                         file += ch.to_digit(10).unwrap() as usize;
                     }
                     'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
-                        let sq = Board::sq_idx(7 - rank as u8, file as u8);
+                        let sq = Square::from(File::parse(file), Rank::parse(7 - rank));
                         let piece = parse_piece(ch);
                         let side = if ch.is_uppercase() { White } else { Black };
                         board.toggle_sq(sq, piece, side);
@@ -49,7 +51,7 @@ impl Board {
         for rank in (0..8).rev() {
             let mut empty_squares = 0;
             for file in 0..8 {
-                let sq = Board::sq_idx(rank, file);
+                let sq = Square::from(File::parse(file), Rank::parse(rank));
                 match self.piece_at(sq) {
                     Some(piece) => {
                         if empty_squares > 0 {
@@ -84,8 +86,8 @@ impl Board {
 
         fen.push(' ');
         if let Some(ep_sq) = self.ep_sq {
-            fen.push((b'a' + (ep_sq % 8)) as char);
-            fen.push((b'1' + (ep_sq / 8)) as char);
+            fen.push((b'a' + (ep_sq.0 % 8)) as char);
+            fen.push((b'1' + (ep_sq.0 / 8)) as char);
         } else {
             fen.push('-');
         }
@@ -115,7 +117,7 @@ fn parse_castle_rights(castle: &str) -> u8 {
     rights
 }
 
-fn parse_ep_sq(ep_sq: &str) -> Option<u8> {
+fn parse_ep_sq(ep_sq: &str) -> Option<Square> {
     if ep_sq == "-" {
         None
     } else {
@@ -143,10 +145,10 @@ fn parse_piece(c: char) -> Piece {
     }
 }
 
-fn parse_square(s: &str) -> u8 {
-    let file = s.chars().nth(0).unwrap() as u8 - 'a' as u8;
-    let rank = s.chars().nth(1).unwrap() as u8 - '1' as u8;
-    Board::sq_idx(rank, file)
+fn parse_square(s: &str) -> Square {
+    let file = s.chars().nth(0).unwrap() as usize - 'a' as usize;
+    let rank = s.chars().nth(1).unwrap() as usize - '1' as usize;
+    Square::from(File::parse(file), Rank::parse(rank))
 }
 
 fn piece_to_char(piece: Piece, side: Side) -> char {
