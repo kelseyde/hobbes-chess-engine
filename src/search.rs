@@ -130,6 +130,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     moves.sort(&scores);
 
     let mut move_count = 0;
+    let mut quiet_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
@@ -174,8 +175,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
             score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
         }
 
-        if is_quiet {
+        if is_quiet && quiet_count < 32 {
             quiet_moves.push(*mv);
+            quiet_count += 1;
         }
 
         if td.abort() { break; }
@@ -200,7 +202,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     }
 
     if best_move.exists() {
-        td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
+        let bonus = (120 * depth as i16 - 75).min(1200);
+        td.quiet_history.update(board.stm, &best_move, bonus);
+        for quiet in quiet_moves {
+            if quiet != best_move {
+                let malus = (-120 * depth as i16 + 75).max(-1200);
+                td.quiet_history.update(board.stm, &quiet, malus);
+            }
+        }
     }
 
     // handle checkmate / stalemate
