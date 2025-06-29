@@ -194,10 +194,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
 
             if score >= beta {
                 flag = TTFlag::Lower;
-                td.quiet_history.update(board.stm, &mv, (120 * depth as i16 - 75).min(1200));
                 break;
             }
         }
+    }
+
+    if best_move.exists() {
+        td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
     }
 
     // handle checkmate / stalemate
