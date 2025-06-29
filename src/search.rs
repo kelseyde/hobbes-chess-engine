@@ -212,10 +212,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if best_move.exists() {
         td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
-        if let Some(prev_mv) = td.ss[ply - 1].mv {
-            let prev_pc = td.ss[ply - 1].pc.unwrap();
-            let pc = board.piece_at(best_move.from()).unwrap();
-            td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+        if ply > 0 {
+            if let Some(prev_mv) = td.ss[ply - 1].mv {
+                let prev_pc = td.ss[ply - 1].pc.unwrap();
+                let pc = board.piece_at(best_move.from()).unwrap();
+                td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+            }
         }
     }
 
