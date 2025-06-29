@@ -49,7 +49,7 @@ impl TTEntry {
         Move(self.best_move)
     }
 
-    pub fn score(&self, ply: i32) -> i16 {
+    pub fn score(&self, ply: usize) -> i16 {
         to_search(self.score as i32, ply)
     }
 
@@ -113,7 +113,7 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: i32, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
@@ -131,18 +131,18 @@ impl TranspositionTable {
 
 }
 
-fn to_tt(score: i32, ply: i32) -> i16 {
+fn to_tt(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16 ;
     }
-    if score > 0 { (score - ply) as i16 } else { (score + ply) as i16 }
+    if score > 0 { (score - ply as i32) as i16 } else { (score + ply as i32) as i16 }
 }
 
-fn to_search(score: i32, ply: i32) -> i16 {
+fn to_search(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16
     }
-    if score > 0 { (score + ply) as i16 } else { (score - ply) as i16 }
+    if score > 0 { (score + ply as i32) as i16 } else { (score - ply as i32) as i16 }
 }
 
 #[cfg(test)]

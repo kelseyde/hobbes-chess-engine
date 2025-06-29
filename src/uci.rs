@@ -81,6 +81,7 @@ impl UCI {
         self.td.tt.clear();
         self.td.board_history.clear();
         self.td.quiet_history.clear();
+        self.td.cont_history.clear();
     }
 
     fn handle_bench(&self) {

@@ -23,7 +23,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         return false;
     }
 
-    balance -= PIECE_VALUES[next_victim as usize];
+    balance -= PIECE_VALUES[next_victim];
 
     if balance >= 0 {
         return true;
@@ -59,7 +59,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         occ = occ.pop_bit(sq);
         stm = stm.flip();
 
-        balance = -balance - 1 - PIECE_VALUES[attacker as usize];
+        balance = -balance - 1 - PIECE_VALUES[attacker];
         if balance >= 0 {
             break;
         }
@@ -79,12 +79,12 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
 fn move_value(board: &Board, mv: &Move) -> i32 {
     let mut value = board.piece_at(mv.to())
-        .map_or(0, |captured| PIECE_VALUES[captured as usize]);
+        .map_or(0, |captured| PIECE_VALUES[captured]);
 
     if let Some(promo) = mv.promo_piece() {
-        value += PIECE_VALUES[promo as usize];
+        value += PIECE_VALUES[promo];
     } else if mv.is_ep() {
-        value = PIECE_VALUES[Piece::Pawn as usize];
+        value = PIECE_VALUES[Piece::Pawn];
     }
     value
 }

@@ -1,4 +1,5 @@
 use crate::types::{File, Rank};
+use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 #[repr(transparent)]
@@ -40,4 +41,18 @@ impl Square {
         (0..Self::COUNT).map(Square)
     }
 
+}
+
+impl<T, const N: usize> Index<Square> for [T; N] {
+    type Output = T;
+
+    fn index(&self, sq: Square) -> &Self::Output {
+        &self[sq.0 as usize]
+    }
+}
+
+impl<T, const N: usize> IndexMut<Square> for [T; N] {
+    fn index_mut(&mut self, sq: Square) -> &mut Self::Output {
+        &mut self[sq.0 as usize]
+    }
 }

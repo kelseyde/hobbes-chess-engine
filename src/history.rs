@@ -1,4 +1,4 @@
-use crate::consts::Side;
+use crate::consts::{Piece, Side};
 use crate::moves::Move;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -8,8 +8,36 @@ pub struct QuietHistory {
     entries: Box<[FromToHistory<i16>; 2]>,
 }
 
+pub struct ContinuationHistory {
+    entries: Box<[[[[i16; 64]; 12]; 64]; 12]>,
+}
+
+impl ContinuationHistory {
+    const MAX: i16 = 16384;
+
+    pub fn new() -> Self {
+        ContinuationHistory {
+            entries: Box::new([[[[0; 64]; 12]; 64]; 12]),
+        }
+    }
+
+    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece) -> i16 {
+        self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
+    }
+
+    pub fn update(&mut self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i16) {
+        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
+        *entry = gravity(*entry, bonus, Self::MAX);
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[[[0; 64]; 12]; 64]; 12]);
+    }
+
+}
+
 impl QuietHistory {
-    const HISTORY_MAX: i16 = 16384;
+    const MAX: i16 = 16384;
 
     pub fn new() -> Self {
         QuietHistory {
@@ -18,23 +46,16 @@ impl QuietHistory {
     }
 
     pub fn get(&self, stm: Side, mv: Move) -> i16 {
-        self.entries[stm as usize][mv.from().0 as usize][mv.to().0 as usize]
+        self.entries[stm][mv.from()][mv.to()]
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
-        let entry = &mut self.entries[stm as usize][mv.from().0 as usize][mv.to().0 as usize];
-        *entry = gravity(*entry, bonus, Self::HISTORY_MAX);
+        let entry = &mut self.entries[stm][mv.from()][mv.to()];
+        *entry = gravity(*entry, bonus, Self::MAX);
     }
 
-
     pub fn clear(&mut self) {
-        for entry in self.entries.iter_mut() {
-            for row in entry.iter_mut() {
-                for col in row.iter_mut() {
-                    *col = 0;
-                }
-            }
-        }
+        self.entries = Box::new([[[0; 64]; 64], [[0; 64]; 64]]);
     }
 }
 

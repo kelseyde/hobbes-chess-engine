@@ -28,19 +28,19 @@ pub fn pawn(sq: Square, side: Side) -> Bitboard {
 
 #[inline(always)]
 pub fn knight(sq: Square) -> Bitboard {
-    KNIGHT[sq.0 as usize]
+    KNIGHT[sq]
 }
 
 #[inline(always)]
 pub fn bishop(sq: Square, blockers: Bitboard) -> Bitboard {
-    let magic = BISHOP_MAGICS[sq.0 as usize];
+    let magic = BISHOP_MAGICS[sq];
     let idx = magic.index(blockers.0);
     BISHOP_ATTACKS[idx]
 }
 
 #[inline(always)]
 pub fn rook(sq: Square, blockers: Bitboard) -> Bitboard {
-    let magic = ROOK_MAGICS[sq.0 as usize];
+    let magic = ROOK_MAGICS[sq];
     let idx = magic.index(blockers.0);
     ROOK_ATTACKS[idx]
 }
@@ -52,7 +52,7 @@ pub fn queen(sq: Square, occ: Bitboard) -> Bitboard {
 
 #[inline(always)]
 pub fn king(sq: Square) -> Bitboard {
-    KING[sq.0 as usize]
+    KING[sq]
 }
 
 pub const KING: [Bitboard; 64] = [
