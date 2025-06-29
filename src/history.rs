@@ -9,7 +9,7 @@ pub struct QuietHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[[[[i16; 64]; 12]; 64]; 12]>,
+    entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
 impl ContinuationHistory {
@@ -17,7 +17,7 @@ impl ContinuationHistory {
 
     pub fn new() -> Self {
         ContinuationHistory {
-            entries: Box::new([[[[0; 64]; 12]; 64]; 12]),
+            entries: Box::new([[[[0; 64]; 6]; 64]; 6])
         }
     }
 
@@ -31,7 +31,7 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 64]; 12]; 64]; 12]);
+        self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
 
 }

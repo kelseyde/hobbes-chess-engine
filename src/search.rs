@@ -133,6 +133,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     moves.sort(&scores);
 
     let mut move_count = 0;
+    let mut quiet_count = 0;
     let mut best_score = Score::Min as i32;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
@@ -142,16 +143,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     for mv in moves.iter() {
 
         let pc = board.piece_at(mv.from());
-        td.ss[ply].mv = Some(*mv);
-        td.ss[ply].pc = pc;
+        let captured = board.captured(&mv);
+        let is_quiet = captured.is_none();
 
         let mut board = *board;
         board.make(&mv);
+        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].pc = pc;
+
         if is_check(&board, board.stm.flip()) {
             continue
         }
-        let captured = board.captured(&mv);
-        let is_quiet = captured.is_none();
+
         move_count += 1;
         td.nodes += 1;
 
@@ -163,9 +166,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::Min as i32;
-
-        if depth >= 3 && move_count > 1 + root_node as i32 && is_quiet {
-            let reduction = td.lmr.reduction(depth, move_count) / 1024;
+        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
+            let reduction = 1;
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
@@ -182,8 +184,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
         }
 
-        if is_quiet {
+        if is_quiet && quiet_count < 32 {
             quiet_moves.push(*mv);
+            quiet_count += 1;
         }
 
         if td.abort() { break; }
