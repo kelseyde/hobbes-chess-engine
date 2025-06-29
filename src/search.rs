@@ -1,13 +1,13 @@
-use std::ops::{Index, IndexMut};
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, MoveFilter};
+use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
+use std::ops::{Index, IndexMut};
 use std::time::Instant;
 
 pub const MAX_PLY: usize = 256;
@@ -17,16 +17,16 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.time = Instant::now();
     td.best_move = Move::NONE;
 
-    let mut alpha = Score::Min as i32;
-    let mut beta = Score::Max as i32;
+    let mut alpha = Score::MIN;
+    let mut beta = Score::MAX;
     let mut score = 0;
     let mut delta = 24;
 
     while td.depth < MAX_DEPTH && !td.abort() {
 
         if td.depth >= 4 {
-            alpha = (score - delta).max(Score::Min as i32);
-            beta = (score + delta).min(Score::Max as i32);
+            alpha = (score - delta).max(Score::MIN);
+            beta = (score + delta).min(Score::MAX);
         }
 
         loop {
@@ -47,10 +47,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             match score {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;
-                    alpha = (score - delta).max(Score::Min as i32);
+                    alpha = (score - delta).max(Score::MIN);
                 }
                 s if s >= beta => {
-                    beta = (score + delta).min(Score::Max as i32);
+                    beta = (score + delta).min(Score::MAX);
                 }
                 _ => break,
             }
@@ -103,7 +103,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check {Score::Min as i32} else { td.nnue.evaluate(&board) };
+    let static_eval = if in_check {Score::MIN} else { td.nnue.evaluate(&board) };
 
     if !root_node && !in_check {
 
@@ -134,7 +134,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let mut move_count = 0;
     let mut quiet_count = 0;
-    let mut best_score = Score::Min as i32;
+    let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
@@ -142,18 +142,24 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     for mv in moves.iter() {
 
+        if !is_legal(&board, &mv) {
+            continue;
+        }
+
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
 
+        if is_quiet && !in_check && move_count >= 3 * depth * depth {
+            break;
+        }
+
         let mut board = *board;
         board.make(&mv);
+
+
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
-
-        if is_check(&board, board.stm.flip()) {
-            continue
-        }
 
         move_count += 1;
         td.nodes += 1;
@@ -165,7 +171,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let new_depth = depth - 1 + extension;
 
-        let mut score = Score::Min as i32;
+        let mut score = Score::MIN;
         if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
             let reduction = 1;
 
@@ -226,7 +232,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check { -(Score::Mate as i32) + ply as i32} else { Score::Draw as i32 }
+        return if in_check { -(Score::MATE) + ply as i32} else { Score::DRAW }
     }
 
     if !root_node {
@@ -317,7 +323,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     if move_count == 0 && in_check {
-        return -(Score::Mate as i32) + ply as i32;
+        return -Score::MATE + ply as i32;
     }
 
     best_score

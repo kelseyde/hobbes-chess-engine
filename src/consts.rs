@@ -2,18 +2,16 @@ use std::ops::{Index, IndexMut};
 
 pub const MAX_DEPTH: i32 = 255;
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum Score {
-    #[default]
-    Draw = 0,
-    Max = 32767,
-    Min = -32767,
-    Mate = 32766
-}
+pub struct Score {}
 
 impl Score {
+    pub const DRAW: i32 = 0;
+    pub const MAX: i32 = 32767;
+    pub const MIN: i32 = -32767;
+    pub const MATE: i32 = 32766;
+
     pub fn is_mate(score: i32) -> bool {
-        score.abs() >= Score::Mate as i32 - MAX_DEPTH
+        score.abs() >= Score::MATE - MAX_DEPTH
     }
 }
 
