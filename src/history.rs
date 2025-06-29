@@ -31,15 +31,7 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        for entry in self.entries.iter_mut() {
-            for row in entry.iter_mut() {
-                for col in row.iter_mut() {
-                    for cell in col.iter_mut() {
-                        *cell = 0;
-                    }
-                }
-            }
-        }
+        self.entries = Box::new([[[[0; 64]; 12]; 64]; 12]);
     }
 
 }
@@ -63,13 +55,7 @@ impl QuietHistory {
     }
 
     pub fn clear(&mut self) {
-        for entry in self.entries.iter_mut() {
-            for row in entry.iter_mut() {
-                for col in row.iter_mut() {
-                    *col = 0;
-                }
-            }
-        }
+        self.entries = Box::new([[[0; 64]; 64], [[0; 64]; 64]]);
     }
 }
 
