@@ -11,6 +11,7 @@ pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
+    static_eval: i16,   // 2 bytes
     depth: u8,          // 1 byte
     flag: u8,           // 1 byte
 }
@@ -53,6 +54,10 @@ impl TTEntry {
         to_search(self.score as i32, ply)
     }
 
+    pub fn static_eval(&self) -> i16 {
+        self.static_eval
+    }
+
     pub fn depth(&self) -> u8 {
         self.depth
     }
@@ -70,7 +75,7 @@ impl TTEntry {
 impl Default for TTEntry {
     fn default() -> TTEntry {
         TTEntry {
-            key: 0, best_move: 0, score: 0, depth: 0, flag: 0,
+            key: 0, best_move: 0, score: 0, static_eval: 0, depth: 0, flag: 0,
         }
     }
 }
@@ -113,12 +118,13 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: i32, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, static_eval: i32, depth: u8, ply: i32, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
         entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply) as i16;
+        entry.score = to_tt(score, ply);
+        entry.static_eval = static_eval as i16;
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }
@@ -157,16 +163,18 @@ mod tests {
         let hash = 0x1234567890ABCDEF;
         let best_move = Move::new(Square(0), Square(1), MoveFlag::Standard);
         let score = 100;
+        let static_eval = -234;
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, &best_move, score, depth, 0, flag);
+        tt.insert(hash, &best_move, score, static_eval, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
         assert_eq!(entry.score(0), score as i16);
+        assert_eq!(entry.static_eval(), static_eval as i16);
         assert_eq!(entry.depth(), depth);
         assert_eq!(entry.flag(), flag);
     }

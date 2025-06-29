@@ -35,9 +35,8 @@ pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
 
     // handle standard moves
     for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
-        let mut pcs = board.pcs(pc) & us;
-        for from in pcs {
-            let mut attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+        for from in board.pcs(pc) & us {
+            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
             for to in attacks {
                 moves.add_move(from, to, MoveFlag::Standard);
             }
@@ -194,7 +193,7 @@ fn add_promos(moves: &mut MoveList, from: Square, to: Square) {
 }
 
 #[inline(always)]
-pub fn is_attacked(mut bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
+pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
     for sq in bb {
         if is_sq_attacked(sq, side, occ, board) { return true; }
     }

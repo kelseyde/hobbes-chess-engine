@@ -79,10 +79,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let mut tt_entry = None;
     let mut tt_move = Move::NONE;
 
     if !root_node {
-        if let Some(entry) = td.tt.probe(board.hash) {
+        tt_entry = td.tt.probe(board.hash);
+        if let Some(entry) = tt_entry {
             tt_move = entry.best_move();
 
             if entry.depth() >= depth as u8 {
@@ -100,7 +102,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
         }
     }
 
-    let static_eval = if in_check {Score::Min as i32} else { td.nnue.evaluate(&board) };
+    let static_eval = if in_check {
+        Score::Min as i32
+    } else {
+         tt_entry.map_or_else(|| td.nnue.evaluate(&board), |entry| entry.static_eval() as i32)
+    };
 
     if !root_node && !in_check {
 
@@ -209,7 +215,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: i32, mut 
     }
 
     if !root_node {
-        td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
+        td.tt.insert(board.hash, &best_move, best_score, static_eval, depth as u8, ply, flag);
     }
 
     best_score
@@ -239,7 +245,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: i3
     }
 
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
+        let eval = tt_entry.map_or_else(|| td.nnue.evaluate(&board), |entry| entry.static_eval() as i32);
         if eval > alpha {
             alpha = eval
         }
