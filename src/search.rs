@@ -127,6 +127,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             }
         }
 
+        if depth <= 4 && static_eval + 462 * depth < alpha {
+            let score = qs(board, td, alpha, alpha + 1, ply);
+            if score < alpha {
+                return score;
+            }
+        }
+
     }
 
     let mut moves = gen_moves(board, MoveFilter::All);
