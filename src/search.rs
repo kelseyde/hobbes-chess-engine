@@ -156,7 +156,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !in_check
             && is_quiet
             && depth < 6
-            && static_eval + 100 * depth + 150 <= alpha {
+            && static_eval + 100 * depth.max(1) + 150 <= alpha {
             continue;
         }
 
