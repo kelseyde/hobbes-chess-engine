@@ -10,14 +10,14 @@
 - [x] RFP
 - [x] NMP
 - [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
-- [ ] Killer moves
+- [X] Killer moves
 - [ ] LMP
 - [ ] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
-- [ ] QS SEE pruning
+- [X] QS SEE pruning
 - [ ] PVS SEE pruning (captures and quiets)
-- [ ] Continuation history (CMH + FMH etc..)
+- [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning
 - [ ] Singular extensions
