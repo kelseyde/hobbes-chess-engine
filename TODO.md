@@ -16,7 +16,8 @@
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
 - [X] QS SEE pruning
-- [ ] PVS SEE pruning (captures and quiets)
+- [x] PVS SEE quiet pruning 
+- [ ] PVS SEE noisy pruning 
 - [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning

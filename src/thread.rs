@@ -44,7 +44,7 @@ impl ThreadData {
             time_limit: Duration::MAX,
             nodes: 0,
             node_limit: 0,
-            depth: 0,
+            depth: 1,
             depth_limit: 0,
             best_move: Move::NONE,
             eval: 0,
@@ -66,7 +66,7 @@ impl ThreadData {
             time_limit: Duration::MAX,
             nodes: 0,
             node_limit: 0,
-            depth: 0,
+            depth: 1,
             depth_limit: depth,
             best_move: Move::NONE,
             eval: 0,
@@ -79,7 +79,7 @@ impl ThreadData {
         self.time_limit = Duration::MAX;
         self.nodes = 0;
         self.node_limit = 0;
-        self.depth = 0;
+        self.depth = 1;
         self.depth_limit = 0;
         self.best_move = Move::NONE;
         self.eval = 0;
