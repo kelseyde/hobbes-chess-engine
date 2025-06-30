@@ -10,8 +10,8 @@
 - [x] RFP
 - [x] NMP
 - [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
-- [X] Killer moves
-- [ ] LMP
+- [x] Killer moves
+- [x] LMP
 - [ ] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
