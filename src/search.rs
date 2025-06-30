@@ -149,6 +149,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_mate_score = Score::is_mate(best_score);
+
+        if !pv_node
+            && !root_node
+            && !in_check
+            && is_quiet
+            && !is_mate_score
+            && move_count >= 8 + 3 * depth * depth {
+            continue;
+        }
 
         let mut board = *board;
         board.make(&mv);
