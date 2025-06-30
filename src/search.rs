@@ -1,16 +1,15 @@
-use std::ops::{Index, IndexMut};
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
+use crate::see::see;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
+use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use crate::see::see;
-use crate::zobrist::Zobrist;
 
 pub const MAX_PLY: usize = 256;
 
@@ -162,10 +161,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
-
-        if board.hash != Zobrist::new(&board) {
-            println!("hello: {}, {}, {:?}", board.to_fen(), mv.to_uci(), captured);
-        }
 
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;

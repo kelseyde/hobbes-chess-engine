@@ -1,6 +1,5 @@
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
-use crate::zobrist::Zobrist;
 
 pub fn perft(board: &Board, depth: u8) -> u64 {
     let moves = gen_moves(board, MoveFilter::All);
@@ -20,12 +19,8 @@ pub fn perft(board: &Board, depth: u8) -> u64 {
     let mut nodes = 0;
     for i in 0..moves.len {
         let mv = moves.list[i];
-        let captured = board.captured(&mv);
         let mut new_board = *board;
         new_board.make(&mv);
-        if new_board.hash != Zobrist::new(&new_board) {
-            println!("hello: {}, {}, {:?}", new_board.to_fen(), mv.to_uci(), captured);
-        }
         if is_check(&new_board, board.stm) {
             continue;
         }
