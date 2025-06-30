@@ -28,8 +28,8 @@
 - [ ] QS futility pruning
 
 ## Time Management
-- [ ] Hard bound (applies to the entire search)
-- [ ] Soft bound (checked on each new depth in the ID loop)
+- [x] Hard bound (applies to the entire search)
+- [x] Soft bound (checked on each new depth in the ID loop)
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
