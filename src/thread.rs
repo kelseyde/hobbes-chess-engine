@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
-use crate::history::{ContinuationHistory, QuietHistory};
+use crate::history::{CaptureHistory, ContinuationHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
@@ -16,6 +16,7 @@ pub struct ThreadData {
     pub board_history: Vec<Board>,
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
+    pub capture_history: CaptureHistory,
     pub lmr: LmrTable,
     pub time: Instant,
     pub time_limit: Duration,
@@ -39,6 +40,7 @@ impl ThreadData {
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            capture_history: CaptureHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
@@ -61,6 +63,7 @@ impl ThreadData {
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            capture_history: CaptureHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
