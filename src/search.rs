@@ -104,9 +104,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check {Score::MIN} else { td.nnue.evaluate(&board) };
+    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
 
-    if !root_node && !in_check {
+    if !root_node && !pv_node && !in_check {
 
         if depth <= 8
             && static_eval - 80 * depth >= beta {
@@ -237,7 +237,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check { -(Score::MATE) + ply as i32} else { Score::DRAW }
+        return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
     }
 
     if !root_node {
