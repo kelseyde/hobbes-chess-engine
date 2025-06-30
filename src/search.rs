@@ -270,10 +270,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         }
     }
 
+    let mut static_eval = Score::MIN;
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
-        if eval > alpha {
-            alpha = eval
+        static_eval = td.nnue.evaluate(&board);
+        if static_eval > alpha {
+            alpha = static_eval
         }
         if alpha >= beta {
             return alpha;
@@ -295,6 +296,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         }
 
         let pc = board.piece_at(mv.from());
+        let captured = board.captured(&mv);
+
+        // Delta Pruning
+        if !in_check && captured.map_or(false, |piece| static_eval + see::value(piece) + 112 < alpha) {
+            continue;
+        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
