@@ -229,16 +229,18 @@ impl Board {
         self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
     }
 
-    pub fn sq_idx(rank: u8, file: u8) -> u8 {
-        rank << 3 | file
+    pub fn is_fifty_move_rule(self) -> bool {
+        self.hm >= 100
     }
 
-    pub fn is_valid_sq(sq: u8) -> bool {
-        sq < 64
-    }
+    pub fn is_insufficient_material(&self) -> bool {
+        // Insufficient material if both sides have only kings, or one side has only a king and a knight/bishop.
+        let white_material = self.bb[White.idx()] & !self.bb[Piece::King];
+        let black_material = self.bb[Black.idx()] & !self.bb[Piece::King];
 
-    pub fn is_white(self) -> bool {
-        self.stm == White
+        (white_material.is_empty() && black_material.is_empty()) ||
+        (white_material.count() == 1 && black_material.count() <= 2) ||
+        (black_material.count() == 1 && white_material.count() <= 2)
     }
 
 }

@@ -13,7 +13,7 @@ pub struct ThreadData {
     pub tt: TranspositionTable,
     pub ss: SearchStack,
     pub nnue: NNUE,
-    pub board_history: Vec<Board>,
+    pub keys: Vec<u64>,
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
     pub lmr: LmrTable,
@@ -36,7 +36,7 @@ impl ThreadData {
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
             nnue: NNUE::new(),
-            board_history: Vec::new(),
+            keys: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
@@ -58,7 +58,7 @@ impl ThreadData {
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
             nnue: NNUE::new(),
-            board_history: Vec::new(),
+            keys: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
@@ -83,6 +83,23 @@ impl ThreadData {
         self.depth_limit = 0;
         self.best_move = Move::NONE;
         self.eval = 0;
+    }
+
+    pub fn repetition(&self, board: &Board, ply: usize) -> bool {
+        let curr_hash = board.hash;
+        let mut repetitions = 1 + u8::from(ply == 0);
+        for &hash in self.keys
+            .iter()
+            .rev()
+            .take(board.hm as usize + 1)
+            .skip(1)
+            .step_by(2) {
+            repetitions -= u8::from(hash == curr_hash);
+            if repetitions == 0 {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn time(&self) -> u128 {
