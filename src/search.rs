@@ -9,7 +9,6 @@ use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::time::Instant;
-use crate::network::SCALE;
 
 pub const MAX_PLY: usize = 256;
 
@@ -112,7 +111,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if !root_node && !in_check {
 
         if depth <= 8
-            && static_eval - 60 * (depth - improving as i32) >= beta {
+            && static_eval - 80 * (depth - improving as i32) >= beta {
             return static_eval;
         }
 
