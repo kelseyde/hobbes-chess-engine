@@ -167,10 +167,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
-        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
+        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 {
             let reduction = 1;
 
-            let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
+            let reduced_depth = new_depth - reduction;
 
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
 
