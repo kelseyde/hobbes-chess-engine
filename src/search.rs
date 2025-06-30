@@ -9,6 +9,7 @@ use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::time::Instant;
+use crate::see::see;
 
 pub const MAX_PLY: usize = 256;
 
@@ -149,6 +150,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+
+        if !pv_node
+            && depth <= 8
+            && is_quiet
+            && !Score::is_mate(best_score)
+            && !see(&board, &mv, -56 * depth) {
+            continue;
+        }
 
         let mut board = *board;
         board.make(&mv);
