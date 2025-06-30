@@ -234,13 +234,12 @@ impl Board {
     }
 
     pub fn is_insufficient_material(&self) -> bool {
-        // Insufficient material if both sides have only kings, or one side has only a king and a knight/bishop.
-        let white_material = self.bb[White.idx()] & !self.bb[Piece::King];
-        let black_material = self.bb[Black.idx()] & !self.bb[Piece::King];
-
-        (white_material.is_empty() && black_material.is_empty()) ||
-        (white_material.count() == 1 && black_material.count() <= 2) ||
-        (black_material.count() == 1 && white_material.count() <= 2)
+        let pawns    = self.bb[Piece::Pawn];
+        let knights  = self.bb[Piece::Knight];
+        let bishops  = self.bb[Piece::Bishop];
+        let rooks    = self.bb[Piece::Rook];
+        let queens   = self.bb[Piece::Queen];
+        (pawns | rooks | queens).is_empty() && (knights | bishops).count() <= 3
     }
 
 }

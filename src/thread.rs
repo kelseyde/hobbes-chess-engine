@@ -85,7 +85,7 @@ impl ThreadData {
         self.eval = 0;
     }
 
-    pub fn repetition(&self, board: &Board, ply: usize) -> bool {
+    pub fn is_repetition(&self, board: &Board, ply: usize) -> bool {
         let curr_hash = board.hash;
         let mut repetitions = 1 + u8::from(ply == 0);
         for &hash in self.keys
