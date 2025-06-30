@@ -104,7 +104,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check {Score::MIN} else { td.nnue.evaluate(&board) };
+    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
 
     if !root_node && !pv_node && !in_check {
 
