@@ -214,10 +214,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    if best_move.exists() {
-        if !board.is_noisy(&best_move) {
-            td.ss[ply].killer = Some(best_move);
-        }
+    if best_move.exists() && !board.is_noisy(&best_move) {
+        td.ss[ply].killer = Some(best_move);
         td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
         if ply > 0 {
             if let Some(prev_mv) = td.ss[ply - 1].mv {
