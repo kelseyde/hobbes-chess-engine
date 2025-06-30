@@ -224,9 +224,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     if best_move.exists() {
-        if board.is_noisy(&best_move) {
+        if let Some(captured) = board.captured(&best_move) {
             let pc = board.piece_at(best_move.from()).unwrap();
-            let captured = board.captured(&best_move).unwrap();
             td.capture_history.update(board.stm, pc, best_move.to(), captured, (120 * depth as i16 - 75).min(1200));
         } else {
             td.ss[ply].killer = Some(best_move);
