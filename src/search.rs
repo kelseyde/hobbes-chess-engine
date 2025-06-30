@@ -151,6 +151,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
 
+
+        // if !pv_node
+        //     && !in_check
+        //     && is_quiet
+        //     && depth < 6
+        //     && static_eval + 100 * depth + 150 <= alpha {
+        //     continue;
+        // }
+
         if !pv_node
             && depth <= 8
             && is_quiet
