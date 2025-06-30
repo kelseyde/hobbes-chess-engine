@@ -25,7 +25,7 @@ impl ContinuationHistory {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
-    pub fn update(&mut self, prev_mv: Move, prev_pc: Piece, mv: Move, pc: Piece, bonus: i16) {
+    pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
         *entry = gravity(*entry, bonus, Self::MAX);
     }

@@ -225,14 +225,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if best_move.exists() && !board.is_noisy(&best_move) {
         td.ss[ply].killer = Some(best_move);
-        td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
-        if ply > 0 {
-            if let Some(prev_mv) = td.ss[ply - 1].mv {
-                let prev_pc = td.ss[ply - 1].pc.unwrap();
-                let pc = board.piece_at(best_move.from()).unwrap();
-                td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+
+        let bonus = (120 * depth as i16 - 75).min(1200);
+        update_quiet_histories(td, &best_move, &board, ply, bonus);
+
+        let malus = (120 * depth as i16 - 75).min(1200);
+        for mv in quiet_moves.iter() {
+            if *mv != best_move {
+                update_quiet_histories(td, mv, &board, ply, -malus);
             }
         }
+
     }
 
     // handle checkmate / stalemate
@@ -334,6 +337,17 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     best_score
+}
+
+fn update_quiet_histories(td: &mut ThreadData, mv: &Move, board: &Board, ply: usize, bonus: i16) {
+    td.quiet_history.update(board.stm, &mv, bonus);
+    if ply > 0 {
+        let entry = td.ss[ply - 1];
+        if let (Some(prev_mv), Some(prev_pc)) = (entry.mv, entry.pc) {
+            let pc = board.piece_at(mv.from()).unwrap();
+            td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
+        }
+    }
 }
 
 fn is_cancelled(time: Instant) -> bool {
