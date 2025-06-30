@@ -111,3 +111,57 @@ impl ThreadData {
     }
 
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::board::Board;
+    use crate::moves::Move;
+    use crate::thread::ThreadData;
+
+    #[test]
+    fn test_repetition() {
+
+        let mut td = ThreadData::new();
+        let mut board = Board::new();
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("g1f3"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("g8f6"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("f3g1"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("f6g8"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("g1f3"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("g8f6"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("f3g1"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("f6g8"));
+        td.keys.push(board.hash);
+        assert!(!td.is_repetition(&board));
+
+        board.make(&Move::parse_uci("f3g1"));
+        td.keys.push(board.hash);
+        assert!(td.is_repetition(&board));
+    }
+
+}
