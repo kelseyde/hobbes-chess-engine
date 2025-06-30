@@ -167,8 +167,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
-        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let reduction = 1;
+        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 {
+            let reduction = td.lmr.reduction(is_quiet, depth, move_count);
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
@@ -334,23 +334,27 @@ fn is_cancelled(time: Instant) -> bool {
 }
 
 pub struct LmrTable {
-    table: [[i32; 64]; 64],
+    table: [[[i32; 64]; 64]; 2],
 }
 
 impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(63) as usize][move_count.min(63) as usize]
+    pub fn reduction(&self, quiet: bool, depth: i32, move_count: i32) -> i32 {
+        self.table[quiet as usize][depth.min(63) as usize][move_count.min(63) as usize]
     }
 }
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let mut table = [[0; 64]; 64];
+        let mut table = [[[0; 64]; 64]; 2];
 
-        for depth in 1..64 {
-            for move_count in 1..64 {
-                let reduction = 820.0 + 455.0 * (depth as f32).ln() * (move_count as f32).ln();
-                table[depth as usize][move_count as usize] = reduction as i32;
+        for is_quiet in 0..2 {
+            for depth in 1..64 {
+                for move_count in 1..64 {
+                    let base = if is_quiet == 0 { 93 } else { 92 };
+                    let divisor = if move_count < 8 { 299 } else { 311 };
+                    let reduction = (base as f64 + (move_count as f64).ln() * (depth as f64).ln() / divisor as f64).round() as i32;
+                    table[is_quiet as usize][depth as usize][move_count as usize] = reduction;
+                }
             }
         }
 
