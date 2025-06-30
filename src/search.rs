@@ -352,8 +352,8 @@ impl LmrTable {
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let base = 0.2;
-        let divisor = 3.5;
+        let base = 0.92;
+        let divisor = 3.11;
 
         let mut table = [[0; 64]; 256];
 
@@ -361,7 +361,7 @@ impl Default for LmrTable {
             for move_count in 1..64 {
                 let ln_depth = (depth as f32).ln();
                 let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + ln_depth * ln_move_count / divisor) as i32;
+                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
                 table[depth as usize][move_count as usize] = reduction;
             }
         }
