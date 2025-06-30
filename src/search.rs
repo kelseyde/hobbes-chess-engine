@@ -111,9 +111,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if !root_node && !in_check {
 
-        let rfp_margin = if improving { 60 * depth } else { 80 * depth };
         if depth <= 8
-            && static_eval - rfp_margin >= beta {
+            && static_eval - 60 * (depth - improving as i32) >= beta {
             return static_eval;
         }
 
