@@ -9,6 +9,7 @@ use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::time::Instant;
+use crate::network::SCALE;
 
 pub const MAX_PLY: usize = 256;
 
@@ -104,11 +105,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     let static_eval = if in_check {Score::MIN} else { td.nnue.evaluate(&board) };
+    td.ss[ply].static_eval = static_eval;
+
+    let improving = is_improving(td, ply, static_eval);
 
     if !root_node && !in_check {
 
+        let rfp_margin = if improving { 60 * depth } else { 80 * depth };
         if depth <= 8
-            && static_eval - 80 * depth >= beta {
+            && static_eval - rfp_margin >= beta {
             return static_eval;
         }
 
@@ -333,6 +338,19 @@ fn is_cancelled(time: Instant) -> bool {
     Instant::now() >= time
 }
 
+fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
+    if static_eval == Score::MIN {
+        return false;
+    }
+    if ply > 1 && td.ss[ply - 2].static_eval != Score::MIN {
+        return static_eval > td.ss[ply - 2].static_eval;
+    }
+    if ply > 3 && td.ss[ply - 4].static_eval != Score::MIN {
+        return static_eval > td.ss[ply - 4].static_eval;
+    }
+    true
+}
+
 pub struct LmrTable {
     table: [[i32; 64]; 64],
 }
@@ -367,12 +385,22 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
+    pub static_eval: i32,
 }
 
 impl SearchStack {
 
     pub fn new() -> Self {
-        SearchStack { data: [StackEntry { mv: None, pc: None, killer: None }; MAX_PLY + 8] }
+        SearchStack { data: [
+            StackEntry {
+                mv: None,
+                pc: None,
+                killer: None,
+                static_eval: 0
+            };
+            MAX_PLY + 8
+        ]
+        }
     }
 
 }
