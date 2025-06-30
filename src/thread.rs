@@ -85,21 +85,15 @@ impl ThreadData {
         self.eval = 0;
     }
 
-    pub fn is_repetition(&self, board: &Board, debug: bool) -> bool {
-        if debug {
-            println!("current key: {:x}", board.hash);
-            println!("keys: {:?}", self.keys);
-        }
+    pub fn is_repetition(&self, board: &Board) -> bool {
         let curr_hash = board.hash;
         let mut repetitions = 0;
         for &hash in self.keys
             .iter()
             .rev()
-            .skip(1)
-            .step_by(2) {
+            .skip(1) {
             repetitions += u8::from(hash == curr_hash);
             if repetitions == 1 {
-                println!("hello");
                 return true;
             }
         }

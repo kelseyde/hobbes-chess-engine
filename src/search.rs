@@ -78,9 +78,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if depth < 0 { depth = 0; }
 
-    let debug = ply == 1 && td.ss[ply - 1].mv.unwrap() == Move::parse_uci("g1f3");
-
-    if ply > 0 && is_draw(&td, &board, debug) {
+    if ply > 0 && is_draw(&td, &board) {
         return Score::DRAW;
     }
 
@@ -127,9 +125,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-
             let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
-
             td.keys.pop();
 
             if score >= beta {
@@ -263,8 +259,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
 
-    let debug = ply == 1 && td.ss[ply - 1].mv.unwrap() == Move::parse_uci("g1f3");
-    if ply > 0 && is_draw(&td, &board, debug) {
+    if ply > 0 && is_draw(&td, &board) {
         return Score::DRAW;
     }
 
@@ -354,8 +349,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     best_score
 }
 
-fn is_draw(td: &ThreadData, board: &Board, debug: bool) -> bool {
-    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board, debug)
+fn is_draw(td: &ThreadData, board: &Board) -> bool {
+    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
 }
 
 fn is_cancelled(time: Instant) -> bool {
