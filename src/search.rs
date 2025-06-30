@@ -350,8 +350,8 @@ impl Default for LmrTable {
         for is_quiet in 0..2 {
             for depth in 1..64 {
                 for move_count in 1..64 {
-                    let base = if is_quiet == 0 { 93 } else { 92 };
-                    let divisor = if move_count < 8 { 299 } else { 311 };
+                    let base = if is_quiet == 0 { 0.93 } else { 0.92 };
+                    let divisor = if move_count < 8 { 2.99 } else { 3.11 };
                     let reduction = (base as f64 + (move_count as f64).ln() * (depth as f64).ln() / divisor as f64).round() as i32;
                     table[is_quiet as usize][depth as usize][move_count as usize] = reduction;
                 }
