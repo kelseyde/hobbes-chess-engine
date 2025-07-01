@@ -1,15 +1,15 @@
-use std::ops::{Index, IndexMut};
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
+use crate::see::see;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
+use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use crate::see::see;
 
 pub const MAX_PLY: usize = 256;
 
@@ -150,11 +150,22 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_mate_score = Score::is_mate(best_score);
+
+        if !pv_node
+            && !root_node
+            && !in_check
+            && is_quiet
+            && depth < 6
+            && !is_mate_score
+            && static_eval + 100 * depth.max(1) + 150 <= alpha {
+            continue;
+        }
 
         if !pv_node
             && depth <= 8
             && is_quiet
-            && !Score::is_mate(best_score)
+            && !is_mate_score
             && !see(&board, &mv, -56 * depth) {
             continue;
         }
