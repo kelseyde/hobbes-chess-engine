@@ -85,6 +85,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let mut tt_move = Move::NONE;
 
+    // Transposition Table probe
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_move = entry.best_move();
@@ -111,11 +112,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if !root_node && !pv_node && !in_check {
 
+        // Reverse Futility Pruning
         if depth <= 8
             && static_eval - 80 * (depth - improving as i32) >= beta {
             return static_eval;
         }
 
+        // Null Move Pruning
         if depth >= 3
             && static_eval >= beta
             && board.has_non_pawns() {
@@ -155,6 +158,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
+        // Futility Pruning
         if !pv_node
             && !root_node
             && !in_check
@@ -165,6 +169,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        // SEE Pruning
         if !pv_node
             && depth <= 8
             && is_quiet

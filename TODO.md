@@ -14,7 +14,7 @@
 - [ ] LMP
 - [x] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
-- [ ] Improving heuristic
+- [x] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
 - [ ] PVS SEE noisy pruning 
