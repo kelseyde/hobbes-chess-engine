@@ -34,16 +34,16 @@ impl Board {
 
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
-        let piece = self.piece_at(from).unwrap();
-        let new_piece = if let Some(promo) = m.promo_piece() { promo } else { piece };
-        let captured_piece = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
+        let pc = self.piece_at(from).unwrap();
+        let new_pc = if let Some(promo) = m.promo_piece() { promo } else { pc };
+        let captured = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
 
-        self.toggle_sq(from, piece, side);
-        if captured_piece.is_some() {
+        self.toggle_sq(from, pc, side);
+        if captured.is_some() {
             let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
-            self.toggle_sq(capture_sq, captured_piece.unwrap(), side.flip());
+            self.toggle_sq(capture_sq, captured.unwrap(), side.flip());
         }
-        self.toggle_sq(to, new_piece, side);
+        self.toggle_sq(to, new_pc, side);
 
         if m.is_castle() {
             let (rook_from, rook_to) = self.rook_sqs(to);
@@ -51,21 +51,21 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
-        self.castle = self.calc_castle_rights(from, to, piece);
+        self.castle = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
-        self.hm = if captured_piece.is_some() || piece == Piece::Pawn { 0 } else { self.hm + 1 };
-        self.hash = Zobrist::toggle_stm(self.hash);
+        self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
+        self.hash ^= Zobrist::stm();
         self.stm = self.stm.flip();
 
     }
 
     #[inline]
-    pub fn toggle_sq(&mut self, sq: Square, piece: Piece, side: Side) {
+    pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
         let bb: Bitboard = Bitboard::of_sq(sq);
-        self.bb[piece] ^= bb;
+        self.bb[pc] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq] = if self.pcs[sq] == Some(piece) { None } else { Some(piece) };
-        self.hash = Zobrist::toggle_sq(self.hash, piece, side, sq);
+        self.pcs[sq] = if self.pcs[sq] == Some(pc) { None } else { Some(pc) };
+        self.hash ^= Zobrist::sq(pc, side, sq);
     }
 
     #[inline]
@@ -92,7 +92,7 @@ impl Board {
 
     #[inline]
     fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> u8 {
-        self.hash = Zobrist::toggle_castle(self.hash, self.castle);
+        let original_rights = self.castle;
         let mut new_rights = self.castle;
         if new_rights == Rights::None as u8 {
             // Both sides already lost castling rights, so nothing to calculate.
@@ -107,18 +107,18 @@ impl Board {
         if from.0 == 63 || to.0 == 63  { new_rights &= !(Rights::BKS as u8); }
         if from.0 == 0 || to.0 == 0    { new_rights &= !(Rights::WQS as u8); }
         if from.0 == 56 || to.0 == 56  { new_rights &= !(Rights::BQS as u8); }
-        self.hash = Zobrist::toggle_castle(self.hash, new_rights);
+        self.hash ^= Zobrist::castle(original_rights) ^ Zobrist::castle(new_rights);
         new_rights
     }
 
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square>{
         if self.ep_sq.is_some() {
-            self.hash = Zobrist::toggle_ep(self.hash, self.ep_sq.unwrap());
+            self.hash ^= Zobrist::ep(self.ep_sq.unwrap());
         }
         let ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(sq)) } else { None };
         if ep_sq.is_some() {
-            self.hash = Zobrist::toggle_ep(self.hash, ep_sq.unwrap());
+            self.hash ^= Zobrist::ep(ep_sq.unwrap());
         }
         ep_sq
     }
@@ -142,9 +142,9 @@ impl Board {
     pub fn make_null_move(&mut self) {
         self.hm = 0;
         self.stm = self.stm.flip();
-        self.hash = Zobrist::toggle_stm(self.hash);
+        self.hash ^= Zobrist::stm();
         if let Some(ep_sq) = self.ep_sq {
-            self.hash = Zobrist::toggle_ep(self.hash, ep_sq);
+            self.hash ^= Zobrist::ep(ep_sq);
             self.ep_sq = None;
         }
     }
