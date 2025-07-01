@@ -364,10 +364,6 @@ fn is_draw(td: &ThreadData, board: &Board) -> bool {
     board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
 }
 
-fn is_cancelled(time: Instant) -> bool {
-    Instant::now() >= time
-}
-
 pub struct LmrTable {
     table: [[i32; 64]; 64],
 }
@@ -408,6 +404,10 @@ impl SearchStack {
 
     pub fn new() -> Self {
         SearchStack { data: [StackEntry { mv: None, pc: None, killer: None }; MAX_PLY + 8] }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &StackEntry> {
+        self.data.iter()
     }
 
 }

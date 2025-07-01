@@ -77,6 +77,7 @@ impl ThreadData {
         self.ss = SearchStack::new();
         self.time = Instant::now();
         self.time_limit = Duration::MAX;
+        self.keys.clear();
         self.nodes = 0;
         self.node_limit = 0;
         self.depth = 1;
@@ -91,7 +92,8 @@ impl ThreadData {
         for &hash in self.keys
             .iter()
             .rev()
-            .skip(1) {
+            .skip(3)
+            .step_by(2) {
             repetitions += u8::from(hash == curr_hash);
             if repetitions == 1 {
                 return true;
