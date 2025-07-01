@@ -5,9 +5,9 @@ use crate::thread::ThreadData;
 
 pub const TT_MOVE_BONUS: i32 = 1000000;
 pub const GOOD_NOISY_BONUS: i32 = 500000;
+pub const BAD_NOISY_BONUS: i32 = 400000;
 pub const KILLER_BONUS: i32 = 250000;
 pub const QUIET_BONUS: i32 = 0;
-pub const BAD_NOISY_BONUS: i32 = -500000;
 
 pub const MVV_LVA: [[u8; 7]; 7] = [
     [10, 11, 12, 13, 14, 15, 0], // victim P, attacker K, Q, R, B, N, P, ~
