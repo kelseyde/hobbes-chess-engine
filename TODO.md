@@ -12,7 +12,7 @@
 - [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
 - [X] Killer moves
 - [ ] LMP
-- [ ] Futility pruning
+- [x] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
 - [X] QS SEE pruning
