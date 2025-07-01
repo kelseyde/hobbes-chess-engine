@@ -1,4 +1,5 @@
 use crate::bits::Rights;
+use crate::consts::Piece::Pawn;
 use crate::consts::Side::{Black, White};
 use crate::fen;
 use crate::types::bitboard::Bitboard;
@@ -16,6 +17,7 @@ pub struct Board {
     pub ep_sq: Option<Square>,     // en passant square (0-63)
     pub castle: u8,                // encoded castle rights
     pub hash: u64,                 // Zobrist hash
+    pub pawn_hash: u64,            // Zobrist hash for pawns
 }
 
 impl Board {
@@ -26,7 +28,7 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bb: [Bitboard::empty(); 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0
+            bb: [Bitboard::empty(); 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0, pawn_hash: 0
         }
     }
 
@@ -39,9 +41,9 @@ impl Board {
         let captured = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
 
         self.toggle_sq(from, pc, side);
-        if captured.is_some() {
+        if let Some(captured) = captured {
             let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
-            self.toggle_sq(capture_sq, captured.unwrap(), side.flip());
+            self.toggle_sq(capture_sq, captured, side.flip());
         }
         self.toggle_sq(to, new_pc, side);
 
@@ -66,6 +68,9 @@ impl Board {
         self.bb[side.idx()] ^= bb;
         self.pcs[sq] = if self.pcs[sq] == Some(pc) { None } else { Some(pc) };
         self.hash ^= Zobrist::sq(pc, side, sq);
+        if pc == Pawn {
+            self.pawn_hash ^= Zobrist::sq(Pawn, side, sq);
+        }
     }
 
     #[inline]

@@ -78,10 +78,7 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.tt.clear();
-        self.td.board_history.clear();
-        self.td.quiet_history.clear();
-        self.td.cont_history.clear();
+        self.td.clear();
     }
 
     fn handle_bench(&self) {

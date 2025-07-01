@@ -104,7 +104,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
+
+    if !in_check {
+        raw_eval = td.nnue.evaluate(&board);
+        static_eval = raw_eval + td.correction(board);
+    };
 
     if !root_node && !pv_node && !in_check {
 
@@ -251,6 +257,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
     }
 
+    if !in_check
+        && !Score::is_mate(best_score)
+        && !(flag == TTFlag::Upper && best_score >= raw_eval)
+        && !(flag == TTFlag::Lower && best_score <= raw_eval)
+        && (!best_move.exists() || !board.is_noisy(&best_move)) {
+        td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, best_score - static_eval);
+    }
+
     if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
@@ -345,10 +359,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     best_score
-}
-
-fn is_cancelled(time: Instant) -> bool {
-    Instant::now() >= time
 }
 
 pub struct LmrTable {

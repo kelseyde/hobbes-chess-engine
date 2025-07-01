@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::board::Board;
-use crate::history::{ContinuationHistory, QuietHistory};
+use crate::history::{ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
@@ -16,6 +16,7 @@ pub struct ThreadData {
     pub board_history: Vec<Board>,
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
+    pub pawn_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
     pub time: Instant,
     pub time_limit: Duration,
@@ -39,6 +40,7 @@ impl ThreadData {
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
@@ -61,6 +63,7 @@ impl ThreadData {
             board_history: Vec::new(),
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             time: Instant::now(),
             time_limit: Duration::MAX,
@@ -73,6 +76,10 @@ impl ThreadData {
         }
     }
 
+    pub fn correction(&self, board: &Board) -> i32 {
+        self.pawn_corrhist.get(board.stm, board.pawn_hash)
+    }
+
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.time = Instant::now();
@@ -83,6 +90,14 @@ impl ThreadData {
         self.depth_limit = 0;
         self.best_move = Move::NONE;
         self.eval = 0;
+    }
+
+    pub fn clear(&mut self) {
+        self.tt.clear();
+        self.board_history.clear();
+        self.quiet_history.clear();
+        self.cont_history.clear();
+        self.pawn_corrhist.clear();
     }
 
     pub fn time(&self) -> u128 {

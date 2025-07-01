@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::consts::Piece::Pawn;
 use crate::consts::{Piece, Side};
 use crate::types::square::Square;
 
@@ -45,6 +46,18 @@ impl Zobrist {
         // Add side to move
         if board.stm == Side::Black {
             hash ^= SIDE_KEY;
+        }
+
+        hash
+    }
+
+    pub fn new_pawn_hash(board: &Board) -> u64 {
+        let mut hash: u64 = 0;
+
+        for pawn_sq in board.bb[Pawn] {
+            if let Some(side) = board.side_at(pawn_sq) {
+                hash ^= Self::sq(Pawn, side, pawn_sq);
+            }
         }
 
         hash
@@ -117,11 +130,22 @@ mod test {
                     &Move::parse_uci_with_flag("b7c8r", MoveFlag::PromoR));
     }
 
+    #[test]
+    fn pawn_hash() {
+        assert_hash("rnbqkbnr/ppppppp1/7p/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+                    "rnbqkbnr/ppppppp1/7B/8/8/3P4/PPP1PPPP/RN1QKBNR b KQkq - 0 2",
+                    &Move::parse_uci("c1h6"))
+    }
+
     fn assert_hash(fen1: &str, fen2: &str, m: &Move) {
+        println!("making board 1");
         let mut board1 = Board::from_fen(fen1);
+        println!("making move on board 1");
         board1.make(m);
+        println!("making board 1");
         let board2 = Board::from_fen(fen2);
         assert_eq!(board1.hash, board2.hash);
+        assert_eq!(board1.pawn_hash, board2.pawn_hash);
     }
 
 }
