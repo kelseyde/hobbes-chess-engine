@@ -1,11 +1,13 @@
 use crate::board::Board;
 use crate::moves::{Move, MoveList, MAX_MOVES};
+use crate::see;
 use crate::thread::ThreadData;
 
 pub const TT_MOVE_BONUS: i32 = 1000000;
-pub const NOISY_BONUS: i32 = 500000;
+pub const GOOD_NOISY_BONUS: i32 = 500000;
 pub const KILLER_BONUS: i32 = 250000;
 pub const QUIET_BONUS: i32 = 0;
+pub const BAD_NOISY_BONUS: i32 = -500000;
 
 pub const MVV_LVA: [[u8; 7]; 7] = [
     [10, 11, 12, 13, 14, 15, 0], // victim P, attacker K, Q, R, B, N, P, ~
@@ -28,7 +30,9 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
             if let Some(v) = victim {
                 let attacker = board.piece_at(mv.from());
                 if let Some(a) = attacker {
-                    scores[idx] = NOISY_BONUS + MVV_LVA[v][a] as i32;
+                    let good_noisy = see::see(board, mv, 0);
+                    let bonus = if good_noisy { GOOD_NOISY_BONUS } else { BAD_NOISY_BONUS };
+                    scores[idx] = bonus + MVV_LVA[v][a] as i32;
                 }
             } else {
                 let quiet_score = td.quiet_history.get(board.stm, *mv) as i32;
