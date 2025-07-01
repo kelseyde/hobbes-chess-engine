@@ -234,14 +234,19 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
+    // Update histories
     if best_move.exists() && !board.is_noisy(&best_move) {
+        let pc = board.piece_at(best_move.from()).unwrap();
+        let bonus = (120 * depth as i16 - 75).min(1200);
+
         td.ss[ply].killer = Some(best_move);
-        td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
-        if ply > 0 {
-            if let Some(prev_mv) = td.ss[ply - 1].mv {
-                let prev_pc = td.ss[ply - 1].pc.unwrap();
-                let pc = board.piece_at(best_move.from()).unwrap();
-                td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+        td.quiet_history.update(board.stm, &best_move, bonus);
+
+        for &offset in &[1, 2] {
+            if ply >= offset {
+                if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - offset].mv, td.ss[ply - offset].pc) {
+                    td.cont_history.update(prev_mv, prev_pc, best_move, pc, bonus);
+                }
             }
         }
     }
@@ -345,10 +350,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     best_score
-}
-
-fn is_cancelled(time: Instant) -> bool {
-    Instant::now() >= time
 }
 
 pub struct LmrTable {

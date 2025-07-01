@@ -32,20 +32,15 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
                 }
             } else {
                 let quiet_score = td.quiet_history.get(board.stm, *mv) as i32;
-                let cont_score = if ply > 0 {
-                    if let Some(prev_mv) = td.ss[ply - 1].mv {
-                        let pc = board.piece_at(mv.from()).unwrap();
-                        if let Some(prev_pc) = td.ss[ply -1].pc {
-                            td.cont_history.get(prev_mv, prev_pc, *mv, pc) as i32
-                        } else {
-                            0
+                let mut cont_score = 0;
+                let pc = board.piece_at(mv.from()).unwrap();
+                for &offset in &[1, 2] {
+                    if ply >= offset {
+                        if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - offset].mv, td.ss[ply - offset].pc) {
+                            cont_score += td.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                         }
-                    } else {
-                        0
                     }
-                } else {
-                    0
-                };
+                }
                 let is_killer = td.ss[ply].killer.map_or(false, |killer| killer == *mv);
                 let base = if is_killer { KILLER_BONUS } else { QUIET_BONUS};
                 scores[idx] = base + quiet_score + cont_score;
