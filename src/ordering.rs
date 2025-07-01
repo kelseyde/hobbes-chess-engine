@@ -1,10 +1,14 @@
 use crate::board::Board;
+use crate::consts::Piece::Queen;
 use crate::moves::{Move, MoveList, MAX_MOVES};
+use crate::see;
 use crate::thread::ThreadData;
 
-pub const TT_MOVE_BONUS: i32 = 1000000;
-pub const NOISY_BONUS: i32 = 500000;
-pub const KILLER_BONUS: i32 = 250000;
+pub const TT_MOVE_BONUS: i32 = 10000000;
+pub const PROMO_BONUS: i32 = 7500000;
+pub const CAPTURE_BONUS: i32 = 5000000;
+pub const UNDER_PROMO_BONUS: i32 = 4000000;
+pub const KILLER_BONUS: i32 = 2500000;
 pub const QUIET_BONUS: i32 = 0;
 
 pub const MVV_LVA: [[u8; 7]; 7] = [
@@ -24,13 +28,13 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
         if tt_move.exists() && mv == tt_move {
             scores[idx] = TT_MOVE_BONUS;
         } else {
-            let victim = board.captured(&mv);
-            if let Some(v) = victim {
-                let attacker = board.piece_at(mv.from());
-                if let Some(a) = attacker {
-                    scores[idx] = NOISY_BONUS + MVV_LVA[v][a] as i32;
-                }
-            } else {
+            if let Some(promo_pc) = mv.promo_piece() {
+                scores[idx] = if promo_pc == Queen { PROMO_BONUS } else { UNDER_PROMO_BONUS };
+            }
+            else if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(&mv)) {
+                scores[idx] = CAPTURE_BONUS + MVV_LVA[victim][attacker] as i32;
+            }
+            else {
                 let quiet_score = td.quiet_history.get(board.stm, *mv) as i32;
                 let cont_score = if ply > 0 {
                     if let Some(prev_mv) = td.ss[ply - 1].mv {
