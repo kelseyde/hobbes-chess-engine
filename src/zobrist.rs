@@ -28,9 +28,9 @@ impl Zobrist {
         let mut hash: u64 = 0;
         // Iterate over all squares and pieces
         for sq in Square::iter() {
-            if let Some(piece) = board.piece_at(sq) {
-                let piece_index = Zobrist::piece_index(piece, board.side_at(sq).unwrap());
-                hash ^= PIECE_KEYS[piece_index][sq];
+            if let Some(pc) = board.piece_at(sq) {
+                let pc_index = Zobrist::piece_index(pc, board.side_at(sq).unwrap());
+                hash ^= PIECE_KEYS[pc_index][sq];
             }
         }
 
@@ -50,25 +50,25 @@ impl Zobrist {
         hash
     }
 
-    pub fn toggle_sq(hash: u64, piece: Piece, side: Side, sq: Square) -> u64 {
-        let piece_index = Zobrist::piece_index(piece, side);
-        hash ^ PIECE_KEYS[piece_index][sq]
+    pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {
+        let piece_index = Zobrist::piece_index(pc, side);
+        PIECE_KEYS[piece_index][sq]
     }
 
-    pub fn toggle_ep(hash: u64, ep_sq: Square) -> u64 {
-        hash ^ EP_KEYS[ep_sq]
+    pub fn ep(ep_sq: Square) -> u64 {
+        EP_KEYS[ep_sq]
     }
 
-    pub fn toggle_castle(hash: u64, castle: u8) -> u64 {
-        hash ^ CASTLE_KEYS[castle as usize]
+    pub fn castle(castle: u8) -> u64 {
+        CASTLE_KEYS[castle as usize]
     }
 
-    pub fn toggle_stm(hash: u64) -> u64 {
-        hash ^ SIDE_KEY
+    pub fn stm() -> u64 {
+        SIDE_KEY
     }
 
-    pub fn toggle_null_move(hash: u64) -> u64 {
-        hash ^ SIDE_KEY
+    pub fn null_move() -> u64 {
+        SIDE_KEY
     }
 
     fn piece_index(piece: Piece, side: Side) -> usize {

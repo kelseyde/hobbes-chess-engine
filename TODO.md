@@ -12,12 +12,12 @@
 - [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
 - [x] Killer moves
 - [x] LMP
-- [ ] Futility pruning
+- [x] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
-- [ ] PVS SEE noisy pruning 
+- [x] PVS SEE noisy pruning 
 - [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning
