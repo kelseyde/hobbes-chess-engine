@@ -80,6 +80,7 @@ impl UCI {
     fn handle_ucinewgame(&mut self) {
         self.td.tt.clear();
         self.td.keys.clear();
+        self.td.root_ply = 0;
         self.td.quiet_history.clear();
         self.td.cont_history.clear();
     }
@@ -112,6 +113,8 @@ impl UCI {
             Vec::new()
         };
 
+        self.td.keys.clear();
+        self.td.root_ply = 0;
         self.td.keys.push(self.board.hash);
 
         moves.iter().for_each(|m| {
@@ -121,6 +124,7 @@ impl UCI {
                 Some(m) => {
                     self.board.make(m);
                     self.td.keys.push(self.board.hash);
+                    self.td.root_ply += 1;
                 },
                 None => {
                     println!("info error: illegal move {}", m.to_uci());

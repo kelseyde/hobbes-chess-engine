@@ -407,10 +407,6 @@ impl SearchStack {
         SearchStack { data: [StackEntry { mv: None, pc: None, killer: None }; MAX_PLY + 8] }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &StackEntry> {
-        self.data.iter()
-    }
-
 }
 
 impl Index<usize> for SearchStack {
