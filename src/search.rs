@@ -168,11 +168,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
         if !pv_node
             && depth <= 8
-            && is_quiet
-            && !is_mate_score
-            && !see(&board, &mv, -56 * depth) {
+            && move_count >= 1
+            && !Score::is_mate(best_score)
+            && !see(&board, &mv, see_threshold) {
             continue;
         }
 

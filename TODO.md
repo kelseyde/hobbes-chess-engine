@@ -17,7 +17,7 @@
 - [ ] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
-- [ ] PVS SEE noisy pruning 
+- [x] PVS SEE noisy pruning 
 - [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning
