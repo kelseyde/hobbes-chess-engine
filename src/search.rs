@@ -1,15 +1,15 @@
-use std::ops::{Index, IndexMut};
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
+use crate::see::see;
 use crate::thread::ThreadData;
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
+use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use crate::see::see;
 
 pub const MAX_PLY: usize = 256;
 
@@ -104,9 +104,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check {Score::MIN} else { td.nnue.evaluate(&board) };
+    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
 
-    if !root_node && !in_check {
+    if !root_node && !pv_node && !in_check {
 
         if depth <= 8
             && static_eval - 80 * depth >= beta {
@@ -150,6 +150,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_mate_score = Score::is_mate(best_score);
+
+        if !pv_node
+            && !root_node
+            && !in_check
+            && is_quiet
+            && depth < 6
+            && !is_mate_score
+            && static_eval + 100 * depth.max(1) + 150 <= alpha {
+            continue;
+        }
 
         let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
         if !pv_node
@@ -238,7 +249,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check { -(Score::MATE) + ply as i32} else { Score::DRAW }
+        return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
     }
 
     if !root_node {
