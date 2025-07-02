@@ -67,7 +67,7 @@ pub fn bench() {
         let mut td = ThreadData::with_depth_limit(BENCH_DEPTH);
         search(&board, &mut td);
         nodes += td.nodes;
-        time += td.time.elapsed().as_millis() as u64;
+        time += td.start_time.elapsed().as_millis() as u64;
     }
 
     let nps = (nodes / time) * 1000;
