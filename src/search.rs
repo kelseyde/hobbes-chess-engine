@@ -255,7 +255,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if best_move.exists() && !board.is_noisy(&best_move) {
         let pc = board.piece_at(best_move.from()).unwrap();
-
         td.ss[ply].killer = Some(best_move);
 
         let quiet_bonus = (120 * depth as i16 - 75).min(1200);
