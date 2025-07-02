@@ -217,11 +217,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             quiet_count += 1;
         }
 
-        if td.abort() { break; }
-
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+
+        if td.abort() { break; }
 
         if score > best_score {
             best_score = score;
@@ -335,11 +335,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
-        if td.abort() { break; }
-
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+
+        if td.abort() { break; }
 
         if score > best_score {
             best_score = score;

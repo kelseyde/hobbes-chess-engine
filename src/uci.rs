@@ -125,6 +125,7 @@ impl UCI {
                     self.board.make(m);
                     self.td.keys.push(self.board.hash);
                     self.td.root_ply += 1;
+                    println!("Position: keys: {}, root_ply: {}", self.td.keys.len(), self.td.root_ply);
                 },
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
@@ -138,6 +139,7 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
 
         self.td.reset();
+        println!("Go: keys: {}, root_ply: {}", self.td.keys.len(), self.td.root_ply);
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_int(&tokens, "movetime") {
