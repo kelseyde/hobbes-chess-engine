@@ -269,8 +269,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if !in_check
         && !Score::is_mate(best_score)
-        && !(flag == TTFlag::Upper && best_score >= raw_eval)
-        && !(flag == TTFlag::Lower && best_score <= raw_eval)
+        && !(flag == TTFlag::Upper && best_score >= static_eval)
+        && !(flag == TTFlag::Lower && best_score <= static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
 
         let bonus = (depth * (best_score - static_eval)).clamp(-3900, 3300);
