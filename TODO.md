@@ -17,7 +17,7 @@
 - [ ] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
-- [ ] PVS SEE noisy pruning 
+- [x] PVS SEE noisy pruning 
 - [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning
@@ -25,12 +25,12 @@
 - [ ] Multicut (using singular search result)
 - [ ] Double/triple/negative extensions
 - [ ] Cutnode (as apart of negative extensions, LMR, etc)
-- [ ] Static eval correction history
+- [x] Static eval correction history
 - [ ] QS futility pruning
 
 ## Time Management
-- [ ] Hard bound (applies to the entire search)
-- [ ] Soft bound (checked on each new depth in the ID loop)
+- [x] Hard bound (applies to the entire search)
+- [x] Soft bound (checked on each new depth in the ID loop)
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
