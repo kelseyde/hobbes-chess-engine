@@ -10,12 +10,13 @@ use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
+use crate::time::LimitType::{Hard, Soft};
 
 pub const MAX_PLY: usize = 256;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
-    td.time = Instant::now();
+    td.start_time = Instant::now();
     td.best_move = Move::NONE;
 
     let mut alpha = Score::MIN;
@@ -23,7 +24,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut score = 0;
     let mut delta = 24;
 
-    while td.depth < MAX_DEPTH && !td.abort() {
+    while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
 
         if td.depth >= 4 {
             alpha = (score - delta).max(Score::MIN);
@@ -41,7 +42,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
             }
 
-            if td.abort() || Score::is_mate(score) {
+            if td.hard_limit_reached() || Score::is_mate(score) {
                 break;
             }
 
@@ -69,7 +70,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, mut beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
-    if td.abort() { return alpha }
+    if td.should_stop(Hard) { return alpha }
 
     let in_check = is_check(board, board.stm);
 
@@ -221,7 +222,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].pc = None;
         td.keys.pop();
 
-        if td.abort() { break; }
+        if td.should_stop(Hard) { break; }
 
         if score > best_score {
             best_score = score;
@@ -269,7 +270,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: usize) -> i32 {
 
     // If search is aborted, exit immediately
-    if td.abort() { return alpha }
+    if td.should_stop(Hard) { return alpha }
 
     if ply > 0 && is_draw(&td, &board) {
         return Score::DRAW;
@@ -339,7 +340,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         td.ss[ply].pc = None;
         td.keys.pop();
 
-        if td.abort() { break; }
+        if td.should_stop(Hard) { break; }
 
         if score > best_score {
             best_score = score;

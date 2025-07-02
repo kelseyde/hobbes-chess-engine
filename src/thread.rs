@@ -1,10 +1,11 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::board::Board;
 use crate::history::{ContinuationHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
+use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
 
 pub struct ThreadData {
@@ -18,12 +19,10 @@ pub struct ThreadData {
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
     pub lmr: LmrTable,
-    pub time: Instant,
-    pub time_limit: Duration,
+    pub limits: SearchLimits,
+    pub start_time: Instant,
     pub nodes: u64,
-    pub node_limit: u64,
     pub depth: i32,
-    pub depth_limit: i32,
     pub best_move: Move,
     pub eval: i32,
 }
@@ -42,12 +41,10 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
-            time: Instant::now(),
-            time_limit: Duration::MAX,
+            limits: SearchLimits::new(None, None, None, None, None),
+            start_time: Instant::now(),
             nodes: 0,
-            node_limit: 0,
-            depth: 1,
-            depth_limit: 0,
+            depth: 0,
             best_move: Move::NONE,
             eval: 0,
         }
@@ -65,12 +62,10 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
-            time: Instant::now(),
-            time_limit: Duration::MAX,
+            limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
+            start_time: Instant::now(),
             nodes: 0,
-            node_limit: 0,
             depth: 1,
-            depth_limit: depth,
             best_move: Move::NONE,
             eval: 0,
         }
@@ -78,12 +73,9 @@ impl ThreadData {
 
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
-        self.time = Instant::now();
-        self.time_limit = Duration::MAX;
+        self.start_time = Instant::now();
         self.nodes = 0;
-        self.node_limit = 0;
         self.depth = 1;
-        self.depth_limit = 0;
         self.best_move = Move::NONE;
         self.eval = 0;
     }
@@ -113,13 +105,58 @@ impl ThreadData {
     }
 
     pub fn time(&self) -> u128 {
-        self.time.elapsed().as_millis()
+        self.start_time.elapsed().as_millis()
     }
 
-    pub fn abort(&self) -> bool {
-        self.time.elapsed() >= self.time_limit
-            || self.node_limit > 0 && self.nodes >= self.node_limit
-            || self.depth_limit > 0 && self.depth >= self.depth_limit
+    pub fn should_stop(&self, limit_type: LimitType) -> bool {
+        match limit_type {
+            LimitType::Soft => { self.soft_limit_reached() },
+            LimitType::Hard => { self.hard_limit_reached() },
+        }
+    }
+
+    pub fn soft_limit_reached(&self) -> bool {
+        if let Some(soft_time) = self.limits.soft_time {
+            if self.start_time.elapsed() >= soft_time {
+                return true;
+            }
+        }
+
+        if let Some(soft_nodes) = self.limits.soft_nodes {
+            if self.nodes >= soft_nodes {
+                return true;
+            }
+        }
+
+        if let Some(depth_limit) = self.limits.depth {
+            if self.depth >= depth_limit as i32 {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn hard_limit_reached(&self) -> bool {
+        if let Some(hard_time) = self.limits.hard_time {
+            if self.start_time.elapsed() >= hard_time {
+                return true;
+            }
+        }
+
+        if let Some(hard_nodes) = self.limits.hard_nodes {
+            if self.nodes >= hard_nodes {
+                return true;
+            }
+        }
+
+        if let Some(depth_limit) = self.limits.depth {
+            if self.depth >= depth_limit as i32 {
+                return true;
+            }
+        }
+
+        false
     }
 
 }
