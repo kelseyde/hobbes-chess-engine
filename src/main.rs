@@ -20,6 +20,7 @@ pub mod history;
 pub mod see;
 pub mod types;
 pub mod network;
+mod time;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

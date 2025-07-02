@@ -189,6 +189,14 @@ impl Board {
         self.bb[side.idx()]
     }
 
+    pub fn white(self) -> Bitboard {
+        self.bb[White.idx()]
+    }
+
+    pub fn black(self) -> Bitboard {
+        self.bb[Black.idx()]
+    }
+
     pub fn us(self) -> Bitboard {
         self.bb[self.stm.idx()]
     }
@@ -229,16 +237,32 @@ impl Board {
         self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
     }
 
-    pub fn sq_idx(rank: u8, file: u8) -> u8 {
-        rank << 3 | file
+    pub fn is_fifty_move_rule(self) -> bool {
+        self.hm >= 100
     }
 
-    pub fn is_valid_sq(sq: u8) -> bool {
-        sq < 64
-    }
+    pub fn is_insufficient_material(&self) -> bool {
+        let pawns    = self.bb[Piece::Pawn];
+        let knights  = self.bb[Piece::Knight];
+        let bishops  = self.bb[Piece::Bishop];
+        let rooks    = self.bb[Piece::Rook];
+        let queens   = self.bb[Piece::Queen];
 
-    pub fn is_white(self) -> bool {
-        self.stm == White
+        if !(pawns | rooks | queens).is_empty() {
+            return false;
+        }
+
+        let minor_pieces = knights | bishops;
+        let piece_count = minor_pieces.count();
+        if piece_count <= 1 {
+            return true;
+        }
+
+        if knights.is_empty() && !bishops.is_empty()
+            && (bishops & self.white()).count() == 2 || (bishops & self.black()).count() == 2 {
+            return false;
+        }
+        piece_count <= 3
     }
 
 }
@@ -309,6 +333,16 @@ mod tests {
         assert_make_move("rn1q1bnr/pppbkPpp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQ - 1 5",
                          "rn1q1bQr/pppbk1pp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQ - 0 5",
                          Move::parse_uci("f7g8q"));
+    }
+
+    #[test]
+    fn insufficient_material() {
+        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").is_insufficient_material());
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
