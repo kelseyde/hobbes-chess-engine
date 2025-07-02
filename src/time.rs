@@ -8,45 +8,47 @@ pub struct SearchLimits {
     pub depth:      Option<u64>,
 }
 
-pub type FischerTime = (u64, u64); // (time, increment)
+pub enum LimitType { Soft, Hard }
 
-pub enum LimitType {
-    Infinite,
-    Movetime(u64),
-    Fischer(u64, u64),
-    Depth(u64),
-    Nodes(u64),
-}
+pub type FischerTime = (u64, u64);
 
 impl SearchLimits {
 
-    pub fn new(limit_type: LimitType) -> SearchLimits {
-        match limit_type {
-            LimitType::Infinite => Self::initInfinite(),
-            LimitType::Movetime(time) => Self::initMovetime(time),
-        }
-    }
+    pub fn new(fischer:    Option<FischerTime>,
+               movetime:   Option<u64>,
+               soft_nodes: Option<u64>,
+               hard_nodes: Option<u64>,
+               depth:      Option<u64>) -> SearchLimits {
 
-    pub fn initInfinite() -> SearchLimits {
-        // self.limit_type = LimitType::Infinite;
-        // self.hard_time = None;
-        // self.soft_time = None;
-        // self.hard_nodes = None;
-        // self.soft_nodes = None;
-        // self.depth = None;
-    }
+        let (soft_time, hard_time) = match (fischer, movetime) {
+            (Some(f), _) => {
+                let (soft, hard) = Self::calc_time_limits(f);
+                (Some(soft), Some(hard))
+            }
+            (None, Some(mt)) => {
+                let duration = Duration::from_millis(mt);
+                (Some(duration), Some(duration))
+            }
+            (None, None) => (None, None),
+        };
 
-    pub fn initMovetime(time: u64) -> SearchLimits {
         SearchLimits {
-            hard_time: Some(Duration::from_millis(time)),
-            soft_time: None,
-            nodes: None,
-            depth: None,
+            hard_time,
+            soft_time,
+            soft_nodes,
+            hard_nodes,
+            depth,
         }
     }
 
-    pub fn initFischer(time: u64, inc: u64) {
-
+    fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
+        let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
+        let base = time * 0.05 + inc * 0.08;
+        let soft_time = base * 0.66;
+        let hard_time = base * 2.0;
+        let soft = soft_time.min(time - 50.0);
+        let hard = hard_time.min(time - 50.0);
+        (Duration::from_millis(soft as u64), Duration::from_millis(hard as u64))
     }
 
 }
