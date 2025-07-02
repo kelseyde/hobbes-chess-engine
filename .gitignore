@@ -4,3 +4,4 @@ hobbes-chess-engine
 # Added by cargo
 
 /target
+flamegraph.svg
