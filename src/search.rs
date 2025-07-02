@@ -313,6 +313,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 
     if !in_check {
         let static_eval = td.nnue.evaluate(&board) + td.correction(board);
+
         if static_eval > alpha {
             alpha = static_eval
         }
