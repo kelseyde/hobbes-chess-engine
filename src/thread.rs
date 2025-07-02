@@ -92,7 +92,8 @@ impl ThreadData {
 
         let curr_hash = board.hash;
         let mut repetitions = 0;
-        for ply in (0..self.keys.len().saturating_sub(1)).rev() {
+        let end = self.keys.len() - board.hm as usize - 1;
+        for ply in (end..self.keys.len().saturating_sub(2)).rev() {
 
             let hash = self.keys[ply];
             repetitions += u8::from(curr_hash == hash);
