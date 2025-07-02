@@ -252,13 +252,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let quiet_malus = (120 * depth as i16 - 75).min(1200);
 
         let cont_bonus = (120 * depth as i16 - 75).min(1200);
+        let cont_malus = (120 * depth as i16 - 75).min(1200);
 
         td.quiet_history.update(board.stm, &best_move, quiet_bonus);
-        update_continuation_history(td, ply, best_move, pc, cont_bonus);
+        update_continuation_history(td, ply, &best_move, pc, cont_bonus);
 
         for mv in quiet_moves.iter() {
             if mv != &best_move {
                 td.quiet_history.update(board.stm, mv, -quiet_malus);
+                update_continuation_history(td, ply, mv, pc, -cont_malus);
             }
         }
     }
@@ -374,11 +376,11 @@ fn is_draw(td: &ThreadData, board: &Board) -> bool {
     board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
 }
 
-fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: Move, pc: Piece, bonus: i16) {
+fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
     for &prev_ply in &[1] {
         if prev_ply >= ply {
             if let (Some(prev_mv), Some(prev_pc)) = (td.ss[prev_ply].mv, td.ss[prev_ply].pc) {
-                td.cont_history.update(prev_mv, prev_pc, mv, pc, bonus);
+                td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
             }
         }
     }
