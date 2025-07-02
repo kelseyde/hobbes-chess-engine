@@ -78,6 +78,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if depth < 0 { depth = 0; }
 
+    if ply > 0 && is_draw(&td, &board) {
+        return Score::DRAW;
+    }
+
     if depth == MAX_DEPTH { return td.nnue.evaluate(&board) }
 
     let root_node = ply == 0;
@@ -120,8 +124,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
-
+            td.keys.push(board.hash);
             let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            td.keys.pop();
+
             if score >= beta {
                 return score;
             }
@@ -173,9 +179,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
-
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
+        td.keys.push(board.hash);
 
         move_count += 1;
         td.nodes += 1;
@@ -211,10 +217,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             quiet_count += 1;
         }
 
-        if td.abort() { break; }
-
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.keys.pop();
+
+        if td.abort() { break; }
 
         if score > best_score {
             best_score = score;
@@ -263,6 +270,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 
     // If search is aborted, exit immediately
     if td.abort() { return alpha }
+
+    if ply > 0 && is_draw(&td, &board) {
+        return Score::DRAW;
+    }
 
     let in_check = is_check(board, board.stm);
 
@@ -317,16 +328,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         board.make(&mv);
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
+        td.keys.push(board.hash);
 
         move_count += 1;
         td.nodes += 1;
 
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
-        if td.abort() { break; }
-
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.keys.pop();
+
+        if td.abort() { break; }
 
         if score > best_score {
             best_score = score;
@@ -348,8 +361,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     best_score
 }
 
-fn is_cancelled(time: Instant) -> bool {
-    Instant::now() >= time
+fn is_draw(td: &ThreadData, board: &Board) -> bool {
+    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
 }
 
 pub struct LmrTable {
