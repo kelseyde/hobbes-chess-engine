@@ -79,7 +79,8 @@ impl UCI {
 
     fn handle_ucinewgame(&mut self) {
         self.td.tt.clear();
-        self.td.board_history.clear();
+        self.td.keys.clear();
+        self.td.root_ply = 0;
         self.td.quiet_history.clear();
         self.td.cont_history.clear();
     }
@@ -112,13 +113,18 @@ impl UCI {
             Vec::new()
         };
 
+        self.td.keys.clear();
+        self.td.root_ply = 0;
+        self.td.keys.push(self.board.hash);
+
         moves.iter().for_each(|m| {
             let legal_moves = gen_moves(&self.board, MoveFilter::All);
             let legal_move = legal_moves.iter().find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.td.board_history.push(self.board.clone());
-                    self.board.make(m)
+                    self.board.make(m);
+                    self.td.keys.push(self.board.hash);
+                    self.td.root_ply += 1;
                 },
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
