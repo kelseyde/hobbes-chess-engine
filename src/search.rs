@@ -186,6 +186,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
+
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
@@ -268,10 +269,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if !in_check
         && !Score::is_mate(best_score)
-        && !(flag == TTFlag::Upper && best_score >= static_eval)
-        && !(flag == TTFlag::Lower && best_score <= static_eval)
+        && !(flag == TTFlag::Upper && best_score >= raw_eval)
+        && !(flag == TTFlag::Lower && best_score <= raw_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, best_score - raw_eval);
+
+        let bonus = (depth * (best_score - static_eval)).clamp(-3900, 3300);
+        td.pawn_corrhist.update(board.stm, board.pawn_hash, bonus);
     }
 
     if !root_node {
