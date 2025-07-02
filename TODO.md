@@ -13,7 +13,7 @@
 - [X] Killer moves
 - [ ] LMP
 - [x] Futility pruning
-- [ ] Internal Iterative Reduction (IIR)
+- [x] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
