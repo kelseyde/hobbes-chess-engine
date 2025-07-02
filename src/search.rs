@@ -312,7 +312,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
+        let eval = td.nnue.evaluate(&board) + td.correction(board);
         if eval > alpha {
             alpha = eval
         }
