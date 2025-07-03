@@ -12,12 +12,12 @@
 - [x] LMR (log formula is most principled ~ there are a number of adjustments you can experiment with)
 - [X] Killer moves
 - [ ] LMP
-- [ ] Futility pruning
+- [x] Futility pruning
 - [ ] Internal Iterative Reduction (IIR)
 - [ ] Improving heuristic
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
-- [ ] PVS SEE noisy pruning 
+- [x] PVS SEE noisy pruning 
 - [X] Continuation history (CMH + FMH etc..)
 - [ ] Capture history heuristic
 - [ ] History pruning
@@ -29,8 +29,8 @@
 - [ ] QS futility pruning
 
 ## Time Management
-- [ ] Hard bound (applies to the entire search)
-- [ ] Soft bound (checked on each new depth in the ID loop)
+- [x] Hard bound (applies to the entire search)
+- [x] Soft bound (checked on each new depth in the ID loop)
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability

@@ -1,5 +1,4 @@
 use std::io;
-use std::time::Duration;
 
 use consts::Side::{Black, White};
 
@@ -11,6 +10,7 @@ use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
+use crate::time::SearchLimits;
 use crate::{consts, fen};
 
 pub struct UCI {
@@ -79,7 +79,8 @@ impl UCI {
 
     fn handle_ucinewgame(&mut self) {
         self.td.tt.clear();
-        self.td.board_history.clear();
+        self.td.keys.clear();
+        self.td.root_ply = 0;
         self.td.quiet_history.clear();
         self.td.cont_history.clear();
         self.td.capture_history.clear();
@@ -113,13 +114,18 @@ impl UCI {
             Vec::new()
         };
 
+        self.td.keys.clear();
+        self.td.root_ply = 0;
+        self.td.keys.push(self.board.hash);
+
         moves.iter().for_each(|m| {
             let legal_moves = gen_moves(&self.board, MoveFilter::All);
             let legal_move = legal_moves.iter().find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.td.board_history.push(self.board.clone());
-                    self.board.make(m)
+                    self.board.make(m);
+                    self.td.keys.push(self.board.hash);
+                    self.td.root_ply += 1;
                 },
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
@@ -136,7 +142,7 @@ impl UCI {
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_int(&tokens, "movetime") {
-                Ok(movetime) => self.td.time_limit = Duration::from_millis(movetime),
+                Ok(movetime) => self.td.limits = SearchLimits::new(None, Some(movetime), None, None, None),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
                     return;
@@ -177,7 +183,12 @@ impl UCI {
                 }
             };
 
-            self.td.time_limit = Duration::from_millis(self.calc_movetime(wtime, btime, winc, binc));
+            let (time, inc) = match self.board.stm {
+                White => (wtime, winc),
+                Black => (btime, binc)
+            };
+
+            self.td.limits = SearchLimits::new(Some((time, inc)), None, None, None, None);
 
         }
 
@@ -255,17 +266,6 @@ impl UCI {
             },
             None => Err(format!("info error: {} is missing", name))
         }
-    }
-
-    fn calc_movetime(&self, wtime: u64, btime: u64, winc: u64, binc: u64) -> u64 {
-        let time = match self.board.stm { White => wtime, Black => btime };
-        let inc = match self.board.stm { White => winc, Black => binc };
-        let overhead = 50;
-        let movetime = time - overhead;
-        let optimal_think_time = f64::min(movetime as f64 * 0.5, movetime as f64 * 0.03333 + inc as f64);
-        let min_think_time = f64::min(50.0, time as f64 * 0.25);
-        let think_time = f64::max(optimal_think_time, min_think_time);
-        think_time as u64
     }
 
 }
