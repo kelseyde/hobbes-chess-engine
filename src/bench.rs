@@ -2,7 +2,7 @@ use crate::board::Board;
 use crate::search::search;
 use crate::thread::ThreadData;
 
-const BENCH_DEPTH: i32 = 8;
+const BENCH_DEPTH: i32 = 9;
 
 const FENS: [&str; 50] = [
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -67,7 +67,7 @@ pub fn bench() {
         let mut td = ThreadData::with_depth_limit(BENCH_DEPTH);
         search(&board, &mut td);
         nodes += td.nodes;
-        time += td.time.elapsed().as_millis() as u64;
+        time += td.start_time.elapsed().as_millis() as u64;
     }
 
     let nps = (nodes / time) * 1000;
