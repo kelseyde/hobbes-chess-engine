@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::board::Board;
 use crate::history::{ContinuationHistory, QuietHistory};
@@ -120,12 +120,10 @@ impl ThreadData {
     }
 
     pub fn soft_limit_reached(&self) -> bool {
-        if let Some(soft_time) = self.limits.soft_time {
-            let fraction = self.node_table.get(&self.best_move) as f32 / self.nodes as f32;
-            let best_move_factor = 2.15 - 1.5 * fraction;
-            let scaled_limit = soft_time.as_secs_f32() * best_move_factor;
+        let best_move_nodes = self.node_table.get(&self.best_move);
 
-            if self.start_time.elapsed() >= Duration::from_secs_f32(scaled_limit) {
+        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+            if self.start_time.elapsed() >= soft_time {
                 return true;
             }
         }
