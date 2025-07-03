@@ -244,13 +244,23 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     if best_move.exists() && !board.is_noisy(&best_move) {
+        let pc = board.piece_at(best_move.from()).unwrap();
+
         td.ss[ply].killer = Some(best_move);
-        td.quiet_history.update(board.stm, &best_move, (120 * depth as i16 - 75).min(1200));
-        if ply > 0 {
-            if let Some(prev_mv) = td.ss[ply - 1].mv {
-                let prev_pc = td.ss[ply - 1].pc.unwrap();
-                let pc = board.piece_at(best_move.from()).unwrap();
-                td.cont_history.update(prev_mv, prev_pc, best_move, pc, (120 * depth as i16 - 75).min(1200));
+
+        let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+        let quiet_malus = (120 * depth as i16 - 75).min(1200);
+
+        let cont_bonus = (120 * depth as i16 - 75).min(1200);
+        let cont_malus = (120 * depth as i16 - 75).min(1200);
+
+        td.quiet_history.update(board.stm, &best_move, quiet_bonus);
+        update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+
+        for mv in quiet_moves.iter() {
+            if mv != &best_move {
+                td.quiet_history.update(board.stm, mv, -quiet_malus);
+                update_continuation_history(td, ply, mv, pc, -cont_malus);
             }
         }
     }
@@ -364,6 +374,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
     board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
+}
+
+fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
+    for &prev_ply in &[1] {
+        if prev_ply >= ply {
+            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[prev_ply].mv, td.ss[prev_ply].pc) {
+                td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
+            }
+        }
+    }
 }
 
 pub struct LmrTable {
