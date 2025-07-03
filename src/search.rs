@@ -223,11 +223,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].pc = None;
         td.keys.pop();
 
-        if td.should_stop(Hard) { break; }
-
         if root_node {
             td.node_table.add(mv, td.nodes - initial_nodes);
         }
+
+        if td.should_stop(Hard) { break; }
 
         if score > best_score {
             best_score = score;
