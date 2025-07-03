@@ -171,11 +171,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         if !pv_node
             && !root_node
-            && !in_check
             && !is_mate_score
             && is_quiet
             && depth <= 4
-            && move_count >= 4 + 3 * depth * depth {
+            && move_count >= 10 * depth {
             continue;
         }
 
