@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::board::Board;
 use crate::history::{ContinuationHistory, QuietHistory};
@@ -19,6 +19,7 @@ pub struct ThreadData {
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
     pub lmr: LmrTable,
+    pub node_table: NodeTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub nodes: u64,
@@ -41,6 +42,7 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
+            node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
@@ -62,6 +64,7 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             lmr: LmrTable::default(),
+            node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
             nodes: 0,
@@ -74,6 +77,7 @@ impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.start_time = Instant::now();
+        self.node_table.clear();
         self.nodes = 0;
         self.depth = 1;
         self.best_move = Move::NONE;
@@ -117,7 +121,11 @@ impl ThreadData {
 
     pub fn soft_limit_reached(&self) -> bool {
         if let Some(soft_time) = self.limits.soft_time {
-            if self.start_time.elapsed() >= soft_time {
+            let fraction = self.node_table.get(&self.best_move) as f32 / self.nodes as f32;
+            let best_move_factor = 2.15 - 1.5 * fraction;
+            let scaled_limit = soft_time.as_secs_f32() * best_move_factor;
+
+            if self.start_time.elapsed() >= Duration::from_secs_f32(scaled_limit) {
                 return true;
             }
         }
@@ -159,6 +167,29 @@ impl ThreadData {
         false
     }
 
+}
+
+pub struct NodeTable {
+    table: [[u64; 64]; 64],
+}
+
+impl NodeTable {
+
+    pub fn new() -> Self {
+        NodeTable { table: [[0; 64]; 64] }
+    }
+
+    pub fn add(&mut self, mv: &Move, nodes: u64) {
+        self.table[mv.from()][mv.to()] += nodes;
+    }
+
+    pub fn get(&self, mv: &Move) -> u64 {
+        self.table[mv.from()][mv.to()]
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::new();
+    }
 }
 
 

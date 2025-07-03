@@ -32,7 +32,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
+            score = alpha_beta(board, td, td.depth, 0, alpha, beta);
 
             if td.main {
                 if td.best_move.exists() {
@@ -67,7 +67,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, mut beta: i32, cut_node: bool) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, mut beta: i32) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) { return alpha }
@@ -126,7 +126,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1, !cut_node);
+            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
             td.keys.pop();
 
             if score >= beta {
@@ -192,26 +192,26 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             extension = 1;
         }
 
+        let initial_nodes = td.nodes;
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
         if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let mut reduction = td.lmr.reduction(depth, move_count);
-            reduction += cut_node as i32;
+            let reduction = td.lmr.reduction(depth, move_count);
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
-            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
 
             if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
             }
         } else if !pv_node || move_count > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
         }
 
         if pv_node && (move_count == 1 || score > alpha) {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha, false);
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
         }
 
         if is_quiet && quiet_count < 32 {
@@ -224,6 +224,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.keys.pop();
 
         if td.should_stop(Hard) { break; }
+
+        if root_node {
+            td.node_table.add(mv, td.nodes - initial_nodes);
+        }
 
         if score > best_score {
             best_score = score;
