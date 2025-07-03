@@ -46,9 +46,9 @@ impl SearchLimits {
             if depth < 4 {
                 soft_time
             } else {
-                let best_move_fraction = best_move_nodes as f32 / nodes as f32;
-                let best_move_factor = (1.66 - best_move_fraction) * 1.49;
-                Duration::from_secs_f32(soft_time.as_secs_f32() * best_move_factor)
+                let nodes_fraction = best_move_nodes as f32 / nodes as f32;
+                let nodes_factor = 2.15 - 1.5 * nodes_fraction;
+                Duration::from_secs_f32(soft_time.as_secs_f32() * nodes_factor)
             }
         })
     }
