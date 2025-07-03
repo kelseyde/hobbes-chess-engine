@@ -66,8 +66,8 @@ impl QuietHistory {
 impl CorrectionHistory {
     const SIZE: usize = 16384;
     const MASK: usize = Self::SIZE - 1;
-    const MAX: i32 = 16384;
-    const DIVISOR: i16 = 108;
+    const SCALE: i16 = 64;
+    const MAX: i16 = Self::SCALE * 32;
 
     pub fn new() -> Self {
         CorrectionHistory {
@@ -76,14 +76,23 @@ impl CorrectionHistory {
     }
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
+
         let idx = self.index(key);
-        (self.entries[stm][idx] / Self::DIVISOR) as i32
+        (self.entries[stm][idx] / Self::SCALE) as i32
     }
 
-    pub fn update(&mut self, stm: Side, key: u64, bonus: i32) {
+    pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
+
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
-        *entry += (bonus - bonus.abs() * (*entry) as i32 / Self::MAX) as i16;
+        let new_value = (score - static_eval) as i16 * Self::SCALE;
+
+        let new_weight = (depth + 1).min(16) as i16;
+        let old_weight = Self::SCALE - new_weight;
+
+        let update = (*entry * old_weight + new_value * new_weight) / Self::SCALE;
+        *entry = update.clamp(-Self::MAX, Self::MAX);
+
     }
 
     pub fn clear(&mut self) {
