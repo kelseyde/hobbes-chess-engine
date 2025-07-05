@@ -13,7 +13,7 @@ pub struct ContinuationHistory {
 }
 
 pub struct CorrectionHistory {
-    entries: Box<[[i16; CorrectionHistory::SIZE]; 2]>,
+    entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
 }
 
 impl ContinuationHistory {
@@ -66,8 +66,9 @@ impl QuietHistory {
 impl CorrectionHistory {
     const SIZE: usize = 16384;
     const MASK: usize = Self::SIZE - 1;
-    const SCALE: i16 = 64;
-    const MAX: i16 = Self::SCALE * 32;
+    const SCALE: i32 = 256;
+    const GRAIN: i32 = 256;
+    const MAX: i32 = Self::GRAIN * 32;
 
     pub fn new() -> Self {
         CorrectionHistory {
@@ -78,20 +79,20 @@ impl CorrectionHistory {
     pub fn get(&self, stm: Side, key: u64) -> i32 {
 
         let idx = self.index(key);
-        (self.entries[stm][idx] / Self::SCALE) as i32
+        self.entries[stm][idx] / Self::SCALE
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
 
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) as i16 * Self::SCALE;
+        let new_value = (score - static_eval) * Self::SCALE;
 
-        let new_weight = (depth + 1).min(16) as i16;
+        let new_weight = (depth + 1).min(16);
         let old_weight = Self::SCALE - new_weight;
 
-        let update = (*entry * old_weight + new_value * new_weight) / Self::SCALE;
-        *entry = update.clamp(-Self::MAX, Self::MAX);
+        let update = *entry * old_weight + new_value * new_weight;
+        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
 
     }
 
