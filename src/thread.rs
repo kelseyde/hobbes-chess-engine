@@ -100,6 +100,8 @@ impl ThreadData {
         self.quiet_history.clear();
         self.cont_history.clear();
         self.pawn_corrhist.clear();
+        self.nonpawn_corrhist[Side::White].clear();
+        self.nonpawn_corrhist[Side::Black].clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
