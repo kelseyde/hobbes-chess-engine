@@ -55,6 +55,8 @@ impl MovePicker {
                 if let Some(m) = m {
                     if m != self.tt_move {
                         return Some(m);
+                    } else {
+                        return self.next(board, td);
                     }
                 }
             } else {
