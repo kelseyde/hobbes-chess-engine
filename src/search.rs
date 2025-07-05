@@ -10,6 +10,7 @@ use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
+use crate::movepicker::MovePicker;
 use crate::time::LimitType::{Hard, Soft};
 
 pub const MAX_PLY: usize = 256;
@@ -136,9 +137,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     }
 
-    let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(&td, &board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+    let mut move_picker = MovePicker::new(tt_move, ply);
 
     let mut move_count = 0;
     let mut quiet_count = 0;
@@ -148,7 +147,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let mut quiet_moves = ArrayVec::<Move, 32>::new();
 
-    for mv in moves.iter() {
+    while let Some(mv) = move_picker.next(board, td) {
 
         if !is_legal(&board, &mv) {
             continue;
@@ -180,7 +179,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
-        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
 
@@ -214,7 +213,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         if is_quiet && quiet_count < 32 {
-            quiet_moves.push(*mv);
+            quiet_moves.push(mv);
             quiet_count += 1;
         }
 
@@ -230,7 +229,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         if score > alpha {
             alpha = score;
-            best_move = *mv;
+            best_move = mv;
             flag = TTFlag::Exact;
             if root_node {
                 td.best_move = mv.clone();

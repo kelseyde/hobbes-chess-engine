@@ -183,6 +183,18 @@ impl MoveList {
         self.len == 0
     }
 
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn get(&self, idx: usize) -> Option<Move> {
+        if idx < self.len {
+            Some(self.list[idx])
+        } else {
+            None
+        }
+    }
+
     pub fn pick(&mut self, scores: &mut [i32; MAX_MOVES]) -> Option<Move> {
         if self.len == 0 {
             return None;
