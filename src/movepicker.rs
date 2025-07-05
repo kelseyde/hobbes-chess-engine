@@ -1,8 +1,8 @@
-use movegen::{gen_moves, MoveFilter};
 use crate::board::Board;
-use crate::{movegen, ordering};
 use crate::moves::{Move, MoveList};
 use crate::thread::ThreadData;
+use crate::{movegen, ordering};
+use movegen::{gen_moves, MoveFilter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -50,8 +50,9 @@ impl MovePicker {
         }
         if self.stage == Stage::Moves {
             if self.index < self.moves.len() {
-                if let Some(m) = self.moves.get(self.index) {
-                    self.index += 1;
+                let m = self.moves.get(self.index);
+                self.index += 1;
+                if let Some(m) = m {
                     if m != self.tt_move {
                         return Some(m);
                     }

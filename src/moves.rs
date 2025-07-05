@@ -183,6 +183,10 @@ impl MoveList {
         self.len == 0
     }
 
+    pub fn contains(&self, m: &Move) -> bool {
+        self.list.iter().take(self.len).any(|move_item| move_item.matches(m))
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }

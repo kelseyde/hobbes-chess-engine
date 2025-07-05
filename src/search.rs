@@ -1,17 +1,17 @@
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
+use crate::movepicker::MovePicker;
 use crate::moves::Move;
 use crate::ordering::score;
 use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
+use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use crate::movepicker::MovePicker;
-use crate::time::LimitType::{Hard, Soft};
 
 pub const MAX_PLY: usize = 256;
 
@@ -93,7 +93,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
-            tt_move = entry.best_move();
+            if entry.best_move().exists()
+                && board.is_pseudo_legal(&entry.best_move())
+                && is_legal(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+            }
 
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
