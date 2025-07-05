@@ -293,7 +293,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
-        tt_move = entry.best_move();
+        if entry.best_move().exists()
+            && board.is_pseudo_legal(&entry.best_move())
+            && is_legal(board, &entry.best_move()) {
+            tt_move = entry.best_move();
+        }
         let score = entry.score(ply) as i32;
         match entry.flag() {
             TTFlag::Exact => return score,
