@@ -1,9 +1,8 @@
 use crate::board::Board;
 use crate::consts::{Piece, Score, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
+use crate::movegen::{is_check, is_legal, MoveFilter};
 use crate::movepicker::MovePicker;
 use crate::moves::Move;
-use crate::ordering::score;
 use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
@@ -141,7 +140,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     }
 
-    let mut move_picker = MovePicker::new(tt_move, ply);
+    let mut move_picker = MovePicker::new(tt_move, MoveFilter::All, ply);
 
     let mut move_count = 0;
     let mut quiet_count = 0;
@@ -318,14 +317,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
-    let mut moves = gen_moves(board, filter);
-    let scores = score(&td, &board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+
+    let mut move_picker = MovePicker::new(tt_move, filter, ply);
+
     let mut move_count = 0;
 
     let mut best_score = alpha;
 
-    for mv in moves.iter() {
+    while let Some(mv) = move_picker.next(board, td) {
 
         if !is_legal(&board, &mv) {
             continue;
@@ -340,7 +339,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 
         let mut board = *board;
         board.make(&mv);
-        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
 

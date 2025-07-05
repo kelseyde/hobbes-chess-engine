@@ -14,6 +14,7 @@ pub enum Stage {
 
 pub struct MovePicker {
     moves: MoveList,
+    filter: MoveFilter,
     index: usize,
     stage: Stage,
     tt_move: Move,
@@ -22,10 +23,11 @@ pub struct MovePicker {
 
 impl MovePicker {
 
-    pub fn new(tt_move: Move, ply: usize) -> Self {
+    pub fn new(tt_move: Move, filter: MoveFilter, ply: usize) -> Self {
         let stage = if tt_move.exists() { Stage::TTMove } else { Stage::GenerateMoves };
         MovePicker {
             moves: MoveList::new(),
+            filter,
             index: 0,
             stage,
             tt_move,
@@ -42,7 +44,7 @@ impl MovePicker {
             }
         }
         if self.stage == Stage::GenerateMoves {
-            self.moves = gen_moves(board, MoveFilter::All);
+            self.moves = gen_moves(board, self.filter);
             let scores = ordering::score(td, board, &self.moves, &self.tt_move, self.ply);
             self.moves.sort(&scores);
             self.index = 0;
