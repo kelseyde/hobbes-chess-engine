@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::board::Board;
+use crate::consts::Side;
 use crate::history::{ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
@@ -19,6 +20,7 @@ pub struct ThreadData {
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
     pub pawn_corrhist: CorrectionHistory,
+    pub nonpawn_corrhist: [CorrectionHistory; 2],
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -42,6 +44,7 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -64,6 +67,7 @@ impl ThreadData {
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -76,6 +80,8 @@ impl ThreadData {
 
     pub fn correction(&self, board: &Board) -> i32 {
         self.pawn_corrhist.get(board.stm, board.pawn_hash)
+        + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
+        + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
     }
 
     pub fn reset(&mut self) {

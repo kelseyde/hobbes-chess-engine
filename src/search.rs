@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::consts::{Piece, Score, MAX_DEPTH};
+use crate::consts::{Piece, Score, Side, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
@@ -283,6 +283,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && !(flag == TTFlag::Lower && best_score <= static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::White].update(board.stm, board.non_pawn_hashes[Side::White], depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::Black].update(board.stm, board.non_pawn_hashes[Side::Black], depth, static_eval, best_score);
     }
 
     if !root_node {
