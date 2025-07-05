@@ -1,8 +1,10 @@
+use arrayvec::ArrayVec;
 use crate::board::Board;
 use crate::moves::{Move, MoveList};
 use crate::thread::ThreadData;
-use crate::{movegen, ordering};
+use crate::{movegen, moves, ordering};
 use movegen::{gen_moves, MoveFilter};
+use moves::MAX_MOVES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -15,10 +17,12 @@ pub enum Stage {
 pub struct MovePicker {
     moves: MoveList,
     filter: MoveFilter,
-    index: usize,
+    idx: usize,
     stage: Stage,
     tt_move: Move,
     ply: usize,
+    bad_noisy: ArrayVec<Move, MAX_MOVES>,
+    bad_noisy_idx: usize,
 }
 
 impl MovePicker {
@@ -28,10 +32,12 @@ impl MovePicker {
         MovePicker {
             moves: MoveList::new(),
             filter,
-            index: 0,
+            idx: 0,
             stage,
             tt_move,
             ply,
+            bad_noisy: ArrayVec::new(),
+            bad_noisy_idx: 0,
         }
     }
 
@@ -47,13 +53,13 @@ impl MovePicker {
             self.moves = gen_moves(board, self.filter);
             let scores = ordering::score(td, board, &self.moves, &self.tt_move, self.ply);
             self.moves.sort(&scores);
-            self.index = 0;
+            self.idx = 0;
             self.stage = Stage::Moves;
         }
         if self.stage == Stage::Moves {
-            if self.index < self.moves.len() {
-                let m = self.moves.get(self.index);
-                self.index += 1;
+            if self.idx < self.moves.len() {
+                let m = self.moves.get(self.idx);
+                self.idx += 1;
                 if let Some(m) = m {
                     if m != self.tt_move {
                         return Some(m);
