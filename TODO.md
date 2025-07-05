@@ -39,7 +39,7 @@
 - [ ] Bad noisy pruning
 
 ### Correction History
-- [ ] Pawn correction history
+- [x] Pawn correction history
 - [ ] Non-pawn correction history
 - [ ] Minor correction history
 - [ ] Major correction history

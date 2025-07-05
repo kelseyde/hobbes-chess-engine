@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::consts::Piece::Pawn;
 use crate::consts::{Piece, Side};
 use crate::types::square::Square;
 
@@ -45,6 +46,18 @@ impl Zobrist {
         // Add side to move
         if board.stm == Side::Black {
             hash ^= SIDE_KEY;
+        }
+
+        hash
+    }
+
+    pub fn new_pawn_hash(board: &Board) -> u64 {
+        let mut hash: u64 = 0;
+
+        for pawn_sq in board.bb[Pawn] {
+            if let Some(side) = board.side_at(pawn_sq) {
+                hash ^= Self::sq(Pawn, side, pawn_sq);
+            }
         }
 
         hash

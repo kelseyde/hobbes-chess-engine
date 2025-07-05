@@ -41,6 +41,7 @@ impl Board {
         board.hm = parts.get(4).unwrap_or(&"0").parse().unwrap_or(0);
         board.fm = parts.get(5).unwrap_or(&"0").parse().unwrap_or(0);
         board.hash = Zobrist::new(&board);
+        board.pawn_hash = Zobrist::new_pawn_hash(&board);
         board
 
     }
