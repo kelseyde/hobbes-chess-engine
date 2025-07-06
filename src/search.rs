@@ -18,6 +18,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     td.start_time = Instant::now();
     td.best_move = Move::NONE;
+    td.nnue.init(*board);
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
@@ -189,6 +190,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         let mut board = *board;
+        td.nnue.update(&mv, board.piece_at(mv.from()).expect("expecting the moving piece to exist"), captured, &board);
         board.make(&mv);
 
         td.ss[ply].mv = Some(*mv);
@@ -232,6 +234,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+        td.nnue.undo();
 
         if td.should_stop(Hard) { break; }
 
@@ -358,6 +361,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         }
 
         let mut board = *board;
+        td.nnue.update(&mv, board.piece_at(mv.from()).expect("expecting the moving piece to exist"), board.captured(&mv), &board);
         board.make(&mv);
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
@@ -371,6 +375,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+        td.nnue.undo();
 
         if td.should_stop(Hard) { break; }
 
