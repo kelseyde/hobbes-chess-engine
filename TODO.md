@@ -40,7 +40,7 @@
 
 ### Correction History
 - [x] Pawn correction history
-- [ ] Non-pawn correction history
+- [x] Non-pawn correction history
 - [ ] Minor correction history
 - [ ] Major correction history
 - [ ] Continuation correction history
