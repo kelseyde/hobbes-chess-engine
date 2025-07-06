@@ -249,7 +249,6 @@ fn alpha_beta(
             if score < s_beta {
                 extension = 1;
             }
-
         }
 
         let mut board = *board;
