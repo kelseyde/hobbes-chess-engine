@@ -7,6 +7,7 @@ pub struct TranspositionTable {
 }
 
 #[derive(Clone)]
+#[derive(Default)]
 pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
@@ -67,13 +68,6 @@ impl TTEntry {
 
 }
 
-impl Default for TTEntry {
-    fn default() -> TTEntry {
-        TTEntry {
-            key: 0, best_move: 0, score: 0, depth: 0, flag: 0,
-        }
-    }
-}
 
 impl Default for TranspositionTable {
     fn default() -> TranspositionTable {
@@ -118,7 +112,7 @@ impl TranspositionTable {
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
         entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply) as i16;
+        entry.score = to_tt(score, ply);
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }

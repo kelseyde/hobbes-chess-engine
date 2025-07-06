@@ -166,20 +166,22 @@ impl Move {
         // Castling target for rooks
         if kingside {
             if white { Square(5) } else { Square(61) }
-        } else {
-            if white { Square(3) } else { Square(59) }
-        }
+        } else if white { Square(3) } else { Square(59) }
     }
 
     pub fn rook_from(kingside: bool, white: bool) -> Square {
         // Castling starting squares for rooks
         if kingside {
             if white { Square(7) } else { Square(63) }
-        } else {
-            if white { Square(0) } else { Square(56) }
-        }
+        } else if white { Square(0) } else { Square(56) }
     }
 
+}
+
+impl Default for MoveList {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MoveList {

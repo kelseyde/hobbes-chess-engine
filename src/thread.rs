@@ -30,6 +30,12 @@ pub struct ThreadData {
     pub eval: i32,
 }
 
+impl Default for ThreadData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThreadData {
     pub fn new() -> Self {
         ThreadData {
@@ -266,4 +272,3 @@ mod tests {
         td.keys.push(board.hash);
     }
 }
-

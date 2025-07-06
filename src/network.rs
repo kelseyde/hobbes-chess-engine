@@ -36,6 +36,12 @@ pub struct Accumulator {
     pub black_features: [i16; HIDDEN],
 }
 
+impl Default for Accumulator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Accumulator {
     pub fn new() -> Self {
         Accumulator {
@@ -44,78 +50,60 @@ impl Accumulator {
         }
     }
 
-    pub fn add(&mut self, wx1: usize, bx1: usize) {
+    pub fn add(&mut self, w: usize, b: usize) {
         for i in 0..self.white_features.len() {
-            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN];
+            self.white_features[i] += NETWORK.feature_weights[i + w * HIDDEN];
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN];
+            self.black_features[i] += NETWORK.feature_weights[i + b * HIDDEN];
         }
     }
 
-    pub fn sub(&mut self, wx1: usize, bx1: usize) {
+    pub fn sub(&mut self, w: usize, b: usize) {
         for i in 0..self.white_features.len() {
-            self.white_features[i] -= NETWORK.feature_weights[i + wx1 * HIDDEN];
+            self.white_features[i] -= NETWORK.feature_weights[i + w * HIDDEN];
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] -= NETWORK.feature_weights[i + bx1 * HIDDEN];
+            self.black_features[i] -= NETWORK.feature_weights[i + b * HIDDEN];
         }
     }
 
-    pub fn add_sub(&mut self, wx1: usize, bx1: usize, wx2: usize, bx2: usize) {
+    pub fn add_sub(&mut self, w: [usize; 2], b: [usize; 2]) {
         for i in 0..self.white_features.len() {
-            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
-                .wrapping_sub(NETWORK.feature_weights[i + wx2 * HIDDEN]);
+            self.white_features[i] += NETWORK.feature_weights[i + w[0] * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + w[1] * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
-                .wrapping_sub(NETWORK.feature_weights[i + bx2 * HIDDEN]);
+            self.black_features[i] += NETWORK.feature_weights[i + b[0] * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + b[1] * HIDDEN]);
         }
     }
 
-    pub fn add_sub_sub(
-        &mut self,
-        wx1: usize,
-        bx1: usize,
-        wx2: usize,
-        bx2: usize,
-        wx3: usize,
-        bx3: usize,
-    ) {
+    pub fn add_sub_sub(&mut self, w: [usize; 3], b: [usize; 3]) {
         for i in 0..self.white_features.len() {
-            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
-                .wrapping_sub(NETWORK.feature_weights[i + wx2 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + wx3 * HIDDEN]);
+            self.white_features[i] += NETWORK.feature_weights[i + w[0] * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + w[1] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + w[2] * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
-                .wrapping_sub(NETWORK.feature_weights[i + bx2 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + bx3 * HIDDEN]);
+            self.black_features[i] += NETWORK.feature_weights[i + b[0] * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + b[1] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + b[2] * HIDDEN]);
         }
     }
 
-    pub fn add_add_sub_sub(
-        &mut self,
-        wx1: usize,
-        bx1: usize,
-        wx2: usize,
-        bx2: usize,
-        wx3: usize,
-        bx3: usize,
-        wx4: usize,
-        bx4: usize,
-    ) {
+    pub fn add_add_sub_sub(&mut self, w: [usize; 4], b: [usize; 4]) {
         for i in 0..self.white_features.len() {
-            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
-                .wrapping_add(NETWORK.feature_weights[i + wx2 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + wx3 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + wx4 * HIDDEN]);
+            self.white_features[i] += NETWORK.feature_weights[i + w[0] * HIDDEN]
+                .wrapping_add(NETWORK.feature_weights[i + w[1] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + w[2] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + w[3] * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
-                .wrapping_add(NETWORK.feature_weights[i + bx2 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + bx3 * HIDDEN])
-                .wrapping_sub(NETWORK.feature_weights[i + bx4 * HIDDEN]);
+            self.black_features[i] += NETWORK.feature_weights[i + b[0] * HIDDEN]
+                .wrapping_add(NETWORK.feature_weights[i + b[1] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + b[2] * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + b[3] * HIDDEN]);
         }
     }
 }
@@ -123,6 +111,12 @@ impl Accumulator {
 pub struct NNUE {
     accumulator_stack: [Accumulator; MAX_ACCUMULATORS],
     current_accumulator: usize,
+}
+
+impl Default for NNUE {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NNUE {
@@ -146,7 +140,7 @@ impl NNUE {
         self.current_accumulator += 1;
         // TODO: This can be optimized. No need to have an extra copy
         self.accumulator_stack[self.current_accumulator] =
-            self.accumulator_stack[self.current_accumulator - 1].clone();
+            self.accumulator_stack[self.current_accumulator - 1];
         let us = board.stm;
         let them = us.flip();
 
@@ -182,15 +176,13 @@ impl NNUE {
             let moving_piece_index_w = self.ft_idx(played_move.from(), moving_piece, us, White);
             let moving_piece_index_b = self.ft_idx(played_move.from(), moving_piece, us, Black);
 
-            if !board.is_noisy(&played_move)
-                | (board.captured(&played_move).is_none() & played_move.is_promo())
+            if !board.is_noisy(played_move)
+                | (board.captured(played_move).is_none() & played_move.is_promo())
             {
                 // Quiet moves and non-capture promotions
                 self.accumulator_stack[self.current_accumulator].add_sub(
-                    new_piece_idx_w,
-                    new_piece_idx_b,
-                    moving_piece_index_w,
-                    moving_piece_index_b,
+                    [new_piece_idx_w, moving_piece_index_w],
+                    [new_piece_idx_b, moving_piece_index_b],
                 );
             } else {
                 // All captures, including en passant
@@ -219,12 +211,8 @@ impl NNUE {
                     }
                 };
                 self.accumulator_stack[self.current_accumulator].add_sub_sub(
-                    new_piece_idx_w,
-                    new_piece_idx_b,
-                    moving_piece_index_w,
-                    moving_piece_index_b,
-                    target_piece_w,
-                    target_piece_b,
+                    [new_piece_idx_w, moving_piece_index_w, target_piece_w],
+                    [new_piece_idx_b, moving_piece_index_b, target_piece_b],
                 );
             }
         } else {
@@ -244,14 +232,18 @@ impl NNUE {
             let rook_castling_target_b = self.ft_idx(rook_castling_target, Piece::Rook, us, Black);
 
             self.accumulator_stack[self.current_accumulator].add_add_sub_sub(
-                king_castling_target_w,
-                king_castling_target_b,
-                rook_castling_target_w,
-                rook_castling_target_b,
-                king_castling_w,
-                king_castling_b,
-                rook_castling_w,
-                rook_castling_b,
+                [
+                    king_castling_target_w,
+                    rook_castling_target_w,
+                    king_castling_w,
+                    rook_castling_w,
+                ],
+                [
+                    king_castling_target_b,
+                    rook_castling_target_b,
+                    king_castling_b,
+                    rook_castling_b,
+                ],
             );
         }
     }

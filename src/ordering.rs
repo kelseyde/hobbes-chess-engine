@@ -17,14 +17,19 @@ pub const MVV_LVA: [[u8; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0],       // victim ~, attacker K, Q, R, B, N, P, ~
 ];
 
-pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, ply: usize) -> [i32; MAX_MOVES] {
+pub fn score(
+    td: &ThreadData,
+    board: &Board,
+    moves: &MoveList,
+    tt_move: &Move,
+    ply: usize,
+) -> [i32; MAX_MOVES] {
     let mut scores = [0; MAX_MOVES];
-    let mut idx = 0;
-    for mv in moves.iter() {
+    for (idx, mv) in moves.iter().enumerate() {
         if tt_move.exists() && mv == tt_move {
             scores[idx] = TT_MOVE_BONUS;
         } else {
-            let victim = board.captured(&mv);
+            let victim = board.captured(mv);
             if let Some(v) = victim {
                 let attacker = board.piece_at(mv.from());
                 if let Some(a) = attacker {
@@ -35,7 +40,7 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
                 let cont_score = if ply > 0 {
                     if let Some(prev_mv) = td.ss[ply - 1].mv {
                         let pc = board.piece_at(mv.from()).unwrap();
-                        if let Some(prev_pc) = td.ss[ply -1].pc {
+                        if let Some(prev_pc) = td.ss[ply - 1].pc {
                             td.cont_history.get(prev_mv, prev_pc, mv, pc) as i32
                         } else {
                             0
@@ -46,12 +51,11 @@ pub fn score(td: &ThreadData, board: &Board, moves: &MoveList, tt_move: &Move, p
                 } else {
                     0
                 };
-                let is_killer = td.ss[ply].killer.map_or(false, |killer| killer == *mv);
-                let base = if is_killer { KILLER_BONUS } else { QUIET_BONUS};
+                let is_killer = td.ss[ply].killer == Some(*mv);
+                let base = if is_killer { KILLER_BONUS } else { QUIET_BONUS };
                 scores[idx] = base + quiet_score + cont_score;
             }
         }
-        idx += 1;
     }
     scores
 }

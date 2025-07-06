@@ -21,6 +21,12 @@ pub struct Board {
     pub non_pawn_hashes: [u64; 2]  // Zobrist hashes for non-pawns
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Board {
 
     pub fn new() -> Board {

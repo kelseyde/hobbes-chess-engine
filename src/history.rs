@@ -16,6 +16,12 @@ pub struct CorrectionHistory {
     entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
 }
 
+impl Default for ContinuationHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContinuationHistory {
     const MAX: i16 = 16384;
 
@@ -36,6 +42,12 @@ impl ContinuationHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
+    }
+}
+
+impl Default for QuietHistory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

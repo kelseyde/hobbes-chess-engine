@@ -8,13 +8,14 @@ use crate::zobrist::Zobrist;
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 impl Board {
-
     pub fn from_fen(fen: &str) -> Board {
         let mut board = Board::empty();
         let parts: Vec<&str> = fen.split_whitespace().collect();
 
         let rows: Vec<&str> = parts[0].split('/').collect();
-        if rows.len() != 8 { panic!("Invalid FEN string"); }
+        if rows.len() != 8 {
+            panic!("Invalid FEN string");
+        }
 
         for (rank, row) in rows.iter().enumerate() {
             let mut file = 0;
@@ -40,11 +41,10 @@ impl Board {
         board.ep_sq = parse_ep_sq(parts[3]);
         board.hm = parts.get(4).unwrap_or(&"0").parse().unwrap_or(0);
         board.fm = parts.get(5).unwrap_or(&"0").parse().unwrap_or(0);
-        board.hash = Zobrist::new(&board);
-        board.pawn_hash = Zobrist::new_pawn_hash(&board);
-        board.non_pawn_hashes = Zobrist::new_non_pawn_hashes(&board);
+        board.hash = Zobrist::get_hash(&board);
+        board.pawn_hash = Zobrist::get_pawn_hash(&board);
+        board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board
-
     }
 
     pub fn to_fen(self) -> String {
@@ -60,8 +60,10 @@ impl Board {
                             fen.push_str(&empty_squares.to_string());
                             empty_squares = 0;
                         }
-                        fen.push(piece_to_char(piece, self.side_at(sq)
-                            .expect("Square should be occupied")));
+                        fen.push(piece_to_char(
+                            piece,
+                            self.side_at(sq).expect("Square should be occupied"),
+                        ));
                     }
                     None => {
                         empty_squares += 1;
@@ -80,11 +82,21 @@ impl Board {
         fen.push(if self.stm == White { 'w' } else { 'b' });
 
         fen.push(' ');
-        if self.castle & 0b0001 != 0 { fen.push('K'); }
-        if self.castle & 0b0010 != 0 { fen.push('Q'); }
-        if self.castle & 0b0100 != 0 { fen.push('k'); }
-        if self.castle & 0b1000 != 0 { fen.push('q'); }
-        if self.castle == 0 { fen.push('-'); }
+        if self.castle & 0b0001 != 0 {
+            fen.push('K');
+        }
+        if self.castle & 0b0010 != 0 {
+            fen.push('Q');
+        }
+        if self.castle & 0b0100 != 0 {
+            fen.push('k');
+        }
+        if self.castle & 0b1000 != 0 {
+            fen.push('q');
+        }
+        if self.castle == 0 {
+            fen.push('-');
+        }
 
         fen.push(' ');
         if let Some(ep_sq) = self.ep_sq {
@@ -99,9 +111,7 @@ impl Board {
         fen.push(' ');
         fen.push_str(&self.fm.to_string());
         fen
-
     }
-
 }
 
 fn parse_castle_rights(castle: &str) -> u8 {
@@ -143,12 +153,12 @@ fn parse_piece(c: char) -> Piece {
         'R' => Piece::Rook,
         'Q' => Piece::Queen,
         'K' => Piece::King,
-        _ => panic!("Invalid piece character")
+        _ => panic!("Invalid piece character"),
     }
 }
 
 fn parse_square(s: &str) -> Square {
-    let file = s.chars().nth(0).unwrap() as usize - 'a' as usize;
+    let file = s.chars().next().unwrap() as usize - 'a' as usize;
     let rank = s.chars().nth(1).unwrap() as usize - '1' as usize;
     Square::from(File::parse(file), Rank::parse(rank))
 }
