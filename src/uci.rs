@@ -15,8 +15,8 @@ use crate::{consts, fen};
 
 pub struct UCI {
     pub board: Board,
-    pub td: ThreadData,
-    pub nnue: NNUE,
+    pub td: Box<ThreadData>,
+    pub nnue: Box<NNUE>,
 }
 
 impl Default for UCI {
@@ -29,8 +29,8 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::new(),
-            nnue: NNUE::new(),
+            td: ThreadData::new().into(),
+            nnue: NNUE::new().into(),
         }
     }
 
