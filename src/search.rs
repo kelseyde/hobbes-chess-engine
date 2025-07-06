@@ -466,3 +466,4 @@ impl IndexMut<usize> for SearchStack {
         unsafe { self.data.get_unchecked_mut(index) }
     }
 }
+
