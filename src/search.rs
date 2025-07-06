@@ -128,11 +128,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && static_eval >= beta
             && board.has_non_pawns() {
 
+            let r = 3 + depth / 3;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1);
             td.keys.pop();
 
             if score >= beta {
