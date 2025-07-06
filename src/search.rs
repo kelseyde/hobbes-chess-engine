@@ -197,7 +197,7 @@ fn alpha_beta(
             && !is_mate_score
             && is_quiet
             && depth <= 4
-            && move_count > 4 + 3 * depth * depth
+            && move_count > 4 + depth * depth
         {
             continue
         }
