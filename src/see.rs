@@ -51,7 +51,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
             break;
         }
 
-        let attacker = least_valuable_attacker(&board, our_attackers);
+        let attacker = least_valuable_attacker(board, our_attackers);
 
         if attacker == Piece::King && !(attackers & board.side(stm.flip())).is_empty() {
             break;

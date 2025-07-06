@@ -13,8 +13,18 @@ pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
+pub struct CorrectionHistory {
+    entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
+}
+
 pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+}
+
+impl Default for ContinuationHistory {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ContinuationHistory {
@@ -22,7 +32,7 @@ impl ContinuationHistory {
 
     pub fn new() -> Self {
         ContinuationHistory {
-            entries: Box::new([[[[0; 64]; 6]; 64]; 6])
+            entries: Box::new([[[[0; 64]; 6]; 64]; 6]),
         }
     }
 
@@ -38,7 +48,12 @@ impl ContinuationHistory {
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
+}
 
+impl Default for QuietHistory {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QuietHistory {
@@ -61,6 +76,53 @@ impl QuietHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[0; 64]; 64], [[0; 64]; 64]]);
+    }
+}
+
+impl CorrectionHistory {
+    const SIZE: usize = 16384;
+    const MASK: usize = Self::SIZE - 1;
+    const SCALE: i32 = 256;
+    const GRAIN: i32 = 256;
+    const MAX: i32 = Self::GRAIN * 32;
+
+    pub fn new() -> Self {
+        CorrectionHistory {
+            entries: Box::new([[0; Self::SIZE]; 2]),
+        }
+    }
+
+    pub fn get(&self, stm: Side, key: u64) -> i32 {
+        let idx = self.index(key);
+        self.entries[stm][idx] / Self::SCALE
+    }
+
+    pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
+        let idx = self.index(key);
+        let entry = &mut self.entries[stm][idx];
+        let new_value = (score - static_eval) * Self::SCALE;
+
+        let new_weight = (depth + 1).min(16);
+        let old_weight = Self::SCALE - new_weight;
+
+        let update = *entry * old_weight + new_value * new_weight;
+        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[0; Self::SIZE]; 2]);
+    }
+
+    fn index(&self, key: u64) -> usize {
+        key as usize & Self::MASK
+    }
+}
+
+impl Default for CorrectionHistory {
+    fn default() -> Self {
+        Self {
+            entries: Box::new([[0; Self::SIZE]; 2]),
+        }
     }
 }
 
@@ -90,5 +152,5 @@ impl CaptureHistory {
 }
 
 fn gravity(current: i16, update: i16, max: i16) -> i16 {
-    current + update - current * update.abs() / max
+    current + update - (current as i32 * update.abs() as i32 / max as i32) as i16
 }
