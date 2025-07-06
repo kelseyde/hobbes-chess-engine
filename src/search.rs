@@ -258,8 +258,7 @@ fn alpha_beta(
         if is_quiet && quiet_count < 32 {
             quiets.push(*mv);
             quiet_count += 1;
-        }
-        else if captured.is_some() && capture_count < 32 {
+        } else if captured.is_some() && capture_count < 32 {
             captures.push(*mv);
             capture_count += 1;
         }
@@ -305,9 +304,9 @@ fn alpha_beta(
         let cont_malus = (120 * depth as i16 - 75).min(1200);
 
         if let Some(captured) = board.captured(&best_move) {
-            td.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
-        }
-        else {
+            td.capture_history
+                .update(board.stm, pc, best_move.to(), captured, capt_bonus);
+        } else {
             td.ss[ply].killer = Some(best_move);
 
             td.quiet_history.update(board.stm, &best_move, quiet_bonus);
@@ -324,7 +323,8 @@ fn alpha_beta(
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.capture_history.update(board.stm, pc, mv.to(), captured, -capt_malus);
+                    td.capture_history
+                        .update(board.stm, pc, mv.to(), captured, -capt_malus);
                 }
             }
         }
@@ -549,10 +549,10 @@ impl Default for LmrTable {
 }
 
 fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
-    match (flag, score, lower, upper) {
-        (TTFlag::Exact, _, _, _) => true,
-        (TTFlag::Lower, score, _, upper) => score >= upper,
-        (TTFlag::Upper, score, lower, _) => score <= lower,
+    match flag {
+        TTFlag::Exact => true,
+        TTFlag::Lower => score >= upper,
+        TTFlag::Upper => score <= lower,
     }
 }
 
