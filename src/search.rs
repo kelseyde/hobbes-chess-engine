@@ -123,12 +123,8 @@ fn alpha_beta(
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
 
-            if tt_depth >= depth {
-                let score = tt_score;
-
-                if bounds_match(entry.flag(), score, alpha, beta) {
-                    return score;
-                }
+            if tt_depth >= depth && bounds_match(entry.flag(), tt_score, alpha, beta) {
+                return tt_score;
             }
         }
     }
