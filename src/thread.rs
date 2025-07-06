@@ -272,4 +272,3 @@ mod tests {
         td.keys.push(board.hash);
     }
 }
-
