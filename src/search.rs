@@ -282,9 +282,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && !(flag == TTFlag::Upper && best_score >= static_eval)
         && !(flag == TTFlag::Lower && best_score <= static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, static_eval, best_score);
-        td.nonpawn_corrhist[Side::White].update(board.stm, board.non_pawn_hashes[Side::White], depth, static_eval, best_score);
-        td.nonpawn_corrhist[Side::Black].update(board.stm, board.non_pawn_hashes[Side::Black], depth, static_eval, best_score);
+        td.update_correction(board, depth, static_eval, best_score);
     }
 
     if !root_node {

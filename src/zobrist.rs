@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::consts::Piece::Pawn;
+use crate::consts::Piece::{King, Pawn, Queen, Rook};
 use crate::consts::{Piece, Side};
 use crate::types::square::Square;
 
@@ -57,6 +57,21 @@ impl Zobrist {
         for pawn_sq in board.bb[Pawn] {
             if let Some(side) = board.side_at(pawn_sq) {
                 hash ^= Self::sq(Pawn, side, pawn_sq);
+            }
+        }
+
+        hash
+    }
+
+    pub fn new_major_hash(board: &Board) -> u64 {
+        let mut hash: u64 = 0;
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc == Rook || pc == Queen || pc == King {
+                    let side = board.side_at(sq).unwrap();
+                    hash ^= Self::sq(pc, side, sq);
+                }
             }
         }
 

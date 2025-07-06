@@ -43,6 +43,7 @@ impl Board {
         board.hash = Zobrist::new(&board);
         board.pawn_hash = Zobrist::new_pawn_hash(&board);
         board.non_pawn_hashes = Zobrist::new_non_pawn_hashes(&board);
+        board.major_hash = Zobrist::new_major_hash(&board);
         board
 
     }

@@ -18,7 +18,8 @@ pub struct Board {
     pub castle: u8,                // encoded castle rights
     pub hash: u64,                 // Zobrist hash
     pub pawn_hash: u64,            // Zobrist hash for pawns
-    pub non_pawn_hashes: [u64; 2]  // Zobrist hashes for non-pawns
+    pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
+    pub major_hash: u64,           // Zobrist hash for major pieces (king, queen, rook)
 }
 
 impl Board {
@@ -29,7 +30,18 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bb: [Bitboard::empty(); 8], pcs: [None; 64], stm: White, hm: 0, fm: 0, ep_sq: None, castle: 0, hash: 0, pawn_hash: 0, non_pawn_hashes: [0, 0]
+            bb: [Bitboard::empty(); 8],
+            pcs:
+            [None; 64],
+            stm: White,
+            hm: 0,
+            fm: 0,
+            ep_sq: None,
+            castle: 0,
+            hash: 0,
+            pawn_hash: 0,
+            non_pawn_hashes: [0, 0],
+            major_hash: 0,
         }
     }
 
@@ -72,6 +84,9 @@ impl Board {
         if pc == Pawn {
             self.pawn_hash ^= Zobrist::sq(Pawn, side, sq);
         } else {
+            if pc.is_major() {
+                self.major_hash ^= Zobrist::sq(pc, side, sq);
+            }
             self.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
         }
     }

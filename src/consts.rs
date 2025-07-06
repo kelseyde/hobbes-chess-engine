@@ -32,6 +32,10 @@ impl Piece {
     pub fn iter() -> impl Iterator<Item = Piece> {
         PIECES.iter().copied()
     }
+
+    pub fn is_major(&self) -> bool {
+        matches!(self, Piece::King | Piece::Queen | Piece::Rook)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]

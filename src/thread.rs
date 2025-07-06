@@ -21,6 +21,7 @@ pub struct ThreadData {
     pub cont_history: ContinuationHistory,
     pub pawn_corrhist: CorrectionHistory,
     pub nonpawn_corrhist: [CorrectionHistory; 2],
+    pub major_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -45,6 +46,7 @@ impl ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            major_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -68,6 +70,7 @@ impl ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            major_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -78,10 +81,19 @@ impl ThreadData {
         }
     }
 
+    pub fn update_correction(&mut self, board: &Board, depth: i32, static_eval: i32, score: i32, ) {
+        let stm = board.stm;
+        self.pawn_corrhist.update(stm, board.pawn_hash, depth, static_eval, score);
+        self.nonpawn_corrhist[Side::White].update(stm, board.non_pawn_hashes[Side::White], depth, static_eval, score);
+        self.nonpawn_corrhist[Side::Black].update(stm, board.non_pawn_hashes[Side::Black], depth, static_eval, score);
+        self.major_corrhist.update(stm, board.major_hash, depth, static_eval, score);
+    }
+
     pub fn correction(&self, board: &Board) -> i32 {
         self.pawn_corrhist.get(board.stm, board.pawn_hash)
         + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
         + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
+        + self.major_corrhist.get(board.stm, board.major_hash)
     }
 
     pub fn reset(&mut self) {
@@ -102,6 +114,7 @@ impl ThreadData {
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist[Side::White].clear();
         self.nonpawn_corrhist[Side::Black].clear();
+        self.major_corrhist.clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
