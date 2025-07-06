@@ -63,6 +63,21 @@ impl Zobrist {
         hash
     }
 
+    pub fn new_non_pawn_hashes(board: &Board) -> [u64; 2] {
+        let mut hashes: [u64; 2] = [0, 0];
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc != Pawn {
+                    let side = board.side_at(sq).unwrap();
+                    hashes[side] ^= Self::sq(pc, side, sq);
+                }
+            }
+        }
+
+        hashes
+    }
+
     pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {
         let piece_index = Zobrist::piece_index(pc, side);
         PIECE_KEYS[piece_index][sq]
