@@ -37,7 +37,6 @@ pub struct Accumulator {
 }
 
 impl Accumulator {
-
     pub fn new() -> Self {
         Accumulator {
             white_features: NETWORK.feature_bias,
@@ -62,6 +61,63 @@ impl Accumulator {
             self.black_features[i] -= NETWORK.feature_weights[i + bx1 * HIDDEN];
         }
     }
+
+    pub fn add_sub(&mut self, wx1: usize, bx1: usize, wx2: usize, bx2: usize) {
+        for i in 0..self.white_features.len() {
+            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + wx2 * HIDDEN]);
+        }
+        for i in 0..self.black_features.len() {
+            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + bx2 * HIDDEN]);
+        }
+    }
+
+    pub fn add_sub_sub(
+        &mut self,
+        wx1: usize,
+        bx1: usize,
+        wx2: usize,
+        bx2: usize,
+        wx3: usize,
+        bx3: usize,
+    ) {
+        for i in 0..self.white_features.len() {
+            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + wx2 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + wx3 * HIDDEN]);
+        }
+        for i in 0..self.black_features.len() {
+            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
+                .wrapping_sub(NETWORK.feature_weights[i + bx2 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + bx3 * HIDDEN]);
+        }
+    }
+
+    pub fn add_add_sub_sub(
+        &mut self,
+        wx1: usize,
+        bx1: usize,
+        wx2: usize,
+        bx2: usize,
+        wx3: usize,
+        bx3: usize,
+        wx4: usize,
+        bx4: usize,
+    ) {
+        for i in 0..self.white_features.len() {
+            self.white_features[i] += NETWORK.feature_weights[i + wx1 * HIDDEN]
+                .wrapping_add(NETWORK.feature_weights[i + wx2 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + wx3 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + wx4 * HIDDEN]);
+        }
+        for i in 0..self.black_features.len() {
+            self.black_features[i] += NETWORK.feature_weights[i + bx1 * HIDDEN]
+                .wrapping_add(NETWORK.feature_weights[i + bx2 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + bx3 * HIDDEN])
+                .wrapping_sub(NETWORK.feature_weights[i + bx4 * HIDDEN]);
+        }
+    }
 }
 
 pub struct NNUE {
@@ -70,7 +126,6 @@ pub struct NNUE {
 }
 
 impl NNUE {
-
     pub fn new() -> Self {
         NNUE {
             current_accumulator: 0,
@@ -78,14 +133,20 @@ impl NNUE {
         }
     }
 
-    pub fn update(&mut self, played_move: &Move, moving_piece: Piece, captured_piece: Option<Piece>, board: &Board) {
-
+    pub fn update(
+        &mut self,
+        played_move: &Move,
+        moving_piece: Piece,
+        captured_piece: Option<Piece>,
+        board: &Board,
+    ) {
         if self.current_accumulator == MAX_ACCUMULATORS {
             panic!("reached maximum accumulator count");
         }
         self.current_accumulator += 1;
         // TODO: This can be optimized. No need to have an extra copy
-        self.accumulator_stack[self.current_accumulator] = self.accumulator_stack[self.current_accumulator - 1].clone();
+        self.accumulator_stack[self.current_accumulator] =
+            self.accumulator_stack[self.current_accumulator - 1].clone();
         let us = board.stm;
         let them = us.flip();
 
@@ -93,51 +154,80 @@ impl NNUE {
             let new_piece_idx_w = {
                 if !played_move.is_promo() {
                     self.ft_idx(played_move.to(), moving_piece, us, White)
-                }
-                else {
-                    self.ft_idx(played_move.to(), played_move.promo_piece().expect("expecting promotion piece to exist"), us, White)
+                } else {
+                    self.ft_idx(
+                        played_move.to(),
+                        played_move
+                            .promo_piece()
+                            .expect("expecting promotion piece to exist"),
+                        us,
+                        White,
+                    )
                 }
             };
             let new_piece_idx_b = {
                 if !played_move.is_promo() {
                     self.ft_idx(played_move.to(), moving_piece, us, Black)
-                }
-                else {
-                    self.ft_idx(played_move.to(), played_move.promo_piece().expect("expecting promotion piece to exist"), us, Black)
+                } else {
+                    self.ft_idx(
+                        played_move.to(),
+                        played_move
+                            .promo_piece()
+                            .expect("expecting promotion piece to exist"),
+                        us,
+                        Black,
+                    )
                 }
             };
             let moving_piece_index_w = self.ft_idx(played_move.from(), moving_piece, us, White);
             let moving_piece_index_b = self.ft_idx(played_move.from(), moving_piece, us, Black);
 
-            if !board.is_noisy(&played_move) | (board.captured(&played_move).is_none() & played_move.is_promo()) {
+            if !board.is_noisy(&played_move)
+                | (board.captured(&played_move).is_none() & played_move.is_promo())
+            {
                 // Quiet moves and non-capture promotions
-                self.accumulator_stack[self.current_accumulator].add(new_piece_idx_w, new_piece_idx_b);
-                self.accumulator_stack[self.current_accumulator].sub(moving_piece_index_w, moving_piece_index_b);
-            }
-            else {
+                self.accumulator_stack[self.current_accumulator].add_sub(
+                    new_piece_idx_w,
+                    new_piece_idx_b,
+                    moving_piece_index_w,
+                    moving_piece_index_b,
+                );
+            } else {
                 // All captures, including en passant
                 let target_piece_w = {
                     if played_move.is_ep() {
                         self.ft_idx(Square(played_move.to().0 ^ 8), Piece::Pawn, them, White)
-                    }
-                    else {
-                        self.ft_idx(played_move.to(), captured_piece.expect("expecting captured piece to exist"), them, White)
+                    } else {
+                        self.ft_idx(
+                            played_move.to(),
+                            captured_piece.expect("expecting captured piece to exist"),
+                            them,
+                            White,
+                        )
                     }
                 };
                 let target_piece_b = {
                     if played_move.is_ep() {
                         self.ft_idx(Square(played_move.to().0 ^ 8), Piece::Pawn, them, Black)
-                    }
-                    else {
-                        self.ft_idx(played_move.to(), captured_piece.expect("expecting captured piece to exist"), them, Black)
+                    } else {
+                        self.ft_idx(
+                            played_move.to(),
+                            captured_piece.expect("expecting captured piece to exist"),
+                            them,
+                            Black,
+                        )
                     }
                 };
-                self.accumulator_stack[self.current_accumulator].add(new_piece_idx_w, new_piece_idx_b);
-                self.accumulator_stack[self.current_accumulator].sub(moving_piece_index_w, moving_piece_index_b);
-                self.accumulator_stack[self.current_accumulator].sub(target_piece_w, target_piece_b);
+                self.accumulator_stack[self.current_accumulator].add_sub_sub(
+                    new_piece_idx_w,
+                    new_piece_idx_b,
+                    moving_piece_index_w,
+                    moving_piece_index_b,
+                    target_piece_w,
+                    target_piece_b,
+                );
             }
-        }
-        else {
+        } else {
             // Castling
             let kingside = played_move.to().0 > played_move.from().0;
             let white = us == White;
@@ -153,19 +243,23 @@ impl NNUE {
             let rook_castling_target_w = self.ft_idx(rook_castling_target, Piece::Rook, us, White);
             let rook_castling_target_b = self.ft_idx(rook_castling_target, Piece::Rook, us, Black);
 
-            self.accumulator_stack[self.current_accumulator].add(king_castling_target_w, king_castling_target_b);
-            self.accumulator_stack[self.current_accumulator].sub(king_castling_w, king_castling_b);
-            self.accumulator_stack[self.current_accumulator].add(rook_castling_target_w, rook_castling_target_b);
-            self.accumulator_stack[self.current_accumulator].sub(rook_castling_w, rook_castling_b);
+            self.accumulator_stack[self.current_accumulator].add_add_sub_sub(
+                king_castling_target_w,
+                king_castling_target_b,
+                rook_castling_target_w,
+                rook_castling_target_b,
+                king_castling_w,
+                king_castling_b,
+                rook_castling_w,
+                rook_castling_b,
+            );
         }
-
     }
 
     pub fn undo(&mut self) {
         if self.current_accumulator > 0 {
             self.current_accumulator -= 1;
-        }
-        else {
+        } else {
             panic!("attempted to undo past first accumulator");
         }
     }
@@ -180,8 +274,14 @@ impl NNUE {
     }
 
     pub fn evaluate(&mut self, board: &Board) -> i32 {
-        let us = match board.stm { White => &self.accumulator_stack[self.current_accumulator].white_features, Black => &self.accumulator_stack[self.current_accumulator].black_features };
-        let them = match board.stm { White => &self.accumulator_stack[self.current_accumulator].black_features, Black => &self.accumulator_stack[self.current_accumulator].white_features };
+        let us = match board.stm {
+            White => &self.accumulator_stack[self.current_accumulator].white_features,
+            Black => &self.accumulator_stack[self.current_accumulator].black_features,
+        };
+        let them = match board.stm {
+            White => &self.accumulator_stack[self.current_accumulator].black_features,
+            Black => &self.accumulator_stack[self.current_accumulator].white_features,
+        };
         let mut output = i32::from(NETWORK.output_bias);
 
         for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
@@ -210,12 +310,15 @@ impl NNUE {
     }
 
     fn ft_idx(&self, sq: Square, pc: Piece, side: Side, perspective: Side) -> usize {
-        let sq = if perspective == White { sq } else { sq.flip_rank() };
+        let sq = if perspective == White {
+            sq
+        } else {
+            sq.flip_rank()
+        };
         let pc_offset = pc as usize * PIECE_OFFSET;
         let side_offset = if side == perspective { 0 } else { SIDE_OFFSET };
         side_offset + pc_offset + sq.0 as usize
     }
-
 }
 
 fn crelu(x: i16) -> i32 {
@@ -236,5 +339,4 @@ mod tests {
         let score = eval.evaluate(&board);
         assert_eq!(score, 26);
     }
-
 }
