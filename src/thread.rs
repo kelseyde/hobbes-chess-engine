@@ -1,7 +1,8 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::history::{ContinuationHistory, QuietHistory};
+use crate::consts::Side;
+use crate::history::{ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
@@ -18,6 +19,8 @@ pub struct ThreadData {
     pub root_ply: usize,
     pub quiet_history: QuietHistory,
     pub cont_history: ContinuationHistory,
+    pub pawn_corrhist: CorrectionHistory,
+    pub nonpawn_corrhist: [CorrectionHistory; 2],
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -40,6 +43,8 @@ impl ThreadData {
             root_ply: 0,
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -61,6 +66,8 @@ impl ThreadData {
             root_ply: 0,
             quiet_history: QuietHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -71,6 +78,12 @@ impl ThreadData {
         }
     }
 
+    pub fn correction(&self, board: &Board) -> i32 {
+        self.pawn_corrhist.get(board.stm, board.pawn_hash)
+        + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
+        + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
+    }
+
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.start_time = Instant::now();
@@ -78,6 +91,17 @@ impl ThreadData {
         self.depth = 1;
         self.best_move = Move::NONE;
         self.eval = 0;
+    }
+
+    pub fn clear(&mut self) {
+        self.tt.clear();
+        self.keys.clear();
+        self.root_ply = 0;
+        self.quiet_history.clear();
+        self.cont_history.clear();
+        self.pawn_corrhist.clear();
+        self.nonpawn_corrhist[Side::White].clear();
+        self.nonpawn_corrhist[Side::Black].clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
@@ -103,6 +127,7 @@ impl ThreadData {
         }
         false
     }
+
 
     pub fn time(&self) -> u128 {
         self.start_time.elapsed().as_millis()

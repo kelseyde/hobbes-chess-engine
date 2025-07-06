@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::consts::Piece::Pawn;
 use crate::consts::{Piece, Side};
 use crate::types::square::Square;
 
@@ -48,6 +49,33 @@ impl Zobrist {
         }
 
         hash
+    }
+
+    pub fn new_pawn_hash(board: &Board) -> u64 {
+        let mut hash: u64 = 0;
+
+        for pawn_sq in board.bb[Pawn] {
+            if let Some(side) = board.side_at(pawn_sq) {
+                hash ^= Self::sq(Pawn, side, pawn_sq);
+            }
+        }
+
+        hash
+    }
+
+    pub fn new_non_pawn_hashes(board: &Board) -> [u64; 2] {
+        let mut hashes: [u64; 2] = [0, 0];
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc != Pawn {
+                    let side = board.side_at(sq).unwrap();
+                    hashes[side] ^= Self::sq(pc, side, sq);
+                }
+            }
+        }
+
+        hashes
     }
 
     pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {

@@ -5,3 +5,5 @@ hobbes-chess-engine
 
 /target
 flamegraph.svg
+
+.DS_Store

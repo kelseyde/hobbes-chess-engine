@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::consts::{Piece, Score, MAX_DEPTH};
+use crate::consts::{Piece, Score, Side, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
 use crate::moves::Move;
 use crate::ordering::score;
@@ -42,7 +42,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
             }
 
-            if td.hard_limit_reached() || Score::is_mate(score) {
+            if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
             }
 
@@ -90,7 +90,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let mut tt_move = Move::NONE;
 
-    // Transposition Table probe
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_move = entry.best_move();
@@ -110,29 +109,34 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
-    td.ss[ply].static_eval = static_eval;
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
+
+    if !in_check {
+        raw_eval = td.nnue.evaluate(&board);
+        static_eval = raw_eval + td.correction(board);
+    };
+    td.ss[ply].static_eval = Some(static_eval);
 
     let improving = is_improving(td, ply, static_eval);
 
     if !root_node && !pv_node && !in_check {
 
-        // Reverse Futility Pruning
         if depth <= 8
-            && static_eval - 80 * depth >= beta {
+            && static_eval - 80 * (depth - improving as i32) >= beta {
             return static_eval;
         }
 
-        // Null Move Pruning
         if depth >= 3
             && static_eval >= beta
             && board.has_non_pawns() {
 
+            let r = 3 + depth / 3;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1);
             td.keys.pop();
 
             if score >= beta {
@@ -165,7 +169,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
-        // Futility Pruning
         if !pv_node
             && !root_node
             && !in_check
@@ -176,7 +179,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
-        // SEE Pruning
         let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
         if !pv_node
             && depth <= 8
@@ -188,6 +190,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
+
         td.ss[ply].mv = Some(*mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
@@ -204,8 +207,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut score = Score::MIN;
         if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let mut reduction = td.lmr.reduction(depth, move_count);
-            reduction += i32::from(!improving);
+            let reduction = td.lmr.reduction(depth, move_count);
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
@@ -279,6 +281,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
     }
 
+    if !in_check
+        && !Score::is_mate(best_score)
+        && !(flag == TTFlag::Upper && best_score >= static_eval)
+        && !(flag == TTFlag::Lower && best_score <= static_eval)
+        && (!best_move.exists() || !board.is_noisy(&best_move)) {
+        td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::White].update(board.stm, board.non_pawn_hashes[Side::White], depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::Black].update(board.stm, board.non_pawn_hashes[Side::Black], depth, static_eval, best_score);
+    }
+
     if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
@@ -314,9 +326,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
-        if eval > alpha {
-            alpha = eval
+        let static_eval = td.nnue.evaluate(&board) + td.correction(board);
+
+        if static_eval > alpha {
+            alpha = static_eval
         }
         if alpha >= beta {
             return alpha;
@@ -389,11 +402,15 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
     if static_eval == Score::MIN {
         return false;
     }
-    if ply > 1 && td.ss[ply - 2].static_eval != Score::MIN {
-        return static_eval > td.ss[ply - 2].static_eval;
+    if ply > 1 {
+        if let Some(prev_eval) = td.ss[ply - 2].static_eval.filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
     }
-    if ply > 3 && td.ss[ply - 4].static_eval != Score::MIN {
-        return static_eval > td.ss[ply - 4].static_eval;
+    if ply > 3 {
+        if let Some(prev_eval) = td.ss[ply - 4].static_eval.filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
     }
     true
 }
@@ -447,7 +464,7 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
-    pub static_eval: i32,
+    pub static_eval: Option<i32>,
 }
 
 impl SearchStack {
@@ -458,7 +475,7 @@ impl SearchStack {
                 mv: None,
                 pc: None,
                 killer: None,
-                static_eval: 0
+                static_eval: None
             };
             MAX_PLY + 8
         ]
@@ -480,3 +497,4 @@ impl IndexMut<usize> for SearchStack {
         unsafe { self.data.get_unchecked_mut(index) }
     }
 }
+
