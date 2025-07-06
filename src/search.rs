@@ -190,6 +190,16 @@ fn alpha_beta(
             continue;
         }
 
+        if !pv_node
+            && !root_node
+            && !is_mate_score
+            && is_quiet
+            && depth <= 4
+            && move_count > 4 + 3 * depth * depth
+        {
+            continue
+        }
+
         let see_threshold = if is_quiet {
             -56 * depth
         } else {

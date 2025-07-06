@@ -29,7 +29,7 @@
 - [ ] LMR History
 
 #### Move-loop pruning
-- [ ] Late move pruning
+- [x] Late move pruning
 - [x] Futility pruning
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
