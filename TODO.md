@@ -17,7 +17,7 @@
 
 #### NMP
 - [x] NMP
-- [ ] NMP depth-based reduction
+- [x] NMP depth-based reduction
 - [ ] NMP eval-based reduction
 - [ ] NMP verification search
 
@@ -35,12 +35,13 @@
 - [x] PVS SEE quiet pruning 
 - [x] PVS SEE noisy pruning
 - [ ] QS futility pruning
+- [ ] QS delta pruning
 - [ ] History pruning
 - [ ] Bad noisy pruning
 
 ### Correction History
-- [ ] Pawn correction history
-- [ ] Non-pawn correction history
+- [x] Pawn correction history
+- [x] Non-pawn correction history
 - [ ] Minor correction history
 - [ ] Major correction history
 - [ ] Continuation correction history

@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::consts::{Piece, Score, MAX_DEPTH};
+use crate::consts::{Piece, Score, Side, MAX_DEPTH};
 use crate::movegen::{is_check, is_legal, MoveFilter};
 use crate::movepicker::MovePicker;
 use crate::moves::Move;
@@ -42,7 +42,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
             }
 
-            if td.hard_limit_reached() || Score::is_mate(score) {
+            if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
             }
 
@@ -113,7 +113,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
+
+    if !in_check {
+        raw_eval = td.nnue.evaluate(&board);
+        static_eval = raw_eval + td.correction(board);
+    };
 
     if !root_node && !pv_node && !in_check {
 
@@ -126,11 +132,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && static_eval >= beta
             && board.has_non_pawns() {
 
+            let r = 3 + depth / 3;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1);
             td.keys.pop();
 
             if score >= beta {
@@ -182,6 +189,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut board = *board;
         board.make(&mv);
+
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
@@ -272,6 +280,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
     }
 
+    if !in_check
+        && !Score::is_mate(best_score)
+        && !(flag == TTFlag::Upper && best_score >= static_eval)
+        && !(flag == TTFlag::Lower && best_score <= static_eval)
+        && (!best_move.exists() || !board.is_noisy(&best_move)) {
+        td.pawn_corrhist.update(board.stm, board.pawn_hash, depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::White].update(board.stm, board.non_pawn_hashes[Side::White], depth, static_eval, best_score);
+        td.nonpawn_corrhist[Side::Black].update(board.stm, board.non_pawn_hashes[Side::Black], depth, static_eval, best_score);
+    }
+
     if !root_node {
         td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
@@ -311,9 +329,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     }
 
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
-        if eval > alpha {
-            alpha = eval
+        let static_eval = td.nnue.evaluate(&board) + td.correction(board);
+
+        if static_eval > alpha {
+            alpha = static_eval
         }
         if alpha >= beta {
             return alpha;
@@ -454,3 +473,4 @@ impl IndexMut<usize> for SearchStack {
         unsafe { self.data.get_unchecked_mut(index) }
     }
 }
+
