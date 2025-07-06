@@ -18,7 +18,7 @@
 #### NMP
 - [x] NMP
 - [x] NMP depth-based reduction
-- [ ] NMP eval-based reduction
+- [x] NMP eval-based reduction
 - [ ] NMP verification search
 
 #### LMR
