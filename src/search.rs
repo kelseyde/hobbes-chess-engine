@@ -144,7 +144,7 @@ fn alpha_beta(
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, cutnode);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cutnode);
             td.keys.pop();
 
             if score >= beta {
