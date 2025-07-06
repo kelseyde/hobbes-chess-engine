@@ -110,12 +110,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let mut raw_eval = Score::MIN;
-    let mut static_eval = Score::MIN;
-
-    if !in_check {
-        raw_eval = td.nnue.evaluate(&board);
-        static_eval = raw_eval + td.correction(board);
+    let static_eval = if in_check {
+        Score::MIN
+    } else {
+        td.nnue.evaluate(&board) + td.correction(board)
     };
     td.ss[ply].static_eval = Some(static_eval);
 
@@ -209,7 +207,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         let mut score = Score::MIN;
         if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let reduction = td.lmr.reduction(depth, move_count);
+            let mut reduction = td.lmr.reduction(depth, move_count);
+            reduction += !improving as i32;
 
             let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
 
