@@ -116,11 +116,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         raw_eval = td.nnue.evaluate(&board);
         static_eval = raw_eval + td.correction(board);
     };
+    td.ss[ply].static_eval = Some(static_eval);
+
+    let improving = is_improving(td, ply, static_eval);
 
     if !root_node && !pv_node && !in_check {
 
         if depth <= 8
-            && static_eval - 80 * depth >= beta {
+            && static_eval - 80 * (depth - improving as i32) >= beta {
             return static_eval;
         }
 
@@ -395,6 +398,23 @@ fn is_draw(td: &ThreadData, board: &Board) -> bool {
     board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
 }
 
+fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
+    if static_eval == Score::MIN {
+        return false;
+    }
+    if ply > 1 {
+        if let Some(prev_eval) = td.ss[ply - 2].static_eval.filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
+    }
+    if ply > 3 {
+        if let Some(prev_eval) = td.ss[ply - 4].static_eval.filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
+    }
+    true
+}
+
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
     for &prev_ply in &[1] {
         if prev_ply >= ply {
@@ -444,12 +464,22 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
+    pub static_eval: Option<i32>,
 }
 
 impl SearchStack {
 
     pub fn new() -> Self {
-        SearchStack { data: [StackEntry { mv: None, pc: None, killer: None }; MAX_PLY + 8] }
+        SearchStack { data: [
+            StackEntry {
+                mv: None,
+                pc: None,
+                killer: None,
+                static_eval: None
+            };
+            MAX_PLY + 8
+        ]
+        }
     }
 
 }
