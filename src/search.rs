@@ -113,13 +113,8 @@ fn alpha_beta(
 
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
-                match entry.flag() {
-                    TTFlag::Exact => return score,
-                    TTFlag::Lower => alpha = alpha.max(score),
-                    TTFlag::Upper => beta = beta.min(score),
-                }
 
-                if alpha >= beta {
+                if bounds_match(entry.flag(), score, alpha, beta) {
                     return score;
                 }
             }
@@ -199,7 +194,7 @@ fn alpha_beta(
             && depth <= 4
             && move_count > 4 + 3 * depth * depth
         {
-            continue
+            continue;
         }
 
         let see_threshold = if is_quiet {
