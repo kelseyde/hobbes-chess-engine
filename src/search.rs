@@ -163,11 +163,13 @@ fn alpha_beta(
 
     let mut move_count = 0;
     let mut quiet_count = 0;
+    let mut capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
-    let mut quiet_moves = ArrayVec::<Move, 32>::new();
+    let mut quiets = ArrayVec::<Move, 32>::new();
+    let mut captures = ArrayVec::<Move, 32>::new();
 
     for mv in moves.iter() {
         if !is_legal(board, mv) {
@@ -259,8 +261,12 @@ fn alpha_beta(
         }
 
         if is_quiet && quiet_count < 32 {
-            quiet_moves.push(*mv);
+            quiets.push(*mv);
             quiet_count += 1;
+        }
+        else if captured.is_some() && capture_count < 32 {
+            captures.push(*mv);
+            capture_count += 1;
         }
 
         td.ss[ply].mv = None;
@@ -291,24 +297,40 @@ fn alpha_beta(
         }
     }
 
-    if best_move.exists() && !board.is_noisy(&best_move) {
+    if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
-
-        td.ss[ply].killer = Some(best_move);
 
         let quiet_bonus = (120 * depth as i16 - 75).min(1200);
         let quiet_malus = (120 * depth as i16 - 75).min(1200);
 
+        let capt_bonus = (120 * depth as i16 - 75).min(1200);
+        let capt_malus = (120 * depth as i16 - 75).min(1200);
+
         let cont_bonus = (120 * depth as i16 - 75).min(1200);
         let cont_malus = (120 * depth as i16 - 75).min(1200);
 
-        td.quiet_history.update(board.stm, &best_move, quiet_bonus);
-        update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+        if let Some(captured) = board.captured(&best_move) {
+            td.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+        }
+        else {
+            td.ss[ply].killer = Some(best_move);
 
-        for mv in quiet_moves.iter() {
+            td.quiet_history.update(board.stm, &best_move, quiet_bonus);
+            update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+
+            for mv in quiets.iter() {
+                if mv != &best_move {
+                    td.quiet_history.update(board.stm, mv, -quiet_malus);
+                    update_continuation_history(td, ply, mv, pc, -cont_malus);
+                }
+            }
+        }
+
+        for mv in captures.iter() {
             if mv != &best_move {
-                td.quiet_history.update(board.stm, mv, -quiet_malus);
-                update_continuation_history(td, ply, mv, pc, -cont_malus);
+                if let Some(captured) = board.captured(mv) {
+                    td.capture_history.update(board.stm, pc, mv.to(), captured, -capt_malus);
+                }
             }
         }
     }

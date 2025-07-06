@@ -69,7 +69,7 @@
 - [x] Quiet history
 - [x] Continuation history 1
 - [ ] Continuation history 2
-- [ ] Capture history 
+- [x] Capture history 
 - [X] Killer moves
 - [x] Maluses
 - [ ] Basic movepicker

@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use crate::board::Board;
+use crate::history::{CaptureHistory, CorrectionHistory, ContinuationHistory, QuietHistory};
 use crate::consts::Side;
-use crate::history::{ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
@@ -18,6 +18,7 @@ pub struct ThreadData {
     pub keys: Vec<u64>,
     pub root_ply: usize,
     pub quiet_history: QuietHistory,
+    pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
     pub pawn_corrhist: CorrectionHistory,
     pub nonpawn_corrhist: [CorrectionHistory; 2],
@@ -47,6 +48,7 @@ impl ThreadData {
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
+            capture_history: CaptureHistory::new(),
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
@@ -70,6 +72,7 @@ impl ThreadData {
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
+            capture_history: CaptureHistory::new(),
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
@@ -103,6 +106,7 @@ impl ThreadData {
         self.keys.clear();
         self.root_ply = 0;
         self.quiet_history.clear();
+        self.capture_history.clear();
         self.cont_history.clear();
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist[Side::White].clear();
