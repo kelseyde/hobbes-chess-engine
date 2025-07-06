@@ -7,6 +7,7 @@ use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
+use crate::tt::TTFlag::{Lower, Upper};
 use crate::tt::TTFlag;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
@@ -76,7 +77,7 @@ fn alpha_beta(
     mut depth: i32,
     ply: usize,
     mut alpha: i32,
-    mut beta: i32,
+    beta: i32,
 ) -> i32 {
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -105,14 +106,25 @@ fn alpha_beta(
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let singular = td.ss[ply].singular;
+    let singular_search = singular.is_some();
+
+    let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_score = Score::MIN;
+    let mut tt_flag = Lower;
+    let mut tt_depth = 0;
 
-    if !root_node {
+    if !root_node && !singular_search {
         if let Some(entry) = td.tt.probe(board.hash) {
+            tt_hit = true;
             tt_move = entry.best_move();
+            tt_score = entry.score(ply) as i32;
+            tt_depth = entry.depth() as i32;
+            tt_flag = entry.flag();
 
-            if entry.depth() >= depth as u8 {
-                let score = entry.score(ply) as i32;
+            if tt_depth >= depth {
+                let score = tt_score;
 
                 if bounds_match(entry.flag(), score, alpha, beta) {
                     return score;
@@ -132,7 +144,7 @@ fn alpha_beta(
 
     let improving = is_improving(td, ply, static_eval);
 
-    if !root_node && !pv_node && !in_check {
+    if !root_node && !pv_node && !in_check && !singular_search {
         if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
             return static_eval;
         }
@@ -171,10 +183,19 @@ fn alpha_beta(
             continue;
         }
 
+        if Some(*mv) == singular {
+            continue;
+        }
+
         let pc = board.piece_at(mv.from());
         let captured = board.captured(mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+
+        let mut extension = 0;
+        if in_check {
+            extension = 1;
+        }
 
         if !pv_node
             && !root_node
@@ -211,12 +232,32 @@ fn alpha_beta(
             continue;
         }
 
+        if !root_node
+            && !singular_search
+            && mv == &tt_move
+            && depth >= 8
+            && tt_hit
+            && tt_depth >= depth
+            && tt_flag != Upper
+            && tt_depth >= depth - 3 {
+
+            let s_beta = (tt_score - depth * 14 / 16).max(-Score::MATE + 1);
+            let s_depth = (depth - 1) / 2;
+
+            td.ss[ply].singular = Some(*mv);
+            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta);
+            td.ss[ply].singular = None;
+
+            if score < s_beta {
+                extension = 1;
+            }
+
+        }
+
         let mut board = *board;
         td.nnue.update(
             mv,
-            board
-                .piece_at(mv.from())
-                .expect("expecting the moving piece to exist"),
+            pc.expect("expecting the moving piece to exist"),
             captured,
             &board,
         );
@@ -228,11 +269,6 @@ fn alpha_beta(
 
         move_count += 1;
         td.nodes += 1;
-
-        let mut extension = 0;
-        if in_check {
-            extension = 1;
-        }
 
         let new_depth = depth - 1 + extension;
 
@@ -332,7 +368,9 @@ fn alpha_beta(
 
     // handle checkmate / stalemate
     if move_count == 0 {
-        return if in_check {
+        return if singular_search {
+            alpha
+        } else if in_check {
             -Score::MATE + ply as i32
         } else {
             Score::DRAW
@@ -340,6 +378,7 @@ fn alpha_beta(
     }
 
     if !in_check
+        && !singular_search
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move))
@@ -362,7 +401,7 @@ fn alpha_beta(
         );
     }
 
-    if !root_node {
+    if !root_node && !singular_search {
         td.tt
             .insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
     }
@@ -436,9 +475,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         let mut board = *board;
         td.nnue.update(
             mv,
-            board
-                .piece_at(mv.from())
-                .expect("expecting the moving piece to exist"),
+            pc.expect("expecting the moving piece to exist"),
             board.captured(mv),
             &board,
         );
@@ -565,6 +602,7 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
+    pub singular: Option<Move>,
     pub static_eval: Option<i32>,
 }
 
@@ -582,6 +620,7 @@ impl SearchStack {
                 pc: None,
                 killer: None,
                 static_eval: None,
+                singular: None,
             }; MAX_PLY + 8],
         }
     }
