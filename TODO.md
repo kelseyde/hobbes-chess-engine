@@ -11,7 +11,7 @@
 
 #### RFP
 - [x] RFP
-- [ ] RFP improving
+- [x] RFP improving
 - [ ] RFP opponent worsening
 - [ ] RFP fail firm
 

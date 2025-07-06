@@ -93,6 +93,28 @@ impl Board {
         }
     }
 
+pub fn rook_to(kingside: bool, white: bool) -> Square {
+    // Castling destination for rooks
+    if kingside {
+        if white { Square(5) } else { Square(61) }
+    } else {
+        if white { Square(3) } else { Square(59) }
+    }
+}
+
+    /*
+
+        public static int rookTo(boolean kingside, boolean white) {
+        // Castling destination for rooks
+        if (kingside) {
+            return white ? 5 : 61;
+        } else {
+            return white ? 3 : 59;
+        }
+    }
+
+    */
+
     #[inline]
     fn ep_capture_sq(&self, to: Square) -> Square {
         if self.stm == White { Square(to.0 - 8) } else { Square(to.0 + 8) }
