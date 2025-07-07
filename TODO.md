@@ -39,6 +39,15 @@
 - [ ] History pruning
 - [ ] Bad noisy pruning
 
+#### Transposition Table
+- [ ] Static eval to TT
+- [ ] Early static eval write
+- [ ] No TT cut in PV nodes
+- [ ] TT buckets
+- [ ] TT aging
+- [ ] TT low depth extension
+- [ ] TT cut PV node depth reduction
+
 ### Correction History
 - [x] Pawn correction history
 - [x] Non-pawn correction history
