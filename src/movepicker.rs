@@ -2,9 +2,7 @@ use crate::board::Board;
 use crate::moves::{Move, MoveList};
 use crate::thread::ThreadData;
 use crate::{movegen, moves, ordering};
-use arrayvec::ArrayVec;
 use movegen::{gen_moves, MoveFilter};
-use moves::MAX_MOVES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {

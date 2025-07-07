@@ -11,9 +11,9 @@
 
 #### RFP
 - [x] RFP
-- [ ] RFP improving
+- [x] RFP improving
 - [ ] RFP opponent worsening
-- [ ] RFP fail firm
+- [x] RFP fail firm
 
 #### NMP
 - [x] NMP
@@ -25,11 +25,11 @@
 - [x] LMR
 - [ ] LMR improving
 - [ ] LMR PV node
-- [ ] LMR Cutnode
+- [x] LMR Cutnode
 - [ ] LMR History
 
 #### Move-loop pruning
-- [ ] Late move pruning
+- [x] Late move pruning
 - [x] Futility pruning
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
@@ -38,6 +38,16 @@
 - [ ] QS delta pruning
 - [ ] History pruning
 - [ ] Bad noisy pruning
+- [ ] Skip quiets
+
+#### Transposition Table
+- [ ] Static eval to TT
+- [ ] Early static eval write
+- [ ] No TT cut in PV nodes
+- [ ] TT buckets
+- [ ] TT aging
+- [ ] TT low depth extension
+- [ ] TT cut PV node depth reduction
 
 ### Correction History
 - [x] Pawn correction history
@@ -69,7 +79,7 @@
 - [x] Quiet history
 - [x] Continuation history 1
 - [ ] Continuation history 2
-- [ ] Capture history 
+- [x] Capture history 
 - [X] Killer moves
 - [x] Maluses
 - [ ] Basic movepicker
@@ -82,7 +92,7 @@
 
 ## Evaluation
 - [x] NN
-- [ ] UE
+- [x] UE
 - [ ] SIMD
 - [ ] Horizontal mirroring
 - [ ] Output buckets
@@ -95,3 +105,11 @@
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
+
+## UCI
+- [ ] Configurable Hash size
+- [ ] PV printing
+- [ ] Nodes/NPS printing
+- [ ] Seldepth
+- [ ] Hashfull
+- [ ] Pretty print

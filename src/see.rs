@@ -7,6 +7,10 @@ use crate::types::square::Square;
 
 const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
 
+pub fn value(pc: Piece) -> i32 {
+    PIECE_VALUES[pc]
+}
+
 pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
     let from = mv.from();
@@ -47,7 +51,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
             break;
         }
 
-        let attacker = least_valuable_attacker(&board, our_attackers);
+        let attacker = least_valuable_attacker(board, our_attackers);
 
         if attacker == Piece::King && !(attackers & board.side(stm.flip())).is_empty() {
             break;
