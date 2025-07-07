@@ -32,7 +32,7 @@ pub fn score(
                 let mut cont_score = 0;
                 for &prev_ply in &[1, 2] {
                     if prev_ply >= ply {
-                        if let (Some(prev_mv), Some(prev_pc)) = (td.ss[prev_ply].mv, td.ss[prev_ply].pc) {
+                        if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - prev_ply].mv, td.ss[ply - prev_ply].pc) {
                             cont_score += td.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                         }
                     }
