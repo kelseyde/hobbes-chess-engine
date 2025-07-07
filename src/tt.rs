@@ -132,7 +132,6 @@ impl TranspositionTable {
         (key as usize) & (self.table.len() - 1)
     }
 
-
 }
 
 fn to_tt(score: i32, ply: usize) -> i16 {
