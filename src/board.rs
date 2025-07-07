@@ -287,6 +287,10 @@ impl Board {
 
     pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
 
+        if !gen_moves(self, MoveFilter::All).contains(mv) {
+            println!("error! {}, {}", self.to_fen(), mv.to_uci());
+        }
+
         if !mv.exists() {
             return false;
         }
@@ -473,6 +477,9 @@ impl Board {
     }
 
     pub fn is_legal(&self, mv: &Move) -> bool {
+        if !gen_moves(self, MoveFilter::All).contains(mv) {
+            println!("error! {}, {}", self.to_fen(), mv.to_uci());
+        }
         let mut new_board = *self;
         new_board.make(mv);
         !is_check(&new_board, new_board.stm)
