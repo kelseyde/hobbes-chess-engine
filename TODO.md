@@ -38,6 +38,7 @@
 - [ ] QS delta pruning
 - [ ] History pruning
 - [ ] Bad noisy pruning
+- [ ] Skip quiets
 
 #### Transposition Table
 - [ ] Static eval to TT
@@ -104,3 +105,10 @@
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
+
+## UCI
+- [ ] PV printing
+- [ ] Nodes/NPS printing
+- [ ] Seldepth
+- [ ] Hashfull
+- [ ] Pretty print
