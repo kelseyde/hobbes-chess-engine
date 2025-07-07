@@ -172,10 +172,11 @@ fn alpha_beta(
             continue;
         }
 
-        let pc = board.piece_at(mv.from());
+        let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let history_score = td.history_score(board, mv, ply, pc, captured);
 
         if !pv_node
             && !root_node
@@ -196,6 +197,14 @@ fn alpha_beta(
             && move_count > 4 + 3 * depth * depth
         {
             continue;
+        }
+
+        if !root_node
+            && is_quiet
+            && depth <= 5
+            && history_score < -1000 - 2800 * depth
+        {
+            continue
         }
 
         let see_threshold = if is_quiet {
@@ -224,7 +233,7 @@ fn alpha_beta(
         board.make(mv);
 
         td.ss[ply].mv = Some(*mv);
-        td.ss[ply].pc = pc;
+        td.ss[ply].pc = Some(pc);
         td.keys.push(board.hash);
 
         move_count += 1;

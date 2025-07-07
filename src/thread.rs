@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::history::{CaptureHistory, CorrectionHistory, ContinuationHistory, QuietHistory};
-use crate::consts::Side;
+use crate::consts::{Piece, Side};
+use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
@@ -132,6 +132,32 @@ impl ThreadData {
             }
         }
         false
+    }
+
+    pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, pc: Piece, captured: Option<Piece>) -> i32 {
+        if let Some(captured) = captured {
+            self.capture_history_score(board, mv, pc, captured)
+        } else {
+            self.quiet_history_score(board, mv, ply)
+        }
+    }
+
+    pub fn quiet_history_score(&self, board: &Board, mv: &Move, ply: usize) -> i32 {
+        let pc = board.piece_at(mv.from()).unwrap();
+        let quiet_score = self.quiet_history.get(board.stm, *mv) as i32;
+        let mut cont_score = 0;
+        for &prev_ply in &[1, 2] {
+            if ply >= prev_ply  {
+                if let (Some(prev_mv), Some(prev_pc)) = (self.ss[ply - prev_ply].mv, self.ss[ply - prev_ply].pc) {
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
+                }
+            }
+        }
+        quiet_score + cont_score
+    }
+
+    pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
+        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
     }
 
     pub fn time(&self) -> u128 {
