@@ -107,6 +107,7 @@
 - [ ] Eval stability
 
 ## UCI
+- [ ] Configurable Hash size
 - [ ] PV printing
 - [ ] Nodes/NPS printing
 - [ ] Seldepth
