@@ -78,7 +78,7 @@
 - [x] MVV-LVA
 - [x] Quiet history
 - [x] Continuation history 1
-- [ ] Continuation history 2
+- [x] Continuation history 2
 - [x] Capture history 
 - [X] Killer moves
 - [x] Maluses
