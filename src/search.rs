@@ -115,7 +115,7 @@ fn alpha_beta(
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
 
-                if bounds_match(entry.flag(), score, alpha, beta) {
+                if !pv_node && bounds_match(entry.flag(), score, alpha, beta) {
                     return score;
                 }
             }
@@ -385,6 +385,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return Score::DRAW;
     }
 
+    let pv_node = beta - alpha > 1;
     let in_check = is_check(board, board.stm);
 
     let tt_entry = td.tt.probe(board.hash);
@@ -393,7 +394,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         tt_move = entry.best_move();
         let score = entry.score(ply) as i32;
 
-        if bounds_match(entry.flag(), score, alpha, beta) {
+        if !pv_node && bounds_match(entry.flag(), score, alpha, beta) {
             return score;
         }
     }
