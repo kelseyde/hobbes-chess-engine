@@ -375,7 +375,7 @@ fn alpha_beta(
     best_score
 }
 
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: usize) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
         return alpha;
@@ -392,13 +392,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     if let Some(entry) = tt_entry {
         tt_move = entry.best_move();
         let score = entry.score(ply) as i32;
-        match entry.flag() {
-            TTFlag::Exact => return score,
-            TTFlag::Lower => alpha = alpha.max(score),
-            TTFlag::Upper => beta = beta.min(score),
-        }
 
-        if alpha >= beta {
+        if bounds_match(entry.flag(), score, alpha, beta) {
             return score;
         }
     }
