@@ -1,5 +1,4 @@
 use std::io;
-use std::time::Duration;
 
 use consts::Side::{Black, White};
 
@@ -11,26 +10,31 @@ use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
+use crate::time::SearchLimits;
 use crate::{consts, fen};
 
 pub struct UCI {
     pub board: Board,
-    pub td: ThreadData,
-    pub nnue: NNUE
+    pub td: Box<ThreadData>,
+    pub nnue: Box<NNUE>,
+}
+
+impl Default for UCI {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UCI {
-
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::new(),
-            nnue: NNUE::new()
+            td: ThreadData::new().into(),
+            nnue: NNUE::new().into(),
         }
     }
 
     pub fn run(&mut self, args: &[String]) {
-
         if args.len() > 1 && args[1] == "bench" {
             println!("Running benchmark...");
             self.handle_bench();
@@ -46,25 +50,27 @@ impl UCI {
                 .read_line(&mut command)
                 .expect("info error failed to parse command");
 
-            let tokens: Vec<String> = command.split_whitespace().map(|v| v.trim().to_string()).collect();
+            let tokens: Vec<String> = command
+                .split_whitespace()
+                .map(|v| v.trim().to_string())
+                .collect();
 
             match command.split_ascii_whitespace().next().unwrap() {
-                "uci" =>          self.handle_uci(),
-                "isready" =>      self.handle_isready(),
-                "ucinewgame" =>   self.handle_ucinewgame(),
-                "bench" =>        self.handle_bench(),
-                "position" =>     self.handle_position(tokens),
-                "go" =>           self.handle_go(tokens),
-                "stop" =>         self.handle_stop(),
-                "fen" =>          self.handle_fen(),
-                "eval" =>         self.handle_eval(),
-                "perft" =>        self.handle_perft(tokens),
-                "help" =>         self.handle_help(),
-                "quit" =>         self.handle_quit(),
-                _ =>              println!("info error: unknown command")
+                "uci" => self.handle_uci(),
+                "isready" => self.handle_isready(),
+                "ucinewgame" => self.handle_ucinewgame(),
+                "bench" => self.handle_bench(),
+                "position" => self.handle_position(tokens),
+                "go" => self.handle_go(tokens),
+                "stop" => self.handle_stop(),
+                "fen" => self.handle_fen(),
+                "eval" => self.handle_eval(),
+                "perft" => self.handle_perft(tokens),
+                "help" => self.handle_help(),
+                "quit" => self.handle_quit(),
+                _ => println!("info error: unknown command"),
             }
         }
-
     }
 
     fn handle_uci(&self) {
@@ -78,9 +84,7 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.tt.clear();
-        self.td.board_history.clear();
-        self.td.quiet_history.clear();
+        self.td.clear();
     }
 
     fn handle_bench(&self) {
@@ -88,15 +92,19 @@ impl UCI {
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
-
         if tokens.len() < 2 {
             println!("info error: missing position command");
             return;
         }
 
         let fen = match tokens[1].as_str() {
-            "startpos" => fen::STARTPOS.to_string(),  // Convert to owned String
-            "fen" => tokens.iter().skip(2).map(|s| s.as_str()).collect::<Vec<&str>>().join(" "),  // Returns owned String
+            "startpos" => fen::STARTPOS.to_string(), // Convert to owned String
+            "fen" => tokens
+                .iter()
+                .skip(2)
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>()
+                .join(" "), // Returns owned String
             _ => {
                 println!("info error: invalid position command");
                 return;
@@ -106,43 +114,49 @@ impl UCI {
         self.board = Board::from_fen(&fen);
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
-            tokens.iter().skip(index + 1).map(|m| Move::parse_uci(m)).collect()
+            tokens
+                .iter()
+                .skip(index + 1)
+                .map(|m| Move::parse_uci(m))
+                .collect()
         } else {
             Vec::new()
         };
+
+        self.td.keys.clear();
+        self.td.root_ply = 0;
+        self.td.keys.push(self.board.hash);
 
         moves.iter().for_each(|m| {
             let legal_moves = gen_moves(&self.board, MoveFilter::All);
             let legal_move = legal_moves.iter().find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.td.board_history.push(self.board.clone());
-                    self.board.make(m)
-                },
+                    self.board.make(m);
+                    self.td.keys.push(self.board.hash);
+                    self.td.root_ply += 1;
+                }
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
-                    return;
                 }
             }
         });
-
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-
         self.td.reset();
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_int(&tokens, "movetime") {
-                Ok(movetime) => self.td.time_limit = Duration::from_millis(movetime),
+                Ok(movetime) => {
+                    self.td.limits = SearchLimits::new(None, Some(movetime), None, None, None)
+                }
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
                     return;
                 }
             }
-        }
-        else if tokens.contains(&String::from("wtime"))  {
-
+        } else if tokens.contains(&String::from("wtime")) {
             let wtime = match self.parse_int(&tokens, "wtime") {
                 Ok(wtime) => wtime,
                 Err(_) => {
@@ -175,8 +189,12 @@ impl UCI {
                 }
             };
 
-            self.td.time_limit = Duration::from_millis(self.calc_movetime(wtime, btime, winc, binc));
+            let (time, inc) = match self.board.stm {
+                White => (wtime, winc),
+                Black => (btime, binc),
+            };
 
+            self.td.limits = SearchLimits::new(Some((time, inc)), None, None, None, None);
         }
 
         // Perform the search
@@ -238,36 +256,16 @@ impl UCI {
         std::process::exit(0);
     }
 
-    fn parse_int(&self, tokens: &Vec<String>, name: &str) -> Result<u64, String> {
+    fn parse_int(&self, tokens: &[String], name: &str) -> Result<u64, String> {
         match tokens.iter().position(|x| x == name) {
-            Some(index) => {
-                match tokens.get(index + 1) {
-                    Some(value) => {
-                        match value.parse::<u64>() {
-                            Ok(num) => Ok(num),
-                            Err(_) => Err(format!("info error: {} is not a valid number", name))
-                        }
-                    },
-                    None => Err(format!("info error: {} is missing a value", name))
-                }
+            Some(index) => match tokens.get(index + 1) {
+                Some(value) => match value.parse::<u64>() {
+                    Ok(num) => Ok(num),
+                    Err(_) => Err(format!("info error: {} is not a valid number", name)),
+                },
+                None => Err(format!("info error: {} is missing a value", name)),
             },
-            None => Err(format!("info error: {} is missing", name))
+            None => Err(format!("info error: {} is missing", name)),
         }
     }
-
-    fn calc_movetime(&self, wtime: u64, btime: u64, winc: u64, binc: u64) -> u64 {
-        let time = match self.board.stm { White => wtime, Black => btime };
-        let inc = match self.board.stm { White => winc, Black => binc };
-        let overhead = 50;
-        let movetime = time - overhead;
-        let optimal_think_time = f64::min(movetime as f64 * 0.5, movetime as f64 * 0.03333 + inc as f64);
-        let min_think_time = f64::min(50.0, time as f64 * 0.25);
-        let think_time = f64::max(optimal_think_time, min_think_time);
-        think_time as u64
-    }
-
 }
-
-
-
-

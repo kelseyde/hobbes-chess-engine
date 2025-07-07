@@ -7,6 +7,7 @@ pub struct TranspositionTable {
 }
 
 #[derive(Clone)]
+#[derive(Default)]
 pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
@@ -49,7 +50,7 @@ impl TTEntry {
         Move(self.best_move)
     }
 
-    pub fn score(&self, ply: i32) -> i16 {
+    pub fn score(&self, ply: usize) -> i16 {
         to_search(self.score as i32, ply)
     }
 
@@ -67,13 +68,6 @@ impl TTEntry {
 
 }
 
-impl Default for TTEntry {
-    fn default() -> TTEntry {
-        TTEntry {
-            key: 0, best_move: 0, score: 0, depth: 0, flag: 0,
-        }
-    }
-}
 
 impl Default for TranspositionTable {
     fn default() -> TranspositionTable {
@@ -113,12 +107,12 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: i32, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
         entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply) as i16;
+        entry.score = to_tt(score, ply);
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }
@@ -131,18 +125,18 @@ impl TranspositionTable {
 
 }
 
-fn to_tt(score: i32, ply: i32) -> i16 {
+fn to_tt(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16 ;
     }
-    if score > 0 { (score - ply) as i16 } else { (score + ply) as i16 }
+    if score > 0 { (score - ply as i32) as i16 } else { (score + ply as i32) as i16 }
 }
 
-fn to_search(score: i32, ply: i32) -> i16 {
+fn to_search(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16
     }
-    if score > 0 { (score + ply) as i16 } else { (score - ply) as i16 }
+    if score > 0 { (score + ply as i32) as i16 } else { (score - ply as i32) as i16 }
 }
 
 #[cfg(test)]

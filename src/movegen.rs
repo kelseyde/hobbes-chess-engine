@@ -3,7 +3,8 @@ use crate::bits::{CastleSafety, CastleTravel};
 use crate::board::Board;
 use crate::consts::Side::White;
 use crate::consts::{Piece, Side};
-use crate::moves::{MoveFlag, MoveList};
+use crate::movegen::MoveFilter::Quiets;
+use crate::moves::{Move, MoveFlag, MoveList};
 use crate::types::bitboard::Bitboard;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
@@ -11,6 +12,8 @@ use crate::types::{File, Rank};
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
     All,
+    Quiets,
+    Noisies,
     Captures
 }
 
@@ -18,26 +21,27 @@ pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
     let side = board.stm;
     let mut moves = MoveList::new();
 
-    let us = board.side(side);
-    let them = board.side(side.flip());
+    let us = board.us();
+    let them = board.them();
     let occ = us | them;
 
     // handle special moves first (en passant, promo, castling etc.)
     gen_pawn_moves(board, side, occ, them, filter, &mut moves);
-    if filter != MoveFilter::Captures {
+    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
         gen_castle_moves(board, side, &mut moves);
     }
 
     let filter_mask = match filter {
         MoveFilter::All => Bitboard::ALL,
+        MoveFilter::Quiets => !them,
+        MoveFilter::Noisies => them,
         MoveFilter::Captures => them
     };
 
     // handle standard moves
     for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
-        let mut pcs = board.pcs(pc) & us;
-        for from in pcs {
-            let mut attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+        for from in board.pcs(pc) & us {
+            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
             for to in attacks {
                 moves.add_move(from, to, MoveFlag::Standard);
             }
@@ -52,7 +56,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
 
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
-    if filter != MoveFilter::Captures {
+    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
 
         for to in single_push(pawns, side, occ) {
             let from = if side == White { to.minus(8) } else { to.plus(8) };
@@ -71,39 +75,42 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
 
     }
 
-    for to in left_capture(pawns, side, them) {
-        let from = if side == White { to.minus(7) } else { to.plus(9) };
-        moves.add_move(from, to, MoveFlag::Standard);
-    }
-
-    for to in right_capture(pawns, side, them) {
-        let from = if side == White { to.minus(9) } else { to.plus(7) };
-        moves.add_move(from, to, MoveFlag::Standard);
-    }
-
-    if let Some(ep_sq) = board.ep_sq {
-        let ep_bb = Bitboard::of_sq(ep_sq);
-
-        for to in left_capture(pawns, side, ep_bb) {
+    if filter != Quiets {
+        for to in left_capture(pawns, side, them) {
             let from = if side == White { to.minus(7) } else { to.plus(9) };
-            moves.add_move(from, to, MoveFlag::EnPassant);
+            moves.add_move(from, to, MoveFlag::Standard);
         }
 
-        for to in right_capture(pawns, side, ep_bb) {
+        for to in right_capture(pawns, side, them) {
             let from = if side == White { to.minus(9) } else { to.plus(7) };
-            moves.add_move(from, to, MoveFlag::EnPassant);
+            moves.add_move(from, to, MoveFlag::Standard);
         }
 
-    }
+        if let Some(ep_sq) = board.ep_sq {
+            let ep_bb = Bitboard::of_sq(ep_sq);
 
-    for to in left_capture_promos(pawns, side, them) {
-        let from = if side == White { to.minus(7) } else { to.plus(9) };
-        add_promos(moves, from, to);
-    }
+            for to in left_capture(pawns, side, ep_bb) {
+                let from = if side == White { to.minus(7) } else { to.plus(9) };
+                moves.add_move(from, to, MoveFlag::EnPassant);
+            }
 
-    for to in right_capture_promos(pawns, side, them) {
-        let from = if side == White { to.minus(9) } else { to.plus(7) };
-        add_promos(moves, from, to);
+            for to in right_capture(pawns, side, ep_bb) {
+                let from = if side == White { to.minus(9) } else { to.plus(7) };
+                moves.add_move(from, to, MoveFlag::EnPassant);
+            }
+
+        }
+
+        for to in left_capture_promos(pawns, side, them) {
+            let from = if side == White { to.minus(7) } else { to.plus(9) };
+            add_promos(moves, from, to);
+        }
+
+        for to in right_capture_promos(pawns, side, them) {
+            let from = if side == White { to.minus(9) } else { to.plus(7) };
+            add_promos(moves, from, to);
+        }
+
     }
 
 }
@@ -194,7 +201,7 @@ fn add_promos(moves: &mut MoveList, from: Square, to: Square) {
 }
 
 #[inline(always)]
-pub fn is_attacked(mut bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
+pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
     for sq in bb {
         if is_sq_attacked(sq, side, occ, board) { return true; }
     }
@@ -227,6 +234,12 @@ pub fn is_check(board: &Board, side: Side) -> bool {
     let occ = board.occ();
     let king_sq = board.king_sq(side);
     is_sq_attacked(king_sq, side, occ, board)
+}
+
+pub fn is_legal(board: &Board, mv: &Move) -> bool {
+    let mut new_board = *board;
+    new_board.make(mv);
+    !is_check(&new_board, board.stm)
 }
 
 #[cfg(test)]

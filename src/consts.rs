@@ -1,18 +1,17 @@
+use std::ops::{Index, IndexMut};
 
 pub const MAX_DEPTH: i32 = 255;
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum Score {
-    #[default]
-    Draw = 0,
-    Max = 32767,
-    Min = -32767,
-    Mate = 32766
-}
+pub struct Score {}
 
 impl Score {
+    pub const DRAW: i32 = 0;
+    pub const MAX: i32 = 32767;
+    pub const MIN: i32 = -32767;
+    pub const MATE: i32 = 32766;
+
     pub fn is_mate(score: i32) -> bool {
-        score.abs() >= Score::Mate as i32 - MAX_DEPTH
+        score.abs() >= Score::MATE - MAX_DEPTH
     }
 }
 
@@ -55,4 +54,33 @@ impl Side {
         *self as usize + 6
     }
 
+}
+
+
+impl<T, const N: usize> Index<Piece> for [T; N] {
+    type Output = T;
+
+    fn index(&self, pc: Piece) -> &Self::Output {
+        &self[pc as usize]
+    }
+}
+
+impl<T, const N: usize> IndexMut<Piece> for [T; N] {
+    fn index_mut(&mut self, pc: Piece) -> &mut Self::Output {
+        &mut self[pc as usize]
+    }
+}
+
+impl<T, const N: usize> Index<Side> for [T; N] {
+    type Output = T;
+
+    fn index(&self, stm: Side) -> &Self::Output {
+        &self[stm as usize]
+    }
+}
+
+impl<T, const N: usize> IndexMut<Side> for [T; N] {
+    fn index_mut(&mut self, stm: Side) -> &mut Self::Output {
+        &mut self[stm as usize]
+    }
 }
