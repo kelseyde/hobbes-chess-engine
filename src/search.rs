@@ -106,11 +106,15 @@ fn alpha_beta(
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_static_eval = Score::MIN;
 
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
+            tt_hit = true;
             tt_move = entry.best_move();
+            tt_static_eval = entry.static_eval() as i32;
 
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
@@ -122,13 +126,14 @@ fn alpha_beta(
         }
     }
 
-    let raw_eval;
-    let mut static_eval = Score::MIN;
-
-    if !in_check {
-        raw_eval = td.nnue.evaluate(board);
-        static_eval = raw_eval + td.correction(board);
+    let (raw_eval, static_eval) = if in_check {
+        (Score::MIN, Score::MIN)
+    } else {
+        let raw_eval = if tt_hit { tt_static_eval} else { td.nnue.evaluate(board) };
+        let static_eval = raw_eval + td.correction(board);
+        (raw_eval, static_eval)
     };
+
     td.ss[ply].static_eval = Some(static_eval);
 
     let improving = is_improving(td, ply, static_eval);
@@ -369,7 +374,7 @@ fn alpha_beta(
 
     if !root_node {
         td.tt
-            .insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
+            .insert(board.hash, &best_move, best_score, raw_eval, depth as u8, ply, flag);
     }
 
     best_score

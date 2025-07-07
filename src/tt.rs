@@ -12,6 +12,7 @@ pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
+    static_eval: i16,   // 2 bytes
     depth: u8,          // 1 byte
     flag: u8,           // 1 byte
 }
@@ -52,6 +53,10 @@ impl TTEntry {
 
     pub fn score(&self, ply: usize) -> i16 {
         to_search(self.score as i32, ply)
+    }
+
+    pub fn static_eval(&self) -> i16 {
+        self.static_eval
     }
 
     pub fn depth(&self) -> u8 {
@@ -107,12 +112,13 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, static_eval: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
         entry.key = (hash & 0xFFFF) as u16;
         entry.best_move = best_move.0;
         entry.score = to_tt(score, ply);
+        entry.static_eval = static_eval as i16;
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }
@@ -121,7 +127,6 @@ impl TranspositionTable {
         let key = (hash >> 48) as u16;
         (key as usize) & (self.table.len() - 1)
     }
-
 
 }
 
