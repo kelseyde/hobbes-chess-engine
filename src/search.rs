@@ -177,13 +177,16 @@ fn alpha_beta(
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
+        let base_reduction = td.lmr.reduction(depth, move_count);
+        let lmr_depth = depth.saturating_sub(base_reduction);
+
         if !pv_node
             && !root_node
             && !in_check
             && is_quiet
-            && depth < 6
+            && lmr_depth < 6
             && !is_mate_score
-            && static_eval + 100 * depth.max(1) + 150 <= alpha
+            && static_eval + 100 * lmr_depth + 150 <= alpha
         {
             continue;
         }
@@ -239,7 +242,7 @@ fn alpha_beta(
 
         let mut score = Score::MIN;
         if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let mut reduction = td.lmr.reduction(depth, move_count);
+            let mut reduction = base_reduction;
 
             if cutnode {
                 reduction += 1;
