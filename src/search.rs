@@ -419,7 +419,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     moves.sort(&scores);
     let mut move_count = 0;
 
+    let mut best_move = Move::NONE;
     let mut best_score = alpha;
+    let mut flag = TTFlag::Upper;
 
     for mv in moves.iter() {
         if !is_legal(board, mv) {
@@ -467,8 +469,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         if score > alpha {
             alpha = score;
+            best_move = *mv;
+            flag = TTFlag::Exact;
 
             if score >= beta {
+                flag = TTFlag::Lower;
                 return score;
             }
         }
@@ -476,6 +481,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if move_count == 0 && in_check {
         return -Score::MATE + ply as i32;
+    }
+
+    if !td.should_stop(Hard) {
+        td.tt.insert(board.hash, best_move, best_score, 0, ply, flag);
     }
 
     best_score
