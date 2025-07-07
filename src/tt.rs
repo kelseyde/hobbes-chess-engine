@@ -167,14 +167,15 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, &best_move, score, depth, 0, flag);
+        tt.insert(hash, best_move, score, Score::MIN, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
         assert_eq!(entry.score(0), score as i16);
-        assert_eq!(entry.depth(), depth);
+        assert_eq!(entry.static_eval(), Score::MIN as i16);
+        assert_eq!(entry.depth(), depth as u8);
         assert_eq!(entry.flag(), flag);
     }
 

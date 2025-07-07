@@ -129,7 +129,7 @@ fn alpha_beta(
     let (raw_eval, static_eval) = if in_check {
         (Score::MIN, Score::MIN)
     } else {
-        let raw_eval = if tt_hit { tt_static_eval} else { td.nnue.evaluate(board) };
+        let raw_eval = if tt_hit { tt_static_eval } else { td.nnue.evaluate(board) };
         let static_eval = raw_eval + td.correction(board);
         (raw_eval, static_eval)
     };
