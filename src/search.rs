@@ -1,4 +1,3 @@
-use std::thread::current;
 use crate::board::Board;
 use crate::consts::{Piece, Score, Side, MAX_DEPTH};
 use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
@@ -154,7 +153,12 @@ fn alpha_beta(
         }
     }
 
-    depth -= i32::from(!root_node && depth >= 4 && !tt_move.exists());
+    if !root_node
+        && (pv_node || cutnode)
+        && !tt_move.exists()
+        && depth >= 4 {
+        depth-= 1;
+    }
 
     let mut moves = gen_moves(board, MoveFilter::All);
     let scores = score(td, board, &moves, &tt_move, ply);
