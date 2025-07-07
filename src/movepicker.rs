@@ -21,6 +21,7 @@ pub struct MovePicker {
     stage: Stage,
     tt_move: Move,
     ply: usize,
+    pub skip_quiets: bool,
 }
 
 impl MovePicker {
@@ -33,7 +34,21 @@ impl MovePicker {
             idx: 0,
             stage,
             tt_move,
-            ply
+            ply,
+            skip_quiets: false,
+        }
+    }
+
+    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize) -> Self {
+        let stage = if tt_move.exists() { Stage::TTMove } else { Stage::GenerateNoisies };
+        MovePicker {
+            moves: MoveList::new(),
+            filter,
+            idx: 0,
+            stage,
+            tt_move,
+            ply,
+            skip_quiets: true,
         }
     }
 
@@ -68,6 +83,10 @@ impl MovePicker {
             }
         }
         if self.stage == Stage::GenerateQuiets {
+            // if self.skip_quiets {
+            //     self.stage = Stage::Done;
+            //     return None;
+            // }
             self.moves = gen_moves(board, MoveFilter::Quiets);
             let scores = ordering::score(td, board, &self.moves, &self.tt_move, self.ply);
             self.moves.sort(&scores);
@@ -75,6 +94,10 @@ impl MovePicker {
             self.stage = Stage::Quiets;
         }
         if self.stage == Stage::Quiets {
+            // if self.skip_quiets {
+            //     self.stage = Stage::Done;
+            //     return None;
+            // }
             if self.idx < self.moves.len() {
                 let m = self.moves.get(self.idx);
                 self.idx += 1;

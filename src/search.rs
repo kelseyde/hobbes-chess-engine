@@ -417,7 +417,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new(tt_move, filter, ply);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply);
 
     let mut move_count = 0;
 
@@ -430,6 +430,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         let pc = board.piece_at(mv.from());
+
+        if !in_check && board.captured(&mv).is_none() && mv != tt_move {
+            println!("Error: {}, {}", board.to_fen(), mv.to_uci())
+        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
