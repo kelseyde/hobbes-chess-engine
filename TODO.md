@@ -25,7 +25,7 @@
 - [x] LMR
 - [ ] LMR improving
 - [ ] LMR PV node
-- [ ] LMR Cutnode
+- [x] LMR Cutnode
 - [ ] LMR History
 
 #### Move-loop pruning
@@ -82,7 +82,7 @@
 
 ## Evaluation
 - [x] NN
-- [ ] UE
+- [x] UE
 - [ ] SIMD
 - [ ] Horizontal mirroring
 - [ ] Output buckets
