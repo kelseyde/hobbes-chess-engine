@@ -369,7 +369,7 @@ fn alpha_beta(
 
     if !root_node {
         td.tt
-            .insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
+            .insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
     best_score

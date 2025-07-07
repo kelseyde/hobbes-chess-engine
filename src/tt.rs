@@ -1,5 +1,6 @@
 use crate::consts::Score;
 use crate::moves::Move;
+use crate::tt::TTFlag::Exact;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
@@ -107,14 +108,23 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, mut best_move: Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
-        entry.key = (hash & 0xFFFF) as u16;
-        entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply);
-        entry.depth = depth;
-        entry.flag = flag.to_u8();
+
+        let key_part = (hash & 0xFFFF) as u16;
+        let key_match = entry.key == key_part;
+
+        if !key_match || flag == Exact || depth + 4 > entry.depth {
+            if !best_move.exists() && key_match {
+                best_move = entry.best_move();
+            }
+            entry.key = key_part;
+            entry.best_move = best_move.0;
+            entry.score = to_tt(score, ply);
+            entry.depth = depth;
+            entry.flag = flag.to_u8();
+        }
     }
 
     fn idx(&self, hash: u64) -> usize {
