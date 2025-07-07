@@ -135,7 +135,7 @@ fn alpha_beta(
 
     if !root_node && !pv_node && !in_check {
         if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
-            return static_eval;
+            return beta + (static_eval - beta) / 3;
         }
 
         if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
