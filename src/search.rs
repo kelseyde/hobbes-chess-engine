@@ -245,6 +245,10 @@ fn alpha_beta(
                 reduction += 1;
             }
 
+            if !improving {
+                reduction += 1;
+            }
+
             let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
 
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
