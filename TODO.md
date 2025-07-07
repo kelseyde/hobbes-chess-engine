@@ -13,7 +13,7 @@
 - [x] RFP
 - [x] RFP improving
 - [ ] RFP opponent worsening
-- [ ] RFP fail firm
+- [x] RFP fail firm
 
 #### NMP
 - [x] NMP
