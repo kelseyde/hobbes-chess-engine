@@ -110,9 +110,7 @@ fn alpha_beta(
 
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
-            if entry.best_move().exists()
-                && board.is_pseudo_legal(&entry.best_move())
-                && is_legal(board, &entry.best_move()) {
+            if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
             }
 
@@ -171,12 +169,12 @@ fn alpha_beta(
 
     while let Some(mv) = move_picker.next(board, td) {
 
-        if !is_legal(&board, &mv) {
+        if !board.is_legal(&mv) {
             continue;
         }
 
         let pc = board.piece_at(mv.from());
-        let captured = board.captured(mv);
+        let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
@@ -210,7 +208,7 @@ fn alpha_beta(
             && depth <= 8
             && move_count >= 1
             && !Score::is_mate(best_score)
-            && !see(board, mv, see_threshold)
+            && !see(board, &mv, see_threshold)
         {
             continue;
         }
@@ -267,7 +265,7 @@ fn alpha_beta(
             quiets.push(mv);
             quiet_count += 1;
         } else if captured.is_some() && capture_count < 32 {
-            captures.push(*mv);
+            captures.push(mv);
             capture_count += 1;
         }
 
@@ -289,7 +287,7 @@ fn alpha_beta(
             best_move = mv;
             flag = TTFlag::Exact;
             if root_node {
-                td.best_move = *mv;
+                td.best_move = mv;
             }
 
             if score >= beta {
@@ -393,9 +391,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
-        if entry.best_move().exists()
-            && board.is_pseudo_legal(&entry.best_move())
-            && is_legal(board, &entry.best_move()) {
+        if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
         let score = entry.score(ply) as i32;
@@ -561,6 +557,10 @@ fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
         TTFlag::Lower => score >= upper,
         TTFlag::Upper => score <= lower,
     }
+}
+
+fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
+    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
 pub struct SearchStack {

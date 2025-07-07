@@ -1,7 +1,7 @@
 use crate::board::Board;
 use crate::moves::{Move, MoveList};
 use crate::thread::ThreadData;
-use crate::{movegen, moves, ordering};
+use crate::{movegen, ordering};
 use movegen::{gen_moves, MoveFilter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -53,6 +53,28 @@ impl MovePicker {
             self.stage = Stage::Noisies;
         }
         if self.stage == Stage::Noisies {
+            if self.idx < self.moves.len() {
+                let m = self.moves.get(self.idx);
+                self.idx += 1;
+                if let Some(m) = m {
+                    return if m != self.tt_move {
+                        Some(m)
+                    } else {
+                        self.next(board, td)
+                    }
+                }
+            } else {
+                self.stage = Stage::Done;
+            }
+        }
+        if self.stage == Stage::GenerateQuiets {
+            self.moves = gen_moves(board, MoveFilter::Quiets);
+            let scores = ordering::score(td, board, &self.moves, &self.tt_move, self.ply);
+            self.moves.sort(&scores);
+            self.idx = 0;
+            self.stage = Stage::Quiets;
+        }
+        if self.stage == Stage::Quiets {
             if self.idx < self.moves.len() {
                 let m = self.moves.get(self.idx);
                 self.idx += 1;
