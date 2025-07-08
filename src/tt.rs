@@ -1,5 +1,6 @@
 use crate::consts::Score;
 use crate::moves::Move;
+use std::mem::size_of;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
