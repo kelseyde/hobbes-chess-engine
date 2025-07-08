@@ -111,6 +111,7 @@ impl MovePicker {
             if let Some(best_move) = self.pick(false) {
                 return Some(best_move)
             } else {
+                self.idx = 0;
                 self.stage = BadNoisies;
             }
         }
