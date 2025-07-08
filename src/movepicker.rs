@@ -4,7 +4,7 @@ use crate::thread::ThreadData;
 use crate::{movegen, see};
 use movegen::{gen_moves, MoveFilter};
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::movepicker::Stage::{BadNoisies, GoodNoisies};
+use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::see::see;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -12,9 +12,9 @@ pub enum Stage {
     TTMove,
     GenerateNoisies,
     GoodNoisies,
-    BadNoisies,
     GenerateQuiets,
     Quiets,
+    BadNoisies,
     Done
 }
 
@@ -90,20 +90,13 @@ impl MovePicker {
                 return Some(best_move)
             } else {
                 self.idx = 0;
-                self.stage = BadNoisies;
-            }
-        }
-        if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
-                return Some(best_move);
-            } else {
                 self.stage = GenerateQuiets;
             }
         }
         if self.stage == GenerateQuiets {
             if self.skip_quiets {
-                self.stage = Stage::Done;
-                return None;
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
             self.idx = 0;
             self.moves = gen_moves(board, MoveFilter::Quiets);
@@ -112,13 +105,20 @@ impl MovePicker {
         }
         if self.stage == Quiets {
             if self.skip_quiets {
-                self.stage = Stage::Done;
-                return None;
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
-            return if let Some(best_move) = self.pick(false) {
-                Some(best_move)
+            if let Some(best_move) = self.pick(false) {
+                return Some(best_move)
             } else {
-                None
+                self.stage = BadNoisies;
+            }
+        }
+        if self.stage == BadNoisies {
+            if let Some(best_move) = self.pick(true) {
+                return Some(best_move);
+            } else {
+                self.stage = Done;
             }
         }
         None
