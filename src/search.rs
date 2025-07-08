@@ -150,6 +150,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 return score;
             }
         }
+
     }
 
     let mut move_picker = MovePicker::new(tt_move, ply);
@@ -409,7 +410,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
-        let pc = board.piece_at(mv.from());
+        let pc = board.piece_at(mv.from()).unwrap();
+        let captured = board.captured(&mv);
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
@@ -417,18 +419,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         let mut board = *board;
-        td.nnue.update(
-            &mv,
-            board
-                .piece_at(mv.from())
-                .expect("expecting the moving piece to exist"),
-            board.captured(&mv),
-            &board,
-        );
+        td.nnue.update(&mv, pc, captured, &board);
 
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
-        td.ss[ply].pc = pc;
+        td.ss[ply].pc = Some(pc);
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -476,16 +471,14 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
     if ply > 1 {
         if let Some(prev_eval) = td.ss[ply - 2]
             .static_eval
-            .filter(|eval| *eval != Score::MIN)
-        {
+            .filter(|eval| *eval != Score::MIN) {
             return static_eval > prev_eval;
         }
     }
     if ply > 3 {
         if let Some(prev_eval) = td.ss[ply - 4]
             .static_eval
-            .filter(|eval| *eval != Score::MIN)
-        {
+            .filter(|eval| *eval != Score::MIN) {
             return static_eval > prev_eval;
         }
     }
