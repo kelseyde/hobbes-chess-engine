@@ -370,7 +370,7 @@ fn alpha_beta(
 
     if !root_node {
         td.tt
-            .insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
+            .insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
     best_score
@@ -517,9 +517,9 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
-    for &prev_ply in &[1] {
-        if prev_ply >= ply {
-            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[prev_ply].mv, td.ss[prev_ply].pc) {
+    for &prev_ply in &[1, 2] {
+        if ply >= prev_ply {
+            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - prev_ply].mv, td.ss[ply - prev_ply].pc) {
                 td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
             }
         }

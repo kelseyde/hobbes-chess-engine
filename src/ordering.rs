@@ -27,21 +27,16 @@ pub fn score(
                     scores[idx] = NOISY_BONUS + victim_value + history_score;
                 }
             } else {
+                let pc = board.piece_at(mv.from()).unwrap();
                 let quiet_score = td.quiet_history.get(board.stm, *mv) as i32;
-                let cont_score = if ply > 0 {
-                    if let Some(prev_mv) = td.ss[ply - 1].mv {
-                        let pc = board.piece_at(mv.from()).unwrap();
-                        if let Some(prev_pc) = td.ss[ply - 1].pc {
-                            td.cont_history.get(prev_mv, prev_pc, mv, pc) as i32
-                        } else {
-                            0
+                let mut cont_score = 0;
+                for &prev_ply in &[1, 2] {
+                    if ply >= prev_ply  {
+                        if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - prev_ply].mv, td.ss[ply - prev_ply].pc) {
+                            cont_score += td.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                         }
-                    } else {
-                        0
                     }
-                } else {
-                    0
-                };
+                }
                 let is_killer = td.ss[ply].killer == Some(*mv);
                 let base = if is_killer { KILLER_BONUS } else { QUIET_BONUS };
                 scores[idx] = base + quiet_score + cont_score;
