@@ -1,6 +1,7 @@
 use crate::board::Board;
-use crate::consts::Side::{Black, White};
-use crate::consts::{Piece, Side};
+use crate::types::piece::Piece;
+use crate::types::side::Side;
+use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
 use crate::types::{File, Rank};
 use crate::zobrist::Zobrist;
