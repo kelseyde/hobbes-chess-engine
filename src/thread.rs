@@ -159,8 +159,11 @@ impl ThreadData {
 
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
+        println!("best_move_nodes: {}", best_move_nodes);
 
         if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+                println!("original soft time: {:?}", self.limits.soft_time.unwrap());
+                println!("scaled soft time: {:?}", soft_time);
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
