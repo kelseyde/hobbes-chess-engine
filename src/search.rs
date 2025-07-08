@@ -153,6 +153,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     }
 
+    // Internal Iterative Reductions
     if depth >= 3 + 3 * cut_node as i32 && !tt_move.exists() && (pv_node || cut_node) {
         depth -= 1;
     }
