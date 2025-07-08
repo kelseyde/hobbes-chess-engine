@@ -1,8 +1,8 @@
 use crate::board::Board;
 use crate::consts::{Piece, Score, Side, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
+use crate::movegen::{is_check, is_legal, MoveFilter};
+use crate::movepicker::MovePicker;
 use crate::moves::Move;
-use crate::ordering::score;
 use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
@@ -110,7 +110,9 @@ fn alpha_beta(
 
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
-            tt_move = entry.best_move();
+            if can_use_tt_move(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+            }
 
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
@@ -153,9 +155,7 @@ fn alpha_beta(
         }
     }
 
-    let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(td, board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+    let mut move_picker = MovePicker::new(tt_move, MoveFilter::Noisies, ply);
 
     let mut move_count = 0;
     let mut quiet_count = 0;
@@ -167,13 +167,14 @@ fn alpha_beta(
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
 
-    for mv in moves.iter() {
-        if !is_legal(board, mv) {
+    while let Some(mv) = move_picker.next(board, td) {
+
+        if !board.is_legal(&mv) {
             continue;
         }
 
         let pc = board.piece_at(mv.from());
-        let captured = board.captured(mv);
+        let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
@@ -207,23 +208,23 @@ fn alpha_beta(
             && depth <= 8
             && move_count >= 1
             && !Score::is_mate(best_score)
-            && !see(board, mv, see_threshold)
+            && !see(board, &mv, see_threshold)
         {
             continue;
         }
 
         let mut board = *board;
         td.nnue.update(
-            mv,
+            &mv,
             board
                 .piece_at(mv.from())
                 .expect("expecting the moving piece to exist"),
             captured,
             &board,
         );
-        board.make(mv);
+        board.make(&mv);
 
-        td.ss[ply].mv = Some(*mv);
+        td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
 
@@ -261,10 +262,10 @@ fn alpha_beta(
         }
 
         if is_quiet && quiet_count < 32 {
-            quiets.push(*mv);
+            quiets.push(mv);
             quiet_count += 1;
         } else if captured.is_some() && capture_count < 32 {
-            captures.push(*mv);
+            captures.push(mv);
             capture_count += 1;
         }
 
@@ -283,10 +284,10 @@ fn alpha_beta(
 
         if score > alpha {
             alpha = score;
-            best_move = *mv;
+            best_move = mv;
             flag = TTFlag::Exact;
             if root_node {
-                td.best_move = *mv;
+                td.best_move = mv;
             }
 
             if score >= beta {
@@ -390,7 +391,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
-        tt_move = entry.best_move();
+        if can_use_tt_move(board, &entry.best_move()) {
+            tt_move = entry.best_move();
+        }
         let score = entry.score(ply) as i32;
 
         if bounds_match(entry.flag(), score, alpha, beta) {
@@ -414,36 +417,37 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut moves = gen_moves(board, filter);
-    let scores = score(td, board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply);
+
     let mut move_count = 0;
 
     let mut best_score = alpha;
 
-    for mv in moves.iter() {
-        if !is_legal(board, mv) {
+    while let Some(mv) = move_picker.next(board, td) {
+
+        if !is_legal(&board, &mv) {
             continue;
         }
 
         let pc = board.piece_at(mv.from());
 
         // SEE Pruning
-        if !in_check && !see::see(board, mv, 0) {
+        if !in_check && !see::see(&board, &mv, 0) {
             continue;
         }
 
         let mut board = *board;
         td.nnue.update(
-            mv,
+            &mv,
             board
                 .piece_at(mv.from())
                 .expect("expecting the moving piece to exist"),
-            board.captured(mv),
+            board.captured(&mv),
             &board,
         );
-        board.make(mv);
-        td.ss[ply].mv = Some(*mv);
+
+        board.make(&mv);
+        td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
 
@@ -554,6 +558,10 @@ fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
         TTFlag::Lower => score >= upper,
         TTFlag::Upper => score <= lower,
     }
+}
+
+fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
+    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
 pub struct SearchStack {
