@@ -17,7 +17,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.start_time = Instant::now();
     td.best_move = Move::NONE;
-    td.nnue.init(*board);
+    td.nnue.activate(board);
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;

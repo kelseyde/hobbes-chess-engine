@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
@@ -46,20 +44,57 @@ impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
-            stack: [Accumulator::new(); MAX_ACCUMULATORS],
+            stack: [Accumulator::default(); MAX_ACCUMULATORS],
         }
     }
 }
 
 impl NNUE {
 
-    pub fn new() -> Self {
-        NNUE {
-            current: 0,
-            stack: [Accumulator::new(); MAX_ACCUMULATORS],
+    /// Evaluates the current position. Gets the 'us-perspective' and 'them-perspective' feature
+    /// sets, based on the side to move. Then, passes the features through the network to get the
+    /// static evaluation.
+    pub fn evaluate(&mut self, board: &Board) -> i32 {
+
+        let acc = &self.stack[self.current];
+
+        let us = match board.stm { White => acc.white_features, Black => acc.black_features };
+        let them = match board.stm { White => acc.black_features, Black => acc.white_features };
+
+        let mut output = i32::from(NETWORK.output_bias);
+
+        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
+            output += crelu(input) * i32::from(weight);
+        }
+
+        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
+            output += crelu(input) * i32::from(weight);
+        }
+
+        output *= SCALE;
+        output /= QAB;
+        output
+    }
+
+    /// Activate the entire board from scratch. This initializes the accumulators based on the
+    /// current board state, iterating over all pieces and their squares. Should be called only
+    /// at the top of search, and then efficiently updated with each move.
+    pub fn activate(&mut self, board: &Board) {
+        self.current = 0;
+        self.stack[self.current] = Accumulator::default();
+        for &pc in PIECES.iter() {
+            for sq in board.pcs(pc) {
+                let side = board.side_at(sq).unwrap();
+                let w_idx = ft_idx(sq, pc, side, White);
+                let b_idx = ft_idx(sq, pc, side, Black);
+                self.stack[self.current].add(w_idx, b_idx);
+            }
         }
     }
 
+    /// Efficiently update the accumulators for the current move. Depending on the nature of
+    /// the move (standard, capture, castle), only the relevant parts of the accumulator are
+    /// updated.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
 
         self.current += 1;
@@ -147,55 +182,9 @@ impl NNUE {
 
     }
 
+    /// Undo the last move by decrementing the current accumulator index.
     pub fn undo(&mut self) {
-        if self.current > 0 {
-            self.current -= 1;
-        } else {
-            panic!("attempted to undo past first accumulator");
-        }
-    }
-
-    pub fn refresh(&mut self, board: &Board) {
-        self.activate(board);
-    }
-
-    pub fn init(&mut self, board: Board) {
-        self.current = 0;
-        self.refresh(&board);
-    }
-
-    pub fn evaluate(&mut self, board: &Board) -> i32 {
-
-        let acc = &self.stack[self.current];
-
-        let us = match board.stm { White => acc.white_features, Black => acc.black_features };
-        let them = match board.stm { White => acc.black_features, Black => acc.white_features };
-
-        let mut output = i32::from(NETWORK.output_bias);
-
-        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            output += crelu(input) * i32::from(weight);
-        }
-
-        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            output += crelu(input) * i32::from(weight);
-        }
-
-        output *= SCALE;
-        output /= QAB;
-        output
-    }
-
-    pub fn activate(&mut self, board: &Board) {
-        self.stack[self.current] = Accumulator::new();
-        for &pc in PIECES.iter() {
-            for sq in board.pcs(pc) {
-                let side = board.side_at(sq).unwrap();
-                let w_idx = ft_idx(sq, pc, side, White);
-                let b_idx = ft_idx(sq, pc, side, Black);
-                self.stack[self.current].add(w_idx, b_idx);
-            }
-        }
+        self.current = self.current.saturating_sub(1);
     }
 
 }
@@ -217,17 +206,14 @@ fn crelu(x: i16) -> i32 {
 
 impl Default for Accumulator {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Accumulator {
-    pub fn new() -> Self {
         Accumulator {
             white_features: NETWORK.feature_bias,
             black_features: NETWORK.feature_bias,
         }
     }
+}
+
+impl Accumulator {
 
     pub fn add(&mut self, w: usize, b: usize) {
         for i in 0..self.white_features.len() {
