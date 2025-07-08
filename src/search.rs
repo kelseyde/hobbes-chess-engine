@@ -157,7 +157,8 @@ fn alpha_beta(
 
     let mut move_picker = MovePicker::new(tt_move, ply);
 
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
     let mut best_score = Score::MIN;
@@ -173,10 +174,13 @@ fn alpha_beta(
             continue;
         }
 
+        legal_moves += 1;
+
         let pc = board.piece_at(mv.from());
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let base_reduction = td.lmr.reduction(depth, legal_moves);
 
         if !pv_node
             && !root_node
@@ -194,7 +198,7 @@ fn alpha_beta(
             && !is_mate_score
             && is_quiet
             && depth <= 4
-            && move_count > 4 + 3 * depth * depth
+            && searched_moves > 4 + 3 * depth * depth
         {
             continue;
         }
@@ -206,7 +210,7 @@ fn alpha_beta(
         };
         if !pv_node
             && depth <= 8
-            && move_count >= 1
+            && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold)
         {
@@ -228,7 +232,7 @@ fn alpha_beta(
         td.ss[ply].pc = pc;
         td.keys.push(board.hash);
 
-        move_count += 1;
+        searched_moves += 1;
         td.nodes += 1;
 
         let mut extension = 0;
@@ -239,8 +243,8 @@ fn alpha_beta(
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
-        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let mut reduction = td.lmr.reduction(depth, move_count);
+        if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 && is_quiet {
+            let mut reduction = base_reduction;
 
             if cutnode {
                 reduction += 1;
@@ -253,11 +257,11 @@ fn alpha_beta(
             if score > alpha && new_depth > reduced_depth {
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
             }
-        } else if !pv_node || move_count > 1 {
+        } else if !pv_node || searched_moves > 1 {
             score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
         }
 
-        if pv_node && (move_count == 1 || score > alpha) {
+        if pv_node && (searched_moves == 1 || score > alpha) {
             score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
@@ -337,7 +341,7 @@ fn alpha_beta(
     }
 
     // handle checkmate / stalemate
-    if move_count == 0 {
+    if legal_moves == 0 {
         return if in_check {
             -Score::MATE + ply as i32
         } else {
