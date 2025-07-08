@@ -101,20 +101,20 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_move = Move::NONE;
 
     // Transposition Table probe
-    if !root_node {
-        if let Some(entry) = td.tt.probe(board.hash) {
-            if can_use_tt_move(board, &entry.best_move()) {
-                tt_move = entry.best_move();
-            }
+    if let Some(entry) = td.tt.probe(board.hash) {
 
-            if entry.depth() >= depth as u8 {
-                let score = entry.score(ply) as i32;
-
-                if bounds_match(entry.flag(), score, alpha, beta) {
-                    return score;
-                }
-            }
+        let tt_depth = entry.depth() as i32;
+        let tt_score = entry.score(ply) as i32;
+        if can_use_tt_move(board, &entry.best_move()) {
+            tt_move = entry.best_move();
         }
+
+        if !root_node
+            && tt_depth >= depth
+            && bounds_match(entry.flag(), tt_score, alpha, beta) {
+            return tt_score;
+        }
+
     }
 
     let raw_eval;
@@ -349,7 +349,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     // Write to transposition table
-    if !root_node {
+    if !td.hard_limit_reached() {
         td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
