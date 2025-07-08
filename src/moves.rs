@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::consts::Piece;
+use crate::types::piece::Piece;
 use crate::types::square::Square;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
@@ -10,8 +10,14 @@ pub const MAX_MOVES: usize = 256;
 
 #[derive(Clone)]
 pub struct MoveList {
-    pub list: ArrayVec<Move, MAX_MOVES>,
+    pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
     pub len: usize,
+}
+
+#[derive(Copy, Clone)]
+pub struct MoveListEntry {
+    pub mv: Move,
+    pub score: i32,
 }
 
 #[derive(Eq, PartialEq)]
@@ -191,16 +197,37 @@ impl MoveList {
     }
 
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
-        self.list.push(Move::new(from, to, flag));
+        self.list.push(MoveListEntry { mv: Move::new(from, to, flag), score: 0 });
         self.len += 1;
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Move> {
-        self.list.iter().take(self.len)
+    pub fn add(&mut self, entry: MoveListEntry) {
+        self.list.push(entry);
+        self.len += 1;
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
+        self.list.iter_mut().take(self.len)
     }
 
     pub fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    pub fn contains(&self, m: &Move) -> bool {
+        self.list.iter().take(self.len).any(|entry| entry.mv.matches(m))
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn get(&mut self, idx: usize) -> Option<&mut MoveListEntry> {
+        if idx < self.len {
+            Some(&mut self.list[idx])
+        } else {
+            None
+        }
     }
 
     pub fn pick(&mut self, scores: &mut [i32; MAX_MOVES]) -> Option<Move> {
@@ -219,7 +246,7 @@ impl MoveList {
         self.len -= 1;
         scores.swap(idx, self.len);
         self.list.swap(idx, self.len);
-        Some(self.list[self.len])
+        Some(self.list[self.len].mv)
     }
 
     pub fn sort(&mut self, scores: &[i32; MAX_MOVES]) {
@@ -227,9 +254,9 @@ impl MoveList {
 
         indices.sort_unstable_by_key(|&i| -scores[i]); // sort descending by score
 
-        let sorted: ArrayVec<Move, MAX_MOVES> = indices
+        let sorted: ArrayVec<MoveListEntry, MAX_MOVES> = indices
             .into_iter()
-            .map(|i| self.list[i])
+            .map(|i| self.list[i].clone())
             .collect();
 
         self.list = sorted;

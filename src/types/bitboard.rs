@@ -20,6 +20,10 @@ impl Bitboard {
         Self::NONE
     }
 
+    pub fn contains(self, sq: Square) -> bool {
+        !(self & Self::of_sq(sq)).is_empty()
+    }
+
     pub fn of_sq(sq: Square) -> Self {
         Self(1 << sq.0)
     }

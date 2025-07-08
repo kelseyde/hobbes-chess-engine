@@ -1,13 +1,13 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::history::{CaptureHistory, CorrectionHistory, ContinuationHistory, QuietHistory};
-use crate::consts::Side;
+use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
+use crate::types::side::Side;
 
 pub struct ThreadData {
     pub id: usize,
@@ -33,18 +33,12 @@ pub struct ThreadData {
 
 impl Default for ThreadData {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ThreadData {
-    pub fn new() -> Self {
         ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
-            nnue: NNUE::new(),
+            nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
@@ -61,6 +55,9 @@ impl ThreadData {
             eval: 0,
         }
     }
+}
+
+impl ThreadData {
 
     pub fn with_depth_limit(depth: i32) -> Self {
         ThreadData {
@@ -68,7 +65,7 @@ impl ThreadData {
             main: true,
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
-            nnue: NNUE::new(),
+            nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
@@ -134,11 +131,26 @@ impl ThreadData {
         false
     }
 
+    pub fn update_correction_history(&mut self, board: &Board, depth: i32, static_eval: i32, best_score: i32) {
+        let us = board.stm;
+        let pawn_hash = board.pawn_hash;
+        let w_nonpawn_hash = board.non_pawn_hashes[Side::White];
+        let b_nonpawn_hash = board.non_pawn_hashes[Side::Black];
+
+        self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
+        self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
+        self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
+    }
+
     pub fn time(&self) -> u128 {
         self.start_time.elapsed().as_millis()
     }
 
     pub fn should_stop(&self, limit_type: LimitType) -> bool {
+        if self.depth <= 1 {
+            // Always clear the first depth, to ensure at least one legal move
+            return false;
+        }
         match limit_type {
             LimitType::Soft => self.soft_limit_reached(),
             LimitType::Hard => self.hard_limit_reached(),
@@ -198,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_twofold_rep_after_root() {
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.keys.push(board.hash);
         assert!(!td.is_repetition(&board));
@@ -218,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_twofold_rep_before_root() {
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.root_ply = 3;
         td.keys.push(board.hash);
@@ -239,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_threefold_rep_before_root() {
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.root_ply = 7;
         td.keys.push(board.hash);
