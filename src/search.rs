@@ -91,7 +91,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return Score::DRAW;
     }
 
-    if ply >= MAX_DEPTH as usize {
+    if ply >= MAX_PLY {
         return td.nnue.evaluate(board);
     }
 
@@ -538,9 +538,7 @@ fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
 }
 
 fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
-    tt_move.exists()
-        && board.is_pseudo_legal(tt_move)
-        && board.is_legal(tt_move)
+    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
 pub struct SearchStack {

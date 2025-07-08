@@ -66,7 +66,7 @@ impl MovePicker {
 
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
-            if self.tt_move.exists() {
+            if self.tt_move.exists() && board.is_pseudo_legal(&self.tt_move) {
                 return Some(self.tt_move);
             }
         }
