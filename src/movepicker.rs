@@ -42,7 +42,7 @@ impl MovePicker {
             tt_move,
             ply,
             skip_quiets: false,
-            see_threshold: Some(0),
+            see_threshold: Some(-100),
             bad_noisies: MoveList::new(),
         }
     }
@@ -190,6 +190,5 @@ impl MovePicker {
             return None;
         }
     }
-
 
 }
