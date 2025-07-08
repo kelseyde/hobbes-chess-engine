@@ -68,7 +68,7 @@ impl MovePicker {
             self.generate(board, td, self.filter, Stage::Noisies);
         }
         if self.stage == Stage::Noisies {
-            if let Some(best_move) = self.pick() {
+            if let Some(best_move) = self.pick(board) {
                 return Some(best_move)
             } else {
                 self.stage = Stage::Killer;
@@ -95,7 +95,7 @@ impl MovePicker {
                 self.stage = Stage::Done;
                 return None;
             }
-            return if let Some(best_move) = self.pick() {
+            return if let Some(best_move) = self.pick(board) {
                 Some(best_move)
             } else {
                 None
@@ -136,7 +136,7 @@ impl MovePicker {
 
     }
 
-    fn pick(&mut self) -> Option<Move> {
+    fn pick(&mut self, board: &Board) -> Option<Move> {
         // Incremental selection sort
         loop {
             if self.moves.is_empty() || self.idx >= self.moves.len() {
@@ -160,7 +160,7 @@ impl MovePicker {
 
             if let Some(best_move) = self.moves.get(self.idx) {
                 let mv = best_move.mv;
-                if self.is_special(mv) {
+                if self.is_special(mv, board) {
                     self.idx += 1;
                     continue;
                 }
@@ -171,8 +171,8 @@ impl MovePicker {
         }
     }
 
-    fn is_special(&self, mv: Move) -> bool {
-        mv == self.tt_move || mv == self.killer
+    fn is_special(&self, mv: Move, board: &Board) -> bool {
+        mv == self.tt_move || (mv == self.killer && !board.is_noisy(&mv))
     }
 
 }
