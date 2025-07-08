@@ -82,9 +82,10 @@
 - [x] Capture history 
 - [X] Killer moves
 - [x] Maluses
-- [ ] Basic movepicker
-- [ ] TT move before movegen
-- [ ] Staged movegen
+- [x] Basic movepicker
+- [x] TT move before movegen
+- [x] Incremental selection sort
+- [x] Staged movegen
 - [ ] Killer stage
 - [ ] Split good/bad noisies
 - [ ] Use capthist in SEE margin
