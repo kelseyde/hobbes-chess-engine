@@ -290,6 +290,12 @@ impl Board {
 
         let from = mv.from();
         let to = mv.to();
+
+        if from == to {
+            // Cannot move to the same square
+            return false;
+        }
+
         let pc = self.piece_at(from);
         let us = self.us();
         let them = self.them();

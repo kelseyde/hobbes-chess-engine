@@ -3,14 +3,18 @@ use crate::moves::{Move, MoveList, MoveListEntry};
 use crate::thread::ThreadData;
 use crate::{movegen, see};
 use movegen::{gen_moves, MoveFilter};
+use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::see::see;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     TTMove,
     GenerateNoisies,
-    Noisies,
+    GoodNoisies,
     GenerateQuiets,
     Quiets,
+    BadNoisies,
     Done
 }
 
@@ -22,12 +26,14 @@ pub struct MovePicker {
     tt_move: Move,
     ply: usize,
     pub skip_quiets: bool,
+    see_threshold: Option<i32>,
+    bad_noisies: MoveList,
 }
 
 impl MovePicker {
 
     pub fn new(tt_move: Move, ply: usize) -> Self {
-        let stage = if tt_move.exists() { Stage::TTMove } else { Stage::GenerateNoisies };
+        let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
             moves: MoveList::new(),
             filter: MoveFilter::Noisies,
@@ -36,11 +42,13 @@ impl MovePicker {
             tt_move,
             ply,
             skip_quiets: false,
+            see_threshold: Some(-100),
+            bad_noisies: MoveList::new(),
         }
     }
 
     pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize) -> Self {
-        let stage = if tt_move.exists() { Stage::TTMove } else { Stage::GenerateNoisies };
+        let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
             moves: MoveList::new(),
             filter,
@@ -49,54 +57,73 @@ impl MovePicker {
             tt_move,
             ply,
             skip_quiets: true,
+            see_threshold: None,
+            bad_noisies: MoveList::new(),
         }
     }
 
     pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
 
-        if self.stage == Stage::TTMove {
-            self.stage = Stage::GenerateNoisies;
-            if self.tt_move.exists() {
+        if self.stage == TTMove {
+            self.stage = GenerateNoisies;
+            if self.tt_move.exists() && board.is_pseudo_legal(&self.tt_move) {
                 return Some(self.tt_move);
             }
         }
-        if self.stage == Stage::GenerateNoisies {
-            self.generate(board, td, self.filter, Stage::Noisies);
+        if self.stage == GenerateNoisies {
+            self.idx = 0;
+            let mut moves = gen_moves(board, self.filter);
+            for entry in moves.iter() {
+                MovePicker::score(entry, board, td, self.ply);
+                if self.see_threshold
+                    .map(|threshold| !see(board, &entry.mv, threshold))
+                    .unwrap_or(false) {
+                    self.bad_noisies.add(*entry);
+                } else {
+                    self.moves.add(*entry);
+                }
+            }
+            self.stage = GoodNoisies;
         }
-        if self.stage == Stage::Noisies {
-            if let Some(best_move) = self.pick() {
+        if self.stage == GoodNoisies {
+            if let Some(best_move) = self.pick(false) {
                 return Some(best_move)
             } else {
-                self.stage = Stage::GenerateQuiets;
+                self.idx = 0;
+                self.stage = GenerateQuiets;
             }
         }
-        if self.stage == Stage::GenerateQuiets {
+        if self.stage == GenerateQuiets {
             if self.skip_quiets {
-                self.stage = Stage::Done;
-                return None;
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
-            self.generate(board, td, MoveFilter::Quiets, Stage::Quiets);
+            self.idx = 0;
+            self.moves = gen_moves(board, MoveFilter::Quiets);
+            self.moves.iter().for_each(|entry| MovePicker::score(entry, board, td, self.ply));
+            self.stage = Quiets;
         }
-        if self.stage == Stage::Quiets {
+        if self.stage == Quiets {
             if self.skip_quiets {
-                self.stage = Stage::Done;
-                return None;
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
-            return if let Some(best_move) = self.pick() {
-                Some(best_move)
+            if let Some(best_move) = self.pick(false) {
+                return Some(best_move)
             } else {
-                None
+                self.idx = 0;
+                self.stage = BadNoisies;
+            }
+        }
+        if self.stage == BadNoisies {
+            if let Some(best_move) = self.pick(true) {
+                return Some(best_move);
+            } else {
+                self.stage = Done;
             }
         }
         None
 
-    }
-
-    fn generate(&mut self, board: &Board, td: &ThreadData, filter: MoveFilter, next_stage: Stage) {
-        self.idx = 0;
-        self.moves = gen_moves(board, filter);
-        self.moves.iter().for_each(|entry| MovePicker::score(entry, board, td, self.ply));
-        self.stage = next_stage;
     }
 
     fn score(entry: &mut MoveListEntry, board: &Board, td: &ThreadData, ply: usize) {
@@ -125,16 +152,20 @@ impl MovePicker {
 
     }
 
-    fn pick(&mut self) -> Option<Move> {
-        // Incremental selection sort
+    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
+        let moves = if use_bad_noisies {
+            &mut self.bad_noisies
+        } else {
+            &mut self.moves
+        };
         loop {
-            if self.moves.is_empty() || self.idx >= self.moves.len() {
+            if moves.is_empty() || self.idx >= moves.len() {
                 return None;
             }
             let mut best_index = self.idx;
-            let mut best_score = self.moves.get(self.idx).map_or(0, |entry| entry.score);
-            for j in self.idx + 1..self.moves.len() {
-                if let Some(current) = self.moves.get(j) {
+            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
+            for j in self.idx + 1..moves.len() {
+                if let Some(current) = moves.get(j) {
                     if current.score > best_score {
                         best_score = current.score;
                         best_index = j;
@@ -144,10 +175,10 @@ impl MovePicker {
                 }
             }
             if best_index != self.idx {
-                self.moves.list.swap(self.idx, best_index);
+                moves.list.swap(self.idx, best_index);
             }
 
-            if let Some(best_move) = self.moves.get(self.idx) {
+            if let Some(best_move) = moves.get(self.idx) {
                 let mv = best_move.mv;
                 if mv == self.tt_move {
                     self.idx += 1;
