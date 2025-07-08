@@ -91,7 +91,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return Score::DRAW;
     }
 
-    if depth == MAX_DEPTH {
+    if ply >= MAX_DEPTH as usize {
         return td.nnue.evaluate(board);
     }
 
@@ -365,6 +365,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if ply > 0 && is_draw(td, board) {
         return Score::DRAW;
+    }
+
+    if ply >= MAX_PLY {
+        return td.nnue.evaluate(board);
     }
 
     let in_check = is_check(board, board.stm);
