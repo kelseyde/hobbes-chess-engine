@@ -8,7 +8,8 @@ use movegen::{gen_moves, MoveFilter};
 pub enum Stage {
     TTMove,
     GenerateNoisies,
-    Noisies,
+    GoodNoisies,
+    BadNoisies,
     GenerateQuiets,
     Quiets,
     Done
@@ -22,6 +23,8 @@ pub struct MovePicker {
     tt_move: Move,
     ply: usize,
     pub skip_quiets: bool,
+    bad_noisies: MoveList,
+    bad_noisy_idx: usize,
 }
 
 impl MovePicker {
@@ -36,6 +39,8 @@ impl MovePicker {
             tt_move,
             ply,
             skip_quiets: false,
+            bad_noisies: MoveList::new(),
+            bad_noisy_idx: 0,
         }
     }
 
@@ -49,6 +54,8 @@ impl MovePicker {
             tt_move,
             ply,
             skip_quiets: true,
+            bad_noisies: MoveList::new(),
+            bad_noisy_idx: 0,
         }
     }
 
@@ -61,9 +68,9 @@ impl MovePicker {
             }
         }
         if self.stage == Stage::GenerateNoisies {
-            self.generate(board, td, self.filter, Stage::Noisies);
+            self.generate(board, td, self.filter, Stage::GoodNoisies);
         }
-        if self.stage == Stage::Noisies {
+        if self.stage == Stage::GoodNoisies {
             if let Some(best_move) = self.pick() {
                 return Some(best_move)
             } else {
@@ -125,16 +132,16 @@ impl MovePicker {
 
     }
 
-    fn pick(&mut self) -> Option<Move> {
+    fn pick(moves: &mut MoveList, idx: &mut usize, tt_move: Move) -> Option<Move> {
         // Incremental selection sort
         loop {
-            if self.moves.is_empty() || self.idx >= self.moves.len() {
+            if moves.is_empty() || idx >= &mut moves.len() {
                 return None;
             }
-            let mut best_index = self.idx;
-            let mut best_score = self.moves.get(self.idx).map_or(0, |entry| entry.score);
-            for j in self.idx + 1..self.moves.len() {
-                if let Some(current) = self.moves.get(j) {
+            let mut best_index = idx;
+            let mut best_score = moves.get(idx).map_or(0, |entry| entry.score);
+            for j in idx + 1..moves.len() {
+                if let Some(current) = moves.get(j) {
                     if current.score > best_score {
                         best_score = current.score;
                         best_index = j;
@@ -143,17 +150,17 @@ impl MovePicker {
                     break;
                 }
             }
-            if best_index != self.idx {
-                self.moves.list.swap(self.idx, best_index);
+            if best_index != idx {
+                moves.list.swap(*idx, *best_index);
             }
 
-            if let Some(best_move) = self.moves.get(self.idx) {
+            if let Some(best_move) = moves.get(*idx) {
                 let mv = best_move.mv;
-                if mv == self.tt_move {
-                    self.idx += 1;
+                if mv == tt_move {
+                    idx += 1;
                     continue;
                 }
-                self.idx += 1;
+                idx += 1;
                 return Some(mv);
             }
             return None;
