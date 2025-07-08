@@ -230,6 +230,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        // Singular Extensions
         if !root_node
             && !singular_search
             && tt_hit
