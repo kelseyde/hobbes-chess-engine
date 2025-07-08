@@ -1,11 +1,11 @@
 use crate::attacks;
-use crate::bits::{CastleSafety, CastleTravel};
-use crate::board::Board;
-use crate::consts::Side::White;
-use crate::consts::{Piece, Side};
+use crate::board::{Board, CastleSafety, CastleTravel};
 use crate::movegen::MoveFilter::Quiets;
 use crate::moves::{Move, MoveFlag, MoveList};
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
+use crate::types::side::Side::White;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
 

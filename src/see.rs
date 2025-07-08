@@ -1,8 +1,9 @@
 use crate::attacks;
 use crate::board::Board;
-use crate::consts::{Piece, Side};
 use crate::moves::Move;
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
 use crate::types::square::Square;
 
 const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
