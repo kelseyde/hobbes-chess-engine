@@ -14,7 +14,7 @@ pub struct MoveList {
     pub len: usize,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct MoveListEntry {
     pub mv: Move,
     pub score: i32,
@@ -198,6 +198,11 @@ impl MoveList {
 
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
         self.list.push(MoveListEntry { mv: Move::new(from, to, flag), score: 0 });
+        self.len += 1;
+    }
+
+    pub fn add(&mut self, entry: MoveListEntry) {
+        self.list.push(entry);
         self.len += 1;
     }
 
