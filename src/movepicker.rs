@@ -75,10 +75,6 @@ impl MovePicker {
             }
         }
         if self.stage == Stage::Killer {
-            if self.skip_quiets {
-                self.stage = Stage::Done;
-                return None;
-            }
             self.stage = Stage::GenerateQuiets;
             if self.killer.exists()
                 && board.is_pseudo_legal(&self.killer)
