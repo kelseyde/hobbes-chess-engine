@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::consts::Piece;
+use crate::types::piece::Piece;
 use crate::types::square::Square;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
