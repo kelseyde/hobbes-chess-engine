@@ -87,7 +87,7 @@
 - [x] Incremental selection sort
 - [x] Staged movegen
 - [ ] Killer stage
-- [ ] Split good/bad noisies
+- [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
 
