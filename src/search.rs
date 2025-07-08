@@ -199,10 +199,13 @@ fn alpha_beta(
             continue;
         }
 
-        if !root_node
+        if !pv_node
+            && !root_node
+            && !in_check
+            && !is_mate_score
             && is_quiet
             && depth <= 5
-            && history_score < -1000 - 2800 * depth
+            && history_score < -1000 - 3000 * depth
         {
             continue
         }
