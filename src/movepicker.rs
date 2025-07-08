@@ -78,7 +78,8 @@ impl MovePicker {
             self.stage = Stage::GenerateQuiets;
             if self.killer.exists()
                 && board.is_pseudo_legal(&self.killer)
-                && board.is_legal(&self.killer) {
+                && board.is_legal(&self.killer)
+                && self.killer != self.tt_move {
                 return Some(self.killer)
             }
         }
