@@ -181,6 +181,7 @@ fn alpha_beta(
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let lmr_depth = depth.saturating_sub(base_reduction);
 
         if !pv_node
             && !root_node
@@ -188,7 +189,7 @@ fn alpha_beta(
             && is_quiet
             && depth < 6
             && !is_mate_score
-            && static_eval + 100 * depth.max(1) + 150 <= alpha
+            && static_eval + 100 * lmr_depth + 150 <= alpha
         {
             continue;
         }
