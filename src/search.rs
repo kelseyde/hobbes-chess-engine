@@ -109,7 +109,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_depth = 0;
 
     // Transposition Table probe
-    if !root_node && !singular_search{
+    if !singular_search {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
@@ -119,22 +119,20 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 tt_move = entry.best_move();
             }
 
-            if entry.depth() >= depth as u8 {
-                let score = entry.score(ply) as i32;
-
-            if tt_depth >= depth && bounds_match(entry.flag(), tt_score, alpha, beta) {
+            if !root_node
+                && tt_depth >= depth
+                && bounds_match(entry.flag(), tt_score, alpha, beta) {
                 return tt_score;
             }
+
         }
     }
 
-    let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
 
     // Static Evaluation
     if !in_check {
-        raw_eval = td.nnue.evaluate(board);
-        static_eval = raw_eval + td.correction(board);
+        static_eval = td.nnue.evaluate(board) + td.correction(board);
     };
 
     td.ss[ply].static_eval = Some(static_eval);
@@ -186,7 +184,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         legal_moves += 1;
 
-        if Some(*mv) == singular {
+        if singular.is_some_and(|s| s == mv) {
             continue;
         }
 
@@ -234,17 +232,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         if !root_node
             && !singular_search
-            && mv == &tt_move
-            && depth >= 8
             && tt_hit
-            && tt_depth >= depth
+            && mv == tt_move
+            && depth >= 8
             && tt_flag != Upper
             && tt_depth >= depth - 3 {
 
-            let s_beta = (tt_score - depth * 14 / 16).max(-Score::MATE + 1);
+            let s_beta = (tt_score - depth * 32).max(-Score::MATE + 1);
             let s_depth = (depth - 1) / 2;
 
-            td.ss[ply].singular = Some(*mv);
+            td.ss[ply].singular = Some(mv);
             let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cutnode);
             td.ss[ply].singular = None;
 
@@ -390,7 +387,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     // Write to transposition table
-    if !root_node && !singular_search {
+    if !singular_search && !td.hard_limit_reached(){
         td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
