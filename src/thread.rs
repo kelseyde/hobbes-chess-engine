@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::history::{CaptureHistory, CorrectionHistory, ContinuationHistory, QuietHistory};
 use crate::consts::Side;
+use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};

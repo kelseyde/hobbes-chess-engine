@@ -1,7 +1,7 @@
 use crate::bits::{CastleSafety, CastleTravel, Rights};
 use crate::consts::Piece::{King, Pawn};
 use crate::consts::Side::{Black, White};
-use crate::movegen::{gen_moves, is_attacked, is_check, MoveFilter};
+use crate::movegen::{is_attacked, is_check};
 use crate::types::bitboard::Bitboard;
 use crate::types::square::Square;
 use crate::types::{File, Rank};

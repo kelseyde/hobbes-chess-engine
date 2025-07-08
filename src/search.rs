@@ -1,6 +1,6 @@
 use crate::board::Board;
 use crate::consts::{Piece, Score, Side, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
+use crate::movegen::{is_check, is_legal, MoveFilter};
 use crate::movepicker::MovePicker;
 use crate::moves::Move;
 use crate::see;
@@ -430,10 +430,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         let pc = board.piece_at(mv.from());
-
-        if !in_check && board.captured(&mv).is_none() && mv != tt_move {
-            println!("Error: {}, {}", board.to_fen(), mv.to_uci())
-        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {

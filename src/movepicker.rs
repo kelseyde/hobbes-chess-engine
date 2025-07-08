@@ -79,14 +79,14 @@ impl MovePicker {
                     }
                 }
             } else {
-                self.stage = Stage::Done;
+                self.stage = Stage::GenerateQuiets;
             }
         }
         if self.stage == Stage::GenerateQuiets {
-            // if self.skip_quiets {
-            //     self.stage = Stage::Done;
-            //     return None;
-            // }
+            if self.skip_quiets {
+                self.stage = Stage::Done;
+                return None;
+            }
             self.moves = gen_moves(board, MoveFilter::Quiets);
             let scores = ordering::score(td, board, &self.moves, &self.tt_move, self.ply);
             self.moves.sort(&scores);
@@ -94,10 +94,10 @@ impl MovePicker {
             self.stage = Stage::Quiets;
         }
         if self.stage == Stage::Quiets {
-            // if self.skip_quiets {
-            //     self.stage = Stage::Done;
-            //     return None;
-            // }
+            if self.skip_quiets {
+                self.stage = Stage::Done;
+                return None;
+            }
             if self.idx < self.moves.len() {
                 let m = self.moves.get(self.idx);
                 self.idx += 1;
