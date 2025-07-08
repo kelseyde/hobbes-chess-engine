@@ -1,5 +1,6 @@
-use crate::consts::Score;
 use crate::moves::Move;
+use crate::search::Score;
+use std::mem::size_of;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
@@ -7,6 +8,7 @@ pub struct TranspositionTable {
 }
 
 #[derive(Clone)]
+#[derive(Default)]
 pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
@@ -67,13 +69,6 @@ impl TTEntry {
 
 }
 
-impl Default for TTEntry {
-    fn default() -> TTEntry {
-        TTEntry {
-            key: 0, best_move: 0, score: 0, depth: 0, flag: 0,
-        }
-    }
-}
 
 impl Default for TranspositionTable {
     fn default() -> TranspositionTable {
@@ -113,12 +108,20 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, best_move: &Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, mut best_move: Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
-        entry.key = (hash & 0xFFFF) as u16;
+
+        let key_part = (hash & 0xFFFF) as u16;
+        let key_match = key_part == entry.key;
+
+        if !best_move.exists() && key_match {
+            best_move = entry.best_move();
+        }
+
+        entry.key = key_part;
         entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply) as i16;
+        entry.score = to_tt(score, ply);
         entry.depth = depth;
         entry.flag = flag.to_u8();
     }
@@ -160,7 +163,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, &best_move, score, depth, 0, flag);
+        tt.insert(hash, best_move, score, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 

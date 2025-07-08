@@ -1,12 +1,13 @@
 use std::time::Instant;
 
 use crate::board::Board;
-use crate::history::{ContinuationHistory, QuietHistory};
+use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
+use crate::types::side::Side;
 
 pub struct ThreadData {
     pub id: usize,
@@ -17,7 +18,10 @@ pub struct ThreadData {
     pub keys: Vec<u64>,
     pub root_ply: usize,
     pub quiet_history: QuietHistory,
+    pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
+    pub pawn_corrhist: CorrectionHistory,
+    pub nonpawn_corrhist: [CorrectionHistory; 2],
     pub lmr: LmrTable,
     pub node_table: NodeTable,
     pub limits: SearchLimits,
@@ -28,19 +32,21 @@ pub struct ThreadData {
     pub eval: i32,
 }
 
-impl ThreadData {
-
-    pub fn new() -> Self {
+impl Default for ThreadData {
+    fn default() -> Self {
         ThreadData {
             id: 0,
             main: true,
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
-            nnue: NNUE::new(),
+            nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
+            capture_history: CaptureHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, None),
@@ -51,6 +57,9 @@ impl ThreadData {
             eval: 0,
         }
     }
+}
+
+impl ThreadData {
 
     pub fn with_depth_limit(depth: i32) -> Self {
         ThreadData {
@@ -58,11 +67,14 @@ impl ThreadData {
             main: true,
             tt: TranspositionTable::new(64),
             ss: SearchStack::new(),
-            nnue: NNUE::new(),
+            nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
             quiet_history: QuietHistory::new(),
+            capture_history: CaptureHistory::new(),
             cont_history: ContinuationHistory::new(),
+            pawn_corrhist: CorrectionHistory::new(),
+            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             lmr: LmrTable::default(),
             node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
@@ -72,6 +84,12 @@ impl ThreadData {
             best_move: Move::NONE,
             eval: 0,
         }
+    }
+
+    pub fn correction(&self, board: &Board) -> i32 {
+        self.pawn_corrhist.get(board.stm, board.pawn_hash)
+            + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
+            + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
     }
 
     pub fn reset(&mut self) {
@@ -84,13 +102,23 @@ impl ThreadData {
         self.eval = 0;
     }
 
-    pub fn is_repetition(&self, board: &Board) -> bool {
+    pub fn clear(&mut self) {
+        self.tt.clear();
+        self.keys.clear();
+        self.root_ply = 0;
+        self.quiet_history.clear();
+        self.capture_history.clear();
+        self.cont_history.clear();
+        self.pawn_corrhist.clear();
+        self.nonpawn_corrhist[Side::White].clear();
+        self.nonpawn_corrhist[Side::Black].clear();
+    }
 
+    pub fn is_repetition(&self, board: &Board) -> bool {
         let curr_hash = board.hash;
         let mut repetitions = 0;
-        let end = self.keys.len() - board.hm as usize - 1;
+        let end = self.keys.len().saturating_sub(board.hm as usize + 1);
         for ply in (end..self.keys.len().saturating_sub(2)).rev() {
-
             let hash = self.keys[ply];
             repetitions += u8::from(curr_hash == hash);
 
@@ -103,9 +131,19 @@ impl ThreadData {
             if repetitions == 2 {
                 return true;
             }
-
         }
         false
+    }
+
+    pub fn update_correction_history(&mut self, board: &Board, depth: i32, static_eval: i32, best_score: i32) {
+        let us = board.stm;
+        let pawn_hash = board.pawn_hash;
+        let w_nonpawn_hash = board.non_pawn_hashes[Side::White];
+        let b_nonpawn_hash = board.non_pawn_hashes[Side::Black];
+
+        self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
+        self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
+        self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
     }
 
     pub fn time(&self) -> u128 {
@@ -114,8 +152,8 @@ impl ThreadData {
 
     pub fn should_stop(&self, limit_type: LimitType) -> bool {
         match limit_type {
-            LimitType::Soft => { self.soft_limit_reached() },
-            LimitType::Hard => { self.hard_limit_reached() },
+            LimitType::Soft => self.soft_limit_reached(),
+            LimitType::Hard => self.hard_limit_reached(),
         }
     }
 
@@ -164,7 +202,6 @@ impl ThreadData {
 
         false
     }
-
 }
 
 pub struct NodeTable {
@@ -199,8 +236,7 @@ mod tests {
 
     #[test]
     fn test_twofold_rep_after_root() {
-
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.keys.push(board.hash);
         assert!(!td.is_repetition(&board));
@@ -216,13 +252,11 @@ mod tests {
 
         make_move(&mut td, &mut board, "f6g8");
         assert!(td.is_repetition(&board));
-
     }
 
     #[test]
     fn test_twofold_rep_before_root() {
-
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.root_ply = 3;
         td.keys.push(board.hash);
@@ -239,13 +273,11 @@ mod tests {
 
         make_move(&mut td, &mut board, "f6g8");
         assert!(!td.is_repetition(&board));
-
     }
 
     #[test]
     fn test_threefold_rep_before_root() {
-
-        let mut td = ThreadData::new();
+        let mut td = ThreadData::default();
         let mut board = Board::new();
         td.root_ply = 7;
         td.keys.push(board.hash);
@@ -274,7 +306,6 @@ mod tests {
 
         make_move(&mut td, &mut board, "f6g8");
         assert!(td.is_repetition(&board));
-
     }
 
     fn make_move(td: &mut ThreadData, board: &mut Board, mv: &str) {
@@ -282,5 +313,4 @@ mod tests {
         board.make(&mv);
         td.keys.push(board.hash);
     }
-
 }

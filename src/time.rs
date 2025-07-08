@@ -43,12 +43,13 @@ impl SearchLimits {
 
     pub fn scaled_soft_limit(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
-            if depth < 4 {
+            if depth < 4 || best_move_nodes == 0 {
                 soft_time
             } else {
                 let nodes_fraction = best_move_nodes as f32 / nodes as f32;
                 let nodes_factor = 2.15 - 1.5 * nodes_fraction;
-                Duration::from_secs_f32(soft_time.as_secs_f32() * nodes_factor)
+                let limit = soft_time.as_secs_f32() * nodes_factor;
+                Duration::from_secs_f32(limit)
             }
         })
     }

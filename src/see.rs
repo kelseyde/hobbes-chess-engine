@@ -1,11 +1,16 @@
 use crate::attacks;
 use crate::board::Board;
-use crate::consts::{Piece, Side};
 use crate::moves::Move;
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
 use crate::types::square::Square;
 
 const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
+
+pub fn value(pc: Piece) -> i32 {
+    PIECE_VALUES[pc]
+}
 
 pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
@@ -47,7 +52,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
             break;
         }
 
-        let attacker = least_valuable_attacker(&board, our_attackers);
+        let attacker = least_valuable_attacker(board, our_attackers);
 
         if attacker == Piece::King && !(attackers & board.side(stm.flip())).is_empty() {
             break;
@@ -154,6 +159,7 @@ mod tests {
             let board = Board::from_fen(fen);
             let moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
+                .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
                 .expect("Move not found in generated moves");
 
@@ -184,6 +190,7 @@ mod tests {
         let board = Board::from_fen(fen);
         let moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
+            .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)
             .expect("Move not found in generated moves");
 

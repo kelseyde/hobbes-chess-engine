@@ -1,38 +1,40 @@
 use crate::board::Board;
-use crate::consts::{Piece, Score, MAX_DEPTH};
-use crate::movegen::{gen_moves, is_check, is_legal, MoveFilter};
+use crate::movegen::{is_check, MoveFilter};
+use crate::movepicker::MovePicker;
 use crate::moves::Move;
-use crate::ordering::score;
 use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
+use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
+use crate::types::piece::Piece;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use crate::time::LimitType::{Hard, Soft};
 
 pub const MAX_PLY: usize = 256;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
-
     td.start_time = Instant::now();
     td.best_move = Move::NONE;
+    td.nnue.activate(board);
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
     let mut delta = 24;
 
+    // Iterative Deepening
     while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
 
+        // Aspiration Windows
         if td.depth >= 4 {
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta);
+            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
             if td.main {
                 if td.best_move.exists() {
@@ -42,7 +44,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
             }
 
-            if td.hard_limit_reached() || Score::is_mate(score) {
+            if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
             }
 
@@ -64,69 +66,84 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     (td.best_move, score)
-
 }
 
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, mut beta: i32) -> i32 {
+#[rustfmt::skip]
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cutnode: bool) -> i32 {
 
     // If search is aborted, exit immediately
-    if td.should_stop(Hard) { return alpha }
+    if td.should_stop(Hard) {
+        return alpha;
+    }
 
     let in_check = is_check(board, board.stm);
 
     // If depth is reached, drop into quiescence search
-    if depth <= 0 && !in_check { return qs(&board, td, alpha, beta, ply) }
+    if depth <= 0 && !in_check {
+        return qs(board, td, alpha, beta, ply);
+    }
 
-    if depth < 0 { depth = 0; }
+    if depth < 0 {
+        depth = 0;
+    }
 
-    if ply > 0 && is_draw(&td, &board) {
+    if ply > 0 && is_draw(td, board) {
         return Score::DRAW;
     }
 
-    if depth == MAX_DEPTH { return td.nnue.evaluate(&board) }
+    if depth == MAX_DEPTH {
+        return td.nnue.evaluate(board);
+    }
 
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
     let mut tt_move = Move::NONE;
 
+    // Transposition Table probe
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
-            tt_move = entry.best_move();
+            if can_use_tt_move(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+            }
 
             if entry.depth() >= depth as u8 {
                 let score = entry.score(ply) as i32;
-                match entry.flag() {
-                    TTFlag::Exact => return score,
-                    TTFlag::Lower => alpha = alpha.max(score),
-                    TTFlag::Upper => beta = beta.min(score),
-                }
 
-                if alpha >= beta {
+                if bounds_match(entry.flag(), score, alpha, beta) {
                     return score;
                 }
             }
         }
     }
 
-    let static_eval = if in_check { Score::MIN } else { td.nnue.evaluate(&board) };
+    let raw_eval;
+    let mut static_eval = Score::MIN;
+
+    // Static Evaluation
+    if !in_check {
+        raw_eval = td.nnue.evaluate(board);
+        static_eval = raw_eval + td.correction(board);
+    };
+    td.ss[ply].static_eval = Some(static_eval);
+
+    let improving = is_improving(td, ply, static_eval);
 
     if !root_node && !pv_node && !in_check {
 
-        if depth <= 8
-            && static_eval - 80 * depth >= beta {
-            return static_eval;
+        // Reverse Futility Pruning
+        if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
+            return beta + (static_eval - beta) / 3;
         }
 
-        if depth >= 3
-            && static_eval >= beta
-            && board.has_non_pawns() {
-
+        // Null Move Pruning
+        if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
+            let r = 3 + depth / 3;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - 3, ply + 1, -beta, -beta + 1);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cutnode);
             td.keys.pop();
 
             if score >= beta {
@@ -136,29 +153,34 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     }
 
-    let mut moves = gen_moves(board, MoveFilter::All);
-    let scores = score(&td, &board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+    let mut move_picker = MovePicker::new(tt_move, ply);
 
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
     let mut quiet_count = 0;
+    let mut capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
-    let mut quiet_moves = ArrayVec::<Move, 32>::new();
+    let mut quiets = ArrayVec::<Move, 32>::new();
+    let mut captures = ArrayVec::<Move, 32>::new();
 
-    for mv in moves.iter() {
+    while let Some(mv) = move_picker.next(board, td) {
 
-        if !is_legal(&board, &mv) {
+        if !board.is_legal(&mv) {
             continue;
         }
 
-        let pc = board.piece_at(mv.from());
+        legal_moves += 1;
+
+        let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let base_reduction = td.lmr.reduction(depth, legal_moves);
 
+        // Futility Pruning
         if !pv_node
             && !root_node
             && !in_check
@@ -169,22 +191,35 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        // Late Move Pruning
+        if !pv_node
+            && !root_node
+            && !is_mate_score
+            && is_quiet
+            && depth <= 4
+            && searched_moves > 4 + 3 * depth * depth {
+            continue;
+        }
+
+        // SEE Pruning
         let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
         if !pv_node
             && depth <= 8
-            && move_count >= 1
+            && searched_moves >= 1
             && !Score::is_mate(best_score)
-            && !see(&board, &mv, see_threshold) {
+            && !see(board, &mv, see_threshold) {
             continue;
         }
 
         let mut board = *board;
+        td.nnue.update(&mv, pc, captured, &board);
         board.make(&mv);
-        td.ss[ply].mv = Some(*mv);
-        td.ss[ply].pc = pc;
+
+        td.ss[ply].mv = Some(mv);
+        td.ss[ply].pc = Some(pc);
         td.keys.push(board.hash);
 
-        move_count += 1;
+        searched_moves += 1;
         td.nodes += 1;
 
         let mut extension = 0;
@@ -196,38 +231,53 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
-        if depth >= 3 && move_count > 3 + root_node as i32 + pv_node as i32 && is_quiet {
-            let reduction = td.lmr.reduction(depth, move_count);
 
-            let reduced_depth = (new_depth - reduction).max(1).min(new_depth);
+        // Principal Variation Search
+        if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 && is_quiet {
+            // Late Move Reductions
+            let mut reduction = base_reduction;
 
-            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha);
-
-            if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+            if cutnode {
+                reduction += 1;
             }
-        } else if !pv_node || move_count > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha);
+
+            let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
+
+            // Reduced-depth search
+            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+
+            // Re-search if we reduced depth and score beat alpha
+            if score > alpha && new_depth > reduced_depth {
+                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
+            }
+        } else if !pv_node || searched_moves > 1 {
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
         }
 
-        if pv_node && (move_count == 1 || score > alpha) {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha);
+        if pv_node && (searched_moves == 1 || score > alpha) {
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
         if is_quiet && quiet_count < 32 {
-            quiet_moves.push(*mv);
+            quiets.push(mv);
             quiet_count += 1;
+        } else if captured.is_some() && capture_count < 32 {
+            captures.push(mv);
+            capture_count += 1;
         }
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+        td.nnue.undo();
 
         if root_node {
-            td.node_table.add(mv, td.nodes - initial_nodes);
+            td.node_table.add(&mv, td.nodes - initial_nodes);
         }
 
-        if td.should_stop(Hard) { break; }
+        if td.should_stop(Hard) {
+            break;
+        }
 
         if score > best_score {
             best_score = score;
@@ -235,10 +285,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         if score > alpha {
             alpha = score;
-            best_move = *mv;
+            best_move = mv;
             flag = TTFlag::Exact;
             if root_node {
-                td.best_move = mv.clone();
+                td.best_move = mv;
             }
 
             if score >= beta {
@@ -248,46 +298,77 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    if best_move.exists() && !board.is_noisy(&best_move) {
+    // Update history tables
+    if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
-
-        td.ss[ply].killer = Some(best_move);
 
         let quiet_bonus = (120 * depth as i16 - 75).min(1200);
         let quiet_malus = (120 * depth as i16 - 75).min(1200);
 
+        let capt_bonus = (120 * depth as i16 - 75).min(1200);
+        let capt_malus = (120 * depth as i16 - 75).min(1200);
+
         let cont_bonus = (120 * depth as i16 - 75).min(1200);
         let cont_malus = (120 * depth as i16 - 75).min(1200);
 
-        td.quiet_history.update(board.stm, &best_move, quiet_bonus);
-        update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+        if let Some(captured) = board.captured(&best_move) {
+            td.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+        } else {
+            td.ss[ply].killer = Some(best_move);
 
-        for mv in quiet_moves.iter() {
+            td.quiet_history.update(board.stm, &best_move, quiet_bonus);
+            update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+
+            for mv in quiets.iter() {
+                if mv != &best_move {
+                    td.quiet_history.update(board.stm, mv, -quiet_malus);
+                    update_continuation_history(td, ply, mv, pc, -cont_malus);
+                }
+            }
+        }
+
+        for mv in captures.iter() {
             if mv != &best_move {
-                td.quiet_history.update(board.stm, mv, -quiet_malus);
-                update_continuation_history(td, ply, mv, pc, -cont_malus);
+                if let Some(captured) = board.captured(mv) {
+                    td.capture_history.update(board.stm, pc, mv.to(), captured, -capt_malus);
+                }
             }
         }
     }
 
-    // handle checkmate / stalemate
-    if move_count == 0 {
-        return if in_check { -Score::MATE + ply as i32} else { Score::DRAW }
+    // Handle checkmate / stalemate
+    if legal_moves == 0 {
+        return if in_check {
+            -Score::MATE + ply as i32
+        } else {
+            Score::DRAW
+        };
     }
 
+    // Update static eval correction history
+    if !in_check
+        && !Score::is_mate(best_score)
+        && bounds_match(flag, best_score, static_eval, static_eval)
+        && (!best_move.exists() || !board.is_noisy(&best_move)) {
+        td.update_correction_history(board, depth, static_eval, best_score);
+    }
+
+    // Write to transposition table
     if !root_node {
-        td.tt.insert(board.hash, &best_move, best_score, depth as u8, ply, flag);
+        td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
     best_score
 }
 
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: usize) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
 
     // If search is aborted, exit immediately
-    if td.should_stop(Hard) { return alpha }
+    if td.should_stop(Hard) {
+        return alpha;
+    }
 
-    if ply > 0 && is_draw(&td, &board) {
+    if ply > 0 && is_draw(td, board) {
         return Score::DRAW;
     }
 
@@ -296,44 +377,46 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
-        tt_move = entry.best_move();
-        let score = entry.score(ply) as i32;
-        match entry.flag() {
-            TTFlag::Exact => return score,
-            TTFlag::Lower => alpha = alpha.max(score),
-            TTFlag::Upper => beta = beta.min(score),
+        if can_use_tt_move(board, &entry.best_move()) {
+            tt_move = entry.best_move();
         }
+        let score = entry.score(ply) as i32;
 
-        if alpha >= beta {
+        if bounds_match(entry.flag(), score, alpha, beta) {
             return score;
         }
     }
 
     if !in_check {
-        let eval = td.nnue.evaluate(&board);
-        if eval > alpha {
-            alpha = eval
+        let static_eval = td.nnue.evaluate(board) + td.correction(board);
+
+        if static_eval > alpha {
+            alpha = static_eval
         }
         if alpha >= beta {
             return alpha;
         }
     }
 
-    let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
-    let mut moves = gen_moves(board, filter);
-    let scores = score(&td, &board, &moves, &tt_move, ply);
-    moves.sort(&scores);
+    let filter = if in_check {
+        MoveFilter::All
+    } else {
+        MoveFilter::Captures
+    };
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply);
+
     let mut move_count = 0;
 
     let mut best_score = alpha;
 
-    for mv in moves.iter() {
+    while let Some(mv) = move_picker.next(board, td) {
 
-        if !is_legal(&board, &mv) {
+        if !board.is_legal(&mv) {
             continue;
         }
 
-        let pc = board.piece_at(mv.from());
+        let pc = board.piece_at(mv.from()).unwrap();
+        let captured = board.captured(&mv);
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
@@ -341,9 +424,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         }
 
         let mut board = *board;
+        td.nnue.update(&mv, pc, captured, &board);
+
         board.make(&mv);
-        td.ss[ply].mv = Some(*mv);
-        td.ss[ply].pc = pc;
+        td.ss[ply].mv = Some(mv);
+        td.ss[ply].pc = Some(pc);
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -354,8 +439,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
         td.keys.pop();
+        td.nnue.undo();
 
-        if td.should_stop(Hard) { break; }
+        if td.should_stop(Hard) {
+            break;
+        }
 
         if score > best_score {
             best_score = score;
@@ -378,13 +466,34 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, mut beta: i32, ply: us
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
-    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(&board)
+    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(board)
+}
+
+fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
+    if static_eval == Score::MIN {
+        return false;
+    }
+    if ply > 1 {
+        if let Some(prev_eval) = td.ss[ply - 2]
+            .static_eval
+            .filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
+    }
+    if ply > 3 {
+        if let Some(prev_eval) = td.ss[ply - 4]
+            .static_eval
+            .filter(|eval| *eval != Score::MIN) {
+            return static_eval > prev_eval;
+        }
+    }
+    true
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
-    for &prev_ply in &[1] {
-        if prev_ply >= ply {
-            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[prev_ply].mv, td.ss[prev_ply].pc) {
+    for &prev_ply in &[1, 2] {
+        if ply >= prev_ply {
+            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - prev_ply].mv, td.ss[ply - prev_ply].pc) {
                 td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
             }
         }
@@ -421,6 +530,18 @@ impl Default for LmrTable {
     }
 }
 
+fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
+    match flag {
+        TTFlag::Exact => true,
+        TTFlag::Lower => score >= upper,
+        TTFlag::Upper => score <= lower,
+    }
+}
+
+fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
+    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
+}
+
 pub struct SearchStack {
     data: [StackEntry; MAX_PLY + 8],
 }
@@ -430,14 +551,26 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
+    pub static_eval: Option<i32>,
+}
+
+impl Default for SearchStack {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SearchStack {
-
     pub fn new() -> Self {
-        SearchStack { data: [StackEntry { mv: None, pc: None, killer: None }; MAX_PLY + 8] }
+        SearchStack {
+            data: [StackEntry {
+                mv: None,
+                pc: None,
+                killer: None,
+                static_eval: None,
+            }; MAX_PLY + 8],
+        }
     }
-
 }
 
 impl Index<usize> for SearchStack {
@@ -451,5 +584,20 @@ impl Index<usize> for SearchStack {
 impl IndexMut<usize> for SearchStack {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { self.data.get_unchecked_mut(index) }
+    }
+}
+
+pub const MAX_DEPTH: i32 = 255;
+
+pub struct Score {}
+
+impl Score {
+    pub const DRAW: i32 = 0;
+    pub const MAX: i32 = 32767;
+    pub const MIN: i32 = -32767;
+    pub const MATE: i32 = 32766;
+
+    pub fn is_mate(score: i32) -> bool {
+        score.abs() >= Score::MATE - MAX_DEPTH
     }
 }
