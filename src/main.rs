@@ -2,9 +2,7 @@ use crate::uci::UCI;
 
 pub mod attacks;
 pub mod bench;
-pub mod bits;
 pub mod board;
-pub mod consts;
 pub mod fen;
 pub mod magics;
 pub mod movegen;

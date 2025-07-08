@@ -1,9 +1,10 @@
 use std::io;
 
-use consts::Side::{Black, White};
+use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
+use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::network::NNUE;
@@ -11,7 +12,6 @@ use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
-use crate::{consts, fen};
 
 pub struct UCI {
     pub board: Board,
@@ -29,8 +29,8 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::new().into(),
-            nnue: NNUE::new().into(),
+            td: ThreadData::default().into(),
+            nnue: NNUE::default().into(),
         }
     }
 

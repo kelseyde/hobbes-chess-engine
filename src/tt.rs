@@ -1,5 +1,6 @@
-use crate::consts::Score;
 use crate::moves::Move;
+use crate::search::Score;
+use std::mem::size_of;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
@@ -162,7 +163,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, &best_move, score, depth, 0, flag);
+        tt.insert(hash, best_move, score, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
