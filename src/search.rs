@@ -98,11 +98,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let mut tt_hit = false;
+    let mut tt_flag = TTFlag::Upper;
     let mut tt_move = Move::NONE;
+    let mut tt_score = Score::MIN;
 
     // Transposition Table probe
     if !root_node {
         if let Some(entry) = td.tt.probe(board.hash) {
+            tt_hit = true;
+            tt_flag = entry.flag();
+            tt_score = entry.score(ply) as i32;
+
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
             }
@@ -124,6 +131,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if !in_check {
         raw_eval = td.nnue.evaluate(board);
         static_eval = raw_eval + td.correction(board);
+
+        // Re-use TT score as a more accurate static evaluation
+        if tt_hit && bounds_match(tt_flag, tt_score, static_eval, static_eval) {
+            static_eval = tt_score;
+        }
     };
     td.ss[ply].static_eval = Some(static_eval);
 
