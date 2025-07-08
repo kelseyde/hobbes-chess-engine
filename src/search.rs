@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::movegen::{is_check, is_legal, MoveFilter};
+use crate::movegen::{is_check, MoveFilter};
 use crate::movepicker::MovePicker;
 use crate::moves::Move;
 use crate::see;
@@ -405,7 +405,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     while let Some(mv) = move_picker.next(board, td) {
 
-        if !is_legal(&board, &mv) {
+        if !board.is_legal(&mv) {
             continue;
         }
 
