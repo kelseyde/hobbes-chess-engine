@@ -128,11 +128,13 @@ impl UCI {
         self.td.keys.push(self.board.hash);
 
         moves.iter().for_each(|m| {
-            let legal_moves = gen_moves(&self.board, MoveFilter::All);
-            let legal_move = legal_moves.iter().find(|lm| lm.matches(m));
+            let mut legal_moves = gen_moves(&self.board, MoveFilter::All);
+            let legal_move = legal_moves.iter()
+                .map(|entry| entry.mv)
+                .find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.board.make(m);
+                    self.board.make(&m);
                     self.td.keys.push(self.board.hash);
                     self.td.root_ply += 1;
                 }

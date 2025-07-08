@@ -158,6 +158,7 @@ mod tests {
             let board = Board::from_fen(fen);
             let moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
+                .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
                 .expect("Move not found in generated moves");
 
@@ -188,6 +189,7 @@ mod tests {
         let board = Board::from_fen(fen);
         let moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
+            .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)
             .expect("Move not found in generated moves");
 

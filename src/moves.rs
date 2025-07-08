@@ -201,8 +201,8 @@ impl MoveList {
         self.len += 1;
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Move> {
-        self.list.iter().take(self.len).map(|entry| &entry.mv)
+    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
+        self.list.iter_mut().take(self.len)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -217,9 +217,9 @@ impl MoveList {
         self.len
     }
 
-    pub fn get(&self, idx: usize) -> Option<Move> {
+    pub fn get(&mut self, idx: usize) -> Option<&mut MoveListEntry> {
         if idx < self.len {
-            Some(self.list[idx].mv)
+            Some(&mut self.list[idx])
         } else {
             None
         }

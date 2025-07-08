@@ -155,7 +155,7 @@ fn alpha_beta(
         }
     }
 
-    let mut move_picker = MovePicker::new(tt_move, MoveFilter::Noisies, ply);
+    let mut move_picker = MovePicker::new(tt_move, ply);
 
     let mut move_count = 0;
     let mut quiet_count = 0;

@@ -14,7 +14,6 @@ pub mod search;
 pub mod thread;
 pub mod uci;
 pub mod zobrist;
-pub mod ordering;
 pub mod tt;
 pub mod history;
 pub mod see;
