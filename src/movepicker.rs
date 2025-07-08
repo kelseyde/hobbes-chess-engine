@@ -9,6 +9,7 @@ pub enum Stage {
     TTMove,
     GenerateNoisies,
     Noisies,
+    Killer,
     GenerateQuiets,
     Quiets,
     Done
@@ -20,13 +21,14 @@ pub struct MovePicker {
     idx: usize,
     stage: Stage,
     tt_move: Move,
+    killer: Move,
     ply: usize,
     pub skip_quiets: bool,
 }
 
 impl MovePicker {
 
-    pub fn new(tt_move: Move, ply: usize) -> Self {
+    pub fn new(tt_move: Move, killer: Move, ply: usize) -> Self {
         let stage = if tt_move.exists() { Stage::TTMove } else { Stage::GenerateNoisies };
         Self {
             moves: MoveList::new(),
@@ -34,6 +36,7 @@ impl MovePicker {
             idx: 0,
             stage,
             tt_move,
+            killer,
             ply,
             skip_quiets: false,
         }
@@ -47,6 +50,7 @@ impl MovePicker {
             idx: 0,
             stage,
             tt_move,
+            killer: Move::NONE,
             ply,
             skip_quiets: true,
         }
@@ -67,7 +71,19 @@ impl MovePicker {
             if let Some(best_move) = self.pick() {
                 return Some(best_move)
             } else {
-                self.stage = Stage::GenerateQuiets;
+                self.stage = Stage::Killer;
+            }
+        }
+        if self.stage == Stage::Killer {
+            if self.skip_quiets {
+                self.stage = Stage::Done;
+                return None;
+            }
+            self.stage = Stage::GenerateQuiets;
+            if self.killer.exists()
+                && board.is_pseudo_legal(&self.killer)
+                && board.is_legal(&self.killer) {
+                return Some(self.killer)
             }
         }
         if self.stage == Stage::GenerateQuiets {
@@ -118,9 +134,7 @@ impl MovePicker {
                     }
                 }
             }
-            let is_killer = td.ss[ply].killer == Some(*mv);
-            let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score + cont_score;
+            entry.score = quiet_score + cont_score;
         }
 
     }
@@ -149,7 +163,7 @@ impl MovePicker {
 
             if let Some(best_move) = self.moves.get(self.idx) {
                 let mv = best_move.mv;
-                if mv == self.tt_move {
+                if self.is_special(mv) {
                     self.idx += 1;
                     continue;
                 }
@@ -158,6 +172,10 @@ impl MovePicker {
             }
             return None;
         }
+    }
+
+    fn is_special(&self, mv: Move) -> bool {
+        mv == self.tt_move || mv == self.killer
     }
 
 }

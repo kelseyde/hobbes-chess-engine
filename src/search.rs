@@ -105,6 +105,7 @@ fn alpha_beta(
 
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
+    let killer = td.ss[ply].killer.unwrap_or(Move::NONE);
 
     let mut tt_move = Move::NONE;
 
@@ -155,7 +156,7 @@ fn alpha_beta(
         }
     }
 
-    let mut move_picker = MovePicker::new(tt_move, ply);
+    let mut move_picker = MovePicker::new(tt_move, killer, ply);
 
     let mut move_count = 0;
     let mut quiet_count = 0;
