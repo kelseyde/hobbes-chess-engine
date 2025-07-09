@@ -73,7 +73,8 @@ impl NNUE {
 
         output *= SCALE;
         output /= QAB;
-        output
+        scale_evaluation(board, output)
+
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -202,6 +203,18 @@ fn ft_idx(sq: Square, pc: Piece, side: Side, perspective: Side) -> usize {
 
 fn crelu(x: i16) -> i32 {
     0.max(x).min(QA as i16) as i32
+}
+
+fn scale_evaluation(board: &Board, eval: i32) -> i32 {
+
+    let knights = board.knights(White) & board.knights(Black);
+    let bishops = board.bishops(White) & board.bishops(Black);
+    let rooks = board.rooks(White) & board.rooks(Black);
+    let queens = board.queens(White) & board.queens(Black);
+    let material_phase = 3 * knights.count() + 3 * bishops.count() +
+                         5 * rooks.count() + 10 * queens.count();
+
+    eval * (22400 + material_phase as i32) / 32768
 }
 
 impl Default for Accumulator {
