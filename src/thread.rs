@@ -7,6 +7,7 @@ use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
+use crate::types::piece::Piece;
 use crate::types::side::Side;
 
 pub struct ThreadData {
@@ -140,6 +141,32 @@ impl ThreadData {
         self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
+    }
+
+    pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, pc: Piece, captured: Option<Piece>) -> i32 {
+        if let Some(captured) = captured {
+            self.capture_history_score(board, mv, pc, captured)
+        } else {
+            self.quiet_history_score(board, mv, ply)
+        }
+    }
+
+    pub fn quiet_history_score(&self, board: &Board, mv: &Move, ply: usize) -> i32 {
+        let pc = board.piece_at(mv.from()).unwrap();
+        let quiet_score = self.quiet_history.get(board.stm, *mv) as i32;
+        let mut cont_score = 0;
+        for &prev_ply in &[1, 2] {
+            if ply >= prev_ply  {
+                if let (Some(prev_mv), Some(prev_pc)) = (self.ss[ply - prev_ply].mv, self.ss[ply - prev_ply].pc) {
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
+                }
+            }
+        }
+        quiet_score + cont_score
+    }
+
+    pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
+        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
     }
 
     pub fn time(&self) -> u128 {

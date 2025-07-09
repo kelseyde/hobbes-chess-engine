@@ -179,6 +179,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let history_score = td.history_score(board, &mv, ply, pc, captured);
 
         // Futility Pruning
         if !pv_node
@@ -201,6 +202,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && searched_moves > 4 + 3 * depth * depth {
             move_picker.skip_quiets = true;
             continue;
+        }
+
+        // History Pruning
+        if !pv_node
+            && !root_node
+            && !in_check
+            && !is_mate_score
+            && is_quiet
+            && depth <= 4
+            && history_score < -2048 * depth * depth {
+            continue
         }
 
         // SEE Pruning
@@ -602,3 +614,4 @@ impl Score {
         score.abs() >= Score::MATE - MAX_DEPTH
     }
 }
+
