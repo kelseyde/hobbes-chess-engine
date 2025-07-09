@@ -94,25 +94,26 @@ impl MovePicker {
             }
         }
         if self.stage == GenerateQuiets {
-            if self.skip_quiets {
-                self.idx = 0;
-                self.stage = BadNoisies;
-            }
             self.idx = 0;
-            self.moves = gen_moves(board, MoveFilter::Quiets);
-            self.moves.iter().for_each(|entry| MovePicker::score(entry, board, td, self.ply));
-            self.stage = Quiets;
+            if self.skip_quiets {
+                self.stage = BadNoisies;
+            } else {
+                self.moves = gen_moves(board, MoveFilter::Quiets);
+                self.moves.iter().for_each(|entry| MovePicker::score(entry, board, td, self.ply));
+                self.stage = Quiets;
+            }
         }
         if self.stage == Quiets {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            }
-            if let Some(best_move) = self.pick(false) {
-                return Some(best_move)
             } else {
-                self.idx = 0;
-                self.stage = BadNoisies;
+                if let Some(best_move) = self.pick(false) {
+                    return Some(best_move)
+                } else {
+                    self.idx = 0;
+                    self.stage = BadNoisies;
+                }
             }
         }
         if self.stage == BadNoisies {
