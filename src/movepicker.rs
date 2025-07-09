@@ -76,6 +76,7 @@ impl MovePicker {
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply);
                 if self.see_threshold
+                    .map(|threshold| threshold + -entry.score / 34 + 107)
                     .map(|threshold| !see(board, &entry.mv, threshold))
                     .unwrap_or(false) {
                     self.bad_noisies.add(*entry);
