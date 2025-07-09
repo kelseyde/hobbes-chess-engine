@@ -217,8 +217,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // History Pruning
-        if !pv_node
-            && !root_node
+        if !root_node
             && !in_check
             && !is_mate_score
             && is_quiet
