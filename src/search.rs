@@ -190,7 +190,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
         let history_score = td.history_score(board, &mv, ply, pc, captured);
-        let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
         // Futility Pruning
@@ -259,7 +259,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let mut score = Score::MIN;
 
         // Principal Variation Search
-        if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 && is_quiet {
+        if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 {
             // Late Move Reductions
             let mut reduction = base_reduction;
 
@@ -527,28 +527,32 @@ fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: P
 }
 
 pub struct LmrTable {
-    table: [[i32; 64]; 256],
+    table: [[[i32; 2]; 64]; 256],
 }
 
 impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(255) as usize][move_count.min(63) as usize]
+    pub fn reduction(&self, depth: i32, move_count: i32, is_quiet: bool) -> i32 {
+        self.table[depth.min(255) as usize][move_count.min(63) as usize][is_quiet as usize]
     }
 }
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let base = 0.92;
-        let divisor = 3.11;
+        let quiet_base = 0.92;
+        let noisy_base = 0.93;
+        let quiet_divisor = 3.11;
+        let noisy_divisor = 3.07;
 
-        let mut table = [[0; 64]; 256];
+        let mut table = [[[0; 2]; 64]; 256];
 
         for depth in 1..256 {
             for move_count in 1..64 {
                 let ln_depth = (depth as f32).ln();
                 let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
-                table[depth as usize][move_count as usize] = reduction;
+                let quiet_reduction = (quiet_base + (ln_depth * ln_move_count / quiet_divisor)) as i32;
+                let noisy_reduction = (noisy_base + (ln_depth * ln_move_count / noisy_divisor)) as i32;
+                table[depth as usize][move_count as usize][1] = quiet_reduction;
+                table[depth as usize][move_count as usize][0] = noisy_reduction;
             }
         }
 
