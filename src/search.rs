@@ -211,14 +211,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !in_check
             && !is_mate_score
             && is_quiet
-            && depth <= 4
+            && lmr_depth <= 4
             && history_score < -2048 * depth * depth {
             move_picker.skip_quiets = true;
             continue
         }
 
         // SEE Pruning
-        let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
+        let see_threshold = if is_quiet { -56 * lmr_depth } else { -36 * depth * depth };
         if !pv_node
             && depth <= 8
             && searched_moves >= 1
