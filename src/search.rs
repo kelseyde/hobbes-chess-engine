@@ -69,7 +69,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 }
 
 #[rustfmt::skip]
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cutnode: bool) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -98,12 +98,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_depth = 0;
 
     // Transposition Table probe
     if let Some(entry) = td.tt.probe(board.hash) {
 
-        let tt_depth = entry.depth() as i32;
+        tt_hit = true;
+        tt_depth = entry.depth() as i32;
         let tt_score = entry.score(ply) as i32;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
@@ -143,7 +146,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cutnode);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
@@ -151,6 +154,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             }
         }
 
+    }
+
+    // Internal Iterative Reductions
+    if !root_node
+        && (pv_node || cut_node)
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4)
+        && depth >= 5 {
+        depth -= 1;
     }
 
     let mut move_picker = MovePicker::new(tt_move, ply);
@@ -252,7 +263,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             // Late Move Reductions
             let mut reduction = base_reduction;
 
-            if cutnode {
+            if cut_node {
                 reduction += 1;
             }
 
@@ -263,10 +274,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
+                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
             }
         } else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
         }
 
         if pv_node && (searched_moves == 1 || score > alpha) {

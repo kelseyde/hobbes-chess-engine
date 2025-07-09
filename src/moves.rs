@@ -168,6 +168,10 @@ impl Move {
         self != Move::NONE
     }
 
+    pub fn is_null(self) -> bool {
+        self == Move::NONE
+    }
+
     pub fn rook_to(kingside: bool, white: bool) -> Square {
         // Castling target for rooks
         if kingside {
