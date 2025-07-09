@@ -101,6 +101,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
     let mut tt_depth = 0;
+    td.ss[ply + 1].killer = None;
 
     // Transposition Table probe
     if let Some(entry) = td.tt.probe(board.hash) {
