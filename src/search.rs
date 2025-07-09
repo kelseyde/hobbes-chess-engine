@@ -188,6 +188,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && depth < 6
             && !is_mate_score
             && static_eval + 100 * depth.max(1) + 150 <= alpha {
+            move_picker.skip_quiets = true;
             continue;
         }
 
