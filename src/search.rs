@@ -24,6 +24,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut score = 0;
     let mut delta = 24;
 
+    let mut reduction = 0;
+    let max_reduction = 3;
+
     // Iterative Deepening
     while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
 
@@ -34,7 +37,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
+            let asp_depth = (td.depth - reduction).max(1);
+            score = alpha_beta(board, td, asp_depth, 0, alpha, beta, false);
 
             if td.main {
                 if td.best_move.exists() {
@@ -50,13 +54,18 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
             match score {
                 s if s <= alpha => {
+                    reduction = 0;
                     beta = (alpha + beta) / 2;
                     alpha = (score - delta).max(Score::MIN);
                 }
                 s if s >= beta => {
+                    reduction = (reduction + 1).min(max_reduction);
                     beta = (score + delta).min(Score::MAX);
                 }
-                _ => break,
+                _ => {
+                    reduction = 0;
+                    break
+                },
             }
 
             delta += delta / 2;
