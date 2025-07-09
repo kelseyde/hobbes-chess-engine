@@ -556,7 +556,7 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
 }
 
 pub struct SearchStack {
-    data: [StackEntry; MAX_PLY + 8],
+    data: [StackEntry; MAX_PLY + 64],
 }
 
 #[derive(Copy, Clone)]
@@ -581,7 +581,7 @@ impl SearchStack {
                 pc: None,
                 killer: None,
                 static_eval: None,
-            }; MAX_PLY + 8],
+            }; MAX_PLY + 64],
         }
     }
 }

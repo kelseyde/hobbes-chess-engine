@@ -2,6 +2,7 @@ use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
 use crate::moves::Move;
+use crate::search::MAX_PLY;
 use crate::types::piece::{Piece, PIECES};
 use crate::types::side::Side;
 use crate::types::square::Square;
@@ -15,7 +16,6 @@ pub const QAB: i32 = QA * QB;
 
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
-pub const MAX_ACCUMULATORS: usize = 255;
 
 static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/woodpusher.nnue")) };
@@ -36,7 +36,7 @@ pub struct Accumulator {
 }
 
 pub struct NNUE {
-    stack: [Accumulator; MAX_ACCUMULATORS],
+    stack: [Accumulator; MAX_PLY + 64],
     current: usize,
 }
 
@@ -44,7 +44,7 @@ impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
-            stack: [Accumulator::default(); MAX_ACCUMULATORS],
+            stack: [Accumulator::default(); MAX_PLY + 64],
         }
     }
 }

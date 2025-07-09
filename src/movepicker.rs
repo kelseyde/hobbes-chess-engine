@@ -75,13 +75,9 @@ impl MovePicker {
             let mut moves = gen_moves(board, self.filter);
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply);
-                if self.see_threshold
-                    .map(|threshold| !see(board, &entry.mv, threshold))
-                    .unwrap_or(false) {
-                    self.bad_noisies.add(*entry);
-                } else {
-                    self.moves.add(*entry);
-                }
+                let is_good = self.passes_see(board, &entry.mv);
+                let move_list = if is_good { &mut self.moves } else { &mut self.bad_noisies };
+                move_list.add(*entry);
             }
             self.stage = GoodNoisies;
         }
@@ -182,6 +178,12 @@ impl MovePicker {
             }
             return None;
         }
+    }
+
+    fn passes_see(&self, board: &Board, mv: &Move) -> bool {
+        self.see_threshold
+            .map(|threshold| see(board, mv, threshold))
+            .unwrap_or(true)
     }
 
 }
