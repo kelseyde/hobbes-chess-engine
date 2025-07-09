@@ -36,9 +36,9 @@
 - [x] PVS SEE noisy pruning
 - [ ] QS futility pruning
 - [ ] QS delta pruning
-- [ ] History pruning
+- [x] History pruning
 - [ ] Bad noisy pruning
-- [ ] Skip quiets
+- [x] Skip quiets
 
 #### Transposition Table
 - [ ] Static eval to TT
