@@ -615,4 +615,3 @@ impl Score {
         score.abs() >= Score::MATE - MAX_DEPTH
     }
 }
-
