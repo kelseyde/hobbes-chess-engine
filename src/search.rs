@@ -12,6 +12,7 @@ use crate::types::piece::Piece;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
+use TTFlag::Exact;
 
 pub const MAX_PLY: usize = 256;
 
@@ -341,7 +342,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = TTFlag::Exact;
+            flag = Exact;
             if root_node {
                 td.best_move = mv;
             }
@@ -594,9 +595,9 @@ impl Default for LmrTable {
 
 fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
     match flag {
-        TTFlag::Exact => true,
-        TTFlag::Lower => score >= upper,
-        TTFlag::Upper => score <= lower,
+        Exact => true,
+        Lower => score >= upper,
+        Upper => score <= lower,
     }
 }
 
