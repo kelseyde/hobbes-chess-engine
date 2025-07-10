@@ -264,7 +264,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && tt_flag != Upper
             && tt_depth >= depth - 3 {
 
-            let s_beta = (tt_score - depth * 32).max(-Score::MATE + 1);
+            let s_beta = (tt_score - depth * 32 / 16).max(-Score::MATE + 1);
             let s_depth = (depth - 1) / 2;
 
             td.ss[ply].singular = Some(mv);
