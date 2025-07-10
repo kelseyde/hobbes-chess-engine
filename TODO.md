@@ -23,10 +23,10 @@
 
 #### LMR
 - [x] LMR
-- [ ] LMR improving
+- [x] LMR improving
 - [ ] LMR PV node
 - [x] LMR Cutnode
-- [ ] LMR History
+- [x] LMR History
 
 #### Move-loop pruning
 - [x] Late move pruning
@@ -54,7 +54,8 @@
 - [x] Non-pawn correction history
 - [ ] Minor correction history
 - [ ] Major correction history
-- [ ] Continuation correction history
+- [x] Countermove correction history
+- [x] Follow-up move correction history
 
 ### Extensions
 - [x] Check extensions
@@ -66,8 +67,8 @@
 - [ ] Multicut
 
 ### Misc search
-- [ ] IIR
-- [ ] Cutnode IIR
+- [x] IIR
+- [x] Cutnode IIR
 - [ ] IIR TT depth condition
 - [ ] Prior countermove bonus
 - [ ] Dynamic policy updates
