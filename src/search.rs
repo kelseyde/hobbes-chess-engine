@@ -6,11 +6,13 @@ use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
+use crate::tt::TTFlag::{Lower, Upper};
 use crate::tt::TTFlag;
 use crate::types::piece::Piece;
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
+use TTFlag::Exact;
 
 pub const MAX_PLY: usize = 256;
 
@@ -98,41 +100,47 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let singular = td.ss[ply].singular;
+    let singular_search = singular.is_some();
+
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_score = Score::MIN;
+    let mut tt_flag = Lower;
     let mut tt_depth = 0;
 
     // Transposition Table probe
-    if let Some(entry) = td.tt.probe(board.hash) {
+    if !singular_search {
+        if let Some(entry) = td.tt.probe(board.hash) {
+            tt_hit = true;
+            tt_score = entry.score(ply) as i32;
+            tt_depth = entry.depth() as i32;
+            tt_flag = entry.flag();
+            if can_use_tt_move(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+            }
 
-        tt_hit = true;
-        tt_depth = entry.depth() as i32;
-        let tt_score = entry.score(ply) as i32;
-        if can_use_tt_move(board, &entry.best_move()) {
-            tt_move = entry.best_move();
+            if !root_node
+                && tt_depth >= depth
+                && bounds_match(entry.flag(), tt_score, alpha, beta) {
+                return tt_score;
+            }
+
         }
-
-        if !root_node
-            && tt_depth >= depth
-            && bounds_match(entry.flag(), tt_score, alpha, beta) {
-            return tt_score;
-        }
-
     }
 
-    let raw_eval;
     let mut static_eval = Score::MIN;
 
     // Static Evaluation
     if !in_check {
-        raw_eval = td.nnue.evaluate(board);
-        static_eval = raw_eval + td.correction(board);
+        static_eval = td.nnue.evaluate(board) + td.correction(board);
     };
+
     td.ss[ply].static_eval = Some(static_eval);
 
     let improving = is_improving(td, ply, static_eval);
 
-    if !root_node && !pv_node && !in_check {
+    if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
         if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
@@ -185,6 +193,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         legal_moves += 1;
 
+        if singular.is_some_and(|s| s == mv) {
+            continue;
+        }
+
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
@@ -192,6 +204,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let history_score = td.history_score(board, &mv, ply, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
+
+        let mut extension = 0;
+        if in_check {
+            extension = 1;
+        }
 
         // Futility Pruning
         if !pv_node
@@ -238,6 +255,28 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        // Singular Extensions
+        if !root_node
+            && !singular_search
+            && tt_hit
+            && mv == tt_move
+            && depth >= 8
+            && tt_flag != Upper
+            && tt_depth >= depth - 3 {
+
+            let s_beta = (tt_score - depth * 32 / 16).max(-Score::MATE + 1);
+            let s_depth = (depth - 1) / 2;
+
+            td.ss[ply].singular = Some(mv);
+            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            td.ss[ply].singular = None;
+
+            if score < s_beta {
+                extension = 1;
+            }
+
+        }
+
         let mut board = *board;
         td.nnue.update(&mv, pc, captured, &board);
         board.make(&mv);
@@ -248,11 +287,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         searched_moves += 1;
         td.nodes += 1;
-
-        let mut extension = 0;
-        if in_check {
-            extension = 1;
-        }
 
         let new_depth = depth - 1 + extension;
 
@@ -308,7 +342,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = TTFlag::Exact;
+            flag = Exact;
             if root_node {
                 td.best_move = mv;
             }
@@ -360,7 +394,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Handle checkmate / stalemate
     if legal_moves == 0 {
-        return if in_check {
+        return if singular_search {
+            alpha
+        } else if in_check {
             -Score::MATE + ply as i32
         } else {
             Score::DRAW
@@ -369,6 +405,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Update static eval correction history
     if !in_check
+        && !singular_search
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
@@ -376,7 +413,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     // Write to transposition table
-    if !td.hard_limit_reached() {
+    if !singular_search && !td.hard_limit_reached(){
         td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
@@ -558,9 +595,9 @@ impl Default for LmrTable {
 
 fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
     match flag {
-        TTFlag::Exact => true,
-        TTFlag::Lower => score >= upper,
-        TTFlag::Upper => score <= lower,
+        Exact => true,
+        Lower => score >= upper,
+        Upper => score <= lower,
     }
 }
 
@@ -577,6 +614,7 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub killer: Option<Move>,
+    pub singular: Option<Move>,
     pub static_eval: Option<i32>,
 }
 
@@ -594,6 +632,7 @@ impl SearchStack {
                 pc: None,
                 killer: None,
                 static_eval: None,
+                singular: None,
             }; MAX_PLY + 8],
         }
     }
