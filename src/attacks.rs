@@ -1,7 +1,8 @@
-use crate::consts::Side::White;
-use crate::consts::{Piece, Side};
 use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
+use crate::types::side::Side::White;
 use crate::types::square::Square;
 
 #[inline(always)]

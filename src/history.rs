@@ -1,5 +1,6 @@
-use crate::consts::{Piece, Side};
 use crate::moves::Move;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
 use crate::types::square::Square;
 
 type FromToHistory<T> = [[T; 64]; 64];

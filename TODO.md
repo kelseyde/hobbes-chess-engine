@@ -18,7 +18,7 @@
 #### NMP
 - [x] NMP
 - [x] NMP depth-based reduction
-- [ ] NMP eval-based reduction
+- [x] NMP eval-based reduction
 - [ ] NMP verification search
 
 #### LMR
@@ -36,12 +36,12 @@
 - [x] PVS SEE noisy pruning
 - [ ] QS futility pruning
 - [ ] QS delta pruning
-- [ ] History pruning
+- [x] History pruning
 - [ ] Bad noisy pruning
-- [ ] Skip quiets
+- [x] Skip quiets
 
 #### Transposition Table
-- [ ] Static eval to TT
+- [x] Static eval to TT
 - [ ] Early static eval write
 - [ ] No TT cut in PV nodes
 - [ ] TT buckets
@@ -82,11 +82,12 @@
 - [x] Capture history 
 - [X] Killer moves
 - [x] Maluses
-- [ ] Basic movepicker
-- [ ] TT move before movegen
-- [ ] Staged movegen
+- [x] Basic movepicker
+- [x] TT move before movegen
+- [x] Incremental selection sort
+- [x] Staged movegen
 - [ ] Killer stage
-- [ ] Split good/bad noisies
+- [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
 

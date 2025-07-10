@@ -1,8 +1,9 @@
 use crate::attacks;
 use crate::board::Board;
-use crate::consts::{Piece, Side};
 use crate::moves::Move;
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
 use crate::types::square::Square;
 
 const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
@@ -158,6 +159,7 @@ mod tests {
             let board = Board::from_fen(fen);
             let moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
+                .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
                 .expect("Move not found in generated moves");
 
@@ -188,6 +190,7 @@ mod tests {
         let board = Board::from_fen(fen);
         let moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
+            .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)
             .expect("Move not found in generated moves");
 

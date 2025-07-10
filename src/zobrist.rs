@@ -1,6 +1,7 @@
 use crate::board::Board;
-use crate::consts::Piece::Pawn;
-use crate::consts::{Piece, Side};
+use crate::types::piece::Piece;
+use crate::types::piece::Piece::Pawn;
+use crate::types::side::Side;
 use crate::types::square::Square;
 
 #[rustfmt::skip]

@@ -1,9 +1,10 @@
 use std::io;
 
-use consts::Side::{Black, White};
+use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
+use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::network::NNUE;
@@ -11,7 +12,6 @@ use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
-use crate::{consts, fen};
 
 pub struct UCI {
     pub board: Board,
@@ -29,8 +29,8 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::new().into(),
-            nnue: NNUE::new().into(),
+            td: ThreadData::default().into(),
+            nnue: NNUE::default().into(),
         }
     }
 
@@ -128,11 +128,13 @@ impl UCI {
         self.td.keys.push(self.board.hash);
 
         moves.iter().for_each(|m| {
-            let legal_moves = gen_moves(&self.board, MoveFilter::All);
-            let legal_move = legal_moves.iter().find(|lm| lm.matches(m));
+            let mut legal_moves = gen_moves(&self.board, MoveFilter::All);
+            let legal_move = legal_moves.iter()
+                .map(|entry| entry.mv)
+                .find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.board.make(m);
+                    self.board.make(&m);
                     self.td.keys.push(self.board.hash);
                     self.td.root_ply += 1;
                 }

@@ -1,11 +1,11 @@
 use crate::attacks;
-use crate::bits::{CastleSafety, CastleTravel};
-use crate::board::Board;
-use crate::consts::Side::White;
-use crate::consts::{Piece, Side};
+use crate::board::{Board, CastleSafety, CastleTravel};
 use crate::movegen::MoveFilter::Quiets;
-use crate::moves::{Move, MoveFlag, MoveList};
+use crate::moves::{MoveFlag, MoveList};
 use crate::types::bitboard::Bitboard;
+use crate::types::piece::Piece;
+use crate::types::side::Side;
+use crate::types::side::Side::White;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
 
@@ -235,18 +235,3 @@ pub fn is_check(board: &Board, side: Side) -> bool {
     let king_sq = board.king_sq(side);
     is_sq_attacked(king_sq, side, occ, board)
 }
-
-pub fn is_legal(board: &Board, mv: &Move) -> bool {
-    let mut new_board = *board;
-    new_board.make(mv);
-    !is_check(&new_board, board.stm)
-}
-
-#[cfg(test)]
-mod test {
-
-}
-
-
-
-

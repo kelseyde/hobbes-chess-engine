@@ -2,9 +2,7 @@ use crate::uci::UCI;
 
 pub mod attacks;
 pub mod bench;
-pub mod bits;
 pub mod board;
-pub mod consts;
 pub mod fen;
 pub mod magics;
 pub mod movegen;
@@ -14,13 +12,13 @@ pub mod search;
 pub mod thread;
 pub mod uci;
 pub mod zobrist;
-pub mod ordering;
 pub mod tt;
 pub mod history;
 pub mod see;
 pub mod types;
 pub mod network;
 mod time;
+mod movepicker;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
