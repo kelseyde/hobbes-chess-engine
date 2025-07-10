@@ -1,6 +1,6 @@
 use crate::board::Board;
 use crate::movegen::{MoveFilter};
-use crate::movepicker::MovePicker;
+use crate::movepicker::{MovePicker, Stage};
 use crate::moves::Move;
 use crate::{movegen, see};
 use crate::see::see;
@@ -244,6 +244,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && history_score < -2048 * depth * depth {
             move_picker.skip_quiets = true;
             continue
+        }
+
+        // Bad Noisy Pruning
+        let futility_margin = static_eval + 128 * lmr_depth;
+        if !pv_node
+            && !in_check
+            && lmr_depth < 6
+            && move_picker.stage == Stage::BadNoisies
+            && futility_margin <= alpha {
+            break;
         }
 
         // SEE Pruning

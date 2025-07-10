@@ -23,7 +23,7 @@ pub struct MovePicker {
     moves: MoveList,
     filter: MoveFilter,
     idx: usize,
-    stage: Stage,
+    pub stage: Stage,
     tt_move: Move,
     ply: usize,
     threats: Bitboard,
