@@ -1,8 +1,8 @@
 use crate::board::Board;
-use crate::movegen::{is_check, MoveFilter};
+use crate::movegen::{MoveFilter};
 use crate::movepicker::MovePicker;
 use crate::moves::Move;
-use crate::see;
+use crate::{movegen, see};
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
@@ -78,7 +78,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return alpha;
     }
 
-    let in_check = is_check(board, board.stm);
+    let threats = movegen::calc_threats(board, board.stm);
+    let in_check = threats.contains(board.king_sq(board.stm));
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
@@ -172,7 +173,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         depth -= 1;
     }
 
-    let mut move_picker = MovePicker::new(tt_move, ply);
+    let mut move_picker = MovePicker::new(tt_move, ply, threats);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -201,7 +202,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let history_score = td.history_score(board, &mv, ply, pc, captured);
+        let history_score = td.history_score(board, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
@@ -375,12 +376,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         } else {
             td.ss[ply].killer = Some(best_move);
 
-            td.quiet_history.update(board.stm, &best_move, quiet_bonus);
+            td.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
             update_continuation_history(td, ply, &best_move, pc, cont_bonus);
 
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.quiet_history.update(board.stm, mv, -quiet_malus);
+                    td.quiet_history.update(board.stm, mv, threats, -quiet_malus);
                     update_continuation_history(td, ply, mv, pc, -cont_malus);
                 }
             }
@@ -438,7 +439,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return td.nnue.evaluate(board);
     }
 
-    let in_check = is_check(board, board.stm);
+    let threats = movegen::calc_threats(board, board.stm);
+    let in_check = threats.contains(board.king_sq(board.stm));
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
@@ -469,7 +471,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
     let mut move_count = 0;
 

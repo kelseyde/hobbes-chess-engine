@@ -86,6 +86,7 @@
 - [x] TT move before movegen
 - [x] Incremental selection sort
 - [x] Staged movegen
+- [x] Quiet threat history
 - [ ] Killer stage
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin

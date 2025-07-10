@@ -1,4 +1,5 @@
 use crate::moves::Move;
+use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
@@ -7,7 +8,7 @@ type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];
 
 pub struct QuietHistory {
-    entries: Box<[FromToHistory<i16>; 2]>,
+    entries: Box<[[[FromToHistory<i16>; 2]; 2]; 2]>,
 }
 
 pub struct ContinuationHistory {
@@ -20,6 +21,29 @@ pub struct CorrectionHistory {
 
 pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+}
+
+pub struct ThreatIndex {
+    pub from_attacked: bool,
+    pub to_attacked: bool
+}
+
+impl ThreatIndex {
+
+    pub fn new(mv: Move, threats: Bitboard) -> Self {
+        let from_attacked = threats.contains(mv.from());
+        let to_attacked = threats.contains(mv.to());
+        ThreatIndex { from_attacked, to_attacked }
+    }
+
+    pub fn from(&self) -> usize {
+        self.from_attacked as usize
+    }
+
+    pub fn to(&self) -> usize {
+        self.to_attacked as usize
+    }
+
 }
 
 impl Default for ContinuationHistory {
@@ -62,21 +86,23 @@ impl QuietHistory {
 
     pub fn new() -> Self {
         QuietHistory {
-            entries: Box::new([[[0; 64]; 64], [[0; 64]; 64]]),
+            entries: Box::new([[[[[0; 64]; 64]; 2]; 2]; 2]),
         }
     }
 
-    pub fn get(&self, stm: Side, mv: Move) -> i16 {
-        self.entries[stm][mv.from()][mv.to()]
+    pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
+        let threat_index = ThreatIndex::new(mv, threats);
+        self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()]
     }
 
-    pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
-        let entry = &mut self.entries[stm][mv.from()][mv.to()];
+    pub fn update(&mut self, stm: Side, mv: &Move, threats: Bitboard, bonus: i16) {
+        let threat_index = ThreatIndex::new(*mv, threats);
+        let entry = &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
         *entry = gravity(*entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[0; 64]; 64], [[0; 64]; 64]]);
+        self.entries = Box::new([[[[[0; 64]; 64]; 2]; 2]; 2]);
     }
 }
 
