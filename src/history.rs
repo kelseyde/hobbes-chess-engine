@@ -73,6 +73,7 @@ impl ContinuationHistory {
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
+
 }
 
 impl Default for QuietHistory {
