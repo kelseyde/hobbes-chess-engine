@@ -276,6 +276,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 extension += (!pv_node && score < s_beta - 20) as i32;
             } else if tt_score >= beta {
                 extension = -1;
+            } else if cut_node {
+                extension = -2;
             }
 
         }
