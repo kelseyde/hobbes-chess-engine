@@ -61,7 +61,7 @@
 - [x] Singular extensions
 - [x] Double extensions
 - [ ] Triple extensions
-- [ ] Negative extensions
+- [x] Negative extensions
 - [ ] Double negative extensions
 - [ ] Multicut
 
