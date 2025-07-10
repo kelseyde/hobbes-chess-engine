@@ -123,6 +123,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
             if !root_node
                 && tt_depth >= depth
+                && (tt_score <= alpha || cut_node)
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
                 return tt_score;
             }
