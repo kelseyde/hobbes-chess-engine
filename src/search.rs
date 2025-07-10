@@ -70,7 +70,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 }
 
 #[rustfmt::skip]
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cutnode: bool) -> i32 {
+fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -148,12 +148,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         // Null Move Pruning
         if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
-            let r = 3 + depth / 3;
+            let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4);
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash);
-            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cutnode);
+            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
@@ -161,6 +161,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             }
         }
 
+    }
+
+    // Internal Iterative Reductions
+    if !root_node
+        && (pv_node || cut_node)
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4)
+        && depth >= 5 {
+        depth -= 1;
     }
 
     let mut move_picker = MovePicker::new(tt_move, ply);
@@ -192,7 +200,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let history_score = td.history_score(board, &mv, ply, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let lmr_depth = depth.saturating_sub(base_reduction);
 
         let mut extension = 0;
         if in_check {
@@ -204,9 +214,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !root_node
             && !in_check
             && is_quiet
-            && depth < 6
+            && lmr_depth < 6
             && !is_mate_score
-            && static_eval + 100 * depth.max(1) + 150 <= alpha {
+            && static_eval + 100 * lmr_depth + 150 <= alpha {
+            move_picker.skip_quiets = true;
             continue;
         }
 
@@ -217,7 +228,20 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && is_quiet
             && depth <= 4
             && searched_moves > 4 + 3 * depth * depth {
+            move_picker.skip_quiets = true;
             continue;
+        }
+
+        // History Pruning
+        if !pv_node
+            && !root_node
+            && !in_check
+            && !is_mate_score
+            && is_quiet
+            && depth <= 4
+            && history_score < -2048 * depth * depth {
+            move_picker.skip_quiets = true;
+            continue
         }
 
         // SEE Pruning
@@ -243,7 +267,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let s_depth = (depth - 1) / 2;
 
             td.ss[ply].singular = Some(mv);
-            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cutnode);
+            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.ss[ply].singular = None;
 
             if score < s_beta {
@@ -272,7 +296,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             // Late Move Reductions
             let mut reduction = base_reduction;
 
-            if cutnode {
+            if cut_node {
                 reduction += 1;
             }
 
@@ -283,10 +307,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
+                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
             }
         } else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cutnode);
+            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
         }
 
         if pv_node && (searched_moves == 1 || score > alpha) {
