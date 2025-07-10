@@ -300,6 +300,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 && is_quiet {
             // Late Move Reductions
             let mut reduction = base_reduction;
+            reduction -= pv_node as i32;
             reduction += cut_node as i32;
             reduction += !improving as i32;
 
