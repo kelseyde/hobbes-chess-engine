@@ -58,8 +58,8 @@
 
 ### Extensions
 - [x] Check extensions
-- [ ] Singular extensions
-- [ ] Double extensions
+- [x] Singular extensions
+- [x] Double extensions
 - [ ] Triple extensions
 - [ ] Negative extensions
 - [ ] Double negative extensions
