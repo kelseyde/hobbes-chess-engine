@@ -23,6 +23,7 @@ pub struct ThreadData {
     pub cont_history: ContinuationHistory,
     pub pawn_corrhist: CorrectionHistory,
     pub nonpawn_corrhist: [CorrectionHistory; 2],
+    pub countermove_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -47,6 +48,7 @@ impl Default for ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            countermove_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -74,6 +76,7 @@ impl ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            countermove_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -84,10 +87,18 @@ impl ThreadData {
         }
     }
 
-    pub fn correction(&self, board: &Board) -> i32 {
-        self.pawn_corrhist.get(board.stm, board.pawn_hash)
+    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
+        let mut correction =
+            self.pawn_corrhist.get(board.stm, board.pawn_hash)
             + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
-            + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
+            + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black]);
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                correction += self.countermove_corrhist.get(board.stm, encoded_mv)
+            }
+        }
+        correction
     }
 
     pub fn reset(&mut self) {
@@ -109,6 +120,7 @@ impl ThreadData {
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist[Side::White].clear();
         self.nonpawn_corrhist[Side::Black].clear();
+        self.countermove_corrhist.clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
@@ -132,7 +144,7 @@ impl ThreadData {
         false
     }
 
-    pub fn update_correction_history(&mut self, board: &Board, depth: i32, static_eval: i32, best_score: i32) {
+    pub fn update_correction_history(&mut self, board: &Board, depth: i32, ply: usize, static_eval: i32, best_score: i32) {
         let us = board.stm;
         let pawn_hash = board.pawn_hash;
         let w_nonpawn_hash = board.non_pawn_hashes[Side::White];
@@ -141,6 +153,13 @@ impl ThreadData {
         self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
+
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                self.countermove_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+            }
+        }
     }
 
     pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, pc: Piece, captured: Option<Piece>) -> i32 {

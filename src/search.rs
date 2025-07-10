@@ -133,7 +133,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Static Evaluation
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
     };
 
     td.ss[ply].static_eval = Some(static_eval);
@@ -410,7 +410,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.update_correction_history(board, depth, static_eval, best_score);
+        td.update_correction_history(board, depth, ply, static_eval, best_score);
     }
 
     // Write to transposition table
@@ -452,7 +452,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     if !in_check {
-        let static_eval = td.nnue.evaluate(board) + td.correction(board);
+        let static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
 
         if static_eval > alpha {
             alpha = static_eval
