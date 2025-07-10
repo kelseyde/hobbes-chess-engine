@@ -302,6 +302,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let mut reduction = base_reduction;
             reduction += cut_node as i32;
             reduction += !improving as i32;
+            reduction += (static_eval + 100 * lmr_depth + 150 < alpha) as i32;
             if is_quiet {
                 reduction -= (history_score - 512) / 16384;
             }
