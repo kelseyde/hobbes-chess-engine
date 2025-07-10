@@ -25,6 +25,7 @@ pub struct ThreadData {
     pub pawn_corrhist: CorrectionHistory,
     pub nonpawn_corrhist: [CorrectionHistory; 2],
     pub countermove_corrhist: CorrectionHistory,
+    pub follow_up_move_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -50,6 +51,7 @@ impl Default for ThreadData {
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             countermove_corrhist: CorrectionHistory::new(),
+            follow_up_move_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -78,6 +80,7 @@ impl ThreadData {
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
             countermove_corrhist: CorrectionHistory::new(),
+            follow_up_move_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -97,6 +100,12 @@ impl ThreadData {
             if let Some(prev_mv) = self.ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
                 correction += self.countermove_corrhist.get(board.stm, encoded_mv)
+            }
+        }
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                correction += self.follow_up_move_corrhist.get(board.stm, encoded_mv)
             }
         }
         correction
@@ -122,6 +131,7 @@ impl ThreadData {
         self.nonpawn_corrhist[Side::White].clear();
         self.nonpawn_corrhist[Side::Black].clear();
         self.countermove_corrhist.clear();
+        self.follow_up_move_corrhist.clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
@@ -159,6 +169,12 @@ impl ThreadData {
             if let Some(prev_mv) = self.ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
                 self.countermove_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+            }
+        }
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
             }
         }
     }
