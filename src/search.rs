@@ -474,6 +474,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut move_count = 0;
 
     let mut best_score = alpha;
+    let mut best_move = Move::NONE;
+    let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -517,15 +519,23 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         if score > alpha {
             alpha = score;
+            best_move = mv;
+            flag = Exact;
 
             if score >= beta {
-                return score;
+                flag = Lower;
+                break;
             }
         }
     }
 
     if move_count == 0 && in_check {
         return -Score::MATE + ply as i32;
+    }
+
+    // Write to transposition table
+    if !td.hard_limit_reached() {
+        td.tt.insert(board.hash, best_move, best_score, 0, ply, flag);
     }
 
     best_score
