@@ -1,14 +1,14 @@
 use crate::board::Board;
-use crate::movegen::{MoveFilter};
+use crate::movegen::MoveFilter;
 use crate::movepicker::{MovePicker, Stage};
 use crate::moves::Move;
-use crate::{movegen, see};
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
-use crate::tt::TTFlag::{Lower, Upper};
 use crate::tt::TTFlag;
+use crate::tt::TTFlag::{Lower, Upper};
 use crate::types::piece::Piece;
+use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
