@@ -52,8 +52,8 @@
 ### Correction History
 - [x] Pawn correction history
 - [x] Non-pawn correction history
-- [ ] Minor correction history
-- [ ] Major correction history
+- [x] Minor correction history
+- [x] Major correction history
 - [x] Countermove correction history
 - [x] Follow-up move correction history
 
