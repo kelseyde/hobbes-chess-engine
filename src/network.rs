@@ -2,12 +2,14 @@ use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
 use crate::moves::Move;
+use crate::types::File;
 use crate::types::piece::{Piece, PIECES};
+use crate::types::piece::Piece::King;
 use crate::types::side::Side;
 use crate::types::square::Square;
 
 pub const FEATURES: usize = 768;
-pub const HIDDEN: usize = 256;
+pub const HIDDEN: usize = 1024;
 pub const SCALE: i32 = 400;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
@@ -16,6 +18,17 @@ pub const QAB: i32 = QA * QB;
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
 pub const MAX_ACCUMULATORS: usize = 255;
+
+pub const BUCKETS: [usize; 64] = [
+    0, 1, 2, 3, 3, 2, 1, 0,
+    4, 4, 5, 5, 5, 5, 4, 4,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7
+];
 
 static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/woodpusher.nnue")) };
@@ -200,8 +213,47 @@ fn ft_idx(sq: Square, pc: Piece, side: Side, perspective: Side) -> usize {
     side_offset + pc_offset + sq.0 as usize
 }
 
+fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) {
+    if side != board.stm || pc != Piece::King {
+        board.king_square(side)
+    } else {
+        mv.to()
+    }
+}
+
+fn bucket_changed(mv: Move, pc: Piece, side: Side) -> bool {
+    if pc != King {
+        return false;
+    }
+    let prev_king_sq = mv.from();
+    let new_king_sq = mv.to();
+    king_bucket(prev_king_sq , side) != king_bucket(new_king_sq, side)
+}
+
+fn mirror_changed(mv: Move, pc: Piece, side: Side) -> bool {
+    if pc != King {
+        return false;
+    }
+    let prev_king_sq = mv.from();
+    let new_king_sq = mv.to();
+    should_mirror(prev_king_sq) != should_mirror(new_king_sq)
+}
+
+fn king_bucket(sq: Square, side: Side) -> usize {
+    let sq = if side == White { sq } else { sq.flip_rank() };
+    BUCKETS[sq]
+}
+
+fn should_mirror(king_sq: Square) -> bool {
+    File::of(king_sq) > File::D
+}
+
 fn crelu(x: i16) -> i32 {
     0.max(x).min(QA as i16) as i32
+}
+
+fn screlu(x: i16) -> i32 {
+    0.max(x).min(QA as i16).pow(2) as i32
 }
 
 impl Default for Accumulator {
