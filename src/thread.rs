@@ -29,6 +29,7 @@ pub struct ThreadData {
     pub major_corrhist: CorrectionHistory,
     pub minor_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
+    pub node_table: NodeTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub nodes: u64,
@@ -57,6 +58,7 @@ impl Default for ThreadData {
             major_corrhist: CorrectionHistory::new(),
             minor_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
+            node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
@@ -88,6 +90,7 @@ impl ThreadData {
             major_corrhist: CorrectionHistory::new(),
             minor_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
+            node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
             nodes: 0,
@@ -122,6 +125,7 @@ impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.start_time = Instant::now();
+        self.node_table.clear();
         self.nodes = 0;
         self.depth = 1;
         self.best_move = Move::NONE;
@@ -233,7 +237,9 @@ impl ThreadData {
     }
 
     pub fn soft_limit_reached(&self) -> bool {
-        if let Some(soft_time) = self.limits.soft_time {
+        let best_move_nodes = self.node_table.get(&self.best_move);
+
+        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
@@ -276,6 +282,30 @@ impl ThreadData {
         false
     }
 }
+
+pub struct NodeTable {
+    table: [[u64; 64]; 64],
+}
+
+impl NodeTable {
+
+    pub fn new() -> Self {
+        NodeTable { table: [[0; 64]; 64] }
+    }
+
+    pub fn add(&mut self, mv: &Move, nodes: u64) {
+        self.table[mv.from()][mv.to()] += nodes;
+    }
+
+    pub fn get(&self, mv: &Move) -> u64 {
+        self.table[mv.from()][mv.to()]
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::new();
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

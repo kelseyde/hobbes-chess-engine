@@ -302,6 +302,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         searched_moves += 1;
         td.nodes += 1;
 
+        let initial_nodes = td.nodes;
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
@@ -345,6 +346,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].pc = None;
         td.keys.pop();
         td.nnue.undo();
+
+        if root_node {
+            td.node_table.add(&mv, td.nodes - initial_nodes);
+        }
 
         if td.should_stop(Hard) {
             break;
