@@ -3,8 +3,8 @@ use crate::moves::{Move, MoveList, MoveListEntry};
 use crate::thread::ThreadData;
 use crate::{movegen, see};
 use movegen::{gen_moves, MoveFilter};
-use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use Stage::{GenerateNoisies, GenerateQuiets, GoodQuiets, TTMove};
+use crate::movepicker::Stage::{BadNoisies, BadQuiets, Done, GoodNoisies};
 use crate::see::see;
 use crate::types::bitboard::Bitboard;
 
@@ -14,8 +14,9 @@ pub enum Stage {
     GenerateNoisies,
     GoodNoisies,
     GenerateQuiets,
-    Quiets,
+    GoodQuiets,
     BadNoisies,
+    BadQuiets,
     Done
 }
 
@@ -30,6 +31,13 @@ pub struct MovePicker {
     pub skip_quiets: bool,
     see_threshold: Option<i32>,
     bad_noisies: MoveList,
+    bad_quiets: MoveList,
+}
+
+pub enum MoveListType {
+    Main,
+    BadNoisies,
+    BadQuiets,
 }
 
 impl MovePicker {
@@ -47,6 +55,7 @@ impl MovePicker {
             skip_quiets: false,
             see_threshold: Some(-100),
             bad_noisies: MoveList::new(),
+            bad_quiets: MoveList::new(),
         }
     }
 
@@ -63,6 +72,7 @@ impl MovePicker {
             skip_quiets: true,
             see_threshold: None,
             bad_noisies: MoveList::new(),
+            bad_quiets: MoveList::new(),
         }
     }
 
@@ -90,7 +100,7 @@ impl MovePicker {
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(false) {
+            if let Some(best_move) = self.pick(MoveListType::Main) {
                 return Some(best_move)
             } else {
                 self.idx = 0;
@@ -102,18 +112,24 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.moves = gen_moves(board, MoveFilter::Quiets);
-                self.moves.iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
-                self.stage = Quiets;
+                let mut moves = gen_moves(board, MoveFilter::Quiets);
+                for entry in moves.iter() {
+                    MovePicker::score(entry, board, td, self.ply, self.threats);
+                    if entry.score >= -200 {
+                        self.moves.add(*entry);
+                    } else {
+                        self.bad_quiets.add(*entry);
+                    }
+                }
+                self.stage = GoodQuiets;
             }
         }
-        if self.stage == Quiets {
+        if self.stage == GoodQuiets {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
             } else {
-                if let Some(best_move) = self.pick(false) {
+                if let Some(best_move) = self.pick(MoveListType::Main) {
                     return Some(best_move)
                 } else {
                     self.idx = 0;
@@ -122,10 +138,22 @@ impl MovePicker {
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
+            if let Some(best_move) = self.pick(MoveListType::BadNoisies) {
                 return Some(best_move);
             } else {
+                self.idx = 0;
+                self.stage = BadQuiets;
+            }
+        }
+        if self.stage == BadQuiets {
+            if self.skip_quiets {
                 self.stage = Done;
+            } else {
+                if let Some(best_move) = self.pick(MoveListType::BadQuiets) {
+                    return Some(best_move);
+                } else {
+                    self.stage = Done;
+                }
             }
         }
         None
@@ -150,11 +178,11 @@ impl MovePicker {
 
     }
 
-    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
-        let moves = if use_bad_noisies {
-            &mut self.bad_noisies
-        } else {
-            &mut self.moves
+    fn pick(&mut self, move_list_type: MoveListType) -> Option<Move> {
+        let moves = match move_list_type {
+            MoveListType::Main => &mut self.moves,
+            MoveListType::BadNoisies => &mut self.bad_noisies,
+            MoveListType::BadQuiets => &mut self.bad_quiets,
         };
         loop {
             if moves.is_empty() || self.idx >= moves.len() {
