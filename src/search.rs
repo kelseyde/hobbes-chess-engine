@@ -228,8 +228,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !root_node
             && !is_mate_score
             && is_quiet
-            && depth <= 4
-            && searched_moves > 4 + 3 * depth * depth {
+            && depth <= 8
+            && searched_moves > 4 + 2 * depth * depth {
             move_picker.skip_quiets = true;
             continue;
         }
