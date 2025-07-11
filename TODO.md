@@ -37,7 +37,7 @@
 - [ ] QS futility pruning
 - [ ] QS delta pruning
 - [x] History pruning
-- [ ] Bad noisy pruning
+- [x] Bad noisy pruning
 - [x] Skip quiets
 
 #### Transposition Table
