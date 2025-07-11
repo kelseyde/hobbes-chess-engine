@@ -50,6 +50,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 break;
             }
 
+            td.update_score_stability(score);
+
             match score {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;

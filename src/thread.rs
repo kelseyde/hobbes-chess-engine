@@ -35,7 +35,7 @@ pub struct ThreadData {
     pub nodes: u64,
     pub depth: i32,
     pub best_move: Move,
-    pub eval: i32,
+    pub score_stability: usize,
 }
 
 impl Default for ThreadData {
@@ -64,7 +64,7 @@ impl Default for ThreadData {
             nodes: 0,
             depth: 0,
             best_move: Move::NONE,
-            eval: 0,
+            score_stability: 0,
         }
     }
 }
@@ -96,7 +96,7 @@ impl ThreadData {
             nodes: 0,
             depth: 1,
             best_move: Move::NONE,
-            eval: 0,
+            score_stability: 0,
         }
     }
 
@@ -129,7 +129,7 @@ impl ThreadData {
         self.nodes = 0;
         self.depth = 1;
         self.best_move = Move::NONE;
-        self.eval = 0;
+        self.score_stability = 0;
     }
 
     pub fn clear(&mut self) {
@@ -221,6 +221,14 @@ impl ThreadData {
         self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
     }
 
+    pub fn update_score_stability(&mut self, score: i32) {
+        if (score - self.score_stability as i32).abs() < 12 {
+            self.score_stability = (self.score_stability + 1).min(8);
+        } else {
+            self.score_stability = 0;
+        }
+    }
+
     pub fn time(&self) -> u128 {
         self.start_time.elapsed().as_millis()
     }
@@ -239,7 +247,8 @@ impl ThreadData {
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
 
-        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+        if let Some(soft_time) =
+            self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes, self.score_stability) {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
