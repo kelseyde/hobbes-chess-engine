@@ -129,7 +129,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
                 return tt_score;
             }
-
         }
     }
 
