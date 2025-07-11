@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
+use crate::movepicker::Stage::GoodNoisies;
 
 pub const MAX_PLY: usize = 256;
 
@@ -261,6 +262,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if !pv_node
             && depth <= 8
             && searched_moves >= 1
+            && move_picker.stage != GoodNoisies
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
             continue;
