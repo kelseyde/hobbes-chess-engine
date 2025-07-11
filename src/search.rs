@@ -24,13 +24,15 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut delta = 24;
+    let mut delta = 12;
 
     // Iterative Deepening
     while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
 
         // Aspiration Windows
         if td.depth >= 4 {
+            delta += score * score / 32768;
+
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
