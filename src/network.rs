@@ -35,7 +35,7 @@ static NETWORK: Network =
 
 #[repr(C, align(64))]
 pub struct Network {
-    feature_weights: [i16; FEATURES * HIDDEN],
+    feature_weights: [[i16; FEATURES * HIDDEN]; num_buckets()],
     feature_bias: [i16; HIDDEN],
     output_weights: [i16; 2 * HIDDEN],
     output_bias: i16,
@@ -46,6 +46,7 @@ pub struct Network {
 pub struct Accumulator {
     pub white_features: [i16; HIDDEN],
     pub black_features: [i16; HIDDEN],
+    pub mirrored: [bool; 2]
 }
 
 pub struct NNUE {
@@ -74,16 +75,17 @@ impl NNUE {
         let us = match board.stm { White => acc.white_features, Black => acc.black_features };
         let them = match board.stm { White => acc.black_features, Black => acc.white_features };
 
-        let mut output = i32::from(NETWORK.output_bias);
+        let mut output = 0;
 
         for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            output += crelu(input) * i32::from(weight);
+            output += screlu(input) * i32::from(weight);
         }
 
         for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            output += crelu(input) * i32::from(weight);
+            output += screlu(input) * i32::from(weight);
         }
-
+        output /= QA;
+        output += NETWORK.output_bias as i32;
         output *= SCALE;
         output /= QAB;
         output
@@ -105,6 +107,10 @@ impl NNUE {
         }
     }
 
+    pub fn full_refresh(board: &Board, acc: &mut Accumulator, perspective: Side, mirror: bool, bucket: usize) {
+
+    }
+
     /// Efficiently update the accumulators for the current move. Depending on the nature of
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated.
@@ -116,6 +122,26 @@ impl NNUE {
         let us = board.stm;
 
         let new_pc = if let Some(promo_pc) = mv.promo_piece() { promo_pc } else { pc };
+
+        let w_king_sq = king_square(board, *mv, new_pc, White);
+        let b_king_sq = king_square(board, *mv, new_pc, Black);
+
+        let w_bucket = king_bucket(w_king_sq, White);
+        let b_bucket = king_bucket(b_king_sq, Black);
+
+        let w_weights = &NETWORK.feature_weights[w_bucket];
+        let b_weights = &NETWORK.feature_weights[b_bucket];
+
+        let mirror_changed = mirror_changed(*mv, new_pc, us);
+        let bucket_changed = bucket_changed(*mv, new_pc, us);
+        let refresh_required = mirror_changed || bucket_changed;
+
+        if refresh_required {
+            let mut mirror = should_mirror(board.king_sq(us));
+            if mirror_changed {
+                mirror = !mirror
+            }
+        }
 
         if mv.is_castle() {
             self.handle_castle(mv, us);
@@ -202,18 +228,15 @@ impl NNUE {
 
 }
 
-fn ft_idx(sq: Square, pc: Piece, side: Side, perspective: Side) -> usize {
-    let sq = if perspective == White {
-        sq
-    } else {
-        sq.flip_rank()
-    };
+fn ft_idx(sq: Square, pc: Piece, side: Side, perspective: Side, mirror: bool) -> usize {
+    let sq = if perspective == White { sq } else { sq.flip_rank() };
+    let sq = if mirror { sq.flip_file() } else { sq };
     let pc_offset = pc as usize * PIECE_OFFSET;
     let side_offset = if side == perspective { 0 } else { SIDE_OFFSET };
     side_offset + pc_offset + sq.0 as usize
 }
 
-fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) {
+fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != Piece::King {
         board.king_square(side)
     } else {
@@ -248,6 +271,10 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
+const fn num_buckets() -> usize {
+    BUCKETS.iter().max().unwrap() + 1
+}
+
 fn crelu(x: i16) -> i32 {
     0.max(x).min(QA as i16) as i32
 }
@@ -261,6 +288,7 @@ impl Default for Accumulator {
         Accumulator {
             white_features: NETWORK.feature_bias,
             black_features: NETWORK.feature_bias,
+            mirrored: [false, false],
         }
     }
 }
