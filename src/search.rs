@@ -257,9 +257,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // SEE Pruning
-        let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
+        let see_threshold = if is_quiet { -43 * depth } else { -26 * depth * depth };
         if !pv_node
-            && depth <= 8
+            && depth <= 10
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
