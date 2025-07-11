@@ -7,6 +7,7 @@ use crate::network::NNUE;
 use crate::search::{LmrTable, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
+use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 
@@ -23,6 +24,10 @@ pub struct ThreadData {
     pub cont_history: ContinuationHistory,
     pub pawn_corrhist: CorrectionHistory,
     pub nonpawn_corrhist: [CorrectionHistory; 2],
+    pub countermove_corrhist: CorrectionHistory,
+    pub follow_up_move_corrhist: CorrectionHistory,
+    pub major_corrhist: CorrectionHistory,
+    pub minor_corrhist: CorrectionHistory,
     pub lmr: LmrTable,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -47,6 +52,10 @@ impl Default for ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            countermove_corrhist: CorrectionHistory::new(),
+            follow_up_move_corrhist: CorrectionHistory::new(),
+            major_corrhist: CorrectionHistory::new(),
+            minor_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
@@ -74,6 +83,10 @@ impl ThreadData {
             cont_history: ContinuationHistory::new(),
             pawn_corrhist: CorrectionHistory::new(),
             nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
+            countermove_corrhist: CorrectionHistory::new(),
+            follow_up_move_corrhist: CorrectionHistory::new(),
+            major_corrhist: CorrectionHistory::new(),
+            minor_corrhist: CorrectionHistory::new(),
             lmr: LmrTable::default(),
             limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
             start_time: Instant::now(),
@@ -84,10 +97,26 @@ impl ThreadData {
         }
     }
 
-    pub fn correction(&self, board: &Board) -> i32 {
-        self.pawn_corrhist.get(board.stm, board.pawn_hash)
+    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
+        let mut correction =
+            self.pawn_corrhist.get(board.stm, board.pawn_hash)
             + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
             + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
+            + self.major_corrhist.get(board.stm, board.major_hash)
+            + self.minor_corrhist.get(board.stm, board.minor_hash);
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                correction += self.countermove_corrhist.get(board.stm, encoded_mv)
+            }
+        }
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                correction += self.follow_up_move_corrhist.get(board.stm, encoded_mv)
+            }
+        }
+        correction
     }
 
     pub fn reset(&mut self) {
@@ -109,6 +138,10 @@ impl ThreadData {
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist[Side::White].clear();
         self.nonpawn_corrhist[Side::Black].clear();
+        self.countermove_corrhist.clear();
+        self.follow_up_move_corrhist.clear();
+        self.major_corrhist.clear();
+        self.minor_corrhist.clear();
     }
 
     pub fn is_repetition(&self, board: &Board) -> bool {
@@ -132,7 +165,7 @@ impl ThreadData {
         false
     }
 
-    pub fn update_correction_history(&mut self, board: &Board, depth: i32, static_eval: i32, best_score: i32) {
+    pub fn update_correction_history(&mut self, board: &Board, depth: i32, ply: usize, static_eval: i32, best_score: i32) {
         let us = board.stm;
         let pawn_hash = board.pawn_hash;
         let w_nonpawn_hash = board.non_pawn_hashes[Side::White];
@@ -141,19 +174,34 @@ impl ThreadData {
         self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
         self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
-    }
+        self.major_corrhist.update(us, board.major_hash, depth, static_eval, best_score);
+        self.minor_corrhist.update(us, board.minor_hash, depth, static_eval, best_score);
 
-    pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, pc: Piece, captured: Option<Piece>) -> i32 {
-        if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
-        } else {
-            self.quiet_history_score(board, mv, ply)
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                self.countermove_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+            }
+        }
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+            }
         }
     }
 
-    pub fn quiet_history_score(&self, board: &Board, mv: &Move, ply: usize) -> i32 {
+    pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, threats: Bitboard, pc: Piece, captured: Option<Piece>) -> i32 {
+        if let Some(captured) = captured {
+            self.capture_history_score(board, mv, pc, captured)
+        } else {
+            self.quiet_history_score(board, mv, ply, threats)
+        }
+    }
+
+    pub fn quiet_history_score(&self, board: &Board, mv: &Move, ply: usize, threats: Bitboard) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
-        let quiet_score = self.quiet_history.get(board.stm, *mv) as i32;
+        let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
         let mut cont_score = 0;
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply  {

@@ -18,15 +18,15 @@
 #### NMP
 - [x] NMP
 - [x] NMP depth-based reduction
-- [ ] NMP eval-based reduction
+- [x] NMP eval-based reduction
 - [ ] NMP verification search
 
 #### LMR
 - [x] LMR
-- [ ] LMR improving
+- [x] LMR improving
 - [ ] LMR PV node
 - [x] LMR Cutnode
-- [ ] LMR History
+- [x] LMR History
 
 #### Move-loop pruning
 - [x] Late move pruning
@@ -37,7 +37,7 @@
 - [ ] QS futility pruning
 - [ ] QS delta pruning
 - [x] History pruning
-- [ ] Bad noisy pruning
+- [x] Bad noisy pruning
 - [x] Skip quiets
 
 #### Transposition Table
@@ -52,22 +52,23 @@
 ### Correction History
 - [x] Pawn correction history
 - [x] Non-pawn correction history
-- [ ] Minor correction history
-- [ ] Major correction history
-- [ ] Continuation correction history
+- [x] Minor correction history
+- [x] Major correction history
+- [x] Countermove correction history
+- [x] Follow-up move correction history
 
 ### Extensions
 - [x] Check extensions
-- [ ] Singular extensions
-- [ ] Double extensions
+- [x] Singular extensions
+- [x] Double extensions
 - [ ] Triple extensions
-- [ ] Negative extensions
+- [x] Negative extensions
 - [ ] Double negative extensions
 - [ ] Multicut
 
 ### Misc search
-- [ ] IIR
-- [ ] Cutnode IIR
+- [x] IIR
+- [x] Cutnode IIR
 - [ ] IIR TT depth condition
 - [ ] Prior countermove bonus
 - [ ] Dynamic policy updates
@@ -86,6 +87,7 @@
 - [x] TT move before movegen
 - [x] Incremental selection sort
 - [x] Staged movegen
+- [x] Quiet threat history
 - [ ] Killer stage
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
