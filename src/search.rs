@@ -297,6 +297,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         searched_moves += 1;
@@ -344,6 +345,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -409,6 +411,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                     td.capture_history.update(board.stm, pc, mv.to(), captured, -capt_malus);
                 }
             }
+        }
+    }
+
+    // Prior Countermove Bonus
+    if !root_node
+        && flag == Upper
+        && td.ss[ply - 1].captured.is_some() {
+        if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+            td.quiet_history.update(board.stm.flip(), &prev_mv, threats, quiet_bonus);
         }
     }
 
@@ -513,6 +525,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -522,6 +535,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -640,6 +654,7 @@ pub struct SearchStack {
 pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
+    pub captured: Option<Piece>,
     pub killer: Option<Move>,
     pub singular: Option<Move>,
     pub static_eval: Option<i32>,
@@ -657,6 +672,7 @@ impl SearchStack {
             data: [StackEntry {
                 mv: None,
                 pc: None,
+                captured: None,
                 killer: None,
                 static_eval: None,
                 singular: None,
