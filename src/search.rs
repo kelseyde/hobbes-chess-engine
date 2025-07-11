@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
+use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 
@@ -80,6 +81,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
@@ -419,8 +421,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && flag == Upper
         && td.ss[ply - 1].captured.is_some() {
         if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = (120 * depth as i16 - 75).min(1200);
-            td.quiet_history.update(board.stm.flip(), &prev_mv, threats, quiet_bonus);
+            td.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
         }
     }
 
@@ -469,6 +472,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
@@ -658,6 +662,7 @@ pub struct StackEntry {
     pub killer: Option<Move>,
     pub singular: Option<Move>,
     pub static_eval: Option<i32>,
+    pub threats: Bitboard
 }
 
 impl Default for SearchStack {
@@ -676,6 +681,7 @@ impl SearchStack {
                 killer: None,
                 static_eval: None,
                 singular: None,
+                threats: Bitboard::empty()
             }; MAX_PLY + 8],
         }
     }
