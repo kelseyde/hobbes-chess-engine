@@ -568,7 +568,7 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
         return false;
     }
     if ply > 1 {
-        let prev_eval = td.ss[ply - 1].static_eval;
+        let prev_eval = td.ss[ply - 2].static_eval;
         if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
