@@ -140,6 +140,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     };
 
     td.ss[ply].static_eval = Some(static_eval);
+    td.ss[ply + 2].fail_high_count = 0;
 
     let improving = is_improving(td, ply, static_eval);
 
@@ -320,6 +321,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let mut reduction = base_reduction;
             reduction += cut_node as i32;
             reduction += !improving as i32;
+            reduction += (td.ss[ply].fail_high_count > 2) as i32;
             if is_quiet {
                 reduction -= (history_score - 512) / 16384;
             }
@@ -375,6 +377,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             }
 
             if score >= beta {
+                td.ss[ply].fail_high_count += 1;
                 flag = TTFlag::Lower;
                 break;
             }
@@ -650,6 +653,7 @@ pub struct StackEntry {
     pub killer: Option<Move>,
     pub singular: Option<Move>,
     pub static_eval: Option<i32>,
+    pub fail_high_count: i32,
 }
 
 impl Default for SearchStack {
@@ -667,6 +671,7 @@ impl SearchStack {
                 killer: None,
                 static_eval: None,
                 singular: None,
+                fail_high_count: 0,
             }; MAX_PLY + 8],
         }
     }
