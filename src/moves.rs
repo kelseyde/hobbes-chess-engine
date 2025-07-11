@@ -14,7 +14,7 @@ pub struct MoveList {
     pub len: usize,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct MoveListEntry {
     pub mv: Move,
     pub score: i32,
@@ -168,6 +168,14 @@ impl Move {
         self != Move::NONE
     }
 
+    pub fn is_null(self) -> bool {
+        self == Move::NONE
+    }
+
+    pub const fn encoded(self) -> usize {
+        (self.0 & 0b0000_1111_1111_1111) as usize
+    }
+
     pub fn rook_to(kingside: bool, white: bool) -> Square {
         // Castling target for rooks
         if kingside {
@@ -198,6 +206,11 @@ impl MoveList {
 
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
         self.list.push(MoveListEntry { mv: Move::new(from, to, flag), score: 0 });
+        self.len += 1;
+    }
+
+    pub fn add(&mut self, entry: MoveListEntry) {
+        self.list.push(entry);
         self.len += 1;
     }
 

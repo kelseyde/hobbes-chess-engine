@@ -13,9 +13,19 @@ pub enum Piece {
 pub const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
 
 impl Piece {
+
     pub fn iter() -> impl Iterator<Item = Piece> {
         PIECES.iter().copied()
     }
+
+    pub fn is_major(self) -> bool {
+        matches!(self, Piece::Queen | Piece::Rook | Piece::King)
+    }
+
+    pub fn is_minor(self) -> bool {
+        matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
+    }
+
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {
