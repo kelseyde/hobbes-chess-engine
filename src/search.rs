@@ -167,9 +167,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Internal Iterative Reductions
     if !root_node
+        && depth >= 5
         && (pv_node || cut_node)
-        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4)
-        && depth >= 5 {
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4) {
         depth -= 1;
     }
 
@@ -228,8 +228,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !root_node
             && !is_mate_score
             && is_quiet
-            && depth <= 4
-            && searched_moves > 4 + 3 * depth * depth {
+            && depth <= 8
+            && searched_moves > late_move_threshold(depth, improving) {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -567,6 +567,12 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
         }
     }
     true
+}
+
+fn late_move_threshold(depth: i32, improving: bool) -> i32 {
+    let base = if improving { 3 } else { 1 };
+    let scale = if improving { 87 } else { 39 };
+    (base + depth * scale) / 10
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
