@@ -457,6 +457,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return td.nnue.evaluate(board);
     }
 
+    let pv_node = beta - alpha > 1;
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
 
@@ -468,7 +469,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
         let score = entry.score(ply) as i32;
 
-        if bounds_match(entry.flag(), score, alpha, beta) {
+        if !pv_node && bounds_match(entry.flag(), score, alpha, beta) {
             return score;
         }
     }
