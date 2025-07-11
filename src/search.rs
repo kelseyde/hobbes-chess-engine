@@ -150,6 +150,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             return beta + (static_eval - beta) / 3;
         }
 
+        // Razoring
+        if !pv_node && static_eval < alpha - 300 - 250 * depth * depth {
+            return qs(board, td, alpha, beta, ply);
+        }
+
         // Null Move Pruning
         if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
             let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4) + tt_move_noisy as i32;
