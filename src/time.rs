@@ -41,6 +41,22 @@ impl SearchLimits {
         }
     }
 
+    pub fn scaled_soft_limit(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> Option<Duration> {
+        self.soft_time.map(|soft_time| {
+            let scaled = soft_time.as_secs_f32()
+                * self.node_tm_scale(depth, nodes, best_move_nodes);
+            Duration::from_secs_f32(scaled)
+        })
+    }
+
+    fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+        if depth < 4 || best_move_nodes == 0 {
+            return 1.0;
+        }
+        let fraction = best_move_nodes as f32 / nodes as f32;
+        (1.5 - fraction) * 1.35
+    }
+
     fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
         let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
         let base = time * 0.05 + inc * 0.08;

@@ -74,6 +74,7 @@
 - [ ] Dynamic policy updates
 - [ ] Hindsight reductions
 - [ ] Hindsight extensions
+- [x] Razoring
 
 ## Move Ordering
 - [x] MVV-LVA
