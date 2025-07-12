@@ -34,7 +34,7 @@
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
 - [x] PVS SEE noisy pruning
-- [ ] QS futility pruning
+- [x] QS futility pruning
 - [ ] QS delta pruning
 - [x] History pruning
 - [x] Bad noisy pruning
