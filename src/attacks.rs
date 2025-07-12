@@ -18,13 +18,18 @@ pub fn attacks(sq: Square, piece: Piece, side: Side, occ: Bitboard) -> Bitboard 
 }
 
 #[inline(always)]
+pub fn pawn_attacks(pawns: Bitboard, side: Side) -> Bitboard {
+    if side == White {
+        pawns.north_east() | pawns.north_west()
+    } else {
+        pawns.south_east() | pawns.south_west()
+    }
+}
+
+#[inline(always)]
 pub fn pawn(sq: Square, side: Side) -> Bitboard {
     let bb = Bitboard::of_sq(sq);
-    if side == White {
-        bb.north_east() | bb.north_west()
-    } else {
-        bb.south_east() | bb.south_west()
-    }
+    pawn_attacks(bb, side)
 }
 
 #[inline(always)]

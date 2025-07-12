@@ -172,6 +172,10 @@ impl Move {
         self == Move::NONE
     }
 
+    pub const fn encoded(self) -> usize {
+        (self.0 & 0b0000_1111_1111_1111) as usize
+    }
+
     pub fn rook_to(kingside: bool, white: bool) -> Square {
         // Castling target for rooks
         if kingside {
