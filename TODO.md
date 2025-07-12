@@ -63,7 +63,7 @@
 - [x] Double extensions
 - [ ] Triple extensions
 - [x] Negative extensions
-- [ ] Double negative extensions
+- [x] Double negative extensions
 - [ ] Multicut
 
 ### Misc search
