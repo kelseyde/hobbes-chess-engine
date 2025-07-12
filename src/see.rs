@@ -157,7 +157,7 @@ mod tests {
             let threshold: i32 = threshold_str.parse().unwrap();
 
             let board = Board::from_fen(fen);
-            let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+            let moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
                 .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
@@ -188,7 +188,7 @@ mod tests {
         let threshold: i32 = threshold_str.parse().unwrap();
 
         let board = Board::from_fen(fen);
-        let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+        let moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
             .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)
