@@ -14,19 +14,34 @@
 - [x] RFP improving
 - [ ] RFP opponent worsening
 - [x] RFP fail firm
+- [ ] RFP constant offset
+- [ ] RFP prev-move history
+- [ ] RFP parent PV
 
 #### NMP
 - [x] NMP
 - [x] NMP depth-based reduction
 - [x] NMP eval-based reduction
+- [x] NMP TT capture
+- [ ] Increment NMP base reduction
 - [ ] NMP verification search
+- [ ] NMP TT condition
 
 #### LMR
 - [x] LMR
 - [x] LMR improving
 - [ ] LMR PV node
+- [ ] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
+- [ ] Noisy LMR
+- [ ] Fractional LMR
+- [ ] Factorised LMR
+- [ ] PV-distance LMR
+- [ ] Corrplexity LMR
+- [ ] Futility LMR
+- [ ] LMR if no TT-PV
+- [ ] Cutoff-count LMR
 
 #### Move-loop pruning
 - [x] Late move pruning
@@ -39,15 +54,27 @@
 - [x] History pruning
 - [x] Bad noisy pruning
 - [x] Skip quiets
+- [ ] FP history
+- [ ] FP movecount
+- [ ] PVS SEE quiet history
+- [ ] PVS SEE noisy history
+- [ ] Use LMR depth in more places
+- [ ] Qs evasion pruning
+- [ ] Qs guard recaptures
 
 #### Transposition Table
 - [ ] Static eval to TT
-- [ ] Early static eval write
+- [ ] Early static eval write (Qs)
+- [ ] Early static eval write (PVS)
 - [ ] No TT cut in PV nodes
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
 - [ ] TT cut PV node depth reduction
+- [ ] Better replacement scheme
+- [ ] SF TT aging
+- [ ] Qs standpat TT store
+- [ ] "Would TT prune" PV reduction
 
 ### Correction History
 - [x] Pawn correction history
@@ -56,6 +83,7 @@
 - [x] Major correction history
 - [x] Countermove correction history
 - [x] Follow-up move correction history
+- [ ] Gravity corrhist
 
 ### Extensions
 - [x] Check extensions
@@ -70,13 +98,15 @@
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Prior countermove bonus
-- [ ] Dynamic policy updates
 - [ ] Hindsight reductions
 - [ ] Hindsight extensions
 - [x] Razoring
+- [ ] Alpha raise reductions
+- [ ] Probcut
+- [ ] SF small probcut idea
+- [ ] Deeper/shallower
 
-## Move Ordering
+## Move Ordering / History
 - [x] MVV-LVA
 - [x] Quiet history
 - [x] Continuation history 1
@@ -93,6 +123,13 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
+- [ ] Prior countermove bonus
+- [ ] Dynamic policy updates
+- [ ] Threats capthist
+- [ ] History factoriser
+- [ ] Post-LMR update conthist
+- [ ] History depth alpha bonus
+- [ ] History depth beta bonus
 
 ## Evaluation
 - [x] NN
@@ -102,6 +139,7 @@
 - [x] Output buckets
 - [ ] Lazy updates
 - [ ] Finny tables
+- [ ] Remove unnecessary copy
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)
