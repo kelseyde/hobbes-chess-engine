@@ -98,8 +98,8 @@
 - [x] NN
 - [x] UE
 - [ ] SIMD
-- [ ] Horizontal mirroring
-- [ ] Output buckets
+- [x] Horizontal mirroring
+- [x] Output buckets
 - [ ] Lazy updates
 - [ ] Finny tables
 
