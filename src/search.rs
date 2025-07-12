@@ -478,8 +478,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
+    let mut static_eval = -Score::MATE + ply as i32;
+
     if !in_check {
-        let static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -498,7 +500,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut move_count = 0;
 
-    let mut best_score = alpha;
+    let futility_margin = static_eval + 135;
+    let mut best_score = static_eval;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -508,6 +511,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_mate_score = Score::is_mate(best_score);
+
+        // Futility Pruning
+        if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
+            if best_score < futility_margin {
+                best_score = futility_margin;
+            }
+            continue;
+        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
