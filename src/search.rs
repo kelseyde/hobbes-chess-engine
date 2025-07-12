@@ -310,7 +310,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let new_depth = depth - 1 + extension;
+        let mut new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
 
@@ -331,6 +331,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
+                let do_deeper = score > best_score + 37 + 5 * new_depth;
+                let do_shallower = score < best_score + new_depth;
+                new_depth += (do_deeper as i32) - (do_shallower as i32);
+
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
             }
         } else if !pv_node || searched_moves > 1 {
