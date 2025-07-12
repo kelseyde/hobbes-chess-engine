@@ -1,4 +1,3 @@
-use std::intrinsics::mir::mir;
 use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
@@ -18,6 +17,7 @@ pub const QAB: i32 = QA * QB;
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
 pub const MAX_ACCUMULATORS: usize = 255;
+pub const NUM_BUCKETS: usize = 8;
 
 pub const BUCKETS: [usize; 64] = [
     0, 1, 2, 3, 3, 2, 1, 0,
@@ -31,11 +31,11 @@ pub const BUCKETS: [usize; 64] = [
 ];
 
 static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/woodpusher.nnue")) };
+    unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    feature_weights: [FeatureWeights; num_buckets()],
+    feature_weights: [FeatureWeights; NUM_BUCKETS],
     feature_bias: [i16; HIDDEN],
     output_weights: [i16; 2 * HIDDEN],
     output_bias: i16,
@@ -105,24 +105,15 @@ impl NNUE {
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
         self.stack[self.current] = Accumulator::default();
-        for &pc in PIECES.iter() {
-            for sq in board.pcs(pc) {
-                let side = board.side_at(sq).unwrap();
 
-                let w_mirror = should_mirror(board.king_sq(White));
-                let b_mirror = should_mirror(board.king_sq(Black));
+        let w_mirror = should_mirror(board.king_sq(White));
+        let b_mirror = should_mirror(board.king_sq(Black));
 
-                let w_bucket = king_bucket(sq, White);
-                let b_bucket = king_bucket(sq, Black);
+        let w_bucket = king_bucket(board.king_sq(White), White);
+        let b_bucket = king_bucket(board.king_sq(Black), Black);
 
-                let w_weights = &NETWORK.feature_weights[w_bucket];
-                let b_weights = &NETWORK.feature_weights[b_bucket];
-
-                let ft = Feature::new(pc, sq, side);
-
-                self.stack[self.current].add(ft, w_weights, b_weights);
-            }
-        }
+        self.full_refresh(board, self.current, White, w_mirror, w_bucket);
+        self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
     }
 
     pub fn full_refresh(&mut self,
@@ -130,18 +121,17 @@ impl NNUE {
                         idx: usize,
                         perspective: Side,
                         mirror: bool,
-                        w_weights: &FeatureWeights,
-                        b_weights: &FeatureWeights) {
+                        bucket: usize) {
 
         let acc = &mut self.stack[idx];
+        acc.reset(perspective);
         acc.mirrored[perspective] = mirror;
-        acc.white_features = NETWORK.feature_bias;
-        acc.black_features = NETWORK.feature_bias;
+        let weights = &NETWORK.feature_weights[bucket];
         for &pc in PIECES.iter() {
             for sq in board.pcs(pc) {
                 let side = board.side_at(sq).unwrap();
                 let ft = Feature::new(pc, sq, side);
-                acc.add(ft, w_weights, b_weights);
+                acc.add(ft, weights, perspective);
             }
         }
 
@@ -168,16 +158,17 @@ impl NNUE {
         let w_weights = &NETWORK.feature_weights[w_bucket];
         let b_weights = &NETWORK.feature_weights[b_bucket];
 
-        let mirror_changed = mirror_changed(*mv, new_pc, us);
+        let mirror_changed = mirror_changed(*mv, new_pc);
         let bucket_changed = bucket_changed(*mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
+            let bucket = if us == White { w_bucket } else { b_bucket };
             let mut mirror = should_mirror(board.king_sq(us));
             if mirror_changed {
                 mirror = !mirror
             }
-            self.full_refresh(board, self.current, us, mirror, w_weights, b_weights);
+            self.full_refresh(board, self.current, us, mirror, bucket);
         }
 
         if mv.is_castle() {
@@ -280,7 +271,7 @@ impl Feature {
 
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != Piece::King {
-        board.king_square(side)
+        board.king_sq(side)
     } else {
         mv.to()
     }
@@ -295,7 +286,7 @@ fn bucket_changed(mv: Move, pc: Piece, side: Side) -> bool {
     king_bucket(prev_king_sq , side) != king_bucket(new_king_sq, side)
 }
 
-fn mirror_changed(mv: Move, pc: Piece, side: Side) -> bool {
+fn mirror_changed(mv: Move, pc: Piece) -> bool {
     if pc != Piece::King {
         return false;
     }
@@ -311,14 +302,6 @@ fn king_bucket(sq: Square, side: Side) -> usize {
 
 fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
-}
-
-const fn num_buckets() -> usize {
-    BUCKETS.iter().max().unwrap() + 1
-}
-
-fn crelu(x: i16) -> i32 {
-    0.max(x).min(QA as i16) as i32
 }
 
 fn screlu(x: i16) -> i32 {
@@ -337,41 +320,36 @@ impl Default for Accumulator {
 
 impl Accumulator {
 
+    pub fn reset(&mut self, perspective: Side) {
+        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
+        *feats = NETWORK.feature_bias;
+    }
+
     pub fn add(&mut self,
                add: Feature,
-               w_weights: &FeatureWeights,
-               b_weights: &FeatureWeights) {
+               weights: &FeatureWeights,
+               perspective: Side) {
 
-        let w_mirror = self.mirrored[White];
-        let b_mirror = self.mirrored[Black];
+        let mirror = self.mirrored[perspective as usize];
+        let idx = add.index(White, mirror);
+        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
-        let w_idx = add.index(White, w_mirror);
-        let b_idx = add.index(Black, b_mirror);
-
-        for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx * HIDDEN];
-        }
-        for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx * HIDDEN];
+        for i in 0..feats.len() {
+            feats[i] += weights[i + idx * HIDDEN];
         }
     }
 
     pub fn sub(&mut self,
-               sub: Feature,
-               w_weights: &FeatureWeights,
-               b_weights: &FeatureWeights) {
+               add: Feature,
+               weights: &FeatureWeights,
+               perspective: Side) {
 
-        let w_mirror = self.mirrored[White];
-        let b_mirror = self.mirrored[Black];
+        let mirror = self.mirrored[perspective as usize];
+        let idx = add.index(White, mirror);
+        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
-        let w_idx = sub.index(White, w_mirror);
-        let b_idx = sub.index(Black, b_mirror);
-
-        for i in 0..self.white_features.len() {
-            self.white_features[i] -= w_weights[i + w_idx * HIDDEN];
-        }
-        for i in 0..self.black_features.len() {
-            self.black_features[i] -= b_weights[i + b_idx * HIDDEN];
+        for i in 0..feats.len() {
+            feats[i] -= weights[i + idx * HIDDEN];
         }
     }
 
