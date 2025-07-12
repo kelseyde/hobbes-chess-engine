@@ -86,12 +86,17 @@ impl NNUE {
         let mut output = 0;
 
         for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            output += screlu(input) * i32::from(weight);
+            let clipped = input.clamp(0, QA as i16);
+            let result = clipped * weight;
+            output += result as i32 * clipped as i32;
         }
 
         for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            output += screlu(input) * i32::from(weight);
+            let clipped = input.clamp(0, QA as i16);
+            let result = clipped * weight;
+            output += result as i32 * clipped as i32;
         }
+
         output /= QA;
         output += NETWORK.output_bias as i32;
         output *= SCALE;
@@ -260,11 +265,21 @@ impl Feature {
     }
 
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let sq = if perspective == White { self.sq } else { self.sq.flip_rank() };
-        let sq = if mirror { sq.flip_file() } else { sq };
+        let sq_index = self.square_index(perspective, mirror);
         let pc_offset = self.pc as usize * PIECE_OFFSET;
         let side_offset = if self.side == perspective { 0 } else { SIDE_OFFSET };
-        side_offset + pc_offset + sq.0 as usize
+        side_offset + pc_offset + sq_index
+    }
+
+    fn square_index(&self, perspective: Side, mirror: bool) -> usize {
+        let mut sq_index = self.sq;
+        if perspective != White {
+            sq_index = sq_index.flip_rank();
+        }
+        if mirror {
+            sq_index = sq_index.flip_file();
+        }
+        sq_index.0 as usize
     }
 
 }
@@ -304,10 +319,6 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
-fn screlu(x: i16) -> i32 {
-    0.max(x).min(QA as i16).pow(2) as i32
-}
-
 impl Default for Accumulator {
     fn default() -> Self {
         Accumulator {
@@ -331,7 +342,7 @@ impl Accumulator {
                perspective: Side) {
 
         let mirror = self.mirrored[perspective as usize];
-        let idx = add.index(White, mirror);
+        let idx = add.index(perspective, mirror);
         let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
         for i in 0..feats.len() {
@@ -451,8 +462,11 @@ impl Accumulator {
 mod tests {
     use crate::board::Board;
     use crate::fen;
-
-    use super::NNUE;
+    use crate::moves::Move;
+    use crate::types::piece::Piece::Pawn;
+    use crate::types::side::Side;
+    use crate::types::square::Square;
+    use super::{Feature, NNUE};
 
     #[test]
     fn test_startpos() {
@@ -461,4 +475,13 @@ mod tests {
         let score = eval.evaluate(&board);
         assert_eq!(score, 26);
     }
+
+    #[test]
+    fn make_move_standard() {
+
+        let feat = Feature::new(Pawn, Square(8), Side::White);
+        println!("index: {}", feat.index(Side::Black, false));
+
+    }
+
 }
