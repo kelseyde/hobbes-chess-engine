@@ -101,7 +101,7 @@
 - [ ] Hindsight reductions
 - [ ] Hindsight extensions
 - [x] Razoring
-- [ ] Alpha raise reductions
+- [x] Alpha raise reductions
 - [ ] Probcut
 - [ ] SF small probcut idea
 - [ ] Deeper/shallower
