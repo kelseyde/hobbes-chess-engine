@@ -99,7 +99,7 @@
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
 - [ ] Hindsight reductions
-- [ ] Hindsight extensions
+- [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut

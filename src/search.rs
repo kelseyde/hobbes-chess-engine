@@ -147,8 +147,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Hindsight extension
     if !root_node
+        && !in_check
         && !singular_search
         && td.ss[ply - 1].reduction >= 3
+        && Score::is_defined(td.ss[ply - 1].static_eval)
         && static_eval + td.ss[ply - 1].static_eval < 0 {
         depth += 1;
     }
@@ -757,5 +759,9 @@ impl Score {
 
     pub fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_DEPTH
+    }
+
+    pub fn is_defined(score: i32) -> bool {
+        score >= -Score::MATE && score <= Score::MATE
     }
 }
