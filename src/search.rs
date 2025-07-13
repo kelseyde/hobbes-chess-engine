@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
+use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 
@@ -80,6 +81,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
@@ -304,6 +306,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         searched_moves += 1;
@@ -351,6 +354,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -425,6 +429,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
+    // Prior Countermove Bonus
+    if !root_node
+        && flag == Upper
+        && td.ss[ply - 1].captured.is_none() {
+        if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let prev_threats = td.ss[ply - 1].threats;
+            let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+            td.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
+        }
+    }
+
     // Handle checkmate / stalemate
     if legal_moves == 0 {
         return if singular_search {
@@ -470,6 +485,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
@@ -538,6 +554,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -547,6 +564,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -665,9 +683,11 @@ pub struct SearchStack {
 pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
+    pub captured: Option<Piece>,
     pub killer: Option<Move>,
     pub singular: Option<Move>,
     pub static_eval: Option<i32>,
+    pub threats: Bitboard
 }
 
 impl Default for SearchStack {
@@ -682,9 +702,11 @@ impl SearchStack {
             data: [StackEntry {
                 mv: None,
                 pc: None,
+                captured: None,
                 killer: None,
                 static_eval: None,
                 singular: None,
+                threats: Bitboard::empty()
             }; MAX_PLY + 8],
         }
     }

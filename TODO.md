@@ -123,7 +123,7 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
-- [ ] Prior countermove bonus
+- [x] Prior countermove bonus
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
 - [ ] History factoriser
