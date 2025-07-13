@@ -378,6 +378,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 flag = TTFlag::Lower;
                 break;
             }
+
+            // Alpha-raise reduction
+            if depth > 2 && depth < 12 && !is_mate_score {
+                depth -= 1;
+            }
+
         }
     }
 
