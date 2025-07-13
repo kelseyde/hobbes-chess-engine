@@ -369,7 +369,7 @@ impl Accumulator {
         let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
         for i in 0..feats.len() {
-            feats[i] += weights[i + idx * HIDDEN];
+            feats[i] = feats[i].wrapping_add(weights[i + idx * HIDDEN]);
         }
     }
 
@@ -383,7 +383,7 @@ impl Accumulator {
         let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
         for i in 0..feats.len() {
-            feats[i] -= weights[i + idx * HIDDEN];
+            feats[i] = feats[i].wrapping_sub(weights[i + idx * HIDDEN]);
         }
     }
 
@@ -403,11 +403,13 @@ impl Accumulator {
         let b_idx_2 = sub.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN]);
         }
     }
@@ -432,12 +434,14 @@ impl Accumulator {
         let b_idx_3 = sub2.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN]);
         }
@@ -467,13 +471,15 @@ impl Accumulator {
         let b_idx_4 = sub2.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_add(w_weights[i + w_idx_2 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_4 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_add(b_weights[i + b_idx_2 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_4 * HIDDEN]);
