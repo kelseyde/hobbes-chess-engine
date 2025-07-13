@@ -128,15 +128,11 @@ impl NNUE {
                         mirror: bool,
                         bucket: usize) {
 
-        let weights = &NETWORK.feature_weights[bucket];
         let acc = &mut self.stack[idx];
         acc.mirrored[perspective] = mirror;
 
         let cache_entry = self.cache.get(perspective, mirror, bucket);
         acc.copy_from(perspective, &cache_entry.features);
-
-        let mut add_count = 0;
-        let mut sub_count = 0;
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
@@ -146,20 +142,20 @@ impl NNUE {
 
                 let pc_bb = board.pieces(pc) & board.side(side);
                 let cached_pc_bb = cache_entry.pieces[pc] & cache_entry.sides[side];
-                let to_add = pc_bb & !cached_pc_bb;
-                let to_sub = cached_pc_bb & !pc_bb;
+                let added = pc_bb & !cached_pc_bb;
+                let removed = cached_pc_bb & !pc_bb;
 
-                for add in to_add {
-                    add_count += 1;
+                for add in added {
                     adds.push(Feature::new(pc, add, side));
                 }
 
-                for sub in to_sub {
-                    sub_count += 1;
+                for sub in removed {
                     subs.push(Feature::new(pc, sub, side))
                 }
             }
         }
+
+        let weights = &NETWORK.feature_weights[bucket];
 
         for add in adds {
             acc.add(add, weights, perspective);
@@ -167,11 +163,43 @@ impl NNUE {
         for sub in subs {
             acc.sub(sub, weights, perspective);
         }
+        //
+        // cache_entry.pieces = board.piece_bbs();
+        // cache_entry.sides = board.side_bbs();
+        // let final_features = acc.features(perspective);
+        // cache_entry.features = *final_features;
 
-        cache_entry.pieces = board.piece_bbs();
-        cache_entry.sides = board.side_bbs();
-        let final_features = acc.features(perspective);
-        cache_entry.features = *final_features;
+        // if board.pieces(Pawn) != cache_entry.pieces[Pawn] {
+        //     panic!("oh no pawn")
+        // }
+        // if board.pieces(Knight) != cache_entry.pieces[Knight] {
+        //     panic!("oh no knight")
+        // }
+        // if board.pieces(Bishop) != cache_entry.pieces[Bishop] {
+        //     panic!("oh no bishop")
+        // }
+        // if board.pieces(Rook) != cache_entry.pieces[Rook] {
+        //     panic!("oh no rook")
+        // }
+        // if board.pieces(Queen) != cache_entry.pieces[Queen] {
+        //     panic!("oh no queen")
+        // }
+        // if board.pieces(King) != cache_entry.pieces[King] {
+        //     panic!("oh no king")
+        // }
+        // if board.side(White) != cache_entry.sides[White] {
+        //     panic!("oh no white side")
+        // }
+        // if board.side(Black) != cache_entry.sides[Black] {
+        //     panic!("oh no black side")
+        // }
+        //
+        // if perspective == White && cache_entry.features != acc.white_features{
+        //     panic!("oh no w")
+        // }
+        // if perspective == Black && cache_entry.features != acc.black_features {
+        //     panic!("oh no b")
+        // }
 
     }
 
