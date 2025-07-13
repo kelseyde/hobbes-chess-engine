@@ -253,6 +253,28 @@ impl Board {
         self.pcs[sq]
     }
 
+    pub fn pieces(self, pc: Piece) -> Bitboard {
+        self.bb[pc]
+    }
+
+    pub fn piece_bbs(self) -> [Bitboard; 6] {
+        [
+            self.bb[Piece::Pawn],
+            self.bb[Piece::Knight],
+            self.bb[Piece::Bishop],
+            self.bb[Piece::Rook],
+            self.bb[Piece::Queen],
+            self.bb[Piece::King]
+        ]
+    }
+
+    pub fn side_bbs(self) -> [Bitboard; 2] {
+        [
+            self.bb[White.idx()],
+            self.bb[Black.idx()]
+        ]
+    }
+
     pub fn captured(self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() { return None; }
         if mv.is_ep() { return Some(Piece::Pawn); }

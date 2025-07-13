@@ -2,10 +2,13 @@ use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
 use crate::moves::Move;
-use crate::types::File;
-use crate::types::piece::{Piece, PIECES};
+use crate::nnue::cache::InputBucketCache;
+use crate::nnue::feature::Feature;
+use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
+use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
+use crate::types::File;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -30,15 +33,15 @@ pub const BUCKETS: [usize; 64] = [
     7, 7, 7, 7, 7, 7, 7, 7
 ];
 
-static NETWORK: Network =
+pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    feature_weights: [FeatureWeights; NUM_BUCKETS],
-    feature_bias: [i16; HIDDEN],
-    output_weights: [i16; 2 * HIDDEN],
-    output_bias: i16,
+    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
+    pub feature_bias: [i16; HIDDEN],
+    pub output_weights: [i16; 2 * HIDDEN],
+    pub output_bias: i16,
 }
 
 pub type FeatureWeights = [i16; FEATURES * HIDDEN];
@@ -51,14 +54,9 @@ pub struct Accumulator {
     pub mirrored: [bool; 2]
 }
 
-pub struct Feature {
-    pc: Piece,
-    sq: Square,
-    side: Side
-}
-
 pub struct NNUE {
     stack: [Accumulator; MAX_ACCUMULATORS],
+    cache: InputBucketCache,
     current: usize,
 }
 
@@ -66,6 +64,7 @@ impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
+            cache: InputBucketCache::default(),
             stack: [Accumulator::default(); MAX_ACCUMULATORS],
         }
     }
@@ -128,17 +127,38 @@ impl NNUE {
                         mirror: bool,
                         bucket: usize) {
 
-        let acc = &mut self.stack[idx];
-        acc.reset(perspective);
-        acc.mirrored[perspective] = mirror;
         let weights = &NETWORK.feature_weights[bucket];
-        for &pc in PIECES.iter() {
-            for sq in board.pcs(pc) {
-                let side = board.side_at(sq).unwrap();
-                let ft = Feature::new(pc, sq, side);
-                acc.add(ft, weights, perspective);
+        let acc = &mut self.stack[idx];
+        acc.mirrored[perspective] = mirror;
+
+        let cache_entry = self.cache.get(perspective, mirror, bucket);
+        acc.copy_from(perspective, &cache_entry.features);
+
+        for side in [White, Black] {
+            for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
+
+                let pc_bb = board.pieces(pc) & board.side(side);
+                let cached_pc_bb = cache_entry.pieces[pc] & cache_entry.sides[side];
+                let to_add = pc_bb & !cached_pc_bb;
+                let to_sub = cached_pc_bb & !pc_bb;
+
+                for add in to_add {
+                    let ft = Feature::new(pc, add, side);
+                    acc.add(ft, weights, perspective);
+                }
+
+                for sub in to_sub {
+                    let ft = Feature::new(pc, sub, side);
+                    acc.sub(ft, weights, perspective);
+                }
             }
         }
+
+        // panic!();
+        cache_entry.pieces = board.piece_bbs();
+        cache_entry.sides = board.side_bbs();
+        let final_features = acc.features(perspective);
+        cache_entry.features = *final_features;
 
     }
 
@@ -146,6 +166,7 @@ impl NNUE {
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
+        println!("making move: {}", mv.to_uci());
 
         self.current += 1;
         // TODO: This can be optimized. No need to have an extra copy
@@ -168,12 +189,19 @@ impl NNUE {
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
+            println!("refresh required: mirror_changed: {}, bucket_changed: {}", mirror_changed, bucket_changed);
             let bucket = if us == White { w_bucket } else { b_bucket };
             let mut mirror = should_mirror(board.king_sq(us));
             if mirror_changed {
                 mirror = !mirror
             }
             self.full_refresh(board, self.current, us, mirror, bucket);
+            let mut new_nnue = Box::new(NNUE::default());
+            new_nnue.activate(board);
+            if new_nnue.stack[new_nnue.current].white_features != self.stack[self.current].white_features ||
+               new_nnue.stack[new_nnue.current].black_features != self.stack[self.current].black_features {
+                panic!("NNUE activation failed to update features correctly");
+            }
         }
 
         if mv.is_castle() {
@@ -258,32 +286,6 @@ impl NNUE {
 
 }
 
-impl Feature {
-
-    pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
-        Feature { pc, sq, side }
-    }
-
-    pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let sq_index = self.square_index(perspective, mirror);
-        let pc_offset = self.pc as usize * PIECE_OFFSET;
-        let side_offset = if self.side == perspective { 0 } else { SIDE_OFFSET };
-        side_offset + pc_offset + sq_index
-    }
-
-    fn square_index(&self, perspective: Side, mirror: bool) -> usize {
-        let mut sq_index = self.sq;
-        if perspective != White {
-            sq_index = sq_index.flip_rank();
-        }
-        if mirror {
-            sq_index = sq_index.flip_file();
-        }
-        sq_index.0 as usize
-    }
-
-}
-
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != Piece::King {
         board.king_sq(side)
@@ -331,9 +333,25 @@ impl Default for Accumulator {
 
 impl Accumulator {
 
+    pub fn features(&self, perspective: Side) -> &[i16; HIDDEN] {
+        if perspective == White {
+            &self.white_features
+        } else {
+            &self.black_features
+        }
+    }
+
     pub fn reset(&mut self, perspective: Side) {
         let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
         *feats = NETWORK.feature_bias;
+    }
+
+    pub fn copy_from(&mut self, side: Side, features: &[i16; HIDDEN]) {
+        if side == White {
+            self.white_features = *features;
+        } else {
+            self.black_features = *features;
+        }
     }
 
     pub fn add(&mut self,
@@ -460,13 +478,12 @@ impl Accumulator {
 
 #[cfg(test)]
 mod tests {
+    use super::{Feature, NNUE};
     use crate::board::Board;
     use crate::fen;
-    use crate::moves::Move;
     use crate::types::piece::Piece::Pawn;
     use crate::types::side::Side;
     use crate::types::square::Square;
-    use super::{Feature, NNUE};
 
     #[test]
     fn test_startpos() {

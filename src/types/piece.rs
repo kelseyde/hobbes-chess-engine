@@ -14,9 +14,7 @@ pub const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece
 
 impl Piece {
 
-    pub fn iter() -> impl Iterator<Item = Piece> {
-        PIECES.iter().copied()
-    }
+    pub const COUNT: usize = 6;
 
     pub fn is_major(self) -> bool {
         matches!(self, Piece::Queen | Piece::Rook | Piece::King)
