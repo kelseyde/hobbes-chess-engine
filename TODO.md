@@ -14,7 +14,7 @@
 - [x] RFP improving
 - [ ] RFP opponent worsening
 - [x] RFP fail firm
-- [ ] RFP constant offset
+- [x] RFP constant offset
 - [ ] RFP prev-move history
 - [ ] RFP parent PV
 

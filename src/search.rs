@@ -146,7 +146,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
-        if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
+        if depth <= 8 && static_eval - 80 * (depth - improving as i32) + 24 >= beta {
             return beta + (static_eval - beta) / 3;
         }
 
