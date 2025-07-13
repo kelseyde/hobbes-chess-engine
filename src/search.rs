@@ -432,7 +432,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // Prior Countermove Bonus
     if !root_node
         && flag == Upper
-        && td.ss[ply - 1].captured.is_some() {
+        && td.ss[ply - 1].captured.is_none() {
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = (120 * depth as i16 - 75).min(1200);
