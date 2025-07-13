@@ -147,6 +147,7 @@
 - [ ] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
+- [ ] Complexity TM
 
 ## UCI
 - [ ] Configurable Hash size

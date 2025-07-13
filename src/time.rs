@@ -1,4 +1,5 @@
 use std::time::Duration;
+use crate::search::Score;
 
 pub struct SearchLimits {
     pub hard_time:  Option<Duration>,
@@ -41,10 +42,16 @@ impl SearchLimits {
         }
     }
 
-    pub fn scaled_soft_limit(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> Option<Duration> {
+    pub fn scaled_soft_limit(&self,
+                             depth: i32,
+                             nodes: u64,
+                             best_move_nodes: u64,
+                             score: i32,
+                             static_eval: i32) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
             let scaled = soft_time.as_secs_f32()
-                * self.node_tm_scale(depth, nodes, best_move_nodes);
+                * self.node_tm_scale(depth, nodes, best_move_nodes)
+                * self.complexity_scale(depth, score, static_eval);
             Duration::from_secs_f32(scaled)
         })
     }
@@ -55,6 +62,16 @@ impl SearchLimits {
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
         (1.5 - fraction) * 1.35
+    }
+
+    fn complexity_scale(&self, depth: i32, score: i32, static_eval: i32) -> f32 {
+        if depth < 4 || Score::is_mate(score) {
+            return 1.0;
+        }
+        let complexity = 0.8 * (depth as f32).ln() * (static_eval - score).abs() as f32;
+        let clamped = complexity.clamp(0.0, 200.0);
+        let scale = 0.7 + clamped / 400.0;
+        scale
     }
 
     fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {

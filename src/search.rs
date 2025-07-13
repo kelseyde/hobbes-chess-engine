@@ -21,6 +21,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.start_time = Instant::now();
     td.best_move = Move::NONE;
     td.nnue.activate(board);
+    td.root_eval = td.nnue.evaluate(board);
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
@@ -40,6 +41,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
             if td.main {
+                td.search_score = score;
                 if td.best_move.exists() {
                     println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
                 } else {
