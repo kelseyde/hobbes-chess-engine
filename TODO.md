@@ -138,7 +138,7 @@
 - [x] Horizontal mirroring
 - [x] Output buckets
 - [ ] Lazy updates
-- [ ] Finny tables
+- [x] Finny tables
 - [ ] Remove unnecessary copy
 
 ## Time Management

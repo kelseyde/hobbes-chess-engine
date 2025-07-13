@@ -134,6 +134,9 @@ impl NNUE {
         let cache_entry = self.cache.get(perspective, mirror, bucket);
         acc.copy_from(perspective, &cache_entry.features);
 
+        let mut add_count = 0;
+        let mut sub_count = 0;
+
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
 
@@ -143,18 +146,21 @@ impl NNUE {
                 let to_sub = cached_pc_bb & !pc_bb;
 
                 for add in to_add {
+                    add_count += 1;
                     let ft = Feature::new(pc, add, side);
                     acc.add(ft, weights, perspective);
                 }
 
                 for sub in to_sub {
+                    sub_count += 1;
                     let ft = Feature::new(pc, sub, side);
                     acc.sub(ft, weights, perspective);
                 }
             }
         }
 
-        // panic!();
+        println!("made {} adds and {} subs for perspective: {:?}, mirror: {}, bucket: {}",
+                 add_count, sub_count, perspective, mirror, bucket);
         cache_entry.pieces = board.piece_bbs();
         cache_entry.sides = board.side_bbs();
         let final_features = acc.features(perspective);
@@ -198,8 +204,11 @@ impl NNUE {
             self.full_refresh(board, self.current, us, mirror, bucket);
             let mut new_nnue = Box::new(NNUE::default());
             new_nnue.activate(board);
-            if new_nnue.stack[new_nnue.current].white_features != self.stack[self.current].white_features ||
-               new_nnue.stack[new_nnue.current].black_features != self.stack[self.current].black_features {
+
+            let target_fts = self.stack[self.current].features(us);
+            let target_new_fts = new_nnue.stack[new_nnue.current].features(us);
+
+            if target_fts != target_new_fts  {
                 panic!("NNUE activation failed to update features correctly");
             }
         }
