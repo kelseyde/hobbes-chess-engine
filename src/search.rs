@@ -108,6 +108,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
@@ -121,14 +122,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             tt_flag = entry.flag();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
+                tt_move_noisy = board.is_noisy(&tt_move)
             }
 
             if !root_node
+                && !pv_node
                 && tt_depth >= depth
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
                 return tt_score;
             }
-
         }
     }
 
@@ -150,9 +152,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             return beta + (static_eval - beta) / 3;
         }
 
+        // Razoring
+        if !pv_node && static_eval < alpha - 300 - 250 * depth * depth {
+            return qs(board, td, alpha, beta, ply);
+        }
+
         // Null Move Pruning
         if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
-            let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4);
+            let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4) + tt_move_noisy as i32;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
@@ -375,6 +382,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 flag = TTFlag::Lower;
                 break;
             }
+
+            // Alpha-raise reduction
+            if depth > 2 && depth < 12 && !is_mate_score {
+                depth -= 1;
+            }
+
         }
     }
 
@@ -487,8 +500,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
+    let mut static_eval = -Score::MATE + ply as i32;
+
     if !in_check {
-        let static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -507,7 +522,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut move_count = 0;
 
-    let mut best_score = alpha;
+    let futility_margin = static_eval + 135;
+    let mut best_score = static_eval;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -517,6 +533,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_mate_score = Score::is_mate(best_score);
+
+        // Futility Pruning
+        if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
+            if best_score < futility_margin {
+                best_score = futility_margin;
+            }
+            continue;
+        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
