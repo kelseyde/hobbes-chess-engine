@@ -127,7 +127,7 @@
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
 - [ ] History factoriser
-- [ ] Post-LMR update conthist
+- [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
 

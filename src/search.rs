@@ -335,6 +335,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+
+                if is_quiet && (score <= alpha || score >= beta) {
+                    let bonus = if score <= alpha {
+                        -(120 * depth as i16 - 75).min(1200)
+                    } else {
+                        (120 * depth as i16 - 75).min(1200)
+                    };
+                    update_continuation_history(td, ply, &mv, pc, bonus);
+                }
             }
         } else if !pv_node || searched_moves > 1 {
             score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
