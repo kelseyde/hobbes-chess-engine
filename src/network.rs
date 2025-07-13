@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use crate::types::side::Side::{Black, White};
 
 use crate::board::Board;
@@ -137,6 +138,9 @@ impl NNUE {
         let mut add_count = 0;
         let mut sub_count = 0;
 
+        let mut adds = ArrayVec::<_, 32>::new();
+        let mut subs = ArrayVec::<_, 32>::new();
+
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
 
@@ -147,20 +151,23 @@ impl NNUE {
 
                 for add in to_add {
                     add_count += 1;
-                    let ft = Feature::new(pc, add, side);
-                    acc.add(ft, weights, perspective);
+                    adds.push(Feature::new(pc, add, side));
                 }
 
                 for sub in to_sub {
                     sub_count += 1;
-                    let ft = Feature::new(pc, sub, side);
-                    acc.sub(ft, weights, perspective);
+                    subs.push(Feature::new(pc, sub, side))
                 }
             }
         }
 
-        println!("made {} adds and {} subs for perspective: {:?}, mirror: {}, bucket: {}",
-                 add_count, sub_count, perspective, mirror, bucket);
+        for add in adds {
+            acc.add(add, weights, perspective);
+        }
+        for sub in subs {
+            acc.sub(sub, weights, perspective);
+        }
+
         cache_entry.pieces = board.piece_bbs();
         cache_entry.sides = board.side_bbs();
         let final_features = acc.features(perspective);
@@ -172,7 +179,6 @@ impl NNUE {
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
-        println!("making move: {}", mv.to_uci());
 
         self.current += 1;
         // TODO: This can be optimized. No need to have an extra copy
@@ -195,22 +201,12 @@ impl NNUE {
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
-            println!("refresh required: mirror_changed: {}, bucket_changed: {}", mirror_changed, bucket_changed);
             let bucket = if us == White { w_bucket } else { b_bucket };
             let mut mirror = should_mirror(board.king_sq(us));
             if mirror_changed {
                 mirror = !mirror
             }
             self.full_refresh(board, self.current, us, mirror, bucket);
-            let mut new_nnue = Box::new(NNUE::default());
-            new_nnue.activate(board);
-
-            let target_fts = self.stack[self.current].features(us);
-            let target_new_fts = new_nnue.stack[new_nnue.current].features(us);
-
-            if target_fts != target_new_fts  {
-                panic!("NNUE activation failed to update features correctly");
-            }
         }
 
         if mv.is_castle() {
