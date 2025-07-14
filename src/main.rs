@@ -1,4 +1,3 @@
-use crate::simd::scalar;
 use crate::uci::UCI;
 
 pub mod attacks;
