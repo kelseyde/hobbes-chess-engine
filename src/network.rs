@@ -30,15 +30,15 @@ pub const BUCKETS: [usize; 64] = [
     7, 7, 7, 7, 7, 7, 7, 7
 ];
 
-static NETWORK: Network =
+pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    feature_weights: [FeatureWeights; NUM_BUCKETS],
-    feature_bias: [i16; HIDDEN],
-    output_weights: [i16; 2 * HIDDEN],
-    output_bias: i16,
+    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
+    pub feature_bias: [i16; HIDDEN],
+    pub output_weights: [i16; 2 * HIDDEN],
+    pub output_bias: i16,
 }
 
 pub type FeatureWeights = [i16; FEATURES * HIDDEN];
@@ -80,28 +80,35 @@ impl NNUE {
 
         let acc = &self.stack[self.current];
 
-        let us = match board.stm { White => acc.white_features, Black => acc.black_features };
-        let them = match board.stm { White => acc.black_features, Black => acc.white_features };
+        let weights = &NETWORK.output_weights;
+        let us = match board.stm { White => &acc.white_features, Black => &acc.black_features };
+        let them = match board.stm { White => &acc.black_features, Black => &acc.white_features };
 
-        let mut output = 0;
-
-        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
-
-        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
+        let mut output = Self::forward(us, them, weights);
 
         output /= QA;
         output += NETWORK.output_bias as i32;
         output *= SCALE;
         output /= QAB;
         output
+    }
+
+    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN], weights: &[i16; HIDDEN * 2]) -> i32 {
+        #[cfg(feature = "avx512")]
+        {
+            use super::simd::avx512;
+            unsafe { avx512::forward(acc, weights) }
+        }
+        #[cfg(all(not(feature = "avx512"), target_feature = "avx2"))]
+        {
+            use super::simd::avx2;
+            unsafe { avx2::forward(acc, weights) }
+        }
+        #[cfg(all(not(target_feature = "avx2"), not(feature = "avx512")))]
+        {
+            use super::simd::scalar;
+            unsafe { scalar::forward(us, them, weights) }
+        }
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
