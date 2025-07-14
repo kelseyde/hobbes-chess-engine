@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
+use crate::parameters::{*};
 use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
@@ -25,13 +26,13 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut delta = 24;
+    let mut delta = asp_delta();
 
     // Iterative Deepening
     while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
 
         // Aspiration Windows
-        if td.depth >= 4 {
+        if td.depth >= asp_min_depth() {
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
@@ -55,9 +56,11 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;
                     alpha = (score - delta).max(Score::MIN);
+                    delta = (delta * 1024) / asp_alpha_widening_factor();
                 }
                 s if s >= beta => {
                     beta = (score + delta).min(Score::MAX);
+                    delta = (delta * 1024) / asp_beta_widening_factor();
                 }
                 _ => break,
             }
