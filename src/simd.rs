@@ -6,7 +6,7 @@ pub(crate) mod avx2 {
     const CHUNK_SIZE: usize = 16;
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
 
-    pub unsafe fn flatten(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
         {
             let mut sum = _mm256_setzero_si256();
             for i in 0..LOOP_LENGTH {
@@ -48,22 +48,16 @@ pub(crate) mod avx2 {
 pub(crate) mod scalar {
     use crate::network::{HIDDEN, QA};
 
-    pub fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN], weights: &[i16; HIDDEN * 2]) -> i32 {
+    pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+
         let mut output = 0;
-
-        for (&input, &weight) in us.iter().zip(weights[..HIDDEN].iter()) {
+        for (&input, &weight) in features.iter().zip(weights.iter()) {
             let clipped = input.clamp(0, QA as i16);
             let result = clipped * weight;
             output += result as i32 * clipped as i32;
         }
-
-        for (&input, &weight) in them.iter().zip(weights[HIDDEN..].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
-
         output
+
     }
 
 }

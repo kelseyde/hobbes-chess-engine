@@ -37,7 +37,7 @@ static NETWORK: Network =
 pub struct Network {
     feature_weights: [FeatureWeights; NUM_BUCKETS],
     feature_bias: [i16; HIDDEN],
-    output_weights: [i16; 2 * HIDDEN],
+    output_weights: [[i16; HIDDEN]; 2],
     output_bias: i16,
 }
 
@@ -81,9 +81,8 @@ impl NNUE {
         let acc = &self.stack[self.current];
         let us = match board.stm { White => &acc.white_features, Black => &acc.black_features };
         let them = match board.stm { White => &acc.black_features, Black => &acc.white_features };
-        let weights = &NETWORK.output_weights;
 
-        let mut output = Self::forward(us, them, weights);
+        let mut output = Self::forward(us, them);
 
         output /= QA;
         output += NETWORK.output_bias as i32;
@@ -93,16 +92,18 @@ impl NNUE {
 
     }
 
-    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN], weights: &[i16; HIDDEN * 2]) -> i32 {
+    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
         #[cfg(target_feature = "avx2")]
         {
             use super::simd::avx2;
-            unsafe { avx2::forward(acc, weights) }
+            let weights = &crate::network::NETWORK.output_weights;
+            unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(not(target_feature = "avx2"))]
         {
             use super::simd::scalar;
-            scalar::forward(us, them, weights)
+            let weights = &NETWORK.output_weights;
+            scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
         }
     }
 
