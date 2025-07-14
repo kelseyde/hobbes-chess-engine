@@ -141,9 +141,19 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
     };
 
-    td.ss[ply].static_eval = Some(static_eval);
+    td.ss[ply].static_eval = static_eval;
 
     let improving = is_improving(td, ply, static_eval);
+
+    // Hindsight extension
+    if !root_node
+        && !in_check
+        && !singular_search
+        && td.ss[ply - 1].reduction >= 3
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval < 0 {
+        depth += 1;
+    }
 
     if !root_node && !pv_node && !in_check && !singular_search{
 
@@ -330,7 +340,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
 
             // Reduced-depth search
+            td.ss[ply].reduction = reduction;
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            td.ss[ply].reduction = 0;
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
@@ -610,16 +622,14 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
         return false;
     }
     if ply > 1 {
-        if let Some(prev_eval) = td.ss[ply - 2]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 2].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
     if ply > 3 {
-        if let Some(prev_eval) = td.ss[ply - 4]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 4].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
@@ -695,8 +705,9 @@ pub struct StackEntry {
     pub captured: Option<Piece>,
     pub killer: Option<Move>,
     pub singular: Option<Move>,
-    pub static_eval: Option<i32>,
-    pub threats: Bitboard
+    pub threats: Bitboard,
+    pub static_eval: i32,
+    pub reduction: i32
 }
 
 impl Default for SearchStack {
@@ -713,9 +724,10 @@ impl SearchStack {
                 pc: None,
                 captured: None,
                 killer: None,
-                static_eval: None,
                 singular: None,
-                threats: Bitboard::empty()
+                threats: Bitboard::empty(),
+                static_eval: Score::MIN,
+                reduction: 0
             }; MAX_PLY + 8],
         }
     }
@@ -747,5 +759,9 @@ impl Score {
 
     pub fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_DEPTH
+    }
+
+    pub fn is_defined(score: i32) -> bool {
+        score >= -Score::MATE && score <= Score::MATE
     }
 }
