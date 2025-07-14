@@ -16,3 +16,4 @@ debug = true
 
 [features]
 avx2 = []
+avx512 = []

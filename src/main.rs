@@ -1,3 +1,4 @@
+use crate::simd::scalar;
 use crate::uci::UCI;
 
 pub mod attacks;
@@ -22,6 +23,18 @@ mod movepicker;
 mod simd;
 
 fn main() {
+    #[cfg(feature = "avx512")]
+    {
+        println!("hello avx512");
+    }
+    #[cfg(target_feature = "avx2")]
+    {
+        println!("hello avx2");
+    }
+    #[cfg(not(target_feature = "avx2"))]
+    {
+        println!("hello scalar");
+    }
     let args: Vec<String> = std::env::args().collect();
     UCI::new().run(&args);
 }

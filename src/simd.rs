@@ -1,4 +1,36 @@
-#[cfg(target_feature = "avx2")]
+#[cfg(feature = "avx512")]
+pub(crate) mod avx512 {
+    use std::arch::x86_64::*;
+    use crate::network::{HIDDEN, QA};
+
+    const CHUNK_SIZE: usize = 32;
+    const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
+
+    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+        {
+            let mut sum = _mm512_setzero_si512();
+            for i in 0..REQUIRED_ITERS {
+                let features = _mm512_load_si512(acc.as_ptr().add(i * CHUNK_SIZE).cast());
+                let weights = _mm512_load_si512(weights.as_ptr().add(i * CHUNK_SIZE).cast());
+                let clipped = clipped_relu(features);
+                let v = _mm512_mullo_epi16(clipped, weights);
+                sum = _mm512_dpwssd_epi32(sum, v, clipped);
+            }
+            _mm512_reduce_add_epi32(sum)
+        }
+    }
+
+    #[inline]
+    unsafe fn clipped_relu(i: __m512i) -> __m512i {
+        let min = _mm512_set1_epi16(0);
+        let max = _mm512_set1_epi16(QA as i16);
+
+        _mm512_min_epi16(_mm512_max_epi16(i, min), max)
+    }
+
+}
+
+#[cfg(all(not(feature = "avx512"), target_feature = "avx2"))]
 pub(crate) mod avx2 {
     use std::arch::x86_64::*;
     use crate::network::{HIDDEN, QA};
@@ -44,7 +76,7 @@ pub(crate) mod avx2 {
 
 }
 
-#[cfg(not(target_feature = "avx2"))]
+#[cfg(all(not(target_feature = "avx2"), not(feature = "avx512")))]
 pub(crate) mod scalar {
     use crate::network::{HIDDEN, QA};
 

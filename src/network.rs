@@ -93,10 +93,16 @@ impl NNUE {
     }
 
     pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+        #[cfg(feature = "avx512")]
+        {
+            use super::simd::avx512;
+            let weights = &NETWORK.output_weights;
+            unsafe { avx512::forward(us, &weights[0]) + avx512::forward(them, &weights[1]) }
+        }
         #[cfg(target_feature = "avx2")]
         {
             use super::simd::avx2;
-            let weights = &crate::network::NETWORK.output_weights;
+            let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(not(target_feature = "avx2"))]
