@@ -12,8 +12,7 @@ pub struct InputBucketCache {
 #[derive(Clone)]
 pub struct CacheEntry {
     pub features: [i16; HIDDEN],
-    pub pieces: [Bitboard; Piece::COUNT],
-    pub sides: [Bitboard; 2],
+    pub bitboards: [Bitboard; 8],
 }
 
 impl Default for CacheEntry {
@@ -21,8 +20,7 @@ impl Default for CacheEntry {
     fn default() -> Self {
         CacheEntry {
             features: NETWORK.feature_bias.clone(),
-            pieces: [Bitboard::empty(); Piece::COUNT],
-            sides: [Bitboard::empty(); 2]
+            bitboards: [Bitboard::empty(); 8],
         }
     }
 

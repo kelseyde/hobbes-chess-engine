@@ -143,10 +143,10 @@ impl NNUE {
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
 
-                let pc_bb = board.pieces(pc) & board.side(side);
-                let cached_pc_bb = cache_entry.pieces[pc] & cache_entry.sides[side];
-                let added = pc_bb & !cached_pc_bb;
-                let removed = cached_pc_bb & !pc_bb;
+                let pieces = board.pieces(pc) & board.side(side);
+                let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
+                let added = pieces & !cached_pieces;
+                let removed = cached_pieces & !pieces;
 
                 for add in added {
                     adds.push(Feature::new(pc, add, side));
@@ -167,16 +167,8 @@ impl NNUE {
             acc.sub(sub, weights, perspective);
         }
 
-        cache_entry.pieces[Pawn] = board.pieces(Pawn);
-        cache_entry.pieces[Knight] = board.pieces(Knight);
-        cache_entry.pieces[Bishop] = board.pieces(Bishop);
-        cache_entry.pieces[Rook] = board.pieces(Rook);
-        cache_entry.pieces[Queen] = board.pieces(Queen);
-        cache_entry.pieces[King] = board.pieces(King);
-        cache_entry.sides[White] = board.side(White);
-        cache_entry.sides[Black] = board.side(Black);
-        let final_features = acc.features(perspective);
-        cache_entry.features = *final_features;
+        cache_entry.bitboards = board.bb;
+        cache_entry.features = *acc.features(perspective);
 
         // if board.pieces(Pawn) != cache_entry.pieces[Pawn] {
         //     panic!("oh no pawn")
