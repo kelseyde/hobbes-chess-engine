@@ -41,15 +41,62 @@ pub(crate) mod avx2 {
         let max = _mm256_set1_epi16(QA as i16);
         _mm256_min_epi16(_mm256_max_epi16(i, min), max)
     }
-
 }
 
-#[cfg(not(target_feature = "avx2"))]
+#[cfg(target_feature = "neon")]
+pub(crate) mod neon {
+    use std::arch::aarch64::*;
+    use crate::network::{HIDDEN, QA};
+
+    const CHUNK_SIZE: usize = 8;
+    const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
+
+    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+        {
+            let mut sum = vdupq_n_s32(0);
+            for i in 0..LOOP_LENGTH {
+                let features = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
+                let weights = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
+                let clipped = clipped_relu(features);
+                let v = vmulq_s16(clipped, weights);
+
+                let clipped_low = vget_low_s16(clipped);
+                let clipped_high = vget_high_s16(clipped);
+                let v_low = vget_low_s16(v);
+                let v_high = vget_high_s16(v);
+
+                let mul_low = vmull_s16(v_low, clipped_low);
+                let mul_high = vmull_s16(v_high, clipped_high);
+
+                sum = vaddq_s32(sum, mul_low);
+                sum = vaddq_s32(sum, mul_high);
+            }
+            horizontal_add(sum)
+        }
+    }
+
+    #[inline]
+    unsafe fn horizontal_add(sum: int32x4_t) -> i32 {
+        {
+            let sum_pair = vpadd_s32(vget_low_s32(sum), vget_high_s32(sum));
+            let final_sum = vpadd_s32(sum_pair, sum_pair);
+            vget_lane_s32(final_sum, 0)
+        }
+    }
+
+    #[inline]
+    unsafe fn clipped_relu(i: int16x8_t) -> int16x8_t {
+        let min = vdupq_n_s16(0);
+        let max = vdupq_n_s16(QA as i16);
+        vminq_s16(vmaxq_s16(i, min), max)
+    }
+}
+
+#[cfg(all(not(target_feature = "avx2"), not(target_feature = "neon")))]
 pub(crate) mod scalar {
     use crate::network::{HIDDEN, QA};
 
     pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
-
         let mut output = 0;
         for (&input, &weight) in features.iter().zip(weights.iter()) {
             let clipped = input.clamp(0, QA as i16);
@@ -57,7 +104,5 @@ pub(crate) mod scalar {
             output += result as i32 * clipped as i32;
         }
         output
-
     }
-
 }

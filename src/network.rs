@@ -99,7 +99,13 @@ impl NNUE {
             let weights = &crate::network::NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
-        #[cfg(not(target_feature = "avx2"))]
+        #[cfg(target_feature = "neon")]
+        {
+            use super::simd::neon;
+            let weights = &NETWORK.output_weights;
+            unsafe { neon::forward(us, &weights[0]) + neon::forward(them, &weights[1]) }
+        }
+        #[cfg(all(not(target_feature = "avx2"), not(target_feature = "neon")))]
         {
             use super::simd::scalar;
             let weights = &NETWORK.output_weights;
