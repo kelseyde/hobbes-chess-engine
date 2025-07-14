@@ -520,9 +520,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
-    let tt_entry = td.tt.probe(board.hash);
+    let mut tt_hit = false;
     let mut tt_move = Move::NONE;
-    if let Some(entry) = tt_entry {
+    if let Some(entry) = td.tt.probe(board.hash) {
+        tt_hit = true;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -542,6 +543,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             alpha = static_eval
         }
         if alpha >= beta {
+            if !tt_hit {
+                td.tt.insert(board.hash, Move::NONE, static_eval, 0, ply, Lower);
+            }
             return alpha;
         }
     }
