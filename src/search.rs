@@ -172,6 +172,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && static_eval >= beta
             && (!tt_hit || cut_node || tt_score >= beta)
             && board.has_non_pawns() {
+
             let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4) + tt_move_noisy as i32;
             let mut board = *board;
             board.make_null_move();
