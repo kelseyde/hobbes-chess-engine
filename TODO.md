@@ -98,7 +98,7 @@
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Hindsight reductions
+- [x] Hindsight reductions
 - [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
