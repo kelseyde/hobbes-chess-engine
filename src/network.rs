@@ -37,7 +37,7 @@ static NETWORK: Network =
 pub struct Network {
     feature_weights: [FeatureWeights; NUM_BUCKETS],
     feature_bias: [i16; HIDDEN],
-    output_weights: [i16; 2 * HIDDEN],
+    output_weights: [[i16; HIDDEN]; 2],
     output_bias: i16,
 }
 
@@ -79,29 +79,32 @@ impl NNUE {
     pub fn evaluate(&mut self, board: &Board) -> i32 {
 
         let acc = &self.stack[self.current];
+        let us = match board.stm { White => &acc.white_features, Black => &acc.black_features };
+        let them = match board.stm { White => &acc.black_features, Black => &acc.white_features };
 
-        let us = match board.stm { White => acc.white_features, Black => acc.black_features };
-        let them = match board.stm { White => acc.black_features, Black => acc.white_features };
-
-        let mut output = 0;
-
-        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
-
-        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
+        let mut output = Self::forward(us, them);
 
         output /= QA;
         output += NETWORK.output_bias as i32;
         output *= SCALE;
         output /= QAB;
         output
+
+    }
+
+    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+        #[cfg(target_feature = "avx2")]
+        {
+            use super::simd::avx2;
+            let weights = &crate::network::NETWORK.output_weights;
+            unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
+        }
+        #[cfg(not(target_feature = "avx2"))]
+        {
+            use super::simd::scalar;
+            let weights = &NETWORK.output_weights;
+            scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
+        }
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -462,7 +465,6 @@ impl Accumulator {
 mod tests {
     use crate::board::Board;
     use crate::fen;
-    use crate::moves::Move;
     use crate::types::piece::Piece::Pawn;
     use crate::types::side::Side;
     use crate::types::square::Square;
