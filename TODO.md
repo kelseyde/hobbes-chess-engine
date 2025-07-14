@@ -34,7 +34,7 @@
 - [ ] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
-- [ ] Noisy LMR
+- [x] Noisy LMR
 - [ ] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
