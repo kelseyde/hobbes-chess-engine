@@ -7,6 +7,7 @@ pub(crate) mod avx2 {
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
 
     pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+        println!("Using AVX2 for forward pass");
         {
             let mut sum = _mm256_setzero_si256();
             for i in 0..LOOP_LENGTH {
