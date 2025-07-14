@@ -155,7 +155,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         depth += 1;
     }
 
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
@@ -168,7 +168,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // Null Move Pruning
-        if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
+        if depth >= 3
+            && static_eval >= beta
+            && (!tt_hit || cut_node || tt_score >= beta)
+            && board.has_non_pawns() {
             let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4) + tt_move_noisy as i32;
             let mut board = *board;
             board.make_null_move();
