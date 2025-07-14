@@ -4,6 +4,7 @@ use crate::board::Board;
 use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
+use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight};
 use crate::search::{LmrTable, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
@@ -100,28 +101,6 @@ impl ThreadData {
         }
     }
 
-    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
-        let mut correction =
-            self.pawn_corrhist.get(board.stm, board.pawn_hash)
-            + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
-            + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
-            + self.major_corrhist.get(board.stm, board.major_hash)
-            + self.minor_corrhist.get(board.stm, board.minor_hash);
-        if ply >= 1 {
-            if let Some(prev_mv) = self.ss[ply - 1].mv {
-                let encoded_mv = prev_mv.encoded() as u64;
-                correction += self.countermove_corrhist.get(board.stm, encoded_mv)
-            }
-        }
-        if ply >= 2 {
-            if let Some(prev_mv) = self.ss[ply - 2].mv {
-                let encoded_mv = prev_mv.encoded() as u64;
-                correction += self.follow_up_move_corrhist.get(board.stm, encoded_mv)
-            }
-        }
-        correction
-    }
-
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.start_time = Instant::now();
@@ -193,6 +172,47 @@ impl ThreadData {
                 self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
             }
         }
+    }
+
+    #[rustfmt::skip]
+    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
+
+        let pawn       = self.pawn_corrhist.get(board.stm, board.pawn_hash);
+        let white      = self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White]);
+        let black      = self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black]);
+        let major      = self.major_corrhist.get(board.stm, board.major_hash);
+        let minor      = self.minor_corrhist.get(board.stm, board.minor_hash);
+        let counter    = self.countermove_correction(board, ply);
+        let follow_up  = self.follow_up_move_correction(board, ply);
+
+        (pawn * 100 / corr_pawn_weight())
+            + (white * 100 / corr_non_pawn_weight())
+            + (black * 100 / corr_non_pawn_weight())
+            + (major * 100 / corr_major_weight())
+            + (minor * 100 / corr_minor_weight())
+            + (counter * 100 / corr_counter_weight())
+            + (follow_up * 100 / corr_follow_up_weight())
+
+    }
+
+    fn countermove_correction(&self, board: &Board, ply: usize) -> i32 {
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                return self.countermove_corrhist.get(board.stm, encoded_mv);
+            }
+        }
+        0
+    }
+
+    fn follow_up_move_correction(&self, board: &Board, ply: usize) -> i32 {
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                return self.follow_up_move_corrhist.get(board.stm, encoded_mv);
+            }
+        }
+        0
     }
 
     pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, threats: Bitboard, pc: Piece, captured: Option<Piece>) -> i32 {
