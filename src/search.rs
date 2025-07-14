@@ -428,13 +428,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+        let quiet_bonus = (120 * depth as i16 - 75).min(1200) - (64 * cut_node as i16);
         let quiet_malus = (120 * depth as i16 - 75).min(1200);
 
         let capt_bonus = (120 * depth as i16 - 75).min(1200);
         let capt_malus = (120 * depth as i16 - 75).min(1200);
 
-        let cont_bonus = (120 * depth as i16 - 75).min(1200);
+        let cont_bonus = (120 * depth as i16 - 75).min(1200) - (64 * cut_node as i16);
         let cont_malus = (120 * depth as i16 - 75).min(1200);
 
         if let Some(captured) = board.captured(&best_move) {
