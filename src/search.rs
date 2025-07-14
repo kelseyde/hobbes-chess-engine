@@ -155,6 +155,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         depth += 1;
     }
 
+    // Hindsight reduction
+    if !root_node
+        && !pv_node
+        && !in_check
+        && !singular_search
+        && depth >= 2
+        && td.ss[ply - 1].reduction >= 1
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval > 80 {
+        depth -= 1;
+    }
+
     if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
