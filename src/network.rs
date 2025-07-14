@@ -30,15 +30,15 @@ pub const BUCKETS: [usize; 64] = [
     7, 7, 7, 7, 7, 7, 7, 7
 ];
 
-pub(crate) static NETWORK: Network =
+static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
-    pub feature_bias: [i16; HIDDEN],
-    pub output_weights: [i16; 2 * HIDDEN],
-    pub output_bias: i16,
+    feature_weights: [FeatureWeights; NUM_BUCKETS],
+    feature_bias: [i16; HIDDEN],
+    output_weights: [i16; 2 * HIDDEN],
+    output_bias: i16,
 }
 
 pub type FeatureWeights = [i16; FEATURES * HIDDEN];
@@ -79,10 +79,9 @@ impl NNUE {
     pub fn evaluate(&mut self, board: &Board) -> i32 {
 
         let acc = &self.stack[self.current];
-
-        let weights = &NETWORK.output_weights;
         let us = match board.stm { White => &acc.white_features, Black => &acc.black_features };
         let them = match board.stm { White => &acc.black_features, Black => &acc.white_features };
+        let weights = &NETWORK.output_weights;
 
         let mut output = Self::forward(us, them, weights);
 
@@ -91,23 +90,19 @@ impl NNUE {
         output *= SCALE;
         output /= QAB;
         output
+
     }
 
     pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN], weights: &[i16; HIDDEN * 2]) -> i32 {
-        #[cfg(feature = "avx512")]
-        {
-            use super::simd::avx512;
-            unsafe { avx512::forward(acc, weights) }
-        }
-        #[cfg(all(not(feature = "avx512"), target_feature = "avx2"))]
+        #[cfg(target_feature = "avx2")]
         {
             use super::simd::avx2;
             unsafe { avx2::forward(acc, weights) }
         }
-        #[cfg(all(not(target_feature = "avx2"), not(feature = "avx512")))]
+        #[cfg(not(target_feature = "avx2"))]
         {
             use super::simd::scalar;
-            unsafe { scalar::forward(us, them, weights) }
+            scalar::forward(us, them, weights)
         }
     }
 
@@ -469,7 +464,6 @@ impl Accumulator {
 mod tests {
     use crate::board::Board;
     use crate::fen;
-    use crate::moves::Move;
     use crate::types::piece::Piece::Pawn;
     use crate::types::side::Side;
     use crate::types::square::Square;
