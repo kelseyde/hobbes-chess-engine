@@ -41,7 +41,7 @@ pub(crate) static NETWORK: Network =
 pub struct Network {
     pub feature_weights: [FeatureWeights; NUM_BUCKETS],
     pub feature_bias: [i16; HIDDEN],
-    pub output_weights: [i16; 2 * HIDDEN],
+    pub output_weights: [[i16; HIDDEN]; 2],
     pub output_bias: i16,
 }
 
@@ -79,29 +79,32 @@ impl NNUE {
     pub fn evaluate(&mut self, board: &Board) -> i32 {
 
         let acc = &self.stack[self.current];
+        let us = match board.stm { White => &acc.white_features, Black => &acc.black_features };
+        let them = match board.stm { White => &acc.black_features, Black => &acc.white_features };
 
-        let us = match board.stm { White => acc.white_features, Black => acc.black_features };
-        let them = match board.stm { White => acc.black_features, Black => acc.white_features };
-
-        let mut output = 0;
-
-        for (&input, &weight) in us.iter().zip(NETWORK.output_weights[..HIDDEN].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
-
-        for (&input, &weight) in them.iter().zip(NETWORK.output_weights[HIDDEN..].iter()) {
-            let clipped = input.clamp(0, QA as i16);
-            let result = clipped * weight;
-            output += result as i32 * clipped as i32;
-        }
+        let mut output = Self::forward(us, them);
 
         output /= QA;
         output += NETWORK.output_bias as i32;
         output *= SCALE;
         output /= QAB;
         output
+
+    }
+
+    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+        #[cfg(target_feature = "avx2")]
+        {
+            use super::simd::avx2;
+            let weights = &crate::network::NETWORK.output_weights;
+            unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
+        }
+        #[cfg(not(target_feature = "avx2"))]
+        {
+            use super::simd::scalar;
+            let weights = &NETWORK.output_weights;
+            scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
+        }
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -163,11 +166,17 @@ impl NNUE {
         for sub in subs {
             acc.sub(sub, weights, perspective);
         }
-        //
-        // cache_entry.pieces = board.piece_bbs();
-        // cache_entry.sides = board.side_bbs();
-        // let final_features = acc.features(perspective);
-        // cache_entry.features = *final_features;
+
+        cache_entry.pieces[Pawn] = board.pieces(Pawn);
+        cache_entry.pieces[Knight] = board.pieces(Knight);
+        cache_entry.pieces[Bishop] = board.pieces(Bishop);
+        cache_entry.pieces[Rook] = board.pieces(Rook);
+        cache_entry.pieces[Queen] = board.pieces(Queen);
+        cache_entry.pieces[King] = board.pieces(King);
+        cache_entry.sides[White] = board.side(White);
+        cache_entry.sides[Black] = board.side(Black);
+        let final_features = acc.features(perspective);
+        cache_entry.features = *final_features;
 
         // if board.pieces(Pawn) != cache_entry.pieces[Pawn] {
         //     panic!("oh no pawn")

@@ -98,8 +98,8 @@
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Hindsight reductions
-- [ ] Hindsight extensions
+- [x] Hindsight reductions
+- [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
@@ -123,11 +123,11 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
-- [ ] Prior countermove bonus
+- [x] Prior countermove bonus
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
 - [ ] History factoriser
-- [ ] Post-LMR update conthist
+- [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
 

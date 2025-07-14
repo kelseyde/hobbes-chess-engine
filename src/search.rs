@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
+use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 
@@ -80,6 +81,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
@@ -139,9 +141,31 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
     };
 
-    td.ss[ply].static_eval = Some(static_eval);
+    td.ss[ply].static_eval = static_eval;
 
     let improving = is_improving(td, ply, static_eval);
+
+    // Hindsight extension
+    if !root_node
+        && !in_check
+        && !singular_search
+        && td.ss[ply - 1].reduction >= 3
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval < 0 {
+        depth += 1;
+    }
+
+    // Hindsight reduction
+    if !root_node
+        && !pv_node
+        && !in_check
+        && !singular_search
+        && depth >= 2
+        && td.ss[ply - 1].reduction >= 1
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval > 80 {
+        depth -= 1;
+    }
 
     if !root_node && !pv_node && !in_check && !singular_search{
 
@@ -304,6 +328,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         searched_moves += 1;
@@ -327,11 +352,22 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
 
             // Reduced-depth search
+            td.ss[ply].reduction = reduction;
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            td.ss[ply].reduction = 0;
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+
+                if is_quiet && (score <= alpha || score >= beta) {
+                    let bonus = if score <= alpha {
+                        -(120 * depth as i16 - 75).min(1200)
+                    } else {
+                        (120 * depth as i16 - 75).min(1200)
+                    };
+                    update_continuation_history(td, ply, &mv, pc, bonus);
+                }
             }
         } else if !pv_node || searched_moves > 1 {
             score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
@@ -351,6 +387,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -425,6 +462,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
+    // Prior Countermove Bonus
+    if !root_node
+        && flag == Upper
+        && td.ss[ply - 1].captured.is_none() {
+        if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let prev_threats = td.ss[ply - 1].threats;
+            let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+            td.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
+        }
+    }
+
     // Handle checkmate / stalemate
     if legal_moves == 0 {
         return if singular_search {
@@ -470,6 +518,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
@@ -538,6 +587,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -547,6 +597,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -583,16 +634,14 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
         return false;
     }
     if ply > 1 {
-        if let Some(prev_eval) = td.ss[ply - 2]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 2].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
     if ply > 3 {
-        if let Some(prev_eval) = td.ss[ply - 4]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 4].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
@@ -665,9 +714,12 @@ pub struct SearchStack {
 pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
+    pub captured: Option<Piece>,
     pub killer: Option<Move>,
     pub singular: Option<Move>,
-    pub static_eval: Option<i32>,
+    pub threats: Bitboard,
+    pub static_eval: i32,
+    pub reduction: i32
 }
 
 impl Default for SearchStack {
@@ -682,9 +734,12 @@ impl SearchStack {
             data: [StackEntry {
                 mv: None,
                 pc: None,
+                captured: None,
                 killer: None,
-                static_eval: None,
                 singular: None,
+                threats: Bitboard::empty(),
+                static_eval: Score::MIN,
+                reduction: 0
             }; MAX_PLY + 8],
         }
     }
@@ -716,5 +771,9 @@ impl Score {
 
     pub fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_DEPTH
+    }
+
+    pub fn is_defined(score: i32) -> bool {
+        score >= -Score::MATE && score <= Score::MATE
     }
 }

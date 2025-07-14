@@ -20,6 +20,7 @@ pub mod network;
 mod time;
 mod movepicker;
 mod nnue;
+mod simd;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
