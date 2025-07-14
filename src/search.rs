@@ -1,16 +1,19 @@
 use crate::board::Board;
-use crate::movegen::{is_check, MoveFilter};
-use crate::movepicker::MovePicker;
+use crate::movegen::MoveFilter;
+use crate::movepicker::{MovePicker, Stage};
 use crate::moves::Move;
-use crate::see;
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
+use crate::tt::TTFlag::{Lower, Upper};
 use crate::types::piece::Piece;
+use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
+use TTFlag::Exact;
+use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 
@@ -76,7 +79,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         return alpha;
     }
 
-    let in_check = is_check(board, board.stm);
+    let threats = movegen::calc_threats(board, board.stm);
+    let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
@@ -98,50 +103,85 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
 
+    let singular = td.ss[ply].singular;
+    let singular_search = singular.is_some();
+
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
+    let mut tt_move_noisy = false;
+    let mut tt_score = Score::MIN;
+    let mut tt_flag = Lower;
     let mut tt_depth = 0;
 
     // Transposition Table probe
-    if let Some(entry) = td.tt.probe(board.hash) {
+    if !singular_search {
+        if let Some(entry) = td.tt.probe(board.hash) {
+            tt_hit = true;
+            tt_score = entry.score(ply) as i32;
+            tt_depth = entry.depth() as i32;
+            tt_flag = entry.flag();
+            if can_use_tt_move(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+                tt_move_noisy = board.is_noisy(&tt_move)
+            }
 
-        tt_hit = true;
-        tt_depth = entry.depth() as i32;
-        let tt_score = entry.score(ply) as i32;
-        if can_use_tt_move(board, &entry.best_move()) {
-            tt_move = entry.best_move();
+            if !root_node
+                && !pv_node
+                && tt_depth >= depth
+                && bounds_match(entry.flag(), tt_score, alpha, beta) {
+                return tt_score;
+            }
         }
-
-        if !root_node
-            && tt_depth >= depth
-            && bounds_match(entry.flag(), tt_score, alpha, beta) {
-            return tt_score;
-        }
-
     }
 
-    let raw_eval;
     let mut static_eval = Score::MIN;
 
     // Static Evaluation
     if !in_check {
-        raw_eval = td.nnue.evaluate(board);
-        static_eval = raw_eval + td.correction(board);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
     };
-    td.ss[ply].static_eval = Some(static_eval);
+
+    td.ss[ply].static_eval = static_eval;
 
     let improving = is_improving(td, ply, static_eval);
 
-    if !root_node && !pv_node && !in_check {
+    // Hindsight extension
+    if !root_node
+        && !in_check
+        && !singular_search
+        && td.ss[ply - 1].reduction >= 3
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval < 0 {
+        depth += 1;
+    }
+
+    // Hindsight reduction
+    if !root_node
+        && !pv_node
+        && !in_check
+        && !singular_search
+        && depth >= 2
+        && td.ss[ply - 1].reduction >= 1
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval > 80 {
+        depth -= 1;
+    }
+
+    if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
         if depth <= 8 && static_eval - 80 * (depth - improving as i32) >= beta {
             return beta + (static_eval - beta) / 3;
         }
 
+        // Razoring
+        if !pv_node && static_eval < alpha - 300 - 250 * depth * depth {
+            return qs(board, td, alpha, beta, ply);
+        }
+
         // Null Move Pruning
         if depth >= 3 && static_eval >= beta && board.has_non_pawns() {
-            let r = 3 + depth / 3;
+            let r = 3 + depth / 3 + ((static_eval - beta) / 210).min(4) + tt_move_noisy as i32;
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
@@ -158,13 +198,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Internal Iterative Reductions
     if !root_node
+        && depth >= 5
         && (pv_node || cut_node)
-        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4)
-        && depth >= 5 {
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - 4) {
         depth -= 1;
     }
 
-    let mut move_picker = MovePicker::new(tt_move, ply);
+    let mut move_picker = MovePicker::new(tt_move, ply, threats);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -185,13 +225,22 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         legal_moves += 1;
 
+        if singular.is_some_and(|s| s == mv) {
+            continue;
+        }
+
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let history_score = td.history_score(board, &mv, ply, pc, captured);
+        let history_score = td.history_score(board, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
+
+        let mut extension = 0;
+        if in_check {
+            extension = 1;
+        }
 
         // Futility Pruning
         if !pv_node
@@ -210,8 +259,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && !root_node
             && !is_mate_score
             && is_quiet
-            && depth <= 4
-            && searched_moves > 4 + 3 * depth * depth {
+            && depth <= 8
+            && searched_moves > late_move_threshold(depth, improving) {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -228,6 +277,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue
         }
 
+        // Bad Noisy Pruning
+        let futility_margin = static_eval + 128 * lmr_depth;
+        if !pv_node
+            && !in_check
+            && lmr_depth < 6
+            && move_picker.stage == Stage::BadNoisies
+            && futility_margin <= alpha {
+            break;
+        }
+
         // SEE Pruning
         let see_threshold = if is_quiet { -56 * depth } else { -36 * depth * depth };
         if !pv_node
@@ -238,22 +297,44 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             continue;
         }
 
+        // Singular Extensions
+        if !root_node
+            && !singular_search
+            && tt_hit
+            && mv == tt_move
+            && depth >= 8
+            && tt_flag != Upper
+            && tt_depth >= depth - 3 {
+
+            let s_beta = (tt_score - depth * 32 / 16).max(-Score::MATE + 1);
+            let s_depth = (depth - 1) / 2;
+
+            td.ss[ply].singular = Some(mv);
+            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            td.ss[ply].singular = None;
+
+            if score < s_beta {
+                extension = 1;
+                extension += (!pv_node && score < s_beta - 20) as i32;
+            } else if tt_score >= beta {
+                extension = -1;
+            }
+
+        }
+
         let mut board = *board;
         td.nnue.update(&mv, pc, captured, &board);
         board.make(&mv);
 
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         searched_moves += 1;
         td.nodes += 1;
 
-        let mut extension = 0;
-        if in_check {
-            extension = 1;
-        }
-
+        let initial_nodes = td.nodes;
         let new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
@@ -262,19 +343,31 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 {
             // Late Move Reductions
             let mut reduction = base_reduction;
-
-            if cut_node {
-                reduction += 1;
+            reduction += cut_node as i32;
+            reduction += !improving as i32;
+            if is_quiet {
+                reduction -= (history_score - 512) / 16384;
             }
 
             let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
 
             // Reduced-depth search
+            td.ss[ply].reduction = reduction;
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            td.ss[ply].reduction = 0;
 
             // Re-search if we reduced depth and score beat alpha
             if score > alpha && new_depth > reduced_depth {
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+
+                if is_quiet && (score <= alpha || score >= beta) {
+                    let bonus = if score <= alpha {
+                        -(120 * depth as i16 - 75).min(1200)
+                    } else {
+                        (120 * depth as i16 - 75).min(1200)
+                    };
+                    update_continuation_history(td, ply, &mv, pc, bonus);
+                }
             }
         } else if !pv_node || searched_moves > 1 {
             score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
@@ -294,8 +387,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
+
+        if root_node {
+            td.node_table.add(&mv, td.nodes - initial_nodes);
+        }
 
         if td.should_stop(Hard) {
             break;
@@ -308,7 +406,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = TTFlag::Exact;
+            flag = Exact;
             if root_node {
                 td.best_move = mv;
             }
@@ -317,6 +415,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 flag = TTFlag::Lower;
                 break;
             }
+
+            // Alpha-raise reduction
+            if depth > 2 && depth < 12 && !is_mate_score {
+                depth -= 1;
+            }
+
         }
     }
 
@@ -338,12 +442,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         } else {
             td.ss[ply].killer = Some(best_move);
 
-            td.quiet_history.update(board.stm, &best_move, quiet_bonus);
+            td.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
             update_continuation_history(td, ply, &best_move, pc, cont_bonus);
 
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.quiet_history.update(board.stm, mv, -quiet_malus);
+                    td.quiet_history.update(board.stm, mv, threats, -quiet_malus);
                     update_continuation_history(td, ply, mv, pc, -cont_malus);
                 }
             }
@@ -358,9 +462,22 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
+    // Prior Countermove Bonus
+    if !root_node
+        && flag == Upper
+        && td.ss[ply - 1].captured.is_none() {
+        if let Some(prev_mv) = td.ss[ply - 1].mv {
+            let prev_threats = td.ss[ply - 1].threats;
+            let quiet_bonus = (120 * depth as i16 - 75).min(1200);
+            td.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
+        }
+    }
+
     // Handle checkmate / stalemate
     if legal_moves == 0 {
-        return if in_check {
+        return if singular_search {
+            alpha
+        } else if in_check {
             -Score::MATE + ply as i32
         } else {
             Score::DRAW
@@ -369,14 +486,15 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Update static eval correction history
     if !in_check
+        && !singular_search
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.update_correction_history(board, depth, static_eval, best_score);
+        td.update_correction_history(board, depth, ply, static_eval, best_score);
     }
 
     // Write to transposition table
-    if !td.hard_limit_reached() {
+    if !singular_search && !td.hard_limit_reached(){
         td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
@@ -398,7 +516,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return td.nnue.evaluate(board);
     }
 
-    let in_check = is_check(board, board.stm);
+    let threats = movegen::calc_threats(board, board.stm);
+    let in_check = threats.contains(board.king_sq(board.stm));
+    td.ss[ply].threats = threats;
 
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
@@ -413,8 +533,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
+    let mut static_eval = -Score::MATE + ply as i32;
+
     if !in_check {
-        let static_eval = td.nnue.evaluate(board) + td.correction(board);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -429,11 +551,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
     let mut move_count = 0;
 
-    let mut best_score = alpha;
+    let futility_margin = static_eval + 135;
+    let mut best_score = static_eval;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -443,6 +566,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_mate_score = Score::is_mate(best_score);
+
+        // Futility Pruning
+        if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
+            if best_score < futility_margin {
+                best_score = futility_margin;
+            }
+            continue;
+        }
 
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
@@ -455,6 +587,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
+        td.ss[ply].captured = captured;
         td.keys.push(board.hash);
 
         move_count += 1;
@@ -464,6 +597,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         td.ss[ply].mv = None;
         td.ss[ply].pc = None;
+        td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
 
@@ -500,20 +634,24 @@ fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
         return false;
     }
     if ply > 1 {
-        if let Some(prev_eval) = td.ss[ply - 2]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 2].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
     if ply > 3 {
-        if let Some(prev_eval) = td.ss[ply - 4]
-            .static_eval
-            .filter(|eval| *eval != Score::MIN) {
+        let prev_eval = td.ss[ply - 4].static_eval;
+        if prev_eval != Score::MIN {
             return static_eval > prev_eval;
         }
     }
     true
+}
+
+fn late_move_threshold(depth: i32, improving: bool) -> i32 {
+    let base = if improving { 3 } else { 1 };
+    let scale = if improving { 87 } else { 39 };
+    (base + depth * scale) / 10
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
@@ -562,9 +700,9 @@ impl Default for LmrTable {
 
 fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
     match flag {
-        TTFlag::Exact => true,
-        TTFlag::Lower => score >= upper,
-        TTFlag::Upper => score <= lower,
+        Exact => true,
+        Lower => score >= upper,
+        Upper => score <= lower,
     }
 }
 
@@ -580,8 +718,12 @@ pub struct SearchStack {
 pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
+    pub captured: Option<Piece>,
     pub killer: Option<Move>,
-    pub static_eval: Option<i32>,
+    pub singular: Option<Move>,
+    pub threats: Bitboard,
+    pub static_eval: i32,
+    pub reduction: i32
 }
 
 impl Default for SearchStack {
@@ -596,8 +738,12 @@ impl SearchStack {
             data: [StackEntry {
                 mv: None,
                 pc: None,
+                captured: None,
                 killer: None,
-                static_eval: None,
+                singular: None,
+                threats: Bitboard::empty(),
+                static_eval: Score::MIN,
+                reduction: 0
             }; MAX_PLY + 8],
         }
     }
@@ -629,5 +775,9 @@ impl Score {
 
     pub fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_DEPTH
+    }
+
+    pub fn is_defined(score: i32) -> bool {
+        score >= -Score::MATE && score <= Score::MATE
     }
 }

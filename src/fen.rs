@@ -45,6 +45,8 @@ impl Board {
         board.hash = Zobrist::get_hash(&board);
         board.pawn_hash = Zobrist::get_pawn_hash(&board);
         board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
+        board.major_hash = Zobrist::get_major_hash(&board);
+        board.minor_hash = Zobrist::get_minor_hash(&board);
         board
     }
 

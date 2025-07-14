@@ -230,6 +230,33 @@ pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> b
 }
 
 #[inline(always)]
+pub fn calc_threats(board: &Board, side: Side) -> Bitboard {
+    let occ = board.occ();
+    let mut threats = Bitboard::empty();
+
+    for sq in board.knights(side.flip()) {
+        threats |= attacks::knight(sq);
+    }
+
+    for sq in board.bishops(side.flip()) {
+        threats |= attacks::bishop(sq, occ);
+    }
+
+    for sq in board.rooks(side.flip()) {
+        threats |= attacks::rook(sq, occ);
+    }
+
+    for sq in board.queens(side.flip()) {
+        threats |= attacks::queen(sq, occ);
+    }
+
+    threats |= attacks::pawn_attacks(board.pawns(side.flip()), side.flip());
+    threats |= attacks::king(board.king_sq(side.flip()));
+
+    threats
+}
+
+#[inline(always)]
 pub fn is_check(board: &Board, side: Side) -> bool {
     let occ = board.occ();
     let king_sq = board.king_sq(side);

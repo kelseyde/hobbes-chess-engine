@@ -81,6 +81,36 @@ impl Zobrist {
         hashes
     }
 
+    pub fn get_major_hash(board: &Board) -> u64 {
+        let mut hash = 0;
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc.is_major() {
+                    let side = board.side_at(sq).unwrap();
+                    hash ^= Self::sq(pc, side, sq);
+                }
+            }
+        }
+
+        hash
+    }
+
+    pub fn get_minor_hash(board: &Board) -> u64 {
+        let mut hash = 0;
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc.is_minor() {
+                    let side = board.side_at(sq).unwrap();
+                    hash ^= Self::sq(pc, side, sq);
+                }
+            }
+        }
+
+        hash
+    }
+
     pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {
         let piece_index = Zobrist::piece_index(pc, side);
         PIECE_KEYS[piece_index][sq]
