@@ -522,6 +522,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
+    let prev_mv = if ply > 0 { td.ss[ply - 1].mv } else { None };
+    let prev_captured = if ply > 0 { td.ss[ply - 1].captured } else { None };
+
     let tt_entry = td.tt.probe(board.hash);
     let mut tt_move = Move::NONE;
     if let Some(entry) = tt_entry {
@@ -568,10 +571,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_recapture = prev_captured.is_some()
+            && prev_mv.map_or(false, |prev_mv| prev_mv.to() == mv.to());
         let is_mate_score = Score::is_mate(best_score);
 
         // Futility Pruning
-        if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
+        if !in_check && !is_mate_score && !is_recapture && futility_margin <= alpha && !see::see(board, &mv, 1) {
             if best_score < futility_margin {
                 best_score = futility_margin;
             }
@@ -579,7 +584,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         // SEE Pruning
-        if !in_check && !see::see(&board, &mv, 0) {
+        if !in_check && !is_recapture && !see::see(&board, &mv, 0) {
             continue;
         }
 
