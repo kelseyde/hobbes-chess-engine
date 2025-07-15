@@ -133,7 +133,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 if !pv_node {
                     return tt_score;
                 } else {
-                    depth -= 1;
+                    depth = depth.saturating_sub(1).max(0);
                 }
             }
         }
