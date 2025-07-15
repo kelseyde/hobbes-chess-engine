@@ -139,24 +139,20 @@ impl NNUE {
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
-        let mut add_count = 0;
-        let mut sub_count = 0;
 
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
 
                 let pieces = board.pieces(pc) & board.side(side);
                 let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
-                let added = pieces & !cached_pieces;
-                let removed = cached_pieces & !pieces;
 
+                let added = pieces & !cached_pieces;
                 for add in added {
-                    add_count += 1;
                     adds.push(Feature::new(pc, add, side));
                 }
 
+                let removed = cached_pieces & !pieces;
                 for sub in removed {
-                    sub_count += 1;
                     subs.push(Feature::new(pc, sub, side))
                 }
             }
@@ -360,33 +356,33 @@ impl Accumulator {
         }
     }
 
-    pub fn add(&mut self,
-               add: Feature,
-               weights: &FeatureWeights,
-               perspective: Side) {
+pub fn add(&mut self,
+           add: Feature,
+           weights: &FeatureWeights,
+           perspective: Side) {
 
-        let mirror = self.mirrored[perspective as usize];
-        let idx = add.index(perspective, mirror);
-        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
+    let mirror = self.mirrored[perspective as usize];
+    let idx = add.index(perspective, mirror);
+    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
-        for i in 0..feats.len() {
-            feats[i] = feats[i].wrapping_add(weights[i + idx * HIDDEN]);
-        }
+    for i in 0..feats.len() {
+        feats[i] = feats[i].wrapping_add(weights[i + idx * HIDDEN]);
     }
+}
 
-    pub fn sub(&mut self,
-               add: Feature,
-               weights: &FeatureWeights,
-               perspective: Side) {
+pub fn sub(&mut self,
+           add: Feature,
+           weights: &FeatureWeights,
+           perspective: Side) {
 
-        let mirror = self.mirrored[perspective as usize];
-        let idx = add.index(White, mirror);
-        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
+    let mirror = self.mirrored[perspective as usize];
+    let idx = add.index(perspective, mirror);
+    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
-        for i in 0..feats.len() {
-            feats[i] = feats[i].wrapping_sub(weights[i + idx * HIDDEN]);
-        }
+    for i in 0..feats.len() {
+        feats[i] = feats[i].wrapping_sub(weights[i + idx * HIDDEN]);
     }
+}
 
     pub fn add_sub(&mut self,
                    add: Feature,
