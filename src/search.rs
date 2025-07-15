@@ -316,6 +316,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             if score < s_beta {
                 extension = 1;
                 extension += (!pv_node && score < s_beta - 20) as i32;
+            } else if s_beta >= beta {
+                return s_beta;
             } else if tt_score >= beta {
                 extension = -1;
             }
@@ -355,14 +357,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Principal Variation Search
         if depth >= 3 && searched_moves > 3 + root_node as i32 + pv_node as i32 && is_quiet {
             // Late Move Reductions
-            let mut reduction = base_reduction;
-            reduction += cut_node as i32;
-            reduction += !improving as i32;
+            let mut reduction = base_reduction * 1024;
+            reduction += cut_node as i32 * 1024;
+            reduction += !improving as i32 * 1024;
             if is_quiet {
-                reduction -= (history_score - 512) / 16384;
+                reduction -= (history_score - 512) / 16384 * 1024;
             }
 
-            let reduced_depth = (new_depth - reduction).clamp(1, new_depth);
+            let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
 
             // Reduced-depth search
             td.ss[ply].reduction = reduction;

@@ -92,7 +92,7 @@
 - [ ] Triple extensions
 - [x] Negative extensions
 - [ ] Double negative extensions
-- [ ] Multicut
+- [x] Multicut
 
 ### Misc search
 - [x] IIR
