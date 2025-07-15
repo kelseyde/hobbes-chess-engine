@@ -37,7 +37,7 @@
 - [ ] Noisy LMR
 - [ ] Fractional LMR
 - [ ] Factorised LMR
-- [ ] PV-distance LMR
+- [x] PV-distance LMR
 - [ ] Corrplexity LMR
 - [ ] Futility LMR
 - [ ] LMR if no TT-PV
