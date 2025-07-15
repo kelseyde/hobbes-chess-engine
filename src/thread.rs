@@ -34,6 +34,7 @@ pub struct ThreadData {
     pub start_time: Instant,
     pub nodes: u64,
     pub depth: i32,
+    pub root_delta: i32,
     pub best_move: Move,
     pub eval: i32,
 }
@@ -63,6 +64,7 @@ impl Default for ThreadData {
             start_time: Instant::now(),
             nodes: 0,
             depth: 0,
+            root_delta: 0,
             best_move: Move::NONE,
             eval: 0,
         }
@@ -95,6 +97,7 @@ impl ThreadData {
             start_time: Instant::now(),
             nodes: 0,
             depth: 1,
+            root_delta: 0,
             best_move: Move::NONE,
             eval: 0,
         }

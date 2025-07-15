@@ -37,6 +37,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         loop {
+            td.root_delta = beta - alpha;
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
             if td.main {
@@ -347,6 +348,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let mut reduction = base_reduction * 1024;
             reduction += cut_node as i32 * 1024;
             reduction += !improving as i32 * 1024;
+            reduction -= 1024 * (pv_node && beta - alpha > td.root_delta / 4) as i32;
             if is_quiet {
                 reduction -= (history_score - 512) / 16384 * 1024;
             }
