@@ -243,7 +243,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // Futility Pruning
-        let futility_margin =  150 + 100 * lmr_depth + 35 * history_score / 1024;
+        let futility_margin =  150 + 100 * lmr_depth + history_score / 174;
         if !pv_node
             && !root_node
             && !in_check
