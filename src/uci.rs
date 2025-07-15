@@ -29,8 +29,8 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::default().into(),
-            nnue: NNUE::default().into(),
+            td: Box::new(ThreadData::default()),
+            nnue: Box::new(NNUE::default()),
         }
     }
 
