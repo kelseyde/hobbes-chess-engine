@@ -1,11 +1,15 @@
 use crate::types::side::Side::{Black, White};
+use arrayvec::ArrayVec;
 
 use crate::board::Board;
 use crate::moves::Move;
-use crate::types::File;
-use crate::types::piece::{Piece, PIECES};
+use crate::nnue::cache::InputBucketCache;
+use crate::nnue::feature::Feature;
+use crate::types::piece::Piece;
+use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
+use crate::types::File;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -30,15 +34,15 @@ pub const BUCKETS: [usize; 64] = [
     7, 7, 7, 7, 7, 7, 7, 7
 ];
 
-static NETWORK: Network =
+pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    feature_weights: [FeatureWeights; NUM_BUCKETS],
-    feature_bias: [i16; HIDDEN],
-    output_weights: [[i16; HIDDEN]; 2],
-    output_bias: i16,
+    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
+    pub feature_bias: [i16; HIDDEN],
+    pub output_weights: [[i16; HIDDEN]; 2],
+    pub output_bias: i16,
 }
 
 pub type FeatureWeights = [i16; FEATURES * HIDDEN];
@@ -51,21 +55,17 @@ pub struct Accumulator {
     pub mirrored: [bool; 2]
 }
 
-pub struct Feature {
-    pc: Piece,
-    sq: Square,
-    side: Side
-}
-
 pub struct NNUE {
-    stack: [Accumulator; MAX_ACCUMULATORS],
-    current: usize,
+    pub stack: [Accumulator; MAX_ACCUMULATORS],
+    pub cache: InputBucketCache,
+    pub current: usize,
 }
 
 impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
+            cache: InputBucketCache::default(),
             stack: [Accumulator::default(); MAX_ACCUMULATORS],
         }
     }
@@ -113,6 +113,7 @@ impl NNUE {
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
         self.stack[self.current] = Accumulator::default();
+        self.cache = InputBucketCache::default();
 
         let w_mirror = should_mirror(board.king_sq(White));
         let b_mirror = should_mirror(board.king_sq(Black));
@@ -132,16 +133,42 @@ impl NNUE {
                         bucket: usize) {
 
         let acc = &mut self.stack[idx];
-        acc.reset(perspective);
         acc.mirrored[perspective] = mirror;
-        let weights = &NETWORK.feature_weights[bucket];
-        for &pc in PIECES.iter() {
-            for sq in board.pcs(pc) {
-                let side = board.side_at(sq).unwrap();
-                let ft = Feature::new(pc, sq, side);
-                acc.add(ft, weights, perspective);
+        let cache_entry = self.cache.get(perspective, mirror, bucket);
+        acc.copy_from(perspective, &cache_entry.features);
+
+        let mut adds = ArrayVec::<_, 32>::new();
+        let mut subs = ArrayVec::<_, 32>::new();
+
+        for side in [White, Black] {
+            for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
+
+                let pieces = board.pieces(pc) & board.side(side);
+                let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
+
+                let added = pieces & !cached_pieces;
+                for add in added {
+                    adds.push(Feature::new(pc, add, side));
+                }
+
+                let removed = cached_pieces & !pieces;
+                for sub in removed {
+                    subs.push(Feature::new(pc, sub, side))
+                }
             }
         }
+
+        let weights = &NETWORK.feature_weights[bucket];
+
+        for add in adds {
+            acc.add(add, weights, perspective);
+        }
+        for sub in subs {
+            acc.sub(sub, weights, perspective);
+        }
+
+        cache_entry.bitboards = board.bb;
+        cache_entry.features = *acc.features(perspective);
 
     }
 
@@ -261,32 +288,6 @@ impl NNUE {
 
 }
 
-impl Feature {
-
-    pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
-        Feature { pc, sq, side }
-    }
-
-    pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let sq_index = self.square_index(perspective, mirror);
-        let pc_offset = self.pc as usize * PIECE_OFFSET;
-        let side_offset = if self.side == perspective { 0 } else { SIDE_OFFSET };
-        side_offset + pc_offset + sq_index
-    }
-
-    fn square_index(&self, perspective: Side, mirror: bool) -> usize {
-        let mut sq_index = self.sq;
-        if perspective != White {
-            sq_index = sq_index.flip_rank();
-        }
-        if mirror {
-            sq_index = sq_index.flip_file();
-        }
-        sq_index.0 as usize
-    }
-
-}
-
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != Piece::King {
         board.king_sq(side)
@@ -334,38 +335,54 @@ impl Default for Accumulator {
 
 impl Accumulator {
 
+    pub fn features(&self, perspective: Side) -> &[i16; HIDDEN] {
+        if perspective == White {
+            &self.white_features
+        } else {
+            &self.black_features
+        }
+    }
+
     pub fn reset(&mut self, perspective: Side) {
         let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
         *feats = NETWORK.feature_bias;
     }
 
-    pub fn add(&mut self,
-               add: Feature,
-               weights: &FeatureWeights,
-               perspective: Side) {
-
-        let mirror = self.mirrored[perspective as usize];
-        let idx = add.index(perspective, mirror);
-        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
-
-        for i in 0..feats.len() {
-            feats[i] += weights[i + idx * HIDDEN];
+    pub fn copy_from(&mut self, side: Side, features: &[i16; HIDDEN]) {
+        if side == White {
+            self.white_features = *features;
+        } else {
+            self.black_features = *features;
         }
     }
 
-    pub fn sub(&mut self,
-               add: Feature,
-               weights: &FeatureWeights,
-               perspective: Side) {
+pub fn add(&mut self,
+           add: Feature,
+           weights: &FeatureWeights,
+           perspective: Side) {
 
-        let mirror = self.mirrored[perspective as usize];
-        let idx = add.index(White, mirror);
-        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
+    let mirror = self.mirrored[perspective as usize];
+    let idx = add.index(perspective, mirror);
+    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
 
-        for i in 0..feats.len() {
-            feats[i] -= weights[i + idx * HIDDEN];
-        }
+    for i in 0..feats.len() {
+        feats[i] = feats[i].wrapping_add(weights[i + idx * HIDDEN]);
     }
+}
+
+pub fn sub(&mut self,
+           add: Feature,
+           weights: &FeatureWeights,
+           perspective: Side) {
+
+    let mirror = self.mirrored[perspective as usize];
+    let idx = add.index(perspective, mirror);
+    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
+
+    for i in 0..feats.len() {
+        feats[i] = feats[i].wrapping_sub(weights[i + idx * HIDDEN]);
+    }
+}
 
     pub fn add_sub(&mut self,
                    add: Feature,
@@ -383,11 +400,13 @@ impl Accumulator {
         let b_idx_2 = sub.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN]);
         }
     }
@@ -412,12 +431,14 @@ impl Accumulator {
         let b_idx_3 = sub2.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN]);
         }
@@ -447,13 +468,15 @@ impl Accumulator {
         let b_idx_4 = sub2.index(Black, b_mirror);
 
         for i in 0..self.white_features.len() {
-            self.white_features[i] += w_weights[i + w_idx_1 * HIDDEN]
+            self.white_features[i] = self.white_features[i]
+                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
                 .wrapping_add(w_weights[i + w_idx_2 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN])
                 .wrapping_sub(w_weights[i + w_idx_4 * HIDDEN]);
         }
         for i in 0..self.black_features.len() {
-            self.black_features[i] += b_weights[i + b_idx_1 * HIDDEN]
+            self.black_features[i] = self.black_features[i]
+                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
                 .wrapping_add(b_weights[i + b_idx_2 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN])
                 .wrapping_sub(b_weights[i + b_idx_4 * HIDDEN]);
@@ -463,12 +486,12 @@ impl Accumulator {
 
 #[cfg(test)]
 mod tests {
+    use super::{Feature, NNUE};
     use crate::board::Board;
     use crate::fen;
     use crate::types::piece::Piece::Pawn;
     use crate::types::side::Side;
     use crate::types::square::Square;
-    use super::{Feature, NNUE};
 
     #[test]
     fn test_startpos() {

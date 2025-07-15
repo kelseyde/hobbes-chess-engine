@@ -7,13 +7,13 @@ use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
 use crate::tt::TTFlag::{Lower, Upper};
+use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
-use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 

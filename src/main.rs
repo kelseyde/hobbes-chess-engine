@@ -19,6 +19,7 @@ pub mod types;
 pub mod network;
 mod time;
 mod movepicker;
+mod nnue;
 mod simd;
 
 fn main() {
