@@ -19,6 +19,7 @@ pub mod types;
 pub mod network;
 mod time;
 mod movepicker;
+mod simd;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

@@ -91,17 +91,17 @@
 - [x] Double extensions
 - [ ] Triple extensions
 - [x] Negative extensions
-- [x] Double negative extensions
-- [ ] Multicut
+- [ ] Double negative extensions
+- [x] Multicut
 
 ### Misc search
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Hindsight reductions
-- [ ] Hindsight extensions
+- [x] Hindsight reductions
+- [x] Hindsight extensions
 - [x] Razoring
-- [ ] Alpha raise reductions
+- [x] Alpha raise reductions
 - [ ] Probcut
 - [ ] SF small probcut idea
 - [ ] Deeper/shallower
@@ -123,11 +123,11 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
-- [ ] Prior countermove bonus
+- [x] Prior countermove bonus
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
 - [ ] History factoriser
-- [ ] Post-LMR update conthist
+- [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
 
