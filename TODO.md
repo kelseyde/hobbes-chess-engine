@@ -54,7 +54,7 @@
 - [x] History pruning
 - [x] Bad noisy pruning
 - [x] Skip quiets
-- [ ] FP history
+- [x] FP history
 - [ ] FP movecount
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
