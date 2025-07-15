@@ -1,12 +1,12 @@
-use arrayvec::ArrayVec;
 use crate::types::side::Side::{Black, White};
+use arrayvec::ArrayVec;
 
 use crate::board::Board;
 use crate::moves::Move;
 use crate::nnue::cache::InputBucketCache;
 use crate::nnue::feature::Feature;
-use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::piece::Piece;
+use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::types::File;
@@ -56,9 +56,9 @@ pub struct Accumulator {
 }
 
 pub struct NNUE {
-    stack: [Accumulator; MAX_ACCUMULATORS],
-    cache: InputBucketCache,
-    current: usize,
+    pub stack: [Accumulator; MAX_ACCUMULATORS],
+    pub cache: InputBucketCache,
+    pub current: usize,
 }
 
 impl Default for NNUE {
@@ -113,6 +113,7 @@ impl NNUE {
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
         self.stack[self.current] = Accumulator::default();
+        self.cache = InputBucketCache::default();
 
         let w_mirror = should_mirror(board.king_sq(White));
         let b_mirror = should_mirror(board.king_sq(Black));
@@ -133,12 +134,13 @@ impl NNUE {
 
         let acc = &mut self.stack[idx];
         acc.mirrored[perspective] = mirror;
-
         let cache_entry = self.cache.get(perspective, mirror, bucket);
         acc.copy_from(perspective, &cache_entry.features);
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
+        let mut add_count = 0;
+        let mut sub_count = 0;
 
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
@@ -149,10 +151,12 @@ impl NNUE {
                 let removed = cached_pieces & !pieces;
 
                 for add in added {
+                    add_count += 1;
                     adds.push(Feature::new(pc, add, side));
                 }
 
                 for sub in removed {
+                    sub_count += 1;
                     subs.push(Feature::new(pc, sub, side))
                 }
             }
@@ -169,38 +173,6 @@ impl NNUE {
 
         cache_entry.bitboards = board.bb;
         cache_entry.features = *acc.features(perspective);
-
-        // if board.pieces(Pawn) != cache_entry.pieces[Pawn] {
-        //     panic!("oh no pawn")
-        // }
-        // if board.pieces(Knight) != cache_entry.pieces[Knight] {
-        //     panic!("oh no knight")
-        // }
-        // if board.pieces(Bishop) != cache_entry.pieces[Bishop] {
-        //     panic!("oh no bishop")
-        // }
-        // if board.pieces(Rook) != cache_entry.pieces[Rook] {
-        //     panic!("oh no rook")
-        // }
-        // if board.pieces(Queen) != cache_entry.pieces[Queen] {
-        //     panic!("oh no queen")
-        // }
-        // if board.pieces(King) != cache_entry.pieces[King] {
-        //     panic!("oh no king")
-        // }
-        // if board.side(White) != cache_entry.sides[White] {
-        //     panic!("oh no white side")
-        // }
-        // if board.side(Black) != cache_entry.sides[Black] {
-        //     panic!("oh no black side")
-        // }
-        //
-        // if perspective == White && cache_entry.features != acc.white_features{
-        //     panic!("oh no w")
-        // }
-        // if perspective == Black && cache_entry.features != acc.black_features {
-        //     panic!("oh no b")
-        // }
 
     }
 

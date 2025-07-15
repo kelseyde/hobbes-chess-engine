@@ -323,7 +323,20 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         let mut board = *board;
+
+        td.other_nnue.activate(&board);
+        if td.nnue.stack[td.nnue.current].white_features != td.other_nnue.stack[td.other_nnue.current].white_features
+            || td.nnue.stack[td.nnue.current].black_features != td.other_nnue.stack[td.other_nnue.current].black_features {
+            println!("{}, {}", board.to_fen(), mv.to_uci());
+            println!("PRINTING MAIN BBS");
+            td.nnue.cache.print_bbs();
+            println!("PRINTING OTHER BBS");
+            td.other_nnue.cache.print_bbs();
+            panic!("NNUE mismatch detected! {}", td.nodes);
+        }
+
         td.nnue.update(&mv, pc, captured, &board);
+
         board.make(&mv);
 
         td.ss[ply].mv = Some(mv);
