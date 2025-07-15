@@ -107,6 +107,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let singular_search = singular.is_some();
 
     let mut tt_hit = false;
+    let mut tt_prune = false;
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
@@ -126,10 +127,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             }
 
             if !root_node
-                && !pv_node
                 && tt_depth >= depth
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
-                return tt_score;
+                tt_prune = true;
+                if !pv_node {
+                    return tt_score;
+                } else {
+                    depth -= 1;
+                }
             }
         }
     }
@@ -496,7 +501,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     // Write to transposition table
-    if !singular_search && !td.hard_limit_reached(){
+    if !singular_search && !tt_prune && !td.hard_limit_reached() {
         td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
     }
 
