@@ -48,6 +48,10 @@ impl TTEntry {
         to_search(self.score as i32, ply)
     }
 
+    pub fn static_eval(&self) -> i32 {
+        self.static_eval as i32
+    }
+
     pub fn depth(&self) -> u8 {
         self.depth
     }
@@ -101,7 +105,15 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, mut best_move: Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
+    pub fn insert(&mut self,
+                  hash: u64,
+                  mut best_move: Move,
+                  score: i32,
+                  static_eval: i32,
+                  depth: u8,
+                  ply: usize,
+                  flag: TTFlag) {
+
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
 
@@ -115,6 +127,7 @@ impl TranspositionTable {
         entry.key = key_part;
         entry.best_move = best_move.0;
         entry.score = to_tt(score, ply);
+        entry.static_eval = static_eval as i16;
         entry.static_eval = 0;
         entry.depth = depth;
         entry.flag = flag as u8;
@@ -163,7 +176,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, depth, 0, flag);
+        tt.insert(hash, best_move, score, depth, 0, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
