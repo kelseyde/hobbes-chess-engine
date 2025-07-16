@@ -106,7 +106,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
-    let mut tt_eval = Score::MIN;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
 
@@ -115,7 +114,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
-            tt_eval = entry.static_eval();
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             if can_use_tt_move(board, &entry.best_move()) {
@@ -136,7 +134,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let (raw_eval, static_eval) = if in_check {
         (Score::MIN, Score::MIN)
     } else {
-        let raw_eval = if tt_hit && Score::is_defined(tt_eval) { tt_eval } else { td.nnue.evaluate(board) };
+        let raw_eval = td.nnue.evaluate(board);
         let static_eval = raw_eval + td.correction(board, ply);
         (raw_eval, static_eval)
     };
