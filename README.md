@@ -1,4 +1,4 @@
-<p align="center"><img src="resources/hobbes.png" width="160"></p>
+<p align="center"><img src="resources/logo.png" width="260"></p>
 
 # <div align="center"> Hobbes </div>
 
