@@ -568,6 +568,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
         // Futility Pruning
@@ -581,6 +582,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
             continue;
+        }
+
+        // Evasion Pruning
+        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+            break;
         }
 
         let mut board = *board;

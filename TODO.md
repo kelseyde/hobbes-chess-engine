@@ -59,7 +59,7 @@
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
 - [ ] Use LMR depth in more places
-- [ ] Qs evasion pruning
+- [x] Qs evasion pruning
 - [ ] Qs guard recaptures
 
 #### Transposition Table
