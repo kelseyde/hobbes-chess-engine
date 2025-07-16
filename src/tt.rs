@@ -103,7 +103,7 @@ impl TranspositionTable {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
 
-        let key_part = (hash & 0xFFFF) as u16;
+        let key_part = hash as u16;
         let key_match = key_part == entry.key;
 
         if !best_move.exists() && key_match {
@@ -118,9 +118,9 @@ impl TranspositionTable {
     }
 
     fn idx(&self, hash: u64) -> usize {
-        let key = (hash >> 48) as usize;
-        let mask = self.size - 1;
-        key & mask
+        let key = hash as u128;
+        let len = self.table.len() as u128;
+        ((key * len) >> 64) as usize
     }
 
     pub fn fill(&self) -> usize {
