@@ -32,7 +32,7 @@ impl Default for TTEntry {
             depth: 0,
             best_move: 0,
             score: Score::MIN as i16,
-            static_eval: Score::MIN as i16,
+            static_eval: 0,
             flag: TTFlag::None as u8,
         }
     }
