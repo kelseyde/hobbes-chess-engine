@@ -48,10 +48,6 @@ impl TTEntry {
         to_search(self.score as i32, ply)
     }
 
-    pub fn static_eval(&self) -> i32 {
-        self.static_eval as i32
-    }
-
     pub fn depth(&self) -> u8 {
         self.depth
     }
