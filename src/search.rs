@@ -136,14 +136,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let (raw_eval, static_eval) = if in_check {
         (Score::MIN, Score::MIN)
     } else {
-        let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
+        let raw_eval = if tt_hit && Score::is_defined(tt_eval) { tt_eval } else { td.nnue.evaluate(board) };
         let static_eval = raw_eval + td.correction(board, ply);
         (raw_eval, static_eval)
     };
-
-    if !in_check && !Score::is_defined(static_eval) {
-        println!("static eval: {}", static_eval);
-    }
 
     td.ss[ply].static_eval = static_eval;
 
@@ -566,7 +562,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let static_eval = if in_check {
         Score::MIN
     } else {
-        let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
+        let raw_eval = if tt_hit && Score::is_defined(tt_eval) { tt_eval } else { td.nnue.evaluate(board) };
         let static_eval = raw_eval + td.correction(board, ply);
 
         if static_eval > alpha {

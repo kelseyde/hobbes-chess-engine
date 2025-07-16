@@ -107,8 +107,8 @@ impl TranspositionTable {
 
     pub fn insert(&mut self,
                   hash: u64,
-                  mut best_move:
-                  Move, score: i32,
+                  mut best_move: Move,
+                  score: i32,
                   static_eval: i32,
                   depth: u8,
                   ply: usize,
