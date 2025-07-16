@@ -35,7 +35,7 @@
 - [x] LMR Cutnode
 - [x] LMR History
 - [ ] Noisy LMR
-- [ ] Fractional LMR
+- [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
 - [ ] Corrplexity LMR
@@ -55,11 +55,11 @@
 - [x] Bad noisy pruning
 - [x] Skip quiets
 - [ ] FP history
-- [ ] FP movecount
+- [x] FP movecount
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
 - [ ] Use LMR depth in more places
-- [ ] Qs evasion pruning
+- [x] Qs evasion pruning
 - [ ] Qs guard recaptures
 
 #### Transposition Table
@@ -92,13 +92,13 @@
 - [ ] Triple extensions
 - [x] Negative extensions
 - [ ] Double negative extensions
-- [ ] Multicut
+- [x] Multicut
 
 ### Misc search
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Hindsight reductions
+- [x] Hindsight reductions
 - [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
@@ -134,17 +134,17 @@
 ## Evaluation
 - [x] NN
 - [x] UE
-- [ ] SIMD
+- [x] SIMD
 - [x] Horizontal mirroring
 - [x] Output buckets
 - [ ] Lazy updates
-- [ ] Finny tables
+- [x] Finny tables
 - [ ] Remove unnecessary copy
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
-- [ ] Node-based scaling
+- [x] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
 

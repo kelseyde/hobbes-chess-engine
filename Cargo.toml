@@ -10,9 +10,10 @@ arrayvec = "0.7.4"
 name = "hobbes-chess-engine"
 path = "src/main.rs"
 
-[features]
-spsa = []
-
 [profile.release]
 debug = true
 #strip = false
+
+[features]
+tuning = []
+avx2 = []

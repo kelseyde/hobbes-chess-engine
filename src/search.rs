@@ -7,6 +7,7 @@ use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
 use crate::tt::TTFlag::{Lower, Upper};
+use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
@@ -14,7 +15,6 @@ use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use TTFlag::Exact;
 use crate::parameters::{*};
-use crate::types::bitboard::Bitboard;
 
 pub const MAX_PLY: usize = 256;
 
@@ -156,6 +156,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         depth += 1;
     }
 
+    // Hindsight reduction
+    if !root_node
+        && !pv_node
+        && !in_check
+        && !singular_search
+        && depth >= 2
+        && td.ss[ply - 1].reduction >= 1
+        && Score::is_defined(td.ss[ply - 1].static_eval)
+        && static_eval + td.ss[ply - 1].static_eval > 80 {
+        depth -= 1;
+    }
+
     if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
@@ -242,13 +254,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // Futility Pruning
+        let futility_margin = fp_base() + fp_scale() * lmr_depth - legal_moves * 4;
         if !pv_node
             && !root_node
             && !in_check
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mate_score
-            && static_eval + fp_base() + lmr_depth * fp_scale() <= alpha {
+            && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -319,6 +332,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             if score < s_beta {
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
+            } else if s_beta >= beta {
+                return s_beta;
             } else if tt_score >= beta {
                 extension = -1;
             }
@@ -576,6 +591,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
+        let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
         // Futility Pruning
@@ -589,6 +605,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // SEE Pruning
         if !in_check && !see::see(&board, &mv, 0) {
             continue;
+        }
+
+        // Evasion Pruning
+        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+            break;
         }
 
         let mut board = *board;
@@ -666,38 +687,73 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
 
 fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
     if good {
-        (lmr_conthist_bonus_scale() * depth as i16 - lmr_conthist_bonus_offset()).min(lmr_conthist_bonus_max())
+        let scale = lmr_cont_hist_bonus_scale() as i16;
+        let offset = lmr_cont_hist_bonus_offset() as i16;
+        let max = lmr_cont_hist_bonus_max() as i16;
+        history_bonus(depth, scale, offset, max)
     } else {
-        -(lmr_conthist_malus_scale() * depth as i16 - lmr_conthist_malus_offset()).min(lmr_conthist_malus_max())
+        let scale = lmr_cont_hist_malus_scale() as i16;
+        let offset = lmr_cont_hist_malus_offset() as i16;
+        let max = lmr_cont_hist_malus_max() as i16;
+        history_malus(depth, scale, offset, max)
     }
 }
 
 fn quiet_history_bonus(depth: i32) -> i16 {
-    (quiet_hist_bonus_scale() * depth as i16 - quiet_hist_bonus_offset()).min(quiet_hist_bonus_max())
+    let scale = quiet_hist_bonus_scale() as i16;
+    let offset = quiet_hist_bonus_offset() as i16;
+    let max = quiet_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
 }
 
 fn quiet_history_malus(depth: i32) -> i16 {
-    -(quiet_hist_malus_scale() * depth as i16 - quiet_hist_malus_offset()).min(quiet_hist_malus_max())
+    let scale = quiet_hist_malus_scale() as i16;
+    let offset = quiet_hist_malus_offset() as i16;
+    let max = quiet_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
 }
 
 fn capture_history_bonus(depth: i32) -> i16 {
-    (capt_hist_bonus_scale() * depth as i16 - capt_hist_bonus_offset()).min(capt_hist_bonus_max())
+    let scale = capt_hist_bonus_scale() as i16;
+    let offset = capt_hist_bonus_offset() as i16;
+    let max = capt_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
 }
 
 fn capture_history_malus(depth: i32) -> i16 {
-    -(capt_hist_malus_scale() * depth as i16 - capt_hist_malus_offset()).min(capt_hist_malus_max())
+    let scale = capt_hist_malus_scale() as i16;
+    let offset = capt_hist_malus_offset() as i16;
+    let max = capt_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
 }
 
 fn cont_history_bonus(depth: i32) -> i16 {
-    (cont_hist_bonus_scale() * depth as i16 - cont_hist_bonus_offset()).min(cont_hist_bonus_max())
+    let scale = cont_hist_bonus_scale() as i16;
+    let offset = cont_hist_bonus_offset() as i16;
+    let max = cont_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
 }
 
 fn cont_history_malus(depth: i32) -> i16 {
-    -(cont_hist_malus_scale() * depth as i16 - cont_hist_malus_offset()).min(cont_hist_malus_max())
+    let scale = cont_hist_malus_scale() as i16;
+    let offset = cont_hist_malus_offset() as i16;
+    let max = cont_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
 }
 
 fn prior_countermove_bonus(depth: i32) -> i16 {
-    (pcm_bonus_scale() * depth as i16 - pcm_bonus_offset()).min(pcm_bonus_max())
+    let scale = pcm_bonus_scale() as i16;
+    let offset = pcm_bonus_offset() as i16;
+    let max = pcm_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
+    (scale * depth as i16 - offset).min(max)
+}
+
+fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
+    -(scale * depth as i16 - offset).min(max)
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
