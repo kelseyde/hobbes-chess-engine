@@ -13,6 +13,9 @@ use crate::search::search;
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
 
+#[cfg(feature = "tuning")]
+use crate::parameters::{list_params, print_params_ob, set_param};
+
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
@@ -58,6 +61,7 @@ impl UCI {
             match command.split_ascii_whitespace().next().unwrap() {
                 "uci" => self.handle_uci(),
                 "isready" => self.handle_isready(),
+                ""
                 "ucinewgame" => self.handle_ucinewgame(),
                 "bench" => self.handle_bench(),
                 "position" => self.handle_position(tokens),
@@ -67,6 +71,8 @@ impl UCI {
                 "eval" => self.handle_eval(),
                 "perft" => self.handle_perft(tokens),
                 "help" => self.handle_help(),
+                #[cfg(feature = "tuning")]
+                "params" => print_params_ob(),
                 "quit" => self.handle_quit(),
                 _ => println!("info error: unknown command"),
             }
@@ -78,11 +84,26 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!("uciok");
         #[cfg(feature = "tuning")]
-        crate::parameters::list_params();
+        list_params();
     }
 
     fn handle_isready(&self) {
         println!("readyok");
+    }
+
+    #[cfg(feature = "tuning")]
+    fn handle_setoption(&self, tokens: Vec<String>) {
+        if tokens.len() < 3 {
+            println!("info error: missing setoption command");
+            return;
+        }
+        let option_name = &tokens[1];
+        let option_value = &tokens[2];
+
+        match set_param(option_name, option_value.parse().unwrap()) {
+            Ok(_) => println!("info option {} value {}", option_name, option_value),
+            Err(e) => println!("info error: {}", e),
+        }
     }
 
     fn handle_ucinewgame(&mut self) {
