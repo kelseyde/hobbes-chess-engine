@@ -42,7 +42,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             }
 
             if td.should_stop(Hard) || Score::is_mate(score) {
-                // TODO test breaking out of outer ID loop
+                // TODO test breaking out of outer ID loop if mate
                 break;
             }
 
