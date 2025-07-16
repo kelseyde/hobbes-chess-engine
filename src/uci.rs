@@ -77,6 +77,8 @@ impl UCI {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
         println!("uciok");
+        #[cfg(feature = "tuning")]
+        crate::parameters::list_params();
     }
 
     fn handle_isready(&self) {

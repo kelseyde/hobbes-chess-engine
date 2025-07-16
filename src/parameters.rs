@@ -19,11 +19,16 @@ tunable_params! {
     nmp_eval_max_reduction      = 4, 2, 6, 1;
     iir_min_depth               = 5, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;
-    hindsight_min_reduction     = 3, 1, 5, 1;
-    hindsight_eval_diff         = 0, -50, 50, 5;
+    hindsight_ext_min_depth     = 1, 1, 5, 1;
+    hindsight_ext_min_reduction = 3, 1, 5, 1;
+    hindsight_ext_eval_diff     = 0, -50, 50, 5;
+    hindsight_red_min_depth     = 2, 1, 5, 1;
+    hindsight_red_min_reduction = 1, 1, 5, 1;
+    hindsight_red_eval_diff     = 80, 0, 120, 20;
     fp_max_depth                = 6, 4, 10, 1;
     fp_base                     = 150, 50, 250, 25;
     fp_scale                    = 100, 50, 200, 10;
+    fp_movecount_mult           = 4, 2, 8, 1;
     lmp_max_depth               = 8, 6, 10, 1;
     lmp_base                    = 1, 1, 5, 1;
     lmp_improving_base          = 3, 1, 5, 1;
@@ -87,4 +92,6 @@ tunable_params! {
     see_value_bishop            = 300, 200, 500, 50;
     see_value_rook              = 500, 400, 700, 50;
     see_value_queen             = 900, 800, 1200, 50;
+    qs_futility_threshold       = 135, 80, 250, 10;
+    qs_see_threshold            = 0, -200, 100, 25;
 }

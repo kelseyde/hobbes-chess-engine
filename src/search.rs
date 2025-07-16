@@ -150,9 +150,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if !root_node
         && !in_check
         && !singular_search
-        && td.ss[ply - 1].reduction >= hindsight_min_reduction()
+        && depth >= hindsight_ext_min_depth()
+        && td.ss[ply - 1].reduction >= hindsight_ext_min_reduction()
         && Score::is_defined(td.ss[ply - 1].static_eval)
-        && static_eval + td.ss[ply - 1].static_eval < hindsight_eval_diff() {
+        && static_eval + td.ss[ply - 1].static_eval < hindsight_ext_eval_diff() {
         depth += 1;
     }
 
@@ -161,10 +162,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && !pv_node
         && !in_check
         && !singular_search
-        && depth >= 2
-        && td.ss[ply - 1].reduction >= 1
+        && depth >= hindsight_red_min_depth()
+        && td.ss[ply - 1].reduction >= hindsight_red_min_reduction()
         && Score::is_defined(td.ss[ply - 1].static_eval)
-        && static_eval + td.ss[ply - 1].static_eval > 80 {
+        && static_eval + td.ss[ply - 1].static_eval > hindsight_red_eval_diff() {
         depth -= 1;
     }
 
@@ -254,7 +255,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // Futility Pruning
-        let futility_margin = fp_base() + fp_scale() * lmr_depth - legal_moves * 4;
+        let futility_margin = fp_base()
+            + fp_scale() * lmr_depth
+            - legal_moves * fp_movecount_mult();
         if !pv_node
             && !root_node
             && !in_check
@@ -580,7 +583,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut move_count = 0;
 
-    let futility_margin = static_eval + 135;
+    let futility_margin = static_eval + qs_futility_threshold();
     let mut best_score = static_eval;
 
     while let Some(mv) = move_picker.next(board, td) {
