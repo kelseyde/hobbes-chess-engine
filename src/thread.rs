@@ -5,7 +5,7 @@ use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, Qui
 use crate::moves::Move;
 use crate::network::NNUE;
 use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight};
-use crate::search::{LmrTable, SearchStack};
+use crate::search::{LmrTable, Score, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
 use crate::types::bitboard::Bitboard;
@@ -36,7 +36,7 @@ pub struct ThreadData {
     pub nodes: u64,
     pub depth: i32,
     pub best_move: Move,
-    pub eval: i32,
+    pub best_score: i32,
 }
 
 impl Default for ThreadData {
@@ -65,7 +65,7 @@ impl Default for ThreadData {
             nodes: 0,
             depth: 0,
             best_move: Move::NONE,
-            eval: 0,
+            best_score: Score::MIN,
         }
     }
 }
@@ -97,7 +97,7 @@ impl ThreadData {
             nodes: 0,
             depth: 1,
             best_move: Move::NONE,
-            eval: 0,
+            best_score: Score::MIN,
         }
     }
 
@@ -108,7 +108,7 @@ impl ThreadData {
         self.nodes = 0;
         self.depth = 1;
         self.best_move = Move::NONE;
-        self.eval = 0;
+        self.best_score = 0;
     }
 
     pub fn clear(&mut self) {
