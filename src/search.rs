@@ -243,13 +243,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
 
         // Futility Pruning
+        let futility_margin = 150 + 100 * lmr_depth - legal_moves * 4;
         if !pv_node
             && !root_node
             && !in_check
             && is_quiet
             && lmr_depth < 6
             && !is_mate_score
-            && static_eval + 100 * lmr_depth + 150 <= alpha {
+            && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
             continue;
         }
