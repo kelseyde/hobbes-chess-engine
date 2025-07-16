@@ -35,7 +35,7 @@
 - [x] LMR Cutnode
 - [x] LMR History
 - [ ] Noisy LMR
-- [ ] Fractional LMR
+- [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
 - [ ] Corrplexity LMR
@@ -134,7 +134,7 @@
 ## Evaluation
 - [x] NN
 - [x] UE
-- [ ] SIMD
+- [x] SIMD
 - [x] Horizontal mirroring
 - [x] Output buckets
 - [ ] Lazy updates
@@ -144,7 +144,7 @@
 ## Time Management
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
-- [ ] Node-based scaling
+- [x] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
 
