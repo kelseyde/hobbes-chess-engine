@@ -8,7 +8,6 @@ pub struct TranspositionTable {
 }
 
 #[derive(Clone)]
-#[derive(Default)]
 pub struct TTEntry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
@@ -19,30 +18,22 @@ pub struct TTEntry {
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum TTFlag {
-    Exact = 0,
-    Lower = 1,
-    Upper = 2,
+    None = 0,
+    Exact = 1,
+    Lower = 2,
+    Upper = 3,
 }
 
-impl TTFlag {
-
-    pub fn from_u8(val: u8) -> TTFlag {
-        match val {
-            0 => TTFlag::Exact,
-            1 => TTFlag::Lower,
-            2 => TTFlag::Upper,
-            _ => panic!("Invalid hash flag value"),
+impl Default for TTEntry {
+    fn default() -> TTEntry {
+        TTEntry {
+            key: 0,
+            depth: 0,
+            best_move: 0,
+            score: Score::MIN as i16,
+            flag: TTFlag::None as u8,
         }
     }
-
-    pub fn to_u8(&self) -> u8 {
-        match self {
-            TTFlag::Exact => 0,
-            TTFlag::Lower => 1,
-            TTFlag::Upper => 2,
-        }
-    }
-
 }
 
 impl TTEntry {
@@ -60,7 +51,7 @@ impl TTEntry {
     }
 
     pub fn flag(&self) -> TTFlag {
-        TTFlag::from_u8(self.flag)
+        unsafe { std::mem::transmute(self.flag) }
     }
 
     pub fn validate_key(&self, key: u64) -> bool {
@@ -123,14 +114,20 @@ impl TranspositionTable {
         entry.best_move = best_move.0;
         entry.score = to_tt(score, ply);
         entry.depth = depth;
-        entry.flag = flag.to_u8();
+        entry.flag = flag as u8;
     }
 
     fn idx(&self, hash: u64) -> usize {
-        let key = (hash >> 48) as u16;
-        (key as usize) & (self.table.len() - 1)
+        let key = (hash >> 48) as usize;
+        let mask = self.size - 1;
+        key & mask
     }
 
+    pub fn fill(&self) -> usize {
+        self.table.iter().take(1000)
+            .filter(|entry| entry.flag != TTFlag::None as u8)
+            .count()
+    }
 
 }
 

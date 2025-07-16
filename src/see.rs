@@ -1,15 +1,21 @@
 use crate::attacks;
 use crate::board::Board;
 use crate::moves::Move;
+use crate::parameters::{see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook};
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
 
-const PIECE_VALUES: [i32; 6] = [100, 300, 300, 500, 900, 0];
-
 pub fn value(pc: Piece) -> i32 {
-    PIECE_VALUES[pc]
+    match pc {
+        Piece::Pawn => see_value_pawn(),
+        Piece::Knight => see_value_knight(),
+        Piece::Bishop => see_value_bishop(),
+        Piece::Rook => see_value_rook(),
+        Piece::Queen => see_value_queen(),
+        Piece::King => 0,
+    }
 }
 
 pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
@@ -28,7 +34,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         return false;
     }
 
-    balance -= PIECE_VALUES[next_victim];
+    balance -= value(next_victim);
 
     if balance >= 0 {
         return true;
@@ -64,7 +70,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         occ = occ.pop_bit(sq);
         stm = stm.flip();
 
-        balance = -balance - 1 - PIECE_VALUES[attacker];
+        balance = -balance - 1 - value(attacker);
         if balance >= 0 {
             break;
         }
@@ -83,15 +89,15 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 }
 
 fn move_value(board: &Board, mv: &Move) -> i32 {
-    let mut value = board.piece_at(mv.to())
-        .map_or(0, |captured| PIECE_VALUES[captured]);
+    let mut see_value = board.piece_at(mv.to())
+        .map_or(0, |captured| value(captured));
 
     if let Some(promo) = mv.promo_piece() {
-        value += PIECE_VALUES[promo];
+        see_value += value(promo);
     } else if mv.is_ep() {
-        value = PIECE_VALUES[Piece::Pawn];
+        see_value = value(Piece::Pawn);
     }
-    value
+    see_value
 }
 
 fn least_valuable_attacker(board: &Board, our_attackers: Bitboard) -> Piece {

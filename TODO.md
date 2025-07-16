@@ -14,19 +14,34 @@
 - [x] RFP improving
 - [ ] RFP opponent worsening
 - [x] RFP fail firm
+- [ ] RFP constant offset
+- [ ] RFP prev-move history
+- [ ] RFP parent PV
 
 #### NMP
 - [x] NMP
 - [x] NMP depth-based reduction
 - [x] NMP eval-based reduction
+- [x] NMP TT capture
+- [ ] Increment NMP base reduction
 - [ ] NMP verification search
+- [ ] NMP TT condition
 
 #### LMR
 - [x] LMR
-- [ ] LMR improving
+- [x] LMR improving
 - [ ] LMR PV node
+- [ ] LMR TT-PV
 - [x] LMR Cutnode
-- [ ] LMR History
+- [x] LMR History
+- [ ] Noisy LMR
+- [x] Fractional LMR
+- [ ] Factorised LMR
+- [ ] PV-distance LMR
+- [ ] Corrplexity LMR
+- [ ] Futility LMR
+- [ ] LMR if no TT-PV
+- [ ] Cutoff-count LMR
 
 #### Move-loop pruning
 - [x] Late move pruning
@@ -34,27 +49,41 @@
 - [X] QS SEE pruning
 - [x] PVS SEE quiet pruning 
 - [x] PVS SEE noisy pruning
-- [ ] QS futility pruning
+- [x] QS futility pruning
 - [ ] QS delta pruning
 - [x] History pruning
-- [ ] Bad noisy pruning
+- [x] Bad noisy pruning
 - [x] Skip quiets
+- [ ] FP history
+- [x] FP movecount
+- [ ] PVS SEE quiet history
+- [ ] PVS SEE noisy history
+- [ ] Use LMR depth in more places
+- [x] Qs evasion pruning
+- [ ] Qs guard recaptures
 
 #### Transposition Table
 - [ ] Static eval to TT
-- [ ] Early static eval write
+- [ ] Early static eval write (Qs)
+- [ ] Early static eval write (PVS)
 - [ ] No TT cut in PV nodes
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
 - [ ] TT cut PV node depth reduction
+- [ ] Better replacement scheme
+- [ ] SF TT aging
+- [ ] Qs standpat TT store
+- [ ] "Would TT prune" PV reduction
 
 ### Correction History
 - [x] Pawn correction history
 - [x] Non-pawn correction history
-- [ ] Minor correction history
-- [ ] Major correction history
-- [ ] Continuation correction history
+- [x] Minor correction history
+- [x] Major correction history
+- [x] Countermove correction history
+- [x] Follow-up move correction history
+- [ ] Gravity corrhist
 
 ### Extensions
 - [x] Check extensions
@@ -63,18 +92,21 @@
 - [ ] Triple extensions
 - [x] Negative extensions
 - [ ] Double negative extensions
-- [ ] Multicut
+- [x] Multicut
 
 ### Misc search
-- [ ] IIR
-- [ ] Cutnode IIR
+- [x] IIR
+- [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Prior countermove bonus
-- [ ] Dynamic policy updates
-- [ ] Hindsight reductions
-- [ ] Hindsight extensions
+- [x] Hindsight reductions
+- [x] Hindsight extensions
+- [x] Razoring
+- [x] Alpha raise reductions
+- [ ] Probcut
+- [ ] SF small probcut idea
+- [ ] Deeper/shallower
 
-## Move Ordering
+## Move Ordering / History
 - [x] MVV-LVA
 - [x] Quiet history
 - [x] Continuation history 1
@@ -91,20 +123,28 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
+- [x] Prior countermove bonus
+- [ ] Dynamic policy updates
+- [ ] Threats capthist
+- [ ] History factoriser
+- [x] Post-LMR update conthist
+- [ ] History depth alpha bonus
+- [ ] History depth beta bonus
 
 ## Evaluation
 - [x] NN
 - [x] UE
-- [ ] SIMD
-- [ ] Horizontal mirroring
-- [ ] Output buckets
+- [x] SIMD
+- [x] Horizontal mirroring
+- [x] Output buckets
 - [ ] Lazy updates
-- [ ] Finny tables
+- [x] Finny tables
+- [ ] Remove unnecessary copy
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
-- [ ] Node-based scaling
+- [x] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
 
