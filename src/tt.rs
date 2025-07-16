@@ -1,6 +1,7 @@
 use crate::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
+use crate::tt::TTFlag::Exact;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
@@ -106,15 +107,19 @@ impl TranspositionTable {
         let key_part = (hash & 0xFFFF) as u16;
         let key_match = key_part == entry.key;
 
-        if !best_move.exists() && key_match {
-            best_move = entry.best_move();
+        if !key_match || flag == Exact || depth > entry.depth - 2 {
+
+            if !best_move.exists() && key_match {
+                best_move = entry.best_move();
+            }
+
+            entry.key = key_part;
+            entry.best_move = best_move.0;
+            entry.score = to_tt(score, ply);
+            entry.depth = depth;
+            entry.flag = flag as u8;
         }
 
-        entry.key = key_part;
-        entry.best_move = best_move.0;
-        entry.score = to_tt(score, ply);
-        entry.depth = depth;
-        entry.flag = flag as u8;
     }
 
     fn idx(&self, hash: u64) -> usize {
