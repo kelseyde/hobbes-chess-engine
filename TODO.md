@@ -55,7 +55,7 @@
 - [x] Bad noisy pruning
 - [x] Skip quiets
 - [ ] FP history
-- [ ] FP movecount
+- [x] FP movecount
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
 - [ ] Use LMR depth in more places
