@@ -130,13 +130,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
+    let mut static_eval = Score::MIN;
+
     // Static Evaluation
-    let (raw_eval, static_eval) = if in_check {
-        (Score::MIN, Score::MIN)
-    } else {
-        let raw_eval = td.nnue.evaluate(board);
-        let static_eval = raw_eval + td.correction(board, ply);
-        (raw_eval, static_eval)
+    if !in_check {
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
     };
 
     td.ss[ply].static_eval = static_eval;
