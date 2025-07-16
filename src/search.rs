@@ -357,13 +357,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         // Principal Variation Search
         if depth >= lmr_min_depth()
-            && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32
-            && is_quiet {
+            && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32 {
             // Late Move Reductions
             let mut reduction = base_reduction * 1024;
             reduction -= pv_node as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= !is_quiet as i32 * lmr_capture();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
