@@ -105,14 +105,7 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self,
-                  hash: u64,
-                  mut best_move: Move,
-                  score: i32,
-                  static_eval: i32,
-                  depth: u8,
-                  ply: usize,
-                  flag: TTFlag) {
+    pub fn insert(&mut self, hash: u64, mut best_move: Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
 
@@ -126,7 +119,7 @@ impl TranspositionTable {
         entry.key = key_part;
         entry.best_move = best_move.0;
         entry.score = to_tt(score, ply);
-        entry.static_eval = static_eval as i16;
+        entry.static_eval = 0;
         entry.depth = depth;
         entry.flag = flag as u8;
     }
@@ -171,18 +164,16 @@ mod tests {
         let hash = 0x1234567890ABCDEF;
         let best_move = Move::new(Square(0), Square(1), MoveFlag::Standard);
         let score = 100;
-        let static_eval = -2045;
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, static_eval, depth, 0, flag);
+        tt.insert(hash, best_move, score, depth, 0, flag);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
         assert_eq!(entry.score(0), score as i16);
-        assert_eq!(entry.static_eval(), static_eval);
         assert_eq!(entry.depth(), depth);
         assert_eq!(entry.flag(), flag);
     }
