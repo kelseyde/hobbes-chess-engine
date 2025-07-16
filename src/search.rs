@@ -6,14 +6,12 @@ use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
 use crate::tt::TTFlag;
-use crate::tt::TTFlag::{Lower, Upper};
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
 use std::time::Instant;
-use TTFlag::Exact;
 
 pub const MAX_PLY: usize = 256;
 
@@ -40,14 +38,11 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
             if td.main {
-                if td.best_move.exists() {
-                    println!("info depth {} score cp {} pv {}", td.depth, score, td.best_move.to_uci());
-                } else {
-                    println!("info depth {} score cp {}", td.depth, score);
-                }
+                print_search_info(td);
             }
 
             if td.should_stop(Hard) || Score::is_mate(score) {
+                // TODO test breaking out of outer ID loop if mate
                 break;
             }
 
@@ -68,7 +63,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         td.depth += 1;
     }
 
-    (td.best_move, score)
+    (td.best_move, td.best_score)
 }
 
 #[rustfmt::skip]
@@ -110,7 +105,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
-    let mut tt_flag = Lower;
+    let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
 
     // Transposition Table probe
@@ -304,7 +299,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && tt_hit
             && mv == tt_move
             && depth >= 8
-            && tt_flag != Upper
+            && tt_flag != TTFlag::Upper
             && tt_depth >= depth - 3 {
 
             let s_beta = (tt_score - depth * 32 / 16).max(-Score::MATE + 1);
@@ -409,9 +404,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = Exact;
+            flag = TTFlag::Exact;
             if root_node {
                 td.best_move = mv;
+                td.best_score = score;
             }
 
             if score >= beta {
@@ -467,7 +463,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Prior Countermove Bonus
     if !root_node
-        && flag == Upper
+        && flag == TTFlag::Upper
         && td.ss[ply - 1].captured.is_none() {
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
@@ -673,6 +669,32 @@ fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: P
     }
 }
 
+fn print_search_info(td: &mut ThreadData) {
+    let depth = td.depth;
+    let best_move = td.best_move;
+    let best_score = format_score(td.best_score);
+    let nodes = td.nodes;
+    let time = td.start_time.elapsed().as_millis();
+    let nps = if time > 0 && nodes > 0 { (nodes as u128 / time) * 1000 } else { 0 };
+    let hashfull = td.tt.fill();
+    println!("info depth {} score {} nodes {} time {} nps {} hashfull {} pv {}",
+             depth, best_score, nodes, time, nps, hashfull, best_move.to_uci());
+
+}
+
+fn format_score(score: i32) -> String {
+    if Score::is_mate(score) {
+        let moves = ((Score::MATE - score).max(1) / 2).max(1);
+        if score < 0 {
+            format!("mate {}", -moves)
+        } else {
+            format!("mate {}", moves)
+        }
+    } else {
+        format!("cp {}", score)
+    }
+}
+
 pub struct LmrTable {
     table: [[i32; 64]; 256],
 }
@@ -705,9 +727,10 @@ impl Default for LmrTable {
 
 fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
     match flag {
-        Exact => true,
-        Lower => score >= upper,
-        Upper => score <= lower,
+        TTFlag::None => false,
+        TTFlag::Exact => true,
+        TTFlag::Lower => score >= upper,
+        TTFlag::Upper => score <= lower,
     }
 }
 
