@@ -449,6 +449,10 @@ impl Board {
                     && to_file as usize != from_file as usize - 1 {
                     return false;
                 }
+                // Must be a valid capture square
+                if !attacks::pawn(from, self.stm).contains(to) {
+                    return false;
+                }
 
                 // Must be capturing a piece
                 captured.is_some() || mv.is_ep()
@@ -612,6 +616,12 @@ mod tests {
         assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
         assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
         assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").is_insufficient_material());
+    }
+
+    #[test]
+    fn test_is_pseudolegal() {
+        let board = Board::from_fen("8/5n1k/pQ1p4/P2Ppp1p/4P2P/4NP2/q7/6K1 b - - 11 48");
+        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f3")));
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
