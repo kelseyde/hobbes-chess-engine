@@ -61,7 +61,7 @@ tunable_params! {
     lmr_cont_hist_malus_offset  = 75, 0, 200, 25;
     lmr_cont_hist_malus_max     = 1200, 1000, 1600, 100;
     alpha_raise_min_depth       = 2, 0, 6, 1;
-    alpha_raise_max_depth       = 12, 16, 8, 1;
+    alpha_raise_max_depth       = 12, 8, 16, 1;
     quiet_hist_bonus_scale      = 120, 80, 280, 40;
     quiet_hist_bonus_offset     = 75, 0, 200, 25;
     quiet_hist_bonus_max        = 1200, 1000, 1600, 100;

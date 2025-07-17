@@ -83,6 +83,7 @@ impl UCI {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
         println!("uciok");
+        println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         #[cfg(feature = "tuning")]
         list_params();
     }
@@ -91,16 +92,28 @@ impl UCI {
         println!("readyok");
     }
 
-    fn handle_setoption(&self, tokens: Vec<String>) {
+    fn handle_setoption(&mut self, tokens: Vec<String>) {
         let slices: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
 
         match slices.as_slice() {
-            ["setoption", "name", "Hash", "value", _] => return,       // TODO set hash size
+            ["setoption", "name", "Hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "Threads", "value", _] => return, // TODO set threads
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
         }
+    }
+
+    fn set_hash_size(&mut self, value_str: &str) {
+        let value: usize = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+        self.td.tt.resize(value);
+        println!("info string Hash {}", value);
     }
 
     #[cfg(feature = "tuning")]
