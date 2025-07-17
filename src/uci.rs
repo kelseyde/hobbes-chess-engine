@@ -18,8 +18,7 @@ use crate::parameters::{list_params, print_params_ob, set_param};
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
-    pub nnue: Box<NNUE>,
+    pub td: ThreadData,
 }
 
 impl Default for UCI {
@@ -32,8 +31,7 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
-            nnue: Box::new(NNUE::default()),
+            td: ThreadData::default()
         }
     }
 
@@ -119,8 +117,8 @@ impl UCI {
         self.td.clear();
     }
 
-    fn handle_bench(&self) {
-        bench();
+    fn handle_bench(&mut self) {
+        bench(&mut self.td);
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -239,7 +237,8 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        let eval: i32 = self.nnue.evaluate(&self.board);
+        self.td.nnue.activate(&self.board);
+        let eval: i32 = self.td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 

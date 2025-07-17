@@ -49,15 +49,15 @@ impl Default for ThreadData {
             nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
-            quiet_history: QuietHistory::new(),
-            capture_history: CaptureHistory::new(),
-            cont_history: ContinuationHistory::new(),
-            pawn_corrhist: CorrectionHistory::new(),
-            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
-            countermove_corrhist: CorrectionHistory::new(),
-            follow_up_move_corrhist: CorrectionHistory::new(),
-            major_corrhist: CorrectionHistory::new(),
-            minor_corrhist: CorrectionHistory::new(),
+            quiet_history: QuietHistory::default(),
+            capture_history: CaptureHistory::default(),
+            cont_history: ContinuationHistory::default(),
+            pawn_corrhist: CorrectionHistory::default(),
+            nonpawn_corrhist: [CorrectionHistory::default(), CorrectionHistory::default()],
+            countermove_corrhist: CorrectionHistory::default(),
+            follow_up_move_corrhist: CorrectionHistory::default(),
+            major_corrhist: CorrectionHistory::default(),
+            minor_corrhist: CorrectionHistory::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, None),
@@ -71,35 +71,6 @@ impl Default for ThreadData {
 }
 
 impl ThreadData {
-
-    pub fn with_depth_limit(depth: i32) -> Self {
-        ThreadData {
-            id: 0,
-            main: true,
-            tt: TranspositionTable::new(64),
-            ss: SearchStack::new(),
-            nnue: NNUE::default(),
-            keys: Vec::new(),
-            root_ply: 0,
-            quiet_history: QuietHistory::new(),
-            capture_history: CaptureHistory::new(),
-            cont_history: ContinuationHistory::new(),
-            pawn_corrhist: CorrectionHistory::new(),
-            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
-            countermove_corrhist: CorrectionHistory::new(),
-            follow_up_move_corrhist: CorrectionHistory::new(),
-            major_corrhist: CorrectionHistory::new(),
-            minor_corrhist: CorrectionHistory::new(),
-            lmr: LmrTable::default(),
-            node_table: NodeTable::new(),
-            limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
-            start_time: Instant::now(),
-            nodes: 0,
-            depth: 1,
-            best_move: Move::NONE,
-            best_score: Score::MIN,
-        }
-    }
 
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
