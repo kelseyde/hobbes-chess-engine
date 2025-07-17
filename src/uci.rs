@@ -18,7 +18,7 @@ use crate::parameters::{list_params, print_params_ob, set_param};
 
 pub struct UCI {
     pub board: Board,
-    pub td: ThreadData,
+    pub td: Box<ThreadData>,
 }
 
 impl Default for UCI {
@@ -31,7 +31,7 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::default()
+            td: Box::new(ThreadData::default())
         }
     }
 
