@@ -7,7 +7,6 @@ use crate::board::Board;
 use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
-use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
