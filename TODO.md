@@ -30,7 +30,7 @@
 #### LMR
 - [x] LMR
 - [x] LMR improving
-- [ ] LMR PV node
+- [x] LMR PV node
 - [ ] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
@@ -66,7 +66,7 @@
 - [ ] Static eval to TT
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
-- [ ] No TT cut in PV nodes
+- [x] No TT cut in PV nodes
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
@@ -149,9 +149,9 @@
 - [ ] Eval stability
 
 ## UCI
-- [ ] Configurable Hash size
+- [x] Configurable Hash size
 - [ ] PV printing
-- [ ] Nodes/NPS printing
+- [x] Nodes/NPS printing
 - [ ] Seldepth
-- [ ] Hashfull
+- [x] Hashfull
 - [ ] Pretty print
