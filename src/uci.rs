@@ -20,12 +20,6 @@ pub struct UCI {
     pub td: Box<ThreadData>,
 }
 
-impl Default for UCI {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl UCI {
     pub fn new() -> UCI {
         UCI {
