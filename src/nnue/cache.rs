@@ -1,9 +1,8 @@
 use crate::network::{HIDDEN, NETWORK, NUM_BUCKETS};
 use crate::types::bitboard::Bitboard;
 use crate::types::side::Side;
-use crate::utils::boxed_and_zeroed;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[repr(align(64))]
 pub struct InputBucketCache {
     entries: Box<[[[CacheEntry; NUM_BUCKETS]; 2]; 2]>,
@@ -15,21 +14,15 @@ pub struct CacheEntry {
     pub bitboards: [Bitboard; 8],
 }
 
-impl Default for InputBucketCache {
-    fn default() -> Self {
-        Self {
-            entries: unsafe { boxed_and_zeroed() }
-        }
-    }
-}
-
 impl Default for CacheEntry {
+
     fn default() -> Self {
         CacheEntry {
             features: NETWORK.feature_bias.clone(),
             bitboards: [Bitboard::empty(); 8],
         }
     }
+
 }
 
 impl InputBucketCache {

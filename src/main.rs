@@ -27,6 +27,14 @@ mod utils;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     UCI::new().run(&args);
+
+    // std::thread::Builder::new()
+    //     .stack_size(1024 * 1024)  // 1MB
+    //     .spawn(|| {
+    //         let args: Vec<String> = std::env::args().collect();
+    //         UCI::new().run(&args);
+    //     })
+    //     .unwrap().join().unwrap();
 }
 
 

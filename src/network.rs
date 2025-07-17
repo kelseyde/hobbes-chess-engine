@@ -10,7 +10,6 @@ use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::types::File;
-use crate::utils::boxed_and_zeroed;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -57,21 +56,17 @@ pub struct Accumulator {
 }
 
 pub struct NNUE {
-    pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
+    pub stack: [Accumulator; MAX_ACCUMULATORS],
     pub cache: InputBucketCache,
     pub current: usize,
 }
 
 impl Default for NNUE {
     fn default() -> Self {
-        let mut stack: Box<[Accumulator; MAX_ACCUMULATORS]> = unsafe { boxed_and_zeroed() };
-        for acc in stack.iter_mut() {
-            *acc = Accumulator::default();
-        }
         NNUE {
             current: 0,
             cache: InputBucketCache::default(),
-            stack
+            stack: [Accumulator::default(); MAX_ACCUMULATORS],
         }
     }
 }
