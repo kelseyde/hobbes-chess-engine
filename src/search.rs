@@ -108,6 +108,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_score = Score::MIN;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
+    let mut tt_pv = pv_node;
 
     // Transposition Table probe
     if !singular_search {
@@ -116,6 +117,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             tt_score = entry.score(ply) as i32;
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
+            tt_pv = tt_pv || entry.pv();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
                 tt_move_noisy = board.is_noisy(&tt_move)
@@ -361,7 +363,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && is_quiet {
             // Late Move Reductions
             let mut reduction = base_reduction * 1024;
-            reduction -= pv_node as i32 * lmr_pv_node();
+            reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
             if is_quiet {
@@ -513,7 +515,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Write to transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag);
+        td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag, tt_pv);
     }
 
     best_score
