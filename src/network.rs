@@ -97,6 +97,8 @@ impl NNUE {
 
     }
 
+    /// Forward pass through the neural network. SIMD instructions are used if available to
+    /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
     pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
         #[cfg(target_feature = "avx2")]
         {
@@ -130,6 +132,9 @@ impl NNUE {
         self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
     }
 
+    /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
+    /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
+    /// features of the board that have changed since the last refresh.
     pub fn full_refresh(&mut self,
                         board: &Board,
                         idx: usize,
