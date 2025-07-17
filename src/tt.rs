@@ -4,6 +4,7 @@ use std::mem::size_of;
 
 pub struct TranspositionTable {
     table: Vec<TTEntry>,
+    size_mb: usize,
     size: usize,
 }
 
@@ -74,12 +75,13 @@ impl TranspositionTable {
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / size_of::<TTEntry>();
         let table = vec![TTEntry::default(); size];
-        TranspositionTable { table, size }
+        TranspositionTable { table, size_mb, size }
     }
 
     pub fn resize(&mut self, size_mb: usize) {
         let size = size_mb * 1024 * 1024 / size_of::<TTEntry>();
         self.table = vec![TTEntry::default(); size];
+        self.size_mb = size_mb;
         self.size = size;
     }
 
@@ -121,6 +123,10 @@ impl TranspositionTable {
         let key = hash as u128;
         let len = self.table.len() as u128;
         ((key * len) >> 64) as usize
+    }
+
+    pub fn size_mb(&self) -> usize {
+        self.size_mb
     }
 
     pub fn fill(&self) -> usize {
