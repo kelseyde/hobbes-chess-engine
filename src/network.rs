@@ -10,6 +10,7 @@ use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::types::File;
+use crate::utils::boxed_and_zeroed;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -56,17 +57,21 @@ pub struct Accumulator {
 }
 
 pub struct NNUE {
-    pub stack: [Accumulator; MAX_ACCUMULATORS],
+    pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
     pub cache: InputBucketCache,
     pub current: usize,
 }
 
 impl Default for NNUE {
     fn default() -> Self {
+        let mut stack: Box<[Accumulator; MAX_ACCUMULATORS]> = unsafe { boxed_and_zeroed() };
+        for i in 0..MAX_ACCUMULATORS {
+            stack[i] = Accumulator::default();
+        }
         NNUE {
             current: 0,
             cache: InputBucketCache::default(),
-            stack: [Accumulator::default(); MAX_ACCUMULATORS],
+            stack,
         }
     }
 }
@@ -92,6 +97,8 @@ impl NNUE {
 
     }
 
+    /// Forward pass through the neural network. SIMD instructions are used if available to
+    /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
     pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
         #[cfg(target_feature = "avx2")]
         {
@@ -125,6 +132,9 @@ impl NNUE {
         self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
     }
 
+    /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
+    /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
+    /// features of the board that have changed since the last refresh.
     pub fn full_refresh(&mut self,
                         board: &Board,
                         idx: usize,
