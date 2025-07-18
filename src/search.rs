@@ -447,13 +447,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let pc = board.piece_at(best_move.from()).unwrap();
 
         let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let quiet_malus = quiet_history_malus(depth, legal_moves);
 
         let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let capt_malus = capture_history_malus(depth, legal_moves);
 
         let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let cont_malus = cont_history_malus(depth, legal_moves);
 
         if let Some(captured) = board.captured(&best_move) {
             td.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
@@ -700,11 +700,12 @@ fn quiet_history_bonus(depth: i32) -> i16 {
     history_bonus(depth, scale, offset, max)
 }
 
-fn quiet_history_malus(depth: i32) -> i16 {
+fn quiet_history_malus(depth: i32, move_count: i32) -> i16 {
     let scale = quiet_hist_malus_scale() as i16;
     let offset = quiet_hist_malus_offset() as i16;
     let max = quiet_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
+    let move_count_mult = quiet_hist_malus_move_count() as i16;
+    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
 }
 
 fn capture_history_bonus(depth: i32) -> i16 {
@@ -714,11 +715,12 @@ fn capture_history_bonus(depth: i32) -> i16 {
     history_bonus(depth, scale, offset, max)
 }
 
-fn capture_history_malus(depth: i32) -> i16 {
+fn capture_history_malus(depth: i32, move_count: i32) -> i16 {
     let scale = capt_hist_malus_scale() as i16;
     let offset = capt_hist_malus_offset() as i16;
     let max = capt_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
+    let move_count_mult = capt_hist_malus_move_count() as i16;
+    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
 }
 
 fn cont_history_bonus(depth: i32) -> i16 {
@@ -728,11 +730,12 @@ fn cont_history_bonus(depth: i32) -> i16 {
     history_bonus(depth, scale, offset, max)
 }
 
-fn cont_history_malus(depth: i32) -> i16 {
+fn cont_history_malus(depth: i32, move_count: i32) -> i16 {
     let scale = cont_hist_malus_scale() as i16;
     let offset = cont_hist_malus_offset() as i16;
     let max = cont_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
+    let move_count_mult = cont_hist_malus_move_count() as i16;
+    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
 }
 
 fn prior_countermove_bonus(depth: i32) -> i16 {
