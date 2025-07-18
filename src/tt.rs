@@ -14,7 +14,30 @@ pub struct TTEntry {
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
     depth: u8,          // 1 byte
-    flag: u8,           // 1 byte
+    flags: Flags,       // 1 byte
+}
+
+#[derive(Copy, Clone)]
+pub struct Flags {
+    data: u8,
+}
+
+impl Flags {
+    pub const fn new(flag: TTFlag, pv: bool, age: u8) -> Self {
+        Self { data: (flag as u8) | ((pv as u8) << 2) | (age << 3) }
+    }
+
+    pub const fn bound(self) -> TTFlag {
+        unsafe { std::mem::transmute(self.data & 0b11) }
+    }
+
+    pub const fn pv(self) -> bool {
+        (self.data & 0b100) != 0
+    }
+
+    pub const fn age(self) -> u8 {
+        self.data >> 3
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -32,7 +55,7 @@ impl Default for TTEntry {
             depth: 0,
             best_move: 0,
             score: Score::MIN as i16,
-            flag: TTFlag::None as u8,
+            flags: Flags::new(TTFlag::None, false, 0)
         }
     }
 }
@@ -52,7 +75,11 @@ impl TTEntry {
     }
 
     pub fn flag(&self) -> TTFlag {
-        unsafe { std::mem::transmute(self.flag) }
+        self.flags.bound()
+    }
+
+    pub fn pv(&self) -> bool {
+        self.flags.pv()
     }
 
     pub fn validate_key(&self, key: u64) -> bool {
@@ -101,7 +128,14 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, mut best_move: Move, score: i32, depth: u8, ply: usize, flag: TTFlag) {
+    pub fn insert(&mut self,
+                  hash: u64,
+                  mut best_move: Move,
+                  score: i32,
+                  depth: u8,
+                  ply: usize,
+                  flag: TTFlag,
+                  pv: bool) {
         let idx = self.idx(hash);
         let entry = &mut self.table[idx];
 
@@ -116,7 +150,7 @@ impl TranspositionTable {
         entry.best_move = best_move.0;
         entry.score = to_tt(score, ply);
         entry.depth = depth;
-        entry.flag = flag as u8;
+        entry.flags = Flags::new(flag, pv, 0);
     }
 
     fn idx(&self, hash: u64) -> usize {
@@ -131,7 +165,7 @@ impl TranspositionTable {
 
     pub fn fill(&self) -> usize {
         self.table.iter().take(1000)
-            .filter(|entry| entry.flag != TTFlag::None as u8)
+            .filter(|entry| entry.flags.bound() != TTFlag::None)
             .count()
     }
 
@@ -166,7 +200,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, depth, 0, flag);
+        tt.insert(hash, best_move, score, depth, 0, flag, true);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
@@ -175,6 +209,7 @@ mod tests {
         assert_eq!(entry.score(0), score as i16);
         assert_eq!(entry.depth(), depth);
         assert_eq!(entry.flag(), flag);
+        assert!(entry.pv());
     }
 
 }
