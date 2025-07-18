@@ -130,10 +130,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     // Static Evaluation
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        correction = td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + correction;
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -364,6 +366,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= correction.abs() * lmr_corrplexity_mult();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
