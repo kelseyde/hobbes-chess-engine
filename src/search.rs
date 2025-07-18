@@ -140,7 +140,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     };
 
     td.ss[ply].static_eval = static_eval;
-    td.ss[ply + 2].fail_high_count = 0;
+    td.ss[ply + 1].fail_high_count = 0;
 
     let improving = is_improving(td, ply, static_eval);
 
