@@ -30,8 +30,8 @@
 #### LMR
 - [x] LMR
 - [x] LMR improving
-- [ ] LMR PV node
-- [ ] LMR TT-PV
+- [x] LMR PV node
+- [x] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
 - [ ] Noisy LMR
@@ -66,7 +66,7 @@
 - [ ] Static eval to TT
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
-- [ ] No TT cut in PV nodes
+- [x] No TT cut in PV nodes
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
@@ -119,7 +119,7 @@
 - [x] Incremental selection sort
 - [x] Staged movegen
 - [x] Quiet threat history
-- [ ] Killer stage
+- [x] Killer stage
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
@@ -149,9 +149,9 @@
 - [ ] Eval stability
 
 ## UCI
-- [ ] Configurable Hash size
+- [x] Configurable Hash size
 - [ ] PV printing
-- [ ] Nodes/NPS printing
+- [x] Nodes/NPS printing
 - [ ] Seldepth
-- [ ] Hashfull
+- [x] Hashfull
 - [ ] Pretty print

@@ -1,5 +1,5 @@
 use std::io;
-
+use std::time::Instant;
 use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
@@ -7,7 +7,6 @@ use crate::board::Board;
 use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
-use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
@@ -19,21 +18,13 @@ use crate::parameters::{list_params, print_params_ob, set_param};
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
-    pub nnue: Box<NNUE>,
-}
-
-impl Default for UCI {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
-            nnue: Box::new(NNUE::default()),
+            td: Box::new(ThreadData::default())
         }
     }
 
@@ -83,6 +74,7 @@ impl UCI {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
         println!("uciok");
+        println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         #[cfg(feature = "tuning")]
         list_params();
     }
@@ -91,16 +83,28 @@ impl UCI {
         println!("readyok");
     }
 
-    fn handle_setoption(&self, tokens: Vec<String>) {
+    fn handle_setoption(&mut self, tokens: Vec<String>) {
         let slices: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
 
         match slices.as_slice() {
-            ["setoption", "name", "Hash", "value", _] => return,       // TODO set hash size
+            ["setoption", "name", "Hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "Threads", "value", _] => return, // TODO set threads
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
         }
+    }
+
+    fn set_hash_size(&mut self, value_str: &str) {
+        let value: usize = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+        self.td.tt.resize(value);
+        println!("info string Hash {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -119,8 +123,8 @@ impl UCI {
         self.td.clear();
     }
 
-    fn handle_bench(&self) {
-        bench();
+    fn handle_bench(&mut self) {
+        bench(&mut self.td);
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -179,6 +183,7 @@ impl UCI {
 
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
+        self.td.start_time = Instant::now();
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_uint(&tokens, "movetime") {
@@ -239,7 +244,8 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        let eval: i32 = self.nnue.evaluate(&self.board);
+        self.td.nnue.activate(&self.board);
+        let eval: i32 = self.td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 

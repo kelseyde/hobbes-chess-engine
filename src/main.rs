@@ -17,12 +17,12 @@ pub mod history;
 pub mod see;
 pub mod types;
 pub mod network;
-mod time;
-mod movepicker;
-mod nnue;
-mod simd;
-mod parameters;
-mod utils;
+pub mod time;
+pub mod movepicker;
+pub mod nnue;
+pub mod simd;
+pub mod parameters;
+pub mod utils;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
