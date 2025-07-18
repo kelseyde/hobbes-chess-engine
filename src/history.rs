@@ -17,7 +17,7 @@ pub struct ContinuationHistory {
 }
 
 pub struct CorrectionHistory {
-    entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
+    entries: Box<[[i16; CorrectionHistory::SIZE]; 2]>,
 }
 
 pub struct CaptureHistory {
@@ -96,26 +96,20 @@ impl QuietHistory {
 
 impl CorrectionHistory {
     const SIZE: usize = 16384;
-    const MASK: usize = Self::SIZE - 1;
-    const SCALE: i32 = 256;
-    const GRAIN: i32 = 256;
-    const MAX: i32 = Self::GRAIN * 32;
+    const MAX: i16 = 16384;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
+        self.entries[stm][idx] as i32
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
         let idx = self.index(key);
+        let error = (score - static_eval) as i16;
+        let weight = (depth + 1).min(16) as i16;
+        let weighted = (error * weight) * 2;
         let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) * Self::SCALE;
-
-        let new_weight = (depth + 1).min(16);
-        let old_weight = Self::SCALE - new_weight;
-
-        let update = *entry * old_weight + new_value * new_weight;
-        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
+        *entry = gravity(*entry, weighted, Self::MAX);
     }
 
     pub fn clear(&mut self) {
@@ -123,7 +117,7 @@ impl CorrectionHistory {
     }
 
     fn index(&self, key: u64) -> usize {
-        key as usize & Self::MASK
+        key as usize & Self::SIZE
     }
 }
 
