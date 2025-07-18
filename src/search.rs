@@ -345,6 +345,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash);
+        td.tt.prefetch(board.hash);
 
         searched_moves += 1;
         td.nodes += 1;
@@ -612,6 +613,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash);
+        td.tt.prefetch(board.hash);
 
         move_count += 1;
         td.nodes += 1;
