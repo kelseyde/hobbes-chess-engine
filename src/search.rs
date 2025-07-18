@@ -168,7 +168,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Reverse Futility Pruning
         let futility_margin = rfp_base()
             + rfp_scale() * depth
-            - rfp_improving_scale() * improving as i32;
+            - rfp_improving_scale() * improving as i32
+            + rfp_tt_pv() * tt_pv as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
