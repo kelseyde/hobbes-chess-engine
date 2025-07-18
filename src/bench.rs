@@ -80,4 +80,3 @@ pub fn bench(td: &mut ThreadData) {
     println!("{} nodes {} nps", nodes, nps);
 
 }
-
