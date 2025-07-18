@@ -1,5 +1,5 @@
 use std::io;
-
+use std::time::Instant;
 use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
@@ -183,6 +183,7 @@ impl UCI {
 
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
+        self.td.start_time = Instant::now();
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_uint(&tokens, "movetime") {

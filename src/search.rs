@@ -11,14 +11,11 @@ use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
-use std::time::Instant;
 use crate::parameters::{*};
 
 pub const MAX_PLY: usize = 256;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
-    td.start_time = Instant::now();
-    td.best_move = Move::NONE;
     td.nnue.activate(board);
 
     let mut alpha = Score::MIN;

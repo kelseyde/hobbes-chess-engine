@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::board::Board;
 use crate::search::search;
 use crate::thread::ThreadData;
@@ -62,8 +63,9 @@ pub fn bench(td: &mut ThreadData) {
 
     let mut nodes: u64 = 0;
     let mut time: u64 = 0;
-    td.limits = SearchLimits::new(None, None, None, None, Some(BENCH_DEPTH));
     td.clear();
+    td.limits = SearchLimits::new(None, None, None, None, Some(BENCH_DEPTH));
+    td.start_time = Instant::now();
 
     for fen in FENS {
         let board = Board::from_fen(fen);
