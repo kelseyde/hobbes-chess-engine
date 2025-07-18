@@ -130,10 +130,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     }
 
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
+    let mut complexity = 0;
 
     // Static Evaluation
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        let raw_static_eval = td.nnue.evaluate(board);
+        (correction, complexity) = td.correction(board, ply);
+        static_eval = raw_static_eval + correction;
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -364,6 +368,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= complexity / lmr_complexity_div();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
@@ -554,7 +559,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut static_eval = -Score::MATE + ply as i32;
 
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + td.correction(board, ply).0;
 
         if static_eval > alpha {
             alpha = static_eval

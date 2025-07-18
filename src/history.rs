@@ -97,13 +97,13 @@ impl QuietHistory {
 impl CorrectionHistory {
     const SIZE: usize = 16384;
     const MASK: usize = Self::SIZE - 1;
-    const SCALE: i32 = 256;
     const GRAIN: i32 = 256;
     const MAX: i32 = Self::GRAIN * 32;
+    pub const SCALE: i32 = 256;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
+        self.entries[stm][idx]
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {

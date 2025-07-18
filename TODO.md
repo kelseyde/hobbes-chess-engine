@@ -38,7 +38,7 @@
 - [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
-- [ ] Corrplexity LMR
+- [x] Corrplexity LMR
 - [ ] Futility LMR
 - [ ] LMR if no TT-PV
 - [ ] Cutoff-count LMR

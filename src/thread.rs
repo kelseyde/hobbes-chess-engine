@@ -145,7 +145,7 @@ impl ThreadData {
     }
 
     #[rustfmt::skip]
-    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
+    pub fn correction(&self, board: &Board, ply: usize) -> (i32, i32) {
 
         let pawn       = self.pawn_corrhist.get(board.stm, board.pawn_hash);
         let white      = self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White]);
@@ -155,14 +155,23 @@ impl ThreadData {
         let counter    = self.countermove_correction(board, ply);
         let follow_up  = self.follow_up_move_correction(board, ply);
 
-        (pawn * 100 / corr_pawn_weight())
-            + (white * 100 / corr_non_pawn_weight())
-            + (black * 100 / corr_non_pawn_weight())
-            + (major * 100 / corr_major_weight())
-            + (minor * 100 / corr_minor_weight())
-            + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight())
+        let weighted_pawn = pawn * 100 / corr_pawn_weight();
+        let weighted_white = white * 100 / corr_non_pawn_weight();
+        let weighted_black = black * 100 / corr_non_pawn_weight();
+        let weighted_major = major * 100 / corr_major_weight();
+        let weighted_minor = minor * 100 / corr_minor_weight();
+        let weighted_counter = counter * 100 / corr_counter_weight();
+        let weighted_follow_up = follow_up * 100 / corr_follow_up_weight();
 
+        let correction = (weighted_pawn + weighted_white + weighted_black + weighted_major
+            + weighted_minor + weighted_counter + weighted_follow_up) / CorrectionHistory::SCALE;
+
+        let complexity = (weighted_pawn * weighted_pawn) +
+            (weighted_white * weighted_white) + (weighted_black * weighted_black) +
+            (weighted_major * weighted_major) + (weighted_minor * weighted_minor) +
+            (weighted_counter * weighted_counter) + (weighted_follow_up * weighted_follow_up);
+
+        (correction, complexity)
     }
 
     fn countermove_correction(&self, board: &Board, ply: usize) -> i32 {
