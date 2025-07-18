@@ -140,7 +140,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     };
 
     td.ss[ply].static_eval = static_eval;
-    td.ss[ply + 1].fail_high_count = 0;
+    td.ss[ply + 2].fail_high_count = 0;
 
     let improving = is_improving(td, ply, static_eval);
 
@@ -367,7 +367,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
-            reduction += (td.ss[ply + 1].fail_high_count > 2) as i32 * lmr_fail_high();
+            reduction += (!root_node && td.ss[ply - 1].fail_high_count > 2) as i32 * lmr_fail_high();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
