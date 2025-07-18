@@ -513,7 +513,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Write to transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash, best_move, best_score, depth as u8, ply, flag, tt_pv);
+        td.tt.insert(board.hash, best_move, best_score, depth, ply, flag, tt_pv);
     }
 
     best_score

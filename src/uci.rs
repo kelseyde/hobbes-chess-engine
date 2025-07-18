@@ -184,6 +184,7 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
         self.td.start_time = Instant::now();
+        self.td.tt.birthday();
 
         if tokens.contains(&String::from("movetime")) {
             match self.parse_uint(&tokens, "movetime") {
