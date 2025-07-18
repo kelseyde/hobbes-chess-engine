@@ -30,12 +30,12 @@
 #### LMR
 - [x] LMR
 - [x] LMR improving
-- [ ] LMR PV node
-- [ ] LMR TT-PV
+- [x] LMR PV node
+- [x] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
 - [ ] Noisy LMR
-- [ ] Fractional LMR
+- [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
 - [ ] Corrplexity LMR
@@ -55,18 +55,18 @@
 - [x] Bad noisy pruning
 - [x] Skip quiets
 - [ ] FP history
-- [ ] FP movecount
+- [x] FP movecount
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
 - [ ] Use LMR depth in more places
-- [ ] Qs evasion pruning
+- [x] Qs evasion pruning
 - [ ] Qs guard recaptures
 
 #### Transposition Table
 - [ ] Static eval to TT
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
-- [ ] No TT cut in PV nodes
+- [x] No TT cut in PV nodes
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
@@ -92,14 +92,14 @@
 - [ ] Triple extensions
 - [x] Negative extensions
 - [ ] Double negative extensions
-- [ ] Multicut
+- [x] Multicut
 
 ### Misc search
 - [x] IIR
 - [x] Cutnode IIR
 - [ ] IIR TT depth condition
-- [ ] Hindsight reductions
-- [ ] Hindsight extensions
+- [x] Hindsight reductions
+- [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
@@ -123,35 +123,35 @@
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
-- [ ] Prior countermove bonus
+- [x] Prior countermove bonus
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
 - [ ] History factoriser
-- [ ] Post-LMR update conthist
+- [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
 
 ## Evaluation
 - [x] NN
 - [x] UE
-- [ ] SIMD
+- [x] SIMD
 - [x] Horizontal mirroring
 - [x] Output buckets
 - [ ] Lazy updates
-- [ ] Finny tables
+- [x] Finny tables
 - [ ] Remove unnecessary copy
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
-- [ ] Node-based scaling
+- [x] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
 
 ## UCI
-- [ ] Configurable Hash size
+- [x] Configurable Hash size
 - [ ] PV printing
-- [ ] Nodes/NPS printing
+- [x] Nodes/NPS printing
 - [ ] Seldepth
-- [ ] Hashfull
+- [x] Hashfull
 - [ ] Pretty print

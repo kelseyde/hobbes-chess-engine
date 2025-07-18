@@ -253,6 +253,10 @@ impl Board {
         self.pcs[sq]
     }
 
+    pub fn pieces(self, pc: Piece) -> Bitboard {
+        self.bb[pc]
+    }
+
     pub fn captured(self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() { return None; }
         if mv.is_ep() { return Some(Piece::Pawn); }
