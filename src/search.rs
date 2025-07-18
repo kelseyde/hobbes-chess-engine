@@ -140,6 +140,19 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let improving = is_improving(td, ply, static_eval);
 
+    // Dynamic policy
+    if !in_check
+        && !root_node
+        && !singular_search
+        && td.ss[ply - 1].mv.is_some()
+        && td.ss[ply - 1].captured.is_none()
+        && Score::is_defined(td.ss[ply - 1].static_eval) {
+
+        let value = dynamic_policy_mult() * -(static_eval + td.ss[ply - 1].static_eval);
+        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
+        td.quiet_history.update(board.stm.flip(), &td.ss[ply - 1].mv.unwrap(), td.ss[ply - 1].threats, bonus);
+    }
+
     // Hindsight extension
     if !root_node
         && !in_check
