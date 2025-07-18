@@ -4,7 +4,8 @@ use crate::board::Board;
 use crate::history::{CaptureHistory, ContinuationHistory, CorrectionHistory, QuietHistory};
 use crate::moves::Move;
 use crate::network::NNUE;
-use crate::search::{LmrTable, SearchStack};
+use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight};
+use crate::search::{LmrTable, Score, SearchStack};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
 use crate::types::bitboard::Bitboard;
@@ -35,7 +36,7 @@ pub struct ThreadData {
     pub nodes: u64,
     pub depth: i32,
     pub best_move: Move,
-    pub eval: i32,
+    pub best_score: i32,
 }
 
 impl Default for ThreadData {
@@ -48,15 +49,15 @@ impl Default for ThreadData {
             nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
-            quiet_history: QuietHistory::new(),
-            capture_history: CaptureHistory::new(),
-            cont_history: ContinuationHistory::new(),
-            pawn_corrhist: CorrectionHistory::new(),
-            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
-            countermove_corrhist: CorrectionHistory::new(),
-            follow_up_move_corrhist: CorrectionHistory::new(),
-            major_corrhist: CorrectionHistory::new(),
-            minor_corrhist: CorrectionHistory::new(),
+            quiet_history: QuietHistory::default(),
+            capture_history: CaptureHistory::default(),
+            cont_history: ContinuationHistory::default(),
+            pawn_corrhist: CorrectionHistory::default(),
+            nonpawn_corrhist: [CorrectionHistory::default(), CorrectionHistory::default()],
+            countermove_corrhist: CorrectionHistory::default(),
+            follow_up_move_corrhist: CorrectionHistory::default(),
+            major_corrhist: CorrectionHistory::default(),
+            minor_corrhist: CorrectionHistory::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::new(),
             limits: SearchLimits::new(None, None, None, None, None),
@@ -64,72 +65,20 @@ impl Default for ThreadData {
             nodes: 0,
             depth: 0,
             best_move: Move::NONE,
-            eval: 0,
+            best_score: Score::MIN,
         }
     }
 }
 
 impl ThreadData {
 
-    pub fn with_depth_limit(depth: i32) -> Self {
-        ThreadData {
-            id: 0,
-            main: true,
-            tt: TranspositionTable::new(64),
-            ss: SearchStack::new(),
-            nnue: NNUE::default(),
-            keys: Vec::new(),
-            root_ply: 0,
-            quiet_history: QuietHistory::new(),
-            capture_history: CaptureHistory::new(),
-            cont_history: ContinuationHistory::new(),
-            pawn_corrhist: CorrectionHistory::new(),
-            nonpawn_corrhist: [CorrectionHistory::new(), CorrectionHistory::new()],
-            countermove_corrhist: CorrectionHistory::new(),
-            follow_up_move_corrhist: CorrectionHistory::new(),
-            major_corrhist: CorrectionHistory::new(),
-            minor_corrhist: CorrectionHistory::new(),
-            lmr: LmrTable::default(),
-            node_table: NodeTable::new(),
-            limits: SearchLimits::new(None, None, None, None, Some(depth as u64)),
-            start_time: Instant::now(),
-            nodes: 0,
-            depth: 1,
-            best_move: Move::NONE,
-            eval: 0,
-        }
-    }
-
-    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
-        let mut correction =
-            self.pawn_corrhist.get(board.stm, board.pawn_hash)
-            + self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White])
-            + self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black])
-            + self.major_corrhist.get(board.stm, board.major_hash)
-            + self.minor_corrhist.get(board.stm, board.minor_hash);
-        if ply >= 1 {
-            if let Some(prev_mv) = self.ss[ply - 1].mv {
-                let encoded_mv = prev_mv.encoded() as u64;
-                correction += self.countermove_corrhist.get(board.stm, encoded_mv)
-            }
-        }
-        if ply >= 2 {
-            if let Some(prev_mv) = self.ss[ply - 2].mv {
-                let encoded_mv = prev_mv.encoded() as u64;
-                correction += self.follow_up_move_corrhist.get(board.stm, encoded_mv)
-            }
-        }
-        correction
-    }
-
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
-        self.start_time = Instant::now();
         self.node_table.clear();
         self.nodes = 0;
         self.depth = 1;
         self.best_move = Move::NONE;
-        self.eval = 0;
+        self.best_score = 0;
     }
 
     pub fn clear(&mut self) {
@@ -193,6 +142,47 @@ impl ThreadData {
                 self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
             }
         }
+    }
+
+    #[rustfmt::skip]
+    pub fn correction(&self, board: &Board, ply: usize) -> i32 {
+
+        let pawn       = self.pawn_corrhist.get(board.stm, board.pawn_hash);
+        let white      = self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White]);
+        let black      = self.nonpawn_corrhist[Side::Black].get(board.stm, board.non_pawn_hashes[Side::Black]);
+        let major      = self.major_corrhist.get(board.stm, board.major_hash);
+        let minor      = self.minor_corrhist.get(board.stm, board.minor_hash);
+        let counter    = self.countermove_correction(board, ply);
+        let follow_up  = self.follow_up_move_correction(board, ply);
+
+        (pawn * 100 / corr_pawn_weight())
+            + (white * 100 / corr_non_pawn_weight())
+            + (black * 100 / corr_non_pawn_weight())
+            + (major * 100 / corr_major_weight())
+            + (minor * 100 / corr_minor_weight())
+            + (counter * 100 / corr_counter_weight())
+            + (follow_up * 100 / corr_follow_up_weight())
+
+    }
+
+    fn countermove_correction(&self, board: &Board, ply: usize) -> i32 {
+        if ply >= 1 {
+            if let Some(prev_mv) = self.ss[ply - 1].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                return self.countermove_corrhist.get(board.stm, encoded_mv);
+            }
+        }
+        0
+    }
+
+    fn follow_up_move_correction(&self, board: &Board, ply: usize) -> i32 {
+        if ply >= 2 {
+            if let Some(prev_mv) = self.ss[ply - 2].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                return self.follow_up_move_corrhist.get(board.stm, encoded_mv);
+            }
+        }
+        0
     }
 
     pub fn history_score(&self, board: &Board, mv: &Move, ply: usize, threats: Bitboard, pc: Piece, captured: Option<Piece>) -> i32 {

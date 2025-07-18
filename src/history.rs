@@ -3,6 +3,7 @@ use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
+use crate::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];
@@ -23,43 +24,41 @@ pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
 }
 
-pub struct ThreatIndex {
-    pub from_attacked: bool,
-    pub to_attacked: bool
+impl Default for QuietHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() }
+        }
+    }
 }
 
-impl ThreatIndex {
-
-    pub fn new(mv: Move, threats: Bitboard) -> Self {
-        let from_attacked = threats.contains(mv.from());
-        let to_attacked = threats.contains(mv.to());
-        ThreatIndex { from_attacked, to_attacked }
+impl Default for CaptureHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() }
+        }
     }
-
-    pub fn from(&self) -> usize {
-        self.from_attacked as usize
-    }
-
-    pub fn to(&self) -> usize {
-        self.to_attacked as usize
-    }
-
 }
 
 impl Default for ContinuationHistory {
     fn default() -> Self {
-        Self::new()
+        Self {
+            entries: unsafe { boxed_and_zeroed() }
+        }
     }
 }
 
-impl ContinuationHistory {
-    const MAX: i16 = 16384;
-
-    pub fn new() -> Self {
-        ContinuationHistory {
-            entries: Box::new([[[[0; 64]; 6]; 64]; 6]),
+impl Default for CorrectionHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() }
         }
     }
+}
+
+
+impl ContinuationHistory {
+    const MAX: i16 = 16384;
 
     pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
@@ -76,20 +75,8 @@ impl ContinuationHistory {
 
 }
 
-impl Default for QuietHistory {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl QuietHistory {
     const MAX: i16 = 16384;
-
-    pub fn new() -> Self {
-        QuietHistory {
-            entries: Box::new([[[[[0; 64]; 64]; 2]; 2]; 2]),
-        }
-    }
 
     pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
@@ -113,12 +100,6 @@ impl CorrectionHistory {
     const SCALE: i32 = 256;
     const GRAIN: i32 = 256;
     const MAX: i32 = Self::GRAIN * 32;
-
-    pub fn new() -> Self {
-        CorrectionHistory {
-            entries: Box::new([[0; Self::SIZE]; 2]),
-        }
-    }
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
@@ -146,23 +127,8 @@ impl CorrectionHistory {
     }
 }
 
-impl Default for CorrectionHistory {
-    fn default() -> Self {
-        Self {
-            entries: Box::new([[0; Self::SIZE]; 2]),
-        }
-    }
-}
-
 impl CaptureHistory {
-
     const MAX: i16 = 16384;
-
-    pub fn new() -> Self {
-        CaptureHistory {
-            entries: Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]),
-        }
-    }
 
     pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
         self.entries[stm][pc][sq][captured]
@@ -175,6 +141,29 @@ impl CaptureHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+    }
+
+}
+
+pub struct ThreatIndex {
+    pub from_attacked: bool,
+    pub to_attacked: bool
+}
+
+impl ThreatIndex {
+
+    pub fn new(mv: Move, threats: Bitboard) -> Self {
+        let from_attacked = threats.contains(mv.from());
+        let to_attacked = threats.contains(mv.to());
+        ThreatIndex { from_attacked, to_attacked }
+    }
+
+    pub fn from(&self) -> usize {
+        self.from_attacked as usize
+    }
+
+    pub fn to(&self) -> usize {
+        self.to_attacked as usize
     }
 
 }
