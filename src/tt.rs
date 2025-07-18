@@ -169,6 +169,18 @@ impl TranspositionTable {
             .count()
     }
 
+    pub fn prefetch(&self, hash: u64) {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+            let index = self.idx(hash);
+            let ptr = self.table.as_ptr().add(index);
+            _mm_prefetch::<_MM_HINT_T0>(ptr as *const _);
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = hash;
+    }
+
 }
 
 fn to_tt(score: i32, ply: usize) -> i16 {
