@@ -5,4 +5,4 @@ ifeq ($(OS),Windows_NT)
 endif
 
 openbench:
-	cargo rustc --release --features "tuning" -p hobbes-chess-engine -- -C target-cpu=native --emit link=$(EXE)
+	cargo rustc --release -p hobbes-chess-engine -- -C target-cpu=native --emit link=$(EXE)
