@@ -367,7 +367,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
-            reduction += (td.ss[ply].fail_high_count > 2) as i32 * lmr_fail_high();
+            reduction += (td.ss[ply + 1].fail_high_count > 2) as i32 * lmr_fail_high();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
