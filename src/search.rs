@@ -689,7 +689,7 @@ fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
         let scale = lmr_cont_hist_malus_scale() as i16;
         let offset = lmr_cont_hist_malus_offset() as i16;
         let max = lmr_cont_hist_malus_max() as i16;
-        history_malus(depth, scale, offset, max)
+        history_malus(depth, scale, offset, 1, 0, max)
     }
 }
 
@@ -705,7 +705,7 @@ fn quiet_history_malus(depth: i32, move_count: i32) -> i16 {
     let offset = quiet_hist_malus_offset() as i16;
     let max = quiet_hist_malus_max() as i16;
     let move_count_mult = quiet_hist_malus_move_count() as i16;
-    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
+    history_malus(depth, scale, offset, move_count as i16, move_count_mult, max)
 }
 
 fn capture_history_bonus(depth: i32) -> i16 {
@@ -720,7 +720,7 @@ fn capture_history_malus(depth: i32, move_count: i32) -> i16 {
     let offset = capt_hist_malus_offset() as i16;
     let max = capt_hist_malus_max() as i16;
     let move_count_mult = capt_hist_malus_move_count() as i16;
-    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
+    history_malus(depth, scale, offset, move_count as i16, move_count_mult, max)
 }
 
 fn cont_history_bonus(depth: i32) -> i16 {
@@ -735,7 +735,7 @@ fn cont_history_malus(depth: i32, move_count: i32) -> i16 {
     let offset = cont_hist_malus_offset() as i16;
     let max = cont_hist_malus_max() as i16;
     let move_count_mult = cont_hist_malus_move_count() as i16;
-    history_malus(depth, scale, offset, max) - move_count_mult * (move_count - 1) as i16
+    history_malus(depth, scale, offset, move_count as i16, move_count_mult, max)
 }
 
 fn prior_countermove_bonus(depth: i32) -> i16 {
@@ -749,8 +749,8 @@ fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
     (scale * depth as i16 - offset).min(max)
 }
 
-fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    -(scale * depth as i16 - offset).min(max)
+fn history_malus(depth: i32, scale: i16, offset: i16, move_count: i16, move_count_mult: i16, max: i16) -> i16 {
+    -(scale * depth as i16 - offset - ((move_count - 1) * move_count_mult)).min(max)
 }
 
 fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
