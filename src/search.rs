@@ -103,6 +103,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut tt_eval = Score::MIN;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
@@ -112,6 +113,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            tt_eval = entry.static_eval();
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
@@ -129,11 +131,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let mut static_eval = Score::MIN;
-
-    // Static Evaluation
-    if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+     // Static Evaluation
+    let (raw_eval, static_eval) = if in_check {
+        (Score::MIN, Score::MIN)
+    } else {
+        let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
+        let static_eval = raw_eval + td.correction(board, ply);
+        (raw_eval, static_eval)
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -513,7 +517,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Write to transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash, best_move, best_score, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash, best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
