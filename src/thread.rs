@@ -74,7 +74,6 @@ impl ThreadData {
 
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
-        self.start_time = Instant::now();
         self.node_table.clear();
         self.nodes = 0;
         self.depth = 1;
