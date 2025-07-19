@@ -196,7 +196,7 @@ impl TranspositionTable {
 
     pub fn fill(&self) -> usize {
         let mut fill = 0;
-        for bucket in self.table.iter().take(1000) {
+        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
             for entry in &bucket.entries {
                 if entry.flags.bound() != TTFlag::None {
                     fill += 1;
