@@ -362,7 +362,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             // Late Move Reductions
             let mut reduction = base_reduction * 1024;
             reduction -= tt_pv as i32 * lmr_pv_node();
-            reduction += cut_node as i32 * lmr_cut_node();
+            reduction += (!tt_pv && cut_node) as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
