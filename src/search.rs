@@ -2,6 +2,7 @@ use crate::board::Board;
 use crate::movegen::MoveFilter;
 use crate::movepicker::{MovePicker, Stage};
 use crate::moves::Move;
+use crate::parameters::*;
 use crate::see::see;
 use crate::thread::ThreadData;
 use crate::time::LimitType::{Hard, Soft};
@@ -11,7 +12,6 @@ use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
-use crate::parameters::{*};
 
 pub const MAX_PLY: usize = 256;
 
@@ -133,7 +133,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Static Evaluation
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -239,7 +239,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let history_score = td.history_score(board, &mv, ply, threats, pc, captured);
+        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
@@ -381,7 +381,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
                 if is_quiet && (score <= alpha || score >= beta) {
                     let bonus = lmr_conthist_bonus(depth, score >= beta);
-                    update_continuation_history(td, ply, &mv, pc, bonus);
+                    td.history.update_continuation_history(&td.ss, ply, &mv, pc, bonus);
                 }
             }
         } else if !pv_node || searched_moves > 1 {
@@ -456,17 +456,17 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let cont_malus = cont_history_malus(depth);
 
         if let Some(captured) = board.captured(&best_move) {
-            td.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
         } else {
             td.ss[ply].killer = Some(best_move);
 
-            td.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
-            update_continuation_history(td, ply, &best_move, pc, cont_bonus);
+            td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
+            td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
 
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.quiet_history.update(board.stm, mv, threats, quiet_malus);
-                    update_continuation_history(td, ply, mv, pc, cont_malus);
+                    td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
+                    td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
                 }
             }
         }
@@ -474,7 +474,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
                 }
             }
         }
@@ -487,7 +487,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
-            td.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
+            td.history.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
         }
     }
 
@@ -508,7 +508,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.update_correction_history(board, depth, ply, static_eval, best_score);
+        td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
     }
 
     // Write to transposition table
@@ -554,7 +554,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut static_eval = -Score::MATE + ply as i32;
 
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction(board, ply);
+        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -651,7 +651,41 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
-    board.is_fifty_move_rule() || board.is_insufficient_material() || td.is_repetition(board)
+    board.is_fifty_move_rule() || board.is_insufficient_material() || is_repetition(board, td)
+}
+
+fn is_repetition(board: &Board, td: &ThreadData) -> bool {
+    let curr_hash = board.hash;
+    let mut repetitions = 0;
+    let end = td.keys.len().saturating_sub(board.hm as usize + 1);
+    for ply in (end..td.keys.len().saturating_sub(2)).rev() {
+        let hash = td.keys[ply];
+        repetitions += u8::from(curr_hash == hash);
+
+        // Two-fold repetition of positions within the search tree
+        if repetitions == 1 && ply >= td.root_ply {
+            return true;
+        }
+
+        // Three-fold repetition including positions before search root
+        if repetitions == 2 {
+            return true;
+        }
+    }
+    false
+}
+
+fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
+    match flag {
+        TTFlag::None => false,
+        TTFlag::Exact => true,
+        TTFlag::Lower => score >= upper,
+        TTFlag::Upper => score <= lower,
+    }
+}
+
+fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
+    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
 fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
@@ -750,16 +784,6 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
     -(scale * depth as i16 - offset).min(max)
 }
 
-fn update_continuation_history(td: &mut ThreadData, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
-    for &prev_ply in &[1, 2] {
-        if ply >= prev_ply {
-            if let (Some(prev_mv), Some(prev_pc)) = (td.ss[ply - prev_ply].mv, td.ss[ply - prev_ply].pc) {
-                td.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
-            }
-        }
-    }
-}
-
 fn print_search_info(td: &mut ThreadData) {
     let depth = td.depth;
     let best_move = td.best_move;
@@ -784,49 +808,6 @@ fn format_score(score: i32) -> String {
     } else {
         format!("cp {}", score)
     }
-}
-
-pub struct LmrTable {
-    table: [[i32; 64]; 256],
-}
-
-impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(255) as usize][move_count.min(63) as usize]
-    }
-}
-
-impl Default for LmrTable {
-    fn default() -> Self {
-        let base = 0.92;
-        let divisor = 3.11;
-
-        let mut table = [[0; 64]; 256];
-
-        for depth in 1..256 {
-            for move_count in 1..64 {
-                let ln_depth = (depth as f32).ln();
-                let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
-                table[depth as usize][move_count as usize] = reduction;
-            }
-        }
-
-        Self { table }
-    }
-}
-
-fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
-    match flag {
-        TTFlag::None => false,
-        TTFlag::Exact => true,
-        TTFlag::Lower => score >= upper,
-        TTFlag::Upper => score <= lower,
-    }
-}
-
-fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
-    tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
 pub struct SearchStack {

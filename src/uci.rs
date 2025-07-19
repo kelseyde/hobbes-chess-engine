@@ -1,6 +1,6 @@
+use crate::types::side::Side::{Black, White};
 use std::io;
 use std::time::Instant;
-use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
@@ -73,10 +73,10 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
-        println!("uciok");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         #[cfg(feature = "tuning")]
         list_params();
+        println!("uciok");
     }
 
     fn handle_isready(&self) {
@@ -84,11 +84,12 @@ impl UCI {
     }
 
     fn handle_setoption(&mut self, tokens: Vec<String>) {
-        let slices: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
+        let tokens: Vec<String> = tokens.iter().map(|s| s.to_lowercase()).collect();
+        let tokens: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
 
-        match slices.as_slice() {
-            ["setoption", "name", "Hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "Threads", "value", _] => return, // TODO set threads
+        match tokens.as_slice() {
+            ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
+            ["setoption", "name", "threads", "value", _] => return, // TODO set threads
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }

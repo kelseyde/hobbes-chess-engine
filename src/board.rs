@@ -111,7 +111,7 @@ impl Board {
     }
 
     #[inline]
-    fn rook_sqs(self, king_to_sq: Square) -> (Square, Square) {
+    fn rook_sqs(&self, king_to_sq: Square) -> (Square, Square) {
         match king_to_sq.0 {
             2 => (Square(0), Square(3)),
             6 => (Square(7), Square(5)),
@@ -185,99 +185,99 @@ impl Board {
         }
     }
 
-    pub fn pawns(self, side: Side) -> Bitboard {
+    pub fn pawns(&self, side: Side) -> Bitboard {
         self.bb[Piece::Pawn] & self.bb[side.idx()]
     }
 
-    pub fn knights(self, side: Side) -> Bitboard {
+    pub fn knights(&self, side: Side) -> Bitboard {
         self.bb[Piece::Knight] & self.bb[side.idx()]
     }
 
-    pub fn bishops(self, side: Side) -> Bitboard {
+    pub fn bishops(&self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop] & self.bb[side.idx()]
     }
 
-    pub fn rooks(self, side: Side) -> Bitboard {
+    pub fn rooks(&self, side: Side) -> Bitboard {
         self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
-    pub fn queens(self, side: Side) -> Bitboard {
+    pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
     }
 
-    pub fn king(self, side: Side) -> Bitboard {
+    pub fn king(&self, side: Side) -> Bitboard {
         self.bb[Piece::King] & self.bb[side.idx()]
     }
 
-    pub fn king_sq(self, side: Side) -> Square {
+    pub fn king_sq(&self, side: Side) -> Square {
         self.king(side).lsb()
     }
 
-    pub fn occ(self) -> Bitboard {
+    pub fn occ(&self) -> Bitboard {
         self.bb[White.idx()] | self.bb[Black.idx()]
     }
 
-    pub fn pcs(self, piece: Piece) -> Bitboard {
+    pub fn pcs(&self, piece: Piece) -> Bitboard {
         self.bb[piece]
     }
 
-    pub fn side(self, side: Side) -> Bitboard {
+    pub fn side(&self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
 
-    pub fn white(self) -> Bitboard {
+    pub fn white(&self) -> Bitboard {
         self.bb[White.idx()]
     }
 
-    pub fn black(self) -> Bitboard {
+    pub fn black(&self) -> Bitboard {
         self.bb[Black.idx()]
     }
 
-    pub fn us(self) -> Bitboard {
+    pub fn us(&self) -> Bitboard {
         self.bb[self.stm.idx()]
     }
 
-    pub fn them(self) -> Bitboard {
+    pub fn them(&self) -> Bitboard {
         self.bb[self.stm.flip().idx()]
     }
 
-    pub fn our(self, piece: Piece) -> Bitboard {
+    pub fn our(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[self.stm.idx()]
     }
 
-    pub fn their(self, piece: Piece) -> Bitboard {
+    pub fn their(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[self.stm.flip().idx()]
     }
 
-    pub fn piece_at(self, sq: Square) -> Option<Piece> {
+    pub fn piece_at(&self, sq: Square) -> Option<Piece> {
         self.pcs[sq]
     }
 
-    pub fn pieces(self, pc: Piece) -> Bitboard {
+    pub fn pieces(&self, pc: Piece) -> Bitboard {
         self.bb[pc]
     }
 
-    pub fn captured(self, mv: &Move) -> Option<Piece> {
+    pub fn captured(&self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() { return None; }
         if mv.is_ep() { return Some(Piece::Pawn); }
         self.piece_at(mv.to())
     }
 
-    pub fn is_noisy(self, mv: &Move) -> bool {
+    pub fn is_noisy(&self, mv: &Move) -> bool {
         mv.is_promo() || self.captured(mv).is_some()
     }
 
-    pub fn side_at(self, sq: Square) -> Option<Side> {
+    pub fn side_at(&self, sq: Square) -> Option<Side> {
         if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(White) }
         else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(Black) }
         else { None }
     }
 
-    pub fn has_non_pawns(self) -> bool {
+    pub fn has_non_pawns(&self) -> bool {
         self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
     }
 
-    pub fn is_fifty_move_rule(self) -> bool {
+    pub fn is_fifty_move_rule(&self) -> bool {
         self.hm >= 100
     }
 
