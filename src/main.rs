@@ -23,6 +23,7 @@ pub mod nnue;
 pub mod simd;
 pub mod parameters;
 pub mod utils;
+mod correction;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
