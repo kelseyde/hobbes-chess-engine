@@ -252,7 +252,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
             - legal_moves * fp_movecount_mult()
-            + (history_score * fp_history_mult()) / fp_history_div();
+            + history_score / fp_history_div();
         if !pv_node
             && !root_node
             && !in_check
