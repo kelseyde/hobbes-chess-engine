@@ -155,13 +155,15 @@ impl ThreadData {
         let counter    = self.countermove_correction(board, ply);
         let follow_up  = self.follow_up_move_correction(board, ply);
 
-        (pawn * 100 / corr_pawn_weight())
+        let correction = (pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
             + (minor * 100 / corr_minor_weight())
             + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight())
+            + (follow_up * 100 / corr_follow_up_weight());
+
+        correction / CorrectionHistory::DIVISOR
 
     }
 

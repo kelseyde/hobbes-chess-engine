@@ -98,6 +98,7 @@ impl CorrectionHistory {
     const SIZE: usize = 16384;
     const MAX_CORRECTION: i16 = 1024;
     const MAX_BONUS: i16 = Self::MAX_CORRECTION / 4;
+    pub const DIVISOR: i32 = 2048;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
@@ -106,11 +107,12 @@ impl CorrectionHistory {
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
         let idx = self.index(key);
+
         let error = (score - static_eval) as i16;
-        let weight = (depth + 1).min(16) as i16;
-        let weighted = (error * weight << 1).clamp(-16000, 16000);
+        let bonus = (error * depth as i16 / 8).clamp(-Self::MAX_BONUS, Self::MAX_BONUS);
+
         let entry = &mut self.entries[stm][idx];
-        *entry = gravity(*entry, weighted, Self::MAX_CORRECTION);
+        *entry = gravity(*entry, bonus, Self::MAX_CORRECTION);
     }
 
     pub fn clear(&mut self) {
@@ -164,6 +166,5 @@ impl ThreatIndex {
 }
 
 fn gravity(current: i16, update: i16, max: i16) -> i16 {
-
     current + update - (current as i32 * update.abs() as i32 / max as i32) as i16
 }
