@@ -7,7 +7,7 @@ use crate::types::bitboard::Bitboard;
 use crate::{movegen, see};
 use movegen::{gen_moves, MoveFilter};
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::parameters::movepick_see_divisor;
+use crate::parameters::{movepick_see_history_div};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -81,7 +81,7 @@ impl MovePicker {
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
                 if self.see_threshold
-                    .map(|threshold| threshold + -entry.score / movepick_see_divisor())
+                    .map(|threshold| threshold + -entry.score / movepick_see_history_div())
                     .map(|threshold| !see(board, &entry.mv, threshold))
                     .unwrap_or(false) {
                     self.bad_noisies.add(*entry);
