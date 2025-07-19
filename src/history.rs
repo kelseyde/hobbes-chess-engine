@@ -66,7 +66,7 @@ impl ContinuationHistory {
 
     pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry = gravity(*entry, bonus, Self::MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -86,7 +86,7 @@ impl QuietHistory {
     pub fn update(&mut self, stm: Side, mv: &Move, threats: Bitboard, bonus: i16) {
         let threat_index = ThreatIndex::new(*mv, threats);
         let entry = &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
-        *entry = gravity(*entry, bonus, Self::MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -136,7 +136,7 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
         let entry = &mut self.entries[stm][pc][sq][captured];
-        *entry = gravity(*entry, bonus, Self::MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -168,6 +168,6 @@ impl ThreatIndex {
 
 }
 
-fn gravity(current: i16, update: i16, max: i16) -> i16 {
-    current + update - (current as i32 * update.abs() as i32 / max as i32) as i16
+fn gravity(current: i32, update: i32, max: i32) -> i32 {
+    current + update - current * update.abs() / max
 }
