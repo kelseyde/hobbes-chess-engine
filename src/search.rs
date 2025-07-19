@@ -103,6 +103,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut tt_eval = Score::MIN;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
@@ -112,6 +113,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            tt_eval = entry.static_eval();
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
@@ -129,11 +131,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         }
     }
 
-    let mut static_eval = Score::MIN;
-
-    // Static Evaluation
-    if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
+    let (raw_eval, static_eval) = if in_check {
+        // If in check, we cannot use static evaluation
+        (Score::MIN, Score::MIN)
+    } else {
+        // Static evaluation is only used if not in check
+        let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
+        let static_eval = raw_eval + td.correction_history.correction(board, &td.ss, ply);
+        (raw_eval, static_eval)
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -513,7 +518,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Write to transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash, best_move, best_score, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash, best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -538,9 +543,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
-    let tt_entry = td.tt.probe(board.hash);
+    let mut tt_hit = false;
     let mut tt_move = Move::NONE;
-    if let Some(entry) = tt_entry {
+    let mut tt_eval = Score::MIN;
+    if let Some(entry) = td.tt.probe(board.hash) {
+        tt_hit = true;
+        tt_eval = entry.static_eval();
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -551,10 +559,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let mut static_eval = -Score::MATE + ply as i32;
-
-    if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
+    let static_eval = if in_check {
+        -Score::MATE + ply as i32
+    } else {
+        let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
+        let static_eval = raw_eval + td.correction_history.correction(board, &td.ss, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -562,7 +571,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if alpha >= beta {
             return alpha;
         }
-    }
+
+        static_eval
+    };
 
     let filter = if in_check {
         MoveFilter::All
