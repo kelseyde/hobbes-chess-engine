@@ -698,8 +698,8 @@ fn scale_evaluation(board: &Board, raw_eval: i32) -> i32 {
     let game_phase = (3 * board.pieces(Piece::Knight).count())
             + (3 * board.pieces(Piece::Bishop).count() + 1)
             + (5 * board.pieces(Piece::Rook).count())
-            + (10 * board.pieces(Piece::Queen).count());
-    let scaled = raw_eval * (22400 + game_phase as i32) / 32768;
+            + (9 * board.pieces(Piece::Queen).count());
+    let scaled = raw_eval * (160 + game_phase as i32) / 270;
     scaled.clamp(-Score::MATE, Score::MATE)
 }
 
