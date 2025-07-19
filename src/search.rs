@@ -559,11 +559,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let static_eval = if in_check {
-        -Score::MATE + ply as i32
-    } else {
+    let mut static_eval = -Score::MATE + ply as i32;
+
+    if !in_check {
         let raw_eval = if tt_hit { tt_eval } else { td.nnue.evaluate(board) };
-        let static_eval = raw_eval + td.correction_history.correction(board, &td.ss, ply);
+        static_eval = raw_eval + td.correction_history.correction(board, &td.ss, ply);
 
         if static_eval > alpha {
             alpha = static_eval
@@ -571,9 +571,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if alpha >= beta {
             return alpha;
         }
-
-        static_eval
-    };
+    }
 
     let filter = if in_check {
         MoveFilter::All
