@@ -7,7 +7,7 @@ use crate::types::bitboard::Bitboard;
 use crate::{movegen, see};
 use movegen::{gen_moves, MoveFilter};
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::parameters::{movepick_see_history_div};
+use crate::parameters::{movepick_see_base, movepick_see_history_div};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -46,7 +46,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(0),
+            see_threshold: Some(movepick_see_base()),
             bad_noisies: MoveList::new(),
         }
     }
