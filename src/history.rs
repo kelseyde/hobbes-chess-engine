@@ -1,4 +1,6 @@
+use crate::board::Board;
 use crate::moves::Move;
+use crate::search::SearchStack;
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
@@ -16,12 +18,72 @@ pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
-pub struct CorrectionHistory {
-    entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
-}
-
 pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+}
+
+#[derive(Default)]
+pub struct Histories {
+    pub quiet_history: QuietHistory,
+    pub capture_history: CaptureHistory,
+    pub cont_history: ContinuationHistory,
+}
+
+impl Histories {
+
+    pub fn history_score(&self,
+                         board: &Board,
+                         ss: &SearchStack,
+                         mv: &Move, ply: usize,
+                         threats: Bitboard,
+                         pc: Piece,
+                         captured: Option<Piece>) -> i32 {
+        if let Some(captured) = captured {
+            self.capture_history_score(board, mv, pc, captured)
+        } else {
+            self.quiet_history_score(board, ss, mv, ply, threats)
+        }
+    }
+
+    pub fn quiet_history_score(&self,
+                               board: &Board,
+                               ss: &SearchStack,
+                               mv: &Move,
+                               ply: usize,
+                               threats: Bitboard) -> i32 {
+        let pc = board.piece_at(mv.from()).unwrap();
+        let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
+        let mut cont_score = 0;
+        for &prev_ply in &[1, 2] {
+            if ply >= prev_ply  {
+                if let (Some(prev_mv), Some(prev_pc)) = (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc) {
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
+                }
+            }
+        }
+        quiet_score + cont_score
+    }
+
+    pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
+        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+    }
+
+    pub fn update_continuation_history(&mut self, ss: &SearchStack, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
+        for &prev_ply in &[1, 2] {
+            if ply >= prev_ply {
+                if let (Some(prev_mv), Some(prev_pc)) = (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc) {
+                    self.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
+                }
+            }
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.quiet_history.clear();
+        self.capture_history.clear();
+        self.cont_history.clear();
+    }
+
 }
 
 impl Default for QuietHistory {
@@ -41,14 +103,6 @@ impl Default for CaptureHistory {
 }
 
 impl Default for ContinuationHistory {
-    fn default() -> Self {
-        Self {
-            entries: unsafe { boxed_and_zeroed() }
-        }
-    }
-}
-
-impl Default for CorrectionHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() }
@@ -91,39 +145,6 @@ impl QuietHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[[0; 64]; 64]; 2]; 2]; 2]);
-    }
-}
-
-impl CorrectionHistory {
-    const SIZE: usize = 16384;
-    const MASK: usize = Self::SIZE - 1;
-    const SCALE: i32 = 256;
-    const GRAIN: i32 = 256;
-    const MAX: i32 = Self::GRAIN * 32;
-
-    pub fn get(&self, stm: Side, key: u64) -> i32 {
-        let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
-    }
-
-    pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
-        let idx = self.index(key);
-        let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) * Self::SCALE;
-
-        let new_weight = (depth + 1).min(16);
-        let old_weight = Self::SCALE - new_weight;
-
-        let update = *entry * old_weight + new_value * new_weight;
-        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
-    }
-
-    pub fn clear(&mut self) {
-        self.entries = Box::new([[0; Self::SIZE]; 2]);
-    }
-
-    fn index(&self, key: u64) -> usize {
-        key as usize & Self::MASK
     }
 }
 

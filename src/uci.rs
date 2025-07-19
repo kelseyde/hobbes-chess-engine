@@ -1,6 +1,6 @@
+use crate::types::side::Side::{Black, White};
 use std::io;
 use std::time::Instant;
-use crate::types::side::Side::{Black, White};
 
 use crate::bench::bench;
 use crate::board::Board;
