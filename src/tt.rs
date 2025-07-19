@@ -8,9 +8,6 @@ const BUCKET_SIZE: usize = size_of::<Bucket>();
 const AGE_CYCLE: u8 = 1 << 5;
 const AGE_MASK: u8 = AGE_CYCLE - 1;
 
-// const _: () = assert_eq!(size_of::<Bucket>(), 32);
-// const _: () = assert_eq!(size_of::<Entry>(), 10);
-
 pub struct TranspositionTable {
     table: Vec<Bucket>,
     size_mb: usize,
@@ -181,7 +178,7 @@ impl TranspositionTable {
         entry.best_move = mv.0;
         entry.score = to_tt(score, ply);
         entry.depth = depth as u8;
-        entry.flags = Flags::new(flag, pv, 0);
+        entry.flags = Flags::new(flag, pv, tt_age);
     }
 
     fn idx(&self, hash: u64) -> usize {
