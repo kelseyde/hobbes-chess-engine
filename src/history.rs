@@ -96,7 +96,8 @@ impl QuietHistory {
 
 impl CorrectionHistory {
     const SIZE: usize = 16384;
-    const MAX: i16 = 16384;
+    const MAX_CORRECTION: i16 = 1024;
+    const MAX_BONUS: i16 = Self::MAX_CORRECTION / 4;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
@@ -107,9 +108,9 @@ impl CorrectionHistory {
         let idx = self.index(key);
         let error = (score - static_eval) as i16;
         let weight = (depth + 1).min(16) as i16;
-        let weighted = (error * weight) * 2;
+        let weighted = (error * weight << 1).clamp(-16000, 16000);
         let entry = &mut self.entries[stm][idx];
-        *entry = gravity(*entry, weighted, Self::MAX);
+        *entry = gravity(*entry, weighted, Self::MAX_CORRECTION);
     }
 
     pub fn clear(&mut self) {
@@ -117,7 +118,7 @@ impl CorrectionHistory {
     }
 
     fn index(&self, key: u64) -> usize {
-        key as usize & Self::SIZE
+        key as usize & Self::SIZE - 1
     }
 }
 
@@ -163,5 +164,6 @@ impl ThreatIndex {
 }
 
 fn gravity(current: i16, update: i16, max: i16) -> i16 {
+
     current + update - (current as i32 * update.abs() as i32 / max as i32) as i16
 }
