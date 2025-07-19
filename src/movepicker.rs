@@ -81,7 +81,7 @@ impl MovePicker {
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
                 if self.see_threshold
-                    .map(|threshold| threshold + -entry.score / movepick_see_history_div())
+                    .map(|threshold| threshold + -entry.history_score / movepick_see_history_div())
                     .map(|threshold| !see(board, &entry.mv, threshold))
                     .unwrap_or(false) {
                     self.bad_noisies.add(*entry);
@@ -141,12 +141,14 @@ impl MovePicker {
             // Score capture
             let victim_value = see::value(victim);
             let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            entry.history_score = history_score;
             entry.score = victim_value + history_score;
         } else {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, &td.ss, mv, ply, threats);
             let is_killer = td.ss[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };
+            entry.history_score = quiet_score;
             entry.score = base + quiet_score;
         }
 
