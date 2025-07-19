@@ -133,7 +133,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Static Evaluation
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
+        let raw_eval = td.nnue.evaluate(board);
+        let scaled_eval = scale_evaluation(board, raw_eval);
+        let correction = td.correction_history.correction(board, &td.ss, ply);
+        static_eval = scaled_eval + correction;
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -554,7 +557,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut static_eval = -Score::MATE + ply as i32;
 
     if !in_check {
-        static_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.ss, ply);
+        let raw_eval = td.nnue.evaluate(board);
+        let scaled_eval = scale_evaluation(board, raw_eval);
+        let correction = td.correction_history.correction(board, &td.ss, ply);
+        static_eval = scaled_eval + correction;
 
         if static_eval > alpha {
             alpha = static_eval
@@ -686,6 +692,15 @@ fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
 
 fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
+}
+
+fn scale_evaluation(board: &Board, raw_eval: i32) -> i32 {
+    let game_phase = (3 * board.pieces(Piece::Knight).count())
+            + (3 * board.pieces(Piece::Bishop).count() + 1)
+            + (5 * board.pieces(Piece::Rook).count())
+            + (10 * board.pieces(Piece::Queen).count());
+    let scaled = raw_eval * (22400 + game_phase as i32) / 32768;
+    scaled.clamp(-Score::MATE, Score::MATE)
 }
 
 fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
