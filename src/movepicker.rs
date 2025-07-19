@@ -138,11 +138,11 @@ impl MovePicker {
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
             let victim_value = see::value(victim);
-            let history_score = td.capture_history_score(board, mv, attacker, victim);
+            let history_score = td.history.capture_history_score(board, mv, attacker, victim);
             entry.score = victim_value + history_score;
         } else {
             // Score quiet
-            let quiet_score = td.quiet_history_score(board, mv, ply, threats);
+            let quiet_score = td.history.quiet_history_score(board, &td.ss, mv, ply, threats);
             let is_killer = td.ss[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };
             entry.score = base + quiet_score;

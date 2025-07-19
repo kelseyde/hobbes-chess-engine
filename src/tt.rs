@@ -186,7 +186,7 @@ impl TranspositionTable {
         entry.score = to_tt(score, ply);
         entry.static_eval = static_eval as i16;
         entry.depth = depth as u8;
-        entry.flags = Flags::new(flag, pv, 0);
+        entry.flags = Flags::new(flag, pv, tt_age);
     }
 
     fn idx(&self, hash: u64) -> usize {
@@ -201,7 +201,7 @@ impl TranspositionTable {
 
     pub fn fill(&self) -> usize {
         let mut fill = 0;
-        for bucket in self.table.iter().take(1000) {
+        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
             for entry in &bucket.entries {
                 if entry.flags.bound() != TTFlag::None {
                     fill += 1;

@@ -1,8 +1,8 @@
-use std::time::Instant;
 use crate::board::Board;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
+use std::time::Instant;
 
 const BENCH_DEPTH: u64 = 12;
 
