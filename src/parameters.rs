@@ -41,8 +41,9 @@ tunable_params! {
     pvs_see_max_depth           = 8, 6, 10, 1;
     pvs_see_quiet_scale         = -56, -72, -36, 12;
     pvs_see_noisy_scale         = -36, -48, -12, 12;
-    movepick_see_base           = -100, -200, 0, 25;
-    movepick_see_history_div    = 64, 16, 128, 8;
+    movepick_see_base           = 64, 0, 128, 32;
+    movepick_see_history_mult   = 1037, 512, 2048, 128;
+    movepick_see_history_div    = 32768, 16384, 65536, 2048;
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 32, 16, 48, 6;
