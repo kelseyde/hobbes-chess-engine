@@ -169,7 +169,7 @@ impl TranspositionTable {
 
         if !(key_part != entry.key
             || flag == TTFlag::Exact
-            || depth + 4 > entry.depth as i32
+            || depth + 4 + 2 * pv as i32 > entry.depth as i32
             || entry.flags.age() != tt_age) {
             return;
         }
