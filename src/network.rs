@@ -5,6 +5,7 @@ use crate::board::Board;
 use crate::moves::Move;
 use crate::nnue::cache::InputBucketCache;
 use crate::nnue::feature::Feature;
+use crate::search::MAX_PLY;
 use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
@@ -21,7 +22,7 @@ pub const QAB: i32 = QA * QB;
 
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
-pub const MAX_ACCUMULATORS: usize = 255;
+pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 pub const NUM_BUCKETS: usize = 8;
 
 pub const BUCKETS: [usize; 64] = [

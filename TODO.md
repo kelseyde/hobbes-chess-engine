@@ -119,7 +119,7 @@
 - [x] Incremental selection sort
 - [x] Staged movegen
 - [x] Quiet threat history
-- [ ] Killer stage
+- [x] Killer stage
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
