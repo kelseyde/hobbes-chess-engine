@@ -73,10 +73,10 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
-        println!("uciok");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         #[cfg(feature = "tuning")]
         list_params();
+        println!("uciok");
     }
 
     fn handle_isready(&self) {
