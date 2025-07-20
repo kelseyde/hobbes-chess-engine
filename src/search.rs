@@ -112,6 +112,9 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let singular = td.ss[ply].singular;
     let singular_search = singular.is_some();
 
+    td.ss[ply].distance_to_pv = if pv_node { 0 } else { td.ss[ply - 1].distance_to_pv + 1 };
+    let parent_is_pv = td.ss[ply].distance_to_pv == 1;
+
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
@@ -181,7 +184,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Reverse Futility Pruning
         let futility_margin = rfp_base()
             + rfp_scale() * depth
-            - rfp_improving_scale() * improving as i32;
+            - rfp_improving_scale() * improving as i32
+            + rfp_parent_pv_margin() * parent_is_pv as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
@@ -876,7 +880,8 @@ pub struct StackEntry {
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub static_eval: i32,
-    pub reduction: i32
+    pub reduction: i32,
+    pub distance_to_pv: usize
 }
 
 impl Default for SearchStack {
@@ -896,7 +901,8 @@ impl SearchStack {
                 singular: None,
                 threats: Bitboard::empty(),
                 static_eval: Score::MIN,
-                reduction: 0
+                reduction: 0,
+                distance_to_pv: 0
             }; MAX_PLY + 8],
         }
     }
