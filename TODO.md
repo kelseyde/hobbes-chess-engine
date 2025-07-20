@@ -152,6 +152,6 @@
 - [x] Configurable Hash size
 - [x] PV printing
 - [x] Nodes/NPS printing
-- [ ] Seldepth
+- [x] Seldepth
 - [x] Hashfull
 - [ ] Pretty print
