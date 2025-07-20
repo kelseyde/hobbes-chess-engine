@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight};
+use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight, corr_scale};
 use crate::search::SearchStack;
 use crate::types::side::Side;
 use crate::utils::boxed_and_zeroed;
@@ -127,25 +127,24 @@ impl Default for CorrectionHistory {
 impl CorrectionHistory {
     const SIZE: usize = 16384;
     const MASK: usize = Self::SIZE - 1;
-    const SCALE: i32 = 128;
-    const GRAIN: i32 = 128;
+    const GRAIN: i32 = 256;
     const MAX: i32 = Self::GRAIN * 32;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
+        self.entries[stm][idx] / corr_scale()
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) * Self::SCALE;
+        let new_value = (score - static_eval) * Self::GRAIN;
 
         let new_weight = (depth + 1).min(16);
-        let old_weight = Self::SCALE - new_weight;
+        let old_weight = Self::GRAIN - new_weight;
 
         let update = *entry * old_weight + new_value * new_weight;
-        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
+        *entry = i32::clamp(update / Self::GRAIN, -Self::MAX, Self::MAX);
     }
 
     pub fn clear(&mut self) {
