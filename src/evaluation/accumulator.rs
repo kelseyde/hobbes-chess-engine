@@ -47,7 +47,6 @@ impl Accumulator {
         }
     }
 
-    // Helper method to get mutable features slice
     #[inline(always)]
     fn features_mut(&mut self, perspective: Side) -> &mut [i16; HIDDEN] {
         match perspective {
@@ -63,7 +62,6 @@ impl Accumulator {
         let feats = self.features_mut(perspective);
         let weight_offset = idx * HIDDEN;
 
-        // Unroll loop for better performance
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
@@ -93,7 +91,6 @@ impl Accumulator {
         }
     }
 
-    // Optimized version that processes both sides simultaneously
     #[inline]
     pub fn add_sub(&mut self,
                    add: Feature,
@@ -101,25 +98,22 @@ impl Accumulator {
                    w_weights: &FeatureWeights,
                    b_weights: &FeatureWeights) {
 
-        let w_mirror = self.mirrored[0]; // White = 0
-        let b_mirror = self.mirrored[1]; // Black = 1
+        let w_mirror = self.mirrored[0];
+        let b_mirror = self.mirrored[1];
 
         let w_add_offset = add.index(White, w_mirror) * HIDDEN;
         let b_add_offset = add.index(Black, b_mirror) * HIDDEN;
         let w_sub_offset = sub.index(White, w_mirror) * HIDDEN;
         let b_sub_offset = sub.index(Black, b_mirror) * HIDDEN;
 
-        // Process both sides in parallel
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                // White side
                 let w_feat_ptr = self.white_features.get_unchecked_mut(i);
                 *w_feat_ptr = w_feat_ptr
                     .wrapping_add(*w_weights.get_unchecked(i + w_add_offset))
                     .wrapping_sub(*w_weights.get_unchecked(i + w_sub_offset));
 
-                // Black side
                 let b_feat_ptr = self.black_features.get_unchecked_mut(i);
                 *b_feat_ptr = b_feat_ptr
                     .wrapping_add(*b_weights.get_unchecked(i + b_add_offset))
@@ -150,14 +144,12 @@ impl Accumulator {
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                // White side
                 let w_feat_ptr = self.white_features.get_unchecked_mut(i);
                 *w_feat_ptr = w_feat_ptr
                     .wrapping_add(*w_weights.get_unchecked(i + w_add_offset))
                     .wrapping_sub(*w_weights.get_unchecked(i + w_sub1_offset))
                     .wrapping_sub(*w_weights.get_unchecked(i + w_sub2_offset));
 
-                // Black side
                 let b_feat_ptr = self.black_features.get_unchecked_mut(i);
                 *b_feat_ptr = b_feat_ptr
                     .wrapping_add(*b_weights.get_unchecked(i + b_add_offset))
@@ -192,7 +184,6 @@ impl Accumulator {
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                // White side
                 let w_feat_ptr = self.white_features.get_unchecked_mut(i);
                 *w_feat_ptr = w_feat_ptr
                     .wrapping_add(*w_weights.get_unchecked(i + w_add1_offset))
@@ -200,7 +191,6 @@ impl Accumulator {
                     .wrapping_sub(*w_weights.get_unchecked(i + w_sub1_offset))
                     .wrapping_sub(*w_weights.get_unchecked(i + w_sub2_offset));
 
-                // Black side
                 let b_feat_ptr = self.black_features.get_unchecked_mut(i);
                 *b_feat_ptr = b_feat_ptr
                     .wrapping_add(*b_weights.get_unchecked(i + b_add1_offset))
@@ -212,43 +202,4 @@ impl Accumulator {
         }
     }
 
-    // Alternative batch update method for multiple operations
-    #[inline]
-    pub fn batch_update(&mut self,
-                        operations: &[(Feature, i16)], // (feature, multiplier: +1 for add, -1 for sub)
-                        w_weights: &FeatureWeights,
-                        b_weights: &FeatureWeights) {
-
-        let w_mirror = self.mirrored[0];
-        let b_mirror = self.mirrored[1];
-
-        for &(ref feature, multiplier) in operations {
-            let w_offset = feature.index(White, w_mirror) * HIDDEN;
-            let b_offset = feature.index(Black, b_mirror) * HIDDEN;
-
-            if multiplier > 0 {
-                for i in 0..HIDDEN {
-                    unsafe {
-                        *self.white_features.get_unchecked_mut(i) =
-                            self.white_features.get_unchecked(i)
-                                .wrapping_add(*w_weights.get_unchecked(i + w_offset));
-                        *self.black_features.get_unchecked_mut(i) =
-                            self.black_features.get_unchecked(i)
-                                .wrapping_add(*b_weights.get_unchecked(i + b_offset));
-                    }
-                }
-            } else {
-                for i in 0..HIDDEN {
-                    unsafe {
-                        *self.white_features.get_unchecked_mut(i) =
-                            self.white_features.get_unchecked(i)
-                                .wrapping_sub(*w_weights.get_unchecked(i + w_offset));
-                        *self.black_features.get_unchecked_mut(i) =
-                            self.black_features.get_unchecked(i)
-                                .wrapping_sub(*b_weights.get_unchecked(i + b_offset));
-                    }
-                }
-            }
-        }
-    }
 }
