@@ -697,7 +697,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats, in_check);
 
     let mut move_count = 0;
 
@@ -712,6 +712,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !board.is_legal(&mv) {
             continue;
         }
+
+        // We have found at least one legal move; therefore we can start skipping quiet moves.
+        move_picker.skip_quiets = true;
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
