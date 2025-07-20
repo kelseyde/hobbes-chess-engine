@@ -837,13 +837,15 @@ fn print_search_info(td: &mut ThreadData) {
     print!("info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
              depth, seldepth, best_score, nodes, time, nps, hashfull);
 
-    for mv in td.pv.line() {
-        print!(" {}", mv.to_uci());
-    }
-
-    if td.pv.line().is_empty() {
-        print!(" {}", td.pv.best_move().to_uci());
-    }
+    // TODO fix illegal PV moves
+    // for mv in td.pv.line() {
+    //     print!(" {}", mv.to_uci());
+    // }
+    //
+    // if td.pv.line().is_empty() {
+    //     print!(" {}", td.pv.best_move().to_uci());
+    // }
+    print!(" {}", td.pv.best_move().to_uci());
     println!();
 
 }
