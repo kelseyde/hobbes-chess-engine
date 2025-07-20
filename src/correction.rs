@@ -154,4 +154,5 @@ impl CorrectionHistory {
     fn index(&self, key: u64) -> usize {
         key as usize & Self::MASK
     }
+
 }
