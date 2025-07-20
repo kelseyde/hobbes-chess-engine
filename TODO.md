@@ -66,7 +66,8 @@
 - [ ] Static eval to TT
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
-- [x] No TT cut in PV nodes
+- [x] No TT cut in PV nodes (PVS)
+- [x] No TT cut in PV nodes (QS)
 - [ ] TT buckets
 - [ ] TT aging
 - [ ] TT low depth extension
