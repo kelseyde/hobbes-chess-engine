@@ -79,10 +79,6 @@ pub(crate) mod avx2 {
         _mm_cvtsi128_si32(final_sum)
     }
 
-    #[inline]
-    unsafe fn clipped_relu(i: __m256i, min_val: __m256i, max_val: __m256i) -> __m256i {
-        _mm256_min_epi16(_mm256_max_epi16(i, min_val), max_val)
-    }
 }
 
 #[cfg(target_feature = "neon")]
