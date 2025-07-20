@@ -144,8 +144,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // Transposition table
     // Check if this node has already been searched before. If it has, and the depth + bounds match
     // the requirements of the current search, then we can directly return the score from the TT.
-    // If the depth and bounds do not match, we can still use information from the TT -
-    // such as the best move, score, and static eval - to inform the current search.
+    // If the depth and bounds do not match, we can still use information from the TT - such as the
+    // best move, score, and static eval - to inform the current search.
     if !singular_search {
         if let Some(entry) = td.tt.probe(board.hash) {
             tt_hit = true;
