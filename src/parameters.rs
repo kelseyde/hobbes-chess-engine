@@ -29,6 +29,7 @@ tunable_params! {
     fp_base                     = 150, 50, 250, 25;
     fp_scale                    = 100, 50, 200, 10;
     fp_movecount_mult           = 4, 2, 8, 1;
+    fp_history_divisor          = 137, 64, 256, 16;
     lmp_max_depth               = 8, 6, 10, 1;
     lmp_base                    = 1, 1, 5, 1;
     lmp_improving_base          = 3, 1, 5, 1;

@@ -315,7 +315,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
-            - legal_moves * fp_movecount_mult();
+            - legal_moves * fp_movecount_mult()
+            + history_score / fp_history_divisor();
         if !pv_node
             && !root_node
             && !in_check
