@@ -52,43 +52,128 @@ pub(crate) mod neon {
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
 
     pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
-        {
-            let mut sum = vdupq_n_s32(0);
-            for i in 0..LOOP_LENGTH {
-                let features = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
-                let weights = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
-                let clipped = clipped_relu(features);
-                let v = vmulq_s16(clipped, weights);
+        // Pre-compute constants outside the loop
+        let min_val = vdupq_n_s16(0);
+        let max_val = vdupq_n_s16(QA as i16);
 
-                let clipped_low = vget_low_s16(clipped);
-                let clipped_high = vget_high_s16(clipped);
-                let v_low = vget_low_s16(v);
-                let v_high = vget_high_s16(v);
+        // Use two accumulators to improve instruction-level parallelism
+        let mut sum1 = vdupq_n_s32(0);
+        let mut sum2 = vdupq_n_s32(0);
 
-                let mul_low = vmull_s16(v_low, clipped_low);
-                let mul_high = vmull_s16(v_high, clipped_high);
+        // Process two iterations at once when possible
+        let mut i = 0;
+        while i + 1 < LOOP_LENGTH {
+            // First iteration
+            let features1 = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
+            let weights1 = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
+            let clipped1 = vminq_s16(vmaxq_s16(features1, min_val), max_val);
+            let v1 = vmulq_s16(clipped1, weights1);
 
-                sum = vaddq_s32(sum, mul_low);
-                sum = vaddq_s32(sum, mul_high);
-            }
-            horizontal_add(sum)
+            // Second iteration
+            let features2 = vld1q_s16(features.as_ptr().add((i + 1) * CHUNK_SIZE));
+            let weights2 = vld1q_s16(weights.as_ptr().add((i + 1) * CHUNK_SIZE));
+            let clipped2 = vminq_s16(vmaxq_s16(features2, min_val), max_val);
+            let v2 = vmulq_s16(clipped2, weights2);
+
+            // Use vmlal (multiply-accumulate long) for better efficiency
+            // This does: sum += v_low * clipped_low (with widening)
+            sum1 = vmlal_s16(sum1, vget_low_s16(v1), vget_low_s16(clipped1));
+            sum1 = vmlal_s16(sum1, vget_high_s16(v1), vget_high_s16(clipped1));
+
+            sum2 = vmlal_s16(sum2, vget_low_s16(v2), vget_low_s16(clipped2));
+            sum2 = vmlal_s16(sum2, vget_high_s16(v2), vget_high_s16(clipped2));
+
+            i += 2;
         }
+
+        // Handle remaining iteration if odd number of iterations
+        if i < LOOP_LENGTH {
+            let features = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
+            let weights = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
+            let clipped = vminq_s16(vmaxq_s16(features, min_val), max_val);
+            let v = vmulq_s16(clipped, weights);
+
+            sum1 = vmlal_s16(sum1, vget_low_s16(v), vget_low_s16(clipped));
+            sum1 = vmlal_s16(sum1, vget_high_s16(v), vget_high_s16(clipped));
+        }
+
+        // Combine the two accumulators
+        let final_sum = vaddq_s32(sum1, sum2);
+        horizontal_add(final_sum)
     }
 
     #[inline]
     unsafe fn horizontal_add(sum: int32x4_t) -> i32 {
-        {
-            let sum_pair = vpadd_s32(vget_low_s32(sum), vget_high_s32(sum));
-            let final_sum = vpadd_s32(sum_pair, sum_pair);
-            vget_lane_s32(final_sum, 0)
-        }
+        // More efficient horizontal add using vpaddq
+        let sum_pair = vpaddq_s32(sum, sum);  // [a+b, c+d, a+b, c+d]
+        let final_sum = vpaddq_s32(sum_pair, sum_pair);  // [a+b+c+d, *, a+b+c+d, *]
+        vgetq_lane_s32(final_sum, 0)
     }
 
-    #[inline]
-    unsafe fn clipped_relu(i: int16x8_t) -> int16x8_t {
-        let min = vdupq_n_s16(0);
-        let max = vdupq_n_s16(QA as i16);
-        vminq_s16(vmaxq_s16(i, min), max)
+    // Alternative version for very performance-critical code
+    pub unsafe fn forward_unrolled(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+        let min_val = vdupq_n_s16(0);
+        let max_val = vdupq_n_s16(QA as i16);
+
+        let mut sum1 = vdupq_n_s32(0);
+        let mut sum2 = vdupq_n_s32(0);
+        let mut sum3 = vdupq_n_s32(0);
+        let mut sum4 = vdupq_n_s32(0);
+
+        // Unroll loop by 4 for maximum throughput
+        let mut i = 0;
+        while i + 3 < LOOP_LENGTH {
+            // Load and process 4 chunks at once
+            let f1 = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
+            let w1 = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
+            let f2 = vld1q_s16(features.as_ptr().add((i + 1) * CHUNK_SIZE));
+            let w2 = vld1q_s16(weights.as_ptr().add((i + 1) * CHUNK_SIZE));
+            let f3 = vld1q_s16(features.as_ptr().add((i + 2) * CHUNK_SIZE));
+            let w3 = vld1q_s16(weights.as_ptr().add((i + 2) * CHUNK_SIZE));
+            let f4 = vld1q_s16(features.as_ptr().add((i + 3) * CHUNK_SIZE));
+            let w4 = vld1q_s16(weights.as_ptr().add((i + 3) * CHUNK_SIZE));
+
+            let c1 = vminq_s16(vmaxq_s16(f1, min_val), max_val);
+            let c2 = vminq_s16(vmaxq_s16(f2, min_val), max_val);
+            let c3 = vminq_s16(vmaxq_s16(f3, min_val), max_val);
+            let c4 = vminq_s16(vmaxq_s16(f4, min_val), max_val);
+
+            let v1 = vmulq_s16(c1, w1);
+            let v2 = vmulq_s16(c2, w2);
+            let v3 = vmulq_s16(c3, w3);
+            let v4 = vmulq_s16(c4, w4);
+
+            sum1 = vmlal_s16(sum1, vget_low_s16(v1), vget_low_s16(c1));
+            sum1 = vmlal_s16(sum1, vget_high_s16(v1), vget_high_s16(c1));
+
+            sum2 = vmlal_s16(sum2, vget_low_s16(v2), vget_low_s16(c2));
+            sum2 = vmlal_s16(sum2, vget_high_s16(v2), vget_high_s16(c2));
+
+            sum3 = vmlal_s16(sum3, vget_low_s16(v3), vget_low_s16(c3));
+            sum3 = vmlal_s16(sum3, vget_high_s16(v3), vget_high_s16(c3));
+
+            sum4 = vmlal_s16(sum4, vget_low_s16(v4), vget_low_s16(c4));
+            sum4 = vmlal_s16(sum4, vget_high_s16(v4), vget_high_s16(c4));
+
+            i += 4;
+        }
+
+        // Handle remaining iterations
+        while i < LOOP_LENGTH {
+            let features = vld1q_s16(features.as_ptr().add(i * CHUNK_SIZE));
+            let weights = vld1q_s16(weights.as_ptr().add(i * CHUNK_SIZE));
+            let clipped = vminq_s16(vmaxq_s16(features, min_val), max_val);
+            let v = vmulq_s16(clipped, weights);
+
+            sum1 = vmlal_s16(sum1, vget_low_s16(v), vget_low_s16(clipped));
+            sum1 = vmlal_s16(sum1, vget_high_s16(v), vget_high_s16(clipped));
+
+            i += 1;
+        }
+
+        // Combine all accumulators
+        let combined = vaddq_s32(vaddq_s32(sum1, sum2), vaddq_s32(sum3, sum4));
+        horizontal_add(combined)
     }
 }
 
