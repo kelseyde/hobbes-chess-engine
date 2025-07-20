@@ -1,36 +1,30 @@
-use std::io;
-
 use crate::types::side::Side::{Black, White};
+use std::io;
+use std::time::Instant;
 
 use crate::bench::bench;
 use crate::board::Board;
 use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
-use crate::network::NNUE;
 use crate::perft::perft;
 use crate::search::search;
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
 
+#[cfg(feature = "tuning")]
+use crate::parameters::{list_params, print_params_ob, set_param};
+
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
-    pub nnue: Box<NNUE>,
-}
-
-impl Default for UCI {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: ThreadData::default().into(),
-            nnue: NNUE::default().into(),
+            td: Box::new(ThreadData::default())
         }
     }
 
@@ -58,6 +52,7 @@ impl UCI {
             match command.split_ascii_whitespace().next().unwrap() {
                 "uci" => self.handle_uci(),
                 "isready" => self.handle_isready(),
+                "setoption" => self.handle_setoption(tokens),
                 "ucinewgame" => self.handle_ucinewgame(),
                 "bench" => self.handle_bench(),
                 "position" => self.handle_position(tokens),
@@ -67,6 +62,8 @@ impl UCI {
                 "eval" => self.handle_eval(),
                 "perft" => self.handle_perft(tokens),
                 "help" => self.handle_help(),
+                #[cfg(feature = "tuning")]
+                "params" => print_params_ob(),
                 "quit" => self.handle_quit(),
                 _ => println!("info error: unknown command"),
             }
@@ -76,6 +73,9 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
+        println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
+        #[cfg(feature = "tuning")]
+        list_params();
         println!("uciok");
     }
 
@@ -83,12 +83,49 @@ impl UCI {
         println!("readyok");
     }
 
+    fn handle_setoption(&mut self, tokens: Vec<String>) {
+        let tokens: Vec<String> = tokens.iter().map(|s| s.to_lowercase()).collect();
+        let tokens: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
+
+        match tokens.as_slice() {
+            ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
+            ["setoption", "name", "threads", "value", _] => return, // TODO set threads
+            #[cfg(feature = "tuning")]
+            ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
+            _ => { println!("info error unknown option"); }
+        }
+    }
+
+    fn set_hash_size(&mut self, value_str: &str) {
+        let value: usize = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+        self.td.tt.resize(value);
+        println!("info string Hash {}", value);
+    }
+
+    #[cfg(feature = "tuning")]
+    fn set_tunable(&self, name: &str, value_str: &str) {
+        let value: i32 = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+        set_param(name, value);
+    }
+
     fn handle_ucinewgame(&mut self) {
         self.td.clear();
     }
 
-    fn handle_bench(&self) {
-        bench();
+    fn handle_bench(&mut self) {
+        bench(&mut self.td);
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -147,9 +184,11 @@ impl UCI {
 
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
+        self.td.start_time = Instant::now();
+        self.td.tt.birthday();
 
         if tokens.contains(&String::from("movetime")) {
-            match self.parse_int(&tokens, "movetime") {
+            match self.parse_uint(&tokens, "movetime") {
                 Ok(movetime) => {
                     self.td.limits = SearchLimits::new(None, Some(movetime), None, None, None)
                 }
@@ -159,7 +198,7 @@ impl UCI {
                 }
             }
         } else if tokens.contains(&String::from("wtime")) {
-            let wtime = match self.parse_int(&tokens, "wtime") {
+            let wtime = match self.parse_uint(&tokens, "wtime") {
                 Ok(wtime) => wtime,
                 Err(_) => {
                     println!("info error: wtime is not a valid number");
@@ -167,7 +206,7 @@ impl UCI {
                 }
             };
 
-            let btime = match self.parse_int(&tokens, "btime") {
+            let btime = match self.parse_uint(&tokens, "btime") {
                 Ok(btime) => btime,
                 Err(_) => {
                     println!("info error: btime is not a valid number");
@@ -175,7 +214,7 @@ impl UCI {
                 }
             };
 
-            let winc = match self.parse_int(&tokens, "winc") {
+            let winc = match self.parse_uint(&tokens, "winc") {
                 Ok(winc) => winc,
                 Err(_) => {
                     println!("info error: winc is not a valid number");
@@ -183,7 +222,7 @@ impl UCI {
                 }
             };
 
-            let binc = match self.parse_int(&tokens, "binc") {
+            let binc = match self.parse_uint(&tokens, "binc") {
                 Ok(binc) => binc,
                 Err(_) => {
                     println!("info error: binc is not a valid number");
@@ -207,7 +246,8 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        let eval: i32 = self.nnue.evaluate(&self.board);
+        self.td.nnue.activate(&self.board);
+        let eval: i32 = self.td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 
@@ -258,7 +298,7 @@ impl UCI {
         std::process::exit(0);
     }
 
-    fn parse_int(&self, tokens: &[String], name: &str) -> Result<u64, String> {
+    fn parse_uint(&self, tokens: &[String], name: &str) -> Result<u64, String> {
         match tokens.iter().position(|x| x == name) {
             Some(index) => match tokens.get(index + 1) {
                 Some(value) => match value.parse::<u64>() {
@@ -270,4 +310,5 @@ impl UCI {
             None => Err(format!("info error: {} is missing", name)),
         }
     }
+
 }

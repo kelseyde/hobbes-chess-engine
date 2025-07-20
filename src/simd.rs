@@ -1,7 +1,7 @@
 #[cfg(target_feature = "avx2")]
 pub(crate) mod avx2 {
-    use std::arch::x86_64::*;
     use crate::network::{HIDDEN, QA};
+    use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 16;
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
