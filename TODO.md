@@ -150,7 +150,7 @@
 
 ## UCI
 - [x] Configurable Hash size
-- [ ] PV printing
+- [x] PV printing
 - [x] Nodes/NPS printing
 - [ ] Seldepth
 - [x] Hashfull
