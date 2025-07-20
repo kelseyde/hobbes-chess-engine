@@ -16,6 +16,8 @@ use std::ops::{Index, IndexMut};
 pub const MAX_PLY: usize = 256;
 
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
+
+    td.pv.clear(0);
     td.nnue.activate(board);
 
     let mut alpha = Score::MIN;
@@ -40,7 +42,6 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             }
 
             if td.should_stop(Hard) || Score::is_mate(score) {
-                // TODO test breaking out of outer ID loop if mate
                 break;
             }
 
@@ -56,6 +57,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
                 _ => break,
             }
+        }
+
+        if td.should_stop(Hard) || Score::is_mate(score) {
+            break;
         }
 
         td.depth += 1;
@@ -76,6 +81,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
+    if ply + 1 > td.seldepth {
+        td.seldepth = ply + 1;
+    }
+
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
         return qs(board, td, alpha, beta, ply);
@@ -95,6 +104,10 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     let root_node = ply == 0;
     let pv_node = beta - alpha > 1;
+
+    if pv_node {
+        td.pv.clear(ply);
+    }
 
     let singular = td.ss[ply].singular;
     let singular_search = singular.is_some();
@@ -422,9 +435,13 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             alpha = score;
             best_move = mv;
             flag = TTFlag::Exact;
-            if root_node {
-                td.best_move = mv;
-                td.best_score = score;
+
+            if pv_node {
+                td.pv.update(ply, mv);
+                if root_node {
+                    td.best_move = mv;
+                    td.best_score = score;
+                }
             }
 
             if score >= beta {
@@ -526,8 +543,17 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return alpha;
     }
 
+    if ply + 1 > td.seldepth {
+        td.seldepth = ply + 1;
+    }
+
     if ply > 0 && is_draw(td, board) {
         return Score::DRAW;
+    }
+
+    let pv_node = beta - alpha > 1;
+    if pv_node {
+        td.pv.clear(ply);
     }
 
     if ply >= MAX_PLY {
@@ -636,6 +662,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         if score > alpha {
             alpha = score;
+
+            if pv_node {
+                td.pv.update(ply, mv);
+            }
 
             if score >= beta {
                 return score;
@@ -786,14 +816,23 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 
 fn print_search_info(td: &mut ThreadData) {
     let depth = td.depth;
-    let best_move = td.best_move;
+    let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
     let time = td.start_time.elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 { (nodes as u128 / time) * 1000 } else { 0 };
     let hashfull = td.tt.fill();
-    println!("info depth {} score {} nodes {} time {} nps {} hashfull {} pv {}",
-             depth, best_score, nodes, time, nps, hashfull, best_move.to_uci());
+    print!("info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
+             depth, seldepth, best_score, nodes, time, nps, hashfull);
+
+    for mv in td.pv.line() {
+        print!(" {}", mv.to_uci());
+    }
+
+    if td.pv.line().is_empty() {
+        print!(" {}", td.pv.best_move().to_uci());
+    }
+    println!();
 
 }
 
