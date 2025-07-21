@@ -172,12 +172,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
-    let mut correction = 0;
     let mut complexity = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        (correction, complexity) = td.correction_history.correction(board, &td.ss, ply);
+        let (correction, _complexity) = td.correction_history.correction(board, &td.ss, ply);
+        complexity = _complexity;
         static_eval = raw_eval + correction;
     };
 
