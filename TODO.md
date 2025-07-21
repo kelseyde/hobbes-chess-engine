@@ -124,7 +124,7 @@
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
 - [x] Prior countermove bonus
-- [x] Dynamic policy updates
+- [x] Dynamic policy history update
 - [ ] Threats capthist
 - [ ] History factoriser
 - [x] Post-LMR update conthist

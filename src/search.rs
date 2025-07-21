@@ -187,6 +187,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let improving = is_improving(td, ply, static_eval);
 
     // Dynamic policy
+    // Use the difference between the static eval in the current node and parent node to update the
+    // history score for the parent move.
     if !in_check
         && !root_node
         && !singular_search
@@ -194,9 +196,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         && td.ss[ply - 1].captured.is_none()
         && Score::is_defined(td.ss[ply - 1].static_eval) {
 
-        let value = dynamic_policy_mult() * -(static_eval + td.ss[ply - 1].static_eval);
+        let prev_eval = td.ss[ply - 1].static_eval;
+        let prev_mv = td.ss[ply - 1].mv.unwrap();
+        let prev_threats = td.ss[ply - 1].threats;
+
+        let loss = static_eval + prev_eval;
+        let value = -dynamic_policy_mult() * loss / 10;
         let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
-        td.quiet_history.update(board.stm.flip(), &td.ss[ply - 1].mv.unwrap(), td.ss[ply - 1].threats, bonus);
+        td.history.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, bonus);
     }
 
     // Hindsight extension
