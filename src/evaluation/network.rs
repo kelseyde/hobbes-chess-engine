@@ -2,9 +2,11 @@ use crate::types::side::Side::{Black, White};
 use arrayvec::ArrayVec;
 
 use crate::board::Board;
+use crate::evaluation::accumulator::Accumulator;
 use crate::moves::Move;
-use crate::nnue::cache::InputBucketCache;
-use crate::nnue::feature::Feature;
+use crate::evaluation::cache::InputBucketCache;
+use crate::evaluation::feature::Feature;
+use crate::search::MAX_PLY;
 use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
@@ -21,7 +23,7 @@ pub const QAB: i32 = QA * QB;
 
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
-pub const MAX_ACCUMULATORS: usize = 255;
+pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 pub const NUM_BUCKETS: usize = 8;
 
 pub const BUCKETS: [usize; 64] = [
@@ -36,7 +38,7 @@ pub const BUCKETS: [usize; 64] = [
 ];
 
 pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/calvin1024_8b.nnue")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/calvin1024_8b.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
@@ -47,14 +49,6 @@ pub struct Network {
 }
 
 pub type FeatureWeights = [i16; FEATURES * HIDDEN];
-
-#[derive(Clone, Copy)]
-#[repr(C, align(64))]
-pub struct Accumulator {
-    pub white_features: [i16; HIDDEN],
-    pub black_features: [i16; HIDDEN],
-    pub mirrored: [bool; 2]
-}
 
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
@@ -99,16 +93,16 @@ impl NNUE {
 
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
-    pub(super) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+    pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
         #[cfg(target_feature = "avx2")]
         {
-            use super::simd::avx2;
-            let weights = &crate::network::NETWORK.output_weights;
+            use crate::evaluation::simd::avx2;
+            let weights = &crate::evaluation::network::NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(not(target_feature = "avx2"))]
         {
-            use super::simd::scalar;
+            use crate::evaluation::simd::scalar;
             let weights = &NETWORK.output_weights;
             scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
         }
@@ -331,167 +325,6 @@ fn king_bucket(sq: Square, side: Side) -> usize {
 
 fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
-}
-
-impl Default for Accumulator {
-    fn default() -> Self {
-        Accumulator {
-            white_features: NETWORK.feature_bias,
-            black_features: NETWORK.feature_bias,
-            mirrored: [false, false],
-        }
-    }
-}
-
-impl Accumulator {
-
-    pub fn features(&self, perspective: Side) -> &[i16; HIDDEN] {
-        if perspective == White {
-            &self.white_features
-        } else {
-            &self.black_features
-        }
-    }
-
-    pub fn reset(&mut self, perspective: Side) {
-        let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
-        *feats = NETWORK.feature_bias;
-    }
-
-    pub fn copy_from(&mut self, side: Side, features: &[i16; HIDDEN]) {
-        if side == White {
-            self.white_features = *features;
-        } else {
-            self.black_features = *features;
-        }
-    }
-
-pub fn add(&mut self,
-           add: Feature,
-           weights: &FeatureWeights,
-           perspective: Side) {
-
-    let mirror = self.mirrored[perspective as usize];
-    let idx = add.index(perspective, mirror);
-    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
-
-    for i in 0..feats.len() {
-        feats[i] = feats[i].wrapping_add(weights[i + idx * HIDDEN]);
-    }
-}
-
-pub fn sub(&mut self,
-           add: Feature,
-           weights: &FeatureWeights,
-           perspective: Side) {
-
-    let mirror = self.mirrored[perspective as usize];
-    let idx = add.index(perspective, mirror);
-    let feats = if perspective == White { &mut self.white_features } else { &mut self.black_features };
-
-    for i in 0..feats.len() {
-        feats[i] = feats[i].wrapping_sub(weights[i + idx * HIDDEN]);
-    }
-}
-
-    pub fn add_sub(&mut self,
-                   add: Feature,
-                   sub: Feature,
-                   w_weights: &FeatureWeights,
-                   b_weights: &FeatureWeights) {
-
-        let w_mirror = self.mirrored[White];
-        let b_mirror = self.mirrored[Black];
-
-        let w_idx_1 = add.index(White, w_mirror);
-        let b_idx_1 = add.index(Black, b_mirror);
-
-        let w_idx_2 = sub.index(White, w_mirror);
-        let b_idx_2 = sub.index(Black, b_mirror);
-
-        for i in 0..self.white_features.len() {
-            self.white_features[i] = self.white_features[i]
-                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
-                .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN]);
-        }
-        for i in 0..self.black_features.len() {
-            self.black_features[i] = self.black_features[i]
-                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
-                .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN]);
-        }
-    }
-
-    pub fn add_sub_sub(&mut self,
-                       add: Feature,
-                       sub1: Feature,
-                       sub2: Feature,
-                       w_weights: &FeatureWeights,
-                       b_weights: &FeatureWeights) {
-
-        let w_mirror = self.mirrored[White];
-        let b_mirror = self.mirrored[Black];
-
-        let w_idx_1 = add.index(White, w_mirror);
-        let b_idx_1 = add.index(Black, b_mirror);
-
-        let w_idx_2 = sub1.index(White, w_mirror);
-        let b_idx_2 = sub1.index(Black, b_mirror);
-
-        let w_idx_3 = sub2.index(White, w_mirror);
-        let b_idx_3 = sub2.index(Black, b_mirror);
-
-        for i in 0..self.white_features.len() {
-            self.white_features[i] = self.white_features[i]
-                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
-                .wrapping_sub(w_weights[i + w_idx_2 * HIDDEN])
-                .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN]);
-        }
-        for i in 0..self.black_features.len() {
-            self.black_features[i] = self.black_features[i]
-                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
-                .wrapping_sub(b_weights[i + b_idx_2 * HIDDEN])
-                .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN]);
-        }
-    }
-
-    pub fn add_add_sub_sub(&mut self,
-                           add1: Feature,
-                           add2: Feature,
-                           sub1: Feature,
-                           sub2: Feature,
-                           w_weights: &FeatureWeights,
-                           b_weights: &FeatureWeights) {
-
-        let w_mirror = self.mirrored[White];
-        let b_mirror = self.mirrored[Black];
-
-        let w_idx_1 = add1.index(White, w_mirror);
-        let b_idx_1 = add1.index(Black, b_mirror);
-
-        let w_idx_2 = add2.index(White, w_mirror);
-        let b_idx_2 = add2.index(Black, b_mirror);
-
-        let w_idx_3 = sub1.index(White, w_mirror);
-        let b_idx_3 = sub1.index(Black, b_mirror);
-
-        let w_idx_4 = sub2.index(White, w_mirror);
-        let b_idx_4 = sub2.index(Black, b_mirror);
-
-        for i in 0..self.white_features.len() {
-            self.white_features[i] = self.white_features[i]
-                .wrapping_add(w_weights[i + w_idx_1 * HIDDEN])
-                .wrapping_add(w_weights[i + w_idx_2 * HIDDEN])
-                .wrapping_sub(w_weights[i + w_idx_3 * HIDDEN])
-                .wrapping_sub(w_weights[i + w_idx_4 * HIDDEN]);
-        }
-        for i in 0..self.black_features.len() {
-            self.black_features[i] = self.black_features[i]
-                .wrapping_add(b_weights[i + b_idx_1 * HIDDEN])
-                .wrapping_add(b_weights[i + b_idx_2 * HIDDEN])
-                .wrapping_sub(b_weights[i + b_idx_3 * HIDDEN])
-                .wrapping_sub(b_weights[i + b_idx_4 * HIDDEN]);
-        }
-    }
 }
 
 #[cfg(test)]

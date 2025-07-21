@@ -2,42 +2,33 @@ use crate::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
 
+const DEFAULT_TT_SIZE: usize = 16;
+const ENTRIES_PER_BUCKET: usize = 3;
+const BUCKET_SIZE: usize = size_of::<Bucket>();
+const AGE_CYCLE: u8 = 1 << 5;
+const AGE_MASK: u8 = AGE_CYCLE - 1;
+
 pub struct TranspositionTable {
-    table: Vec<TTEntry>,
+    table: Vec<Bucket>,
     size_mb: usize,
     size: usize,
+    age: u8,
+}
+
+#[derive(Clone, Default)]
+#[repr(align(32))]
+struct Bucket {
+    entries: [Entry; ENTRIES_PER_BUCKET],
 }
 
 #[derive(Clone)]
-pub struct TTEntry {
+#[repr(C)]
+pub struct Entry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
     depth: u8,          // 1 byte
     flags: Flags,       // 1 byte
-}
-
-#[derive(Copy, Clone)]
-pub struct Flags {
-    data: u8,
-}
-
-impl Flags {
-    pub const fn new(flag: TTFlag, pv: bool, age: u8) -> Self {
-        Self { data: (flag as u8) | ((pv as u8) << 2) | (age << 3) }
-    }
-
-    pub const fn bound(self) -> TTFlag {
-        unsafe { std::mem::transmute(self.data & 0b11) }
-    }
-
-    pub const fn pv(self) -> bool {
-        (self.data & 0b100) != 0
-    }
-
-    pub const fn age(self) -> u8 {
-        self.data >> 3
-    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -48,9 +39,14 @@ pub enum TTFlag {
     Upper = 3,
 }
 
-impl Default for TTEntry {
-    fn default() -> TTEntry {
-        TTEntry {
+#[derive(Copy, Clone)]
+pub struct Flags {
+    data: u8,
+}
+
+impl Default for Entry {
+    fn default() -> Entry {
+        Entry {
             key: 0,
             depth: 0,
             best_move: 0,
@@ -60,7 +56,7 @@ impl Default for TTEntry {
     }
 }
 
-impl TTEntry {
+impl Entry {
 
     pub fn best_move(&self) -> Move {
         Move(self.best_move)
@@ -86,28 +82,30 @@ impl TTEntry {
         self.key == (key & 0xFFFF) as u16
     }
 
-}
+    pub const fn relative_age(&self, tt_age: u8) -> i32 {
+        ((AGE_CYCLE + tt_age - self.flags.age()) & AGE_MASK) as i32
+    }
 
+}
 
 impl Default for TranspositionTable {
     fn default() -> TranspositionTable {
-        TranspositionTable::new(TranspositionTable::DEFAULT_SIZE)
+        TranspositionTable::new(DEFAULT_TT_SIZE)
     }
 }
 
 impl TranspositionTable {
 
-    pub const DEFAULT_SIZE: usize = 16;
-
     pub fn new(size_mb: usize) -> TranspositionTable {
-        let size = size_mb * 1024 * 1024 / size_of::<TTEntry>();
-        let table = vec![TTEntry::default(); size];
-        TranspositionTable { table, size_mb, size }
+        let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
+        let table = vec![Bucket::default(); size];
+        let age = 0;
+        TranspositionTable { table, size_mb, size, age }
     }
 
     pub fn resize(&mut self, size_mb: usize) {
-        let size = size_mb * 1024 * 1024 / size_of::<TTEntry>();
-        self.table = vec![TTEntry::default(); size];
+        let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
+        self.table = vec![Bucket::default(); size];
         self.size_mb = size_mb;
         self.size = size;
     }
@@ -115,42 +113,72 @@ impl TranspositionTable {
     pub fn clear(&mut self) {
         self.table
             .iter_mut()
-            .for_each(|entry| *entry = TTEntry::default());
+            .for_each(|entry| *entry = Bucket::default());
+        self.age = 0;
     }
 
-    pub fn probe(&self, hash: u64) -> Option<&TTEntry> {
+    pub fn birthday(&mut self) {
+        self.age = (self.age + 1) & AGE_MASK;
+    }
+
+    pub fn probe(&self, hash: u64) -> Option<&Entry> {
         let idx = self.idx(hash);
-        let entry = &self.table[idx];
-        if entry.validate_key(hash) {
-            Some(entry)
-        } else {
-            None
+        let bucket = &self.table[idx];
+        for entry in &bucket.entries {
+            if entry.validate_key(hash) {
+                return Some(entry);
+            }
         }
+        None
     }
 
     pub fn insert(&mut self,
                   hash: u64,
-                  mut best_move: Move,
+                  best_move: Move,
                   score: i32,
-                  depth: u8,
+                  depth: i32,
                   ply: usize,
                   flag: TTFlag,
                   pv: bool) {
+
         let idx = self.idx(hash);
-        let entry = &mut self.table[idx];
-
+        let tt_age = self.age;
         let key_part = hash as u16;
-        let key_match = key_part == entry.key;
+        let cluster = &mut self.table[idx];
 
-        if !best_move.exists() && key_match {
-            best_move = entry.best_move();
+        let mut index = 0;
+        let mut minimum = i32::MAX;
+
+        for (i, entry) in cluster.entries.iter_mut().enumerate() {
+            if entry.key == key_part || entry.flag() == TTFlag::None {
+                index = i;
+                break;
+            }
+
+            let quality = entry.depth as i32 - 4 * entry.relative_age(tt_age);
+            if quality < minimum {
+                index = i;
+                minimum = quality;
+            }
+        }
+
+        let entry = &mut cluster.entries[index];
+
+        let key_match = key_part == entry.key;
+        let mv = if !best_move.exists() && key_match { entry.best_move() } else { best_move };
+
+        if !(key_part != entry.key
+            || flag == TTFlag::Exact
+            || depth + 4 > entry.depth as i32
+            || entry.flags.age() != tt_age) {
+            return;
         }
 
         entry.key = key_part;
-        entry.best_move = best_move.0;
+        entry.best_move = mv.0;
         entry.score = to_tt(score, ply);
-        entry.depth = depth;
-        entry.flags = Flags::new(flag, pv, 0);
+        entry.depth = depth as u8;
+        entry.flags = Flags::new(flag, pv, tt_age);
     }
 
     fn idx(&self, hash: u64) -> usize {
@@ -164,11 +192,47 @@ impl TranspositionTable {
     }
 
     pub fn fill(&self) -> usize {
-        self.table.iter().take(1000)
-            .filter(|entry| entry.flags.bound() != TTFlag::None)
-            .count()
+        let mut fill = 0;
+        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
+            for entry in &bucket.entries {
+                if entry.flags.bound() != TTFlag::None {
+                    fill += 1;
+                }
+            }
+        }
+        fill
     }
 
+    pub fn prefetch(&self, hash: u64) {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
+            let index = self.idx(hash);
+            let ptr = self.table.as_ptr().add(index);
+            _mm_prefetch::<_MM_HINT_T0>(ptr as *const _);
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = hash;
+    }
+
+}
+
+impl Flags {
+    pub const fn new(flag: TTFlag, pv: bool, age: u8) -> Self {
+        Self { data: (flag as u8) | ((pv as u8) << 2) | (age << 3) }
+    }
+
+    pub const fn bound(self) -> TTFlag {
+        unsafe { std::mem::transmute(self.data & 0b11) }
+    }
+
+    pub const fn pv(self) -> bool {
+        (self.data & 0b100) != 0
+    }
+
+    pub const fn age(self) -> u8 {
+        self.data >> 3
+    }
 }
 
 fn to_tt(score: i32, ply: usize) -> i16 {
@@ -207,7 +271,7 @@ mod tests {
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
         assert_eq!(entry.score(0), score as i16);
-        assert_eq!(entry.depth(), depth);
+        assert_eq!(entry.depth() as i32, depth);
         assert_eq!(entry.flag(), flag);
         assert!(entry.pv());
     }
