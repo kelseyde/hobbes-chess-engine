@@ -1,5 +1,5 @@
 use crate::attacks;
-use crate::board::{Board, CastleSafety, CastleTravel};
+use crate::board::Board;
 use crate::movegen::MoveFilter::Quiets;
 use crate::moves::{MoveFlag, MoveList};
 use crate::types::bitboard::Bitboard;
@@ -8,6 +8,7 @@ use crate::types::side::Side;
 use crate::types::side::Side::White;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
+use crate::types::castling::{CastleSafety, CastleTravel};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {

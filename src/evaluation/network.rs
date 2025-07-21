@@ -11,7 +11,7 @@ use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
-use crate::types::File;
+use crate::types::{castling, File};
 use crate::utils::boxed_and_zeroed;
 
 pub const FEATURES: usize = 768;
@@ -269,11 +269,10 @@ impl NNUE {
                      b_weights: &FeatureWeights) {
 
         let kingside = mv.to().0 > mv.from().0;
-        let is_white = us == White;
         let king_from = mv.from();
         let king_to = mv.to();
-        let rook_to = Move::rook_to(kingside, is_white);
-        let rook_from = Move::rook_from(kingside, is_white);
+        let rook_to = castling::rook_to(kingside, us);
+        let rook_from = castling::rook_from(kingside, us);
 
         let king_from_ft = Feature::new(Piece::King, king_from, us);
         let king_to_ft = Feature::new(Piece::King, king_to, us);
