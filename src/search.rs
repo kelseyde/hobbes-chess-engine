@@ -172,10 +172,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
+    let mut complexity = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        (correction, complexity) = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -442,6 +444,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= complexity / lmr_complexity_divisor();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
@@ -680,7 +683,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        let (correction, _) = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
 
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue

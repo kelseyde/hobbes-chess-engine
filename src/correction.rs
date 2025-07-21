@@ -47,7 +47,7 @@ impl CorrectionHistories {
     }
 
     #[rustfmt::skip]
-    pub fn correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+    pub fn correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> (i32, i32) {
 
         let pawn       = self.pawn_corrhist.get(board.stm, board.pawn_hash);
         let white      = self.nonpawn_corrhist[Side::White].get(board.stm, board.non_pawn_hashes[Side::White]);
@@ -57,13 +57,34 @@ impl CorrectionHistories {
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
-        (pawn * 100 / corr_pawn_weight())
-            + (white * 100 / corr_non_pawn_weight())
-            + (black * 100 / corr_non_pawn_weight())
-            + (major * 100 / corr_major_weight())
-            + (minor * 100 / corr_minor_weight())
-            + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight())
+        let weighted_pawn = (pawn / CorrectionHistory::SCALE) * 100 / corr_pawn_weight();
+        let weighted_white = (white / CorrectionHistory::SCALE) * 100 / corr_non_pawn_weight();
+        let weighted_black = (black / CorrectionHistory::SCALE) * 100 / corr_non_pawn_weight();
+        let weighted_major = (major / CorrectionHistory::SCALE) * 100 / corr_major_weight();
+        let weighted_minor = (minor / CorrectionHistory::SCALE) * 100 / corr_minor_weight();
+        let weighted_counter = (counter / CorrectionHistory::SCALE) * 100 / corr_counter_weight();
+        let weighted_follow_up = (follow_up / CorrectionHistory::SCALE) * 100 / corr_follow_up_weight();
+
+        let correction = weighted_pawn + weighted_white + weighted_black + weighted_major +
+            weighted_minor + weighted_counter + weighted_follow_up;
+
+        let weighted_unscaled_pawn = pawn * 100 / corr_pawn_weight();
+        let weighted_unscaled_white = white * 100 / corr_non_pawn_weight();
+        let weighted_unscaled_black = black * 100 / corr_non_pawn_weight();
+        let weighted_unscaled_major = major * 100 / corr_major_weight();
+        let weighted_unscaled_minor = minor * 100 / corr_minor_weight();
+        let weighted_unscaled_counter = counter * 100 / corr_counter_weight();
+        let weighted_unscaled_follow_up = follow_up * 100 / corr_follow_up_weight();
+
+        let complexity = (weighted_unscaled_pawn * weighted_unscaled_pawn) +
+            (weighted_unscaled_white * weighted_unscaled_white) +
+            (weighted_unscaled_black * weighted_unscaled_black) +
+            (weighted_unscaled_major * weighted_unscaled_major) +
+            (weighted_unscaled_minor * weighted_unscaled_minor) +
+            (weighted_unscaled_counter * weighted_unscaled_counter) +
+            (weighted_unscaled_follow_up * weighted_unscaled_follow_up);
+
+        (correction, complexity)
 
     }
 
@@ -133,7 +154,7 @@ impl CorrectionHistory {
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
+        self.entries[stm][idx]
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
