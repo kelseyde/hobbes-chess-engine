@@ -187,17 +187,31 @@ impl UCI {
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
 
-        if tokens.contains(&String::from("movetime")) {
-            match self.parse_uint(&tokens, "movetime") {
-                Ok(movetime) => {
-                    self.td.limits = SearchLimits::new(None, Some(movetime), None, None, None)
+        let nodes = if tokens.contains(&String::from("nodes")) {
+            match self.parse_uint(&tokens, "nodes") {
+                Ok(nodes) => Some(nodes),
+                Err(_) => {
+                    println!("info error: nodes is not a valid number");
+                    return;
                 }
+            }
+        } else {
+            None
+        };
+
+        let movetime = if tokens.contains(&String::from("movetime")) {
+            match self.parse_uint(&tokens, "movetime") {
+                Ok(movetime) => Some(movetime),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("wtime")) {
+        } else {
+            None
+        };
+
+        let fischer = if tokens.contains(&String::from("wtime")) {
             let wtime = match self.parse_uint(&tokens, "wtime") {
                 Ok(wtime) => wtime,
                 Err(_) => {
@@ -235,8 +249,36 @@ impl UCI {
                 Black => (btime, binc),
             };
 
-            self.td.limits = SearchLimits::new(Some((time, inc)), None, None, None, None);
-        }
+            Some((time, inc))
+        } else {
+            None
+        };
+
+        let softnodes = if tokens.contains(&String::from("softnodes")) {
+            match self.parse_uint(&tokens, "softnodes") {
+                Ok(softnodes) => Some(softnodes),
+                Err(_) => {
+                    println!("info error: softnodes is not a valid number");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let depth = if tokens.contains(&String::from("depth")) {
+            match self.parse_uint(&tokens, "depth") {
+                Ok(depth) => Some(depth),
+                Err(_) => {
+                    println!("info error: depth is not a valid number");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
         // Perform the search
         search(&self.board, &mut self.td);
