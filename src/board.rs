@@ -1,7 +1,7 @@
 use crate::movegen::{is_attacked, is_check};
 use crate::types::bitboard::Bitboard;
+use crate::types::castling::Rights;
 use crate::types::piece::Piece;
-use crate::types::piece::Piece::{King, Pawn};
 use crate::types::side::Side;
 use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
@@ -18,7 +18,7 @@ pub struct Board {
     pub hm: u8,                    // number of half moves since last capture or pawn move
     pub fm: u8,                    // number of full moves
     pub ep_sq: Option<Square>,     // en passant square (0-63)
-    pub castle: u8,                // encoded castle rights
+    pub rights: Rights,            // encoded castle rights
     pub hash: u64,                 // Zobrist hash
     pub pawn_hash: u64,            // Zobrist hash for pawns
     pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
@@ -46,7 +46,7 @@ impl Board {
             hm: 0,
             fm: 0,
             ep_sq: None,
-            castle: 0,
+            rights: Rights::default(),
             hash: 0,
             pawn_hash: 0,
             non_pawn_hashes: [0, 0],
@@ -76,7 +76,7 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
-        self.castle = self.calc_castle_rights(from, to, pc);
+        self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
         self.hash ^= Zobrist::stm();
@@ -91,8 +91,8 @@ impl Board {
         self.bb[side.idx()] ^= bb;
         self.pcs[sq] = if self.pcs[sq] == Some(pc) { None } else { Some(pc) };
         self.hash ^= Zobrist::sq(pc, side, sq);
-        if pc == Pawn {
-            self.pawn_hash ^= Zobrist::sq(Pawn, side, sq);
+        if pc == Piece::Pawn {
+            self.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
         } else {
             self.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
             if pc.is_major() {
@@ -127,23 +127,33 @@ impl Board {
     }
 
     #[inline]
-    fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> u8 {
-        let original_rights = self.castle;
-        let mut new_rights = self.castle;
-        if new_rights == Rights::None as u8 {
-            // Both sides already lost castling rights, so nothing to calculate.
-            return new_rights;
+    fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> Rights {
+        let original_rights = self.rights;
+        let mut new_rights = self.rights;
+        // Both sides already lost castling rights, so nothing to calculate.
+        if new_rights.is_empty() {
+            return new_rights
         }
         // Any move by the king removes castling rights.
         if piece_type == Piece::King {
-            new_rights &= if self.stm == White { Rights::Black as u8 } else { Rights::White as u8 };
+            // TODO correct side?
+            new_rights.clear(self.stm);
         }
         // Any move starting from/ending at a rook square removes castling rights for that corner.
-        if from.0 == 7 || to.0 == 7    { new_rights &= !(Rights::WKS as u8); }
-        if from.0 == 63 || to.0 == 63  { new_rights &= !(Rights::BKS as u8); }
-        if from.0 == 0 || to.0 == 0    { new_rights &= !(Rights::WQS as u8); }
-        if from.0 == 56 || to.0 == 56  { new_rights &= !(Rights::BQS as u8); }
-        self.hash ^= Zobrist::castle(original_rights) ^ Zobrist::castle(new_rights);
+        if self.rights.wk_sq() == Some(from) || self.rights.wk_sq() == Some(to) {
+            new_rights.clear_side(White, true);
+        }
+        if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
+            new_rights.clear_side(Black, true);
+        }
+        if self.rights.wk_sq() == Some(from) || self.rights.wk_sq() == Some(to) {
+            new_rights.clear_side(White, false);
+        }
+        if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
+            new_rights.clear_side(Black, false);
+        }
+
+        self.hash ^= Zobrist::castle(original_rights.hash()) ^ Zobrist::castle(new_rights.hash());
         new_rights
     }
 
@@ -160,19 +170,11 @@ impl Board {
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {
-        if side == White {
-            self.castle & Rights::WKS as u8 != 0
-        } else {
-            self.castle & Rights::BKS as u8 != 0
-        }
+        self.rights.kingside(side).is_some()
     }
 
     pub fn has_queenside_rights(&self, side: Side) -> bool {
-        if side == White {
-            self.castle & Rights::WQS as u8 != 0
-        } else {
-            self.castle & Rights::BQS as u8 != 0
-        }
+        self.rights.queenside(side).is_some()
     }
 
     pub fn make_null_move(&mut self) {
@@ -345,7 +347,7 @@ impl Board {
         if let Some(captured) = captured {
 
             // Cannot capture a king
-            if captured == King {
+            if captured == Piece::King {
                 return false;
             }
 
@@ -408,7 +410,7 @@ impl Board {
 
         }
 
-        if pc == Pawn {
+        if pc == Piece::Pawn {
 
             if mv.is_ep() {
                 // Cannot en passant if no en passant square
@@ -506,7 +508,7 @@ impl Board {
 
 }
 
-pub enum Rights {
+pub enum OldRights {
     None = 0b0000,
     WKS = 0b0001,
     WQS = 0b0010,

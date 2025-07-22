@@ -44,7 +44,7 @@ impl Zobrist {
         }
 
         // Add castling rights
-        hash ^= CASTLE_KEYS[board.castle as usize];
+        hash ^= CASTLE_KEYS[board.rights.hash() as usize];
 
         // Add side to move
         if board.stm == Side::Black {

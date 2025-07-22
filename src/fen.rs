@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::types::castling::Rights;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::side::Side::{Black, White};
@@ -38,7 +39,7 @@ impl Board {
         }
 
         board.stm = parse_stm(parts[1]);
-        board.castle = parse_castle_rights(parts[2]);
+        board.rights = parse_castle_rights(parts[2]);
         board.ep_sq = parse_ep_sq(parts[3]);
         board.hm = parts.get(4).unwrap_or(&"0").parse().unwrap_or(0);
         board.fm = parts.get(5).unwrap_or(&"0").parse().unwrap_or(0);
@@ -85,20 +86,21 @@ impl Board {
         fen.push(if self.stm == White { 'w' } else { 'b' });
 
         fen.push(' ');
-        if self.castle & 0b0001 != 0 {
-            fen.push('K');
-        }
-        if self.castle & 0b0010 != 0 {
-            fen.push('Q');
-        }
-        if self.castle & 0b0100 != 0 {
-            fen.push('k');
-        }
-        if self.castle & 0b1000 != 0 {
-            fen.push('q');
-        }
-        if self.castle == 0 {
+        if self.rights.is_empty() {
             fen.push('-');
+        } else {
+            if self.rights.kingside(White).is_some() {
+                fen.push('K');
+            }
+            if self.rights.queenside(White).is_some() {
+                fen.push('Q');
+            }
+            if self.rights.kingside(Black).is_some() {
+                fen.push('k');
+            }
+            if self.rights.queenside(Black).is_some() {
+                fen.push('q');
+            }
         }
 
         fen.push(' ');
@@ -117,14 +119,14 @@ impl Board {
     }
 }
 
-fn parse_castle_rights(castle: &str) -> u8 {
-    let mut rights = 0;
+fn parse_castle_rights(castle: &str) -> Rights {
+    let mut rights = Rights::default();
     for c in castle.chars() {
         match c {
-            'K' => rights |= 0b0001,
-            'Q' => rights |= 0b0010,
-            'k' => rights |= 0b0100,
-            'q' => rights |= 0b1000,
+            'K' => rights.set_kingside(White, File::H),
+            'Q' => rights.set_queenside(White, File::A),
+            'k' => rights.set_kingside(Black, File::H),
+            'q' => rights.set_queenside(Black, File::A),
             '-' => (),
             _ => panic!("Invalid character in castle rights"),
         }

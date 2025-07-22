@@ -3,9 +3,9 @@ use arrayvec::ArrayVec;
 
 use crate::board::Board;
 use crate::evaluation::accumulator::Accumulator;
-use crate::moves::Move;
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
+use crate::moves::Move;
 use crate::search::MAX_PLY;
 use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
