@@ -444,7 +444,13 @@ impl Board {
             let from_file = File::of(from);
             let to_file = File::of(to);
 
+            // Pawn captures
             if from_file != to_file {
+
+                // Must be capturing a piece
+                if captured.is_none() {
+                    return false;
+                }
 
                 // Must capture on an adjacent file
                 if to_file as usize != from_file as usize + 1
@@ -452,8 +458,23 @@ impl Board {
                     return false;
                 }
 
-                // Must be capturing a piece
-                captured.is_some() || mv.is_ep()
+                if mv.is_ep() {
+                    if self.ep_sq.is_none() {
+                        // Cannot en passant if no en passant square
+                        return false;
+                    }
+                    if self.piece_at(self.ep_sq.unwrap()) != Some(Piece::Pawn) {
+                        // Cannot en passant if no pawn on the en passant square
+                        return false;
+                    }
+                } else {
+                    // Must be a valid capture square
+                    if !attacks::pawn(from, self.stm).contains(to) {
+                        return false;
+                    }
+                }
+
+                true
 
             } else {
 
@@ -604,6 +625,12 @@ mod tests {
         assert_make_move("rn1q1bnr/pppbkPpp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQ - 1 5",
                          "rn1q1bQr/pppbk1pp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQ - 0 5",
                          Move::parse_uci("f7g8q"));
+    }
+
+    #[test]
+    fn pseudo_legal_pawn_capture() {
+        let board = Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26");
+        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
     }
 
     #[test]
