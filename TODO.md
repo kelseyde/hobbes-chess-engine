@@ -125,7 +125,7 @@
 - [ ] Split good/bad quiets
 - [x] Prior countermove bonus
 - [ ] Dynamic policy updates
-- [ ] Threats capthist
+- [x] Threats capthist
 - [ ] History factoriser
 - [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
