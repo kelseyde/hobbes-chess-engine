@@ -1,11 +1,11 @@
 use crate::movegen::{is_attacked, is_check};
 use crate::types::bitboard::Bitboard;
-use crate::types::castling::Rights;
+use crate::types::castling::{CastleSafety, CastleTravel, Rights};
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
-use crate::types::{File, Rank};
+use crate::types::{castling, File, Rank};
 use crate::zobrist::Zobrist;
 use crate::{attacks, fen};
 use crate::{moves::Move, moves::MoveFlag};
@@ -24,6 +24,7 @@ pub struct Board {
     pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
     pub major_hash: u64,           // Zobrist hash for major pieces
     pub minor_hash: u64,           // Zobrist hash for minor pieces
+    pub frc: bool                  // Whether the game is Fischer Random Chess
 }
 
 impl Default for Board {
@@ -52,6 +53,7 @@ impl Board {
             non_pawn_hashes: [0, 0],
             major_hash: 0,
             minor_hash: 0,
+            frc: false,
         }
     }
 
@@ -68,10 +70,17 @@ impl Board {
             let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
             self.toggle_sq(capture_sq, captured, side.flip());
         }
-        self.toggle_sq(to, new_pc, side);
+        let new_to = if m.is_castle() && self.is_frc() {
+            let kingside = castling::is_kingside(from, to);
+            castling::king_to(side, kingside)
+        } else {
+            to
+        };
+        self.toggle_sq(new_to, new_pc, side);
 
         if m.is_castle() {
-            let (rook_from, rook_to) = self.rook_sqs(to);
+            let kingside = castling::is_kingside(from, to);
+            let (rook_from, rook_to) = self.rook_sqs(to, kingside);
             self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
         }
 
@@ -111,14 +120,15 @@ impl Board {
     }
 
     #[inline]
-    fn rook_sqs(&self, king_to_sq: Square) -> (Square, Square) {
-        match king_to_sq.0 {
-            2 => (Square(0), Square(3)),
-            6 => (Square(7), Square(5)),
-            58 => (Square(56), Square(59)),
-            62 => (Square(63), Square(61)),
-            _ => unreachable!()
-        }
+    fn rook_sqs(&self, king_to_sq: Square, kingside: bool) -> (Square, Square) {
+        let rook_from = if self.is_frc() {
+            // In Chess960, castling moves are encoded as king captures rook
+            king_to_sq
+        } else {
+            castling::rook_from(self.stm, kingside)
+        };
+        let rook_to = castling::rook_to(self.stm, kingside);
+        (rook_from, rook_to)
     }
 
     #[inline]
@@ -527,36 +537,14 @@ impl Board {
         !is_check(&new_board, self.stm)
     }
 
-}
+    pub fn is_frc(&self) -> bool {
+        self.frc
+    }
 
-pub enum OldRights {
-    None = 0b0000,
-    WKS = 0b0001,
-    WQS = 0b0010,
-    BKS = 0b0100,
-    BQS = 0b1000,
-    White = 0b0011,
-    Black = 0b1100,
-}
+    pub fn set_frc(&mut self, frc: bool) {
+        self.frc = frc;
+    }
 
-// Squares that must not be attacked when the king castles
-pub struct CastleSafety;
-
-impl CastleSafety {
-    pub const WQS: Bitboard = Bitboard(0x000000000000001C);
-    pub const WKS: Bitboard = Bitboard(0x0000000000000070);
-    pub const BQS: Bitboard = Bitboard(0x1C00000000000000);
-    pub const BKS: Bitboard = Bitboard(0x7000000000000000);
-}
-
-// Squares that must be unoccupied when the king castles
-pub struct CastleTravel;
-
-impl CastleTravel {
-    pub const WKS: Bitboard = Bitboard(0x0000000000000060);
-    pub const WQS: Bitboard = Bitboard(0x000000000000000E);
-    pub const BKS: Bitboard = Bitboard(0x6000000000000000);
-    pub const BQS: Bitboard = Bitboard(0x0E00000000000000);
 }
 
 #[cfg(test)]

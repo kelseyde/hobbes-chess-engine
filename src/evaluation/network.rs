@@ -1,6 +1,5 @@
 use crate::types::side::Side::{Black, White};
 use arrayvec::ArrayVec;
-
 use crate::board::Board;
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
@@ -11,7 +10,7 @@ use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
 use crate::types::square::Square;
-use crate::types::File;
+use crate::types::{castling, File};
 use crate::utils::boxed_and_zeroed;
 
 pub const FEATURES: usize = 768;
@@ -197,8 +196,8 @@ impl NNUE {
         let w_weights = &NETWORK.feature_weights[w_bucket];
         let b_weights = &NETWORK.feature_weights[b_bucket];
 
-        let mirror_changed = mirror_changed(*mv, new_pc);
-        let bucket_changed = bucket_changed(*mv, new_pc, us);
+        let mirror_changed = mirror_changed(board, *mv, new_pc);
+        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
@@ -211,7 +210,7 @@ impl NNUE {
         }
 
         if mv.is_castle() {
-            self.handle_castle(mv, us, w_weights, b_weights);
+            self.handle_castle(board, mv, us, w_weights, b_weights);
         } else if let Some(captured) = captured {
             self.handle_capture(mv, pc, new_pc, captured, us, w_weights, b_weights);
         } else {
@@ -263,17 +262,17 @@ impl NNUE {
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
     fn handle_castle(&mut self,
+                     board: &Board,
                      mv: &Move,
                      us: Side,
                      w_weights: &FeatureWeights,
                      b_weights: &FeatureWeights) {
 
         let kingside = mv.to().0 > mv.from().0;
-        let is_white = us == White;
         let king_from = mv.from();
-        let king_to = mv.to();
-        let rook_to = Move::rook_to(kingside, is_white);
-        let rook_from = Move::rook_from(kingside, is_white);
+        let king_to = if board.is_frc() { castling::king_to(us, kingside) } else { mv.to() };
+        let rook_from = if board.is_frc() { mv.to() } else { castling::rook_from(us, kingside) };
+        let rook_to = castling::rook_to(us, kingside);
 
         let king_from_ft = Feature::new(Piece::King, king_from, us);
         let king_to_ft = Feature::new(Piece::King, king_to, us);
@@ -293,28 +292,42 @@ impl NNUE {
 }
 
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
+
     if side != board.stm || pc != Piece::King {
         board.king_sq(side)
     } else {
-        mv.to()
+        if mv.is_castle() && board.is_frc() {
+            let kingside = castling::is_kingside(mv.from(), mv.to());
+            castling::king_to(board.stm, kingside)
+        } else {
+            mv.to()
+        }
     }
 }
 
-fn bucket_changed(mv: Move, pc: Piece, side: Side) -> bool {
+fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
     }
     let prev_king_sq = mv.from();
-    let new_king_sq = mv.to();
+    let mut new_king_sq = mv.to();
+    if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        new_king_sq = castling::king_to(board.stm, kingside);
+    }
     king_bucket(prev_king_sq , side) != king_bucket(new_king_sq, side)
 }
 
-fn mirror_changed(mv: Move, pc: Piece) -> bool {
-    if pc != Piece::King {
+fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
+    if pc != King {
         return false;
     }
     let prev_king_sq = mv.from();
-    let new_king_sq = mv.to();
+    let mut new_king_sq = mv.to();
+    if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        new_king_sq = castling::king_to(board.stm, kingside);
+    }
     should_mirror(prev_king_sq) != should_mirror(new_king_sq)
 }
 

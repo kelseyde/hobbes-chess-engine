@@ -1,6 +1,41 @@
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
+use crate::types::bitboard::Bitboard;
+
+// Check if the castling move is kingside or queenside
+pub fn is_kingside(from: Square, to: Square) -> bool {
+    from.0 < to.0
+}
+
+// Starting square (in classical chess) for the rook
+pub fn rook_from(side: Side, kingside: bool) -> Square {
+    match (side, kingside) {
+        (Side::White, true)  => Square(7),
+        (Side::White, false) => Square(0),
+        (Side::Black, true)  => Square(63),
+        (Side::Black, false) => Square(56),
+    }
+}
+
+// Target square for the rook
+pub fn rook_to(side: Side, kingside: bool) -> Square {
+    match (side, kingside) {
+        (Side::White, true)  => Square(5),
+        (Side::White, false) => Square(3),
+        (Side::Black, true)  => Square(61),
+        (Side::Black, false) => Square(59),
+    }
+}
+
+pub fn king_to(side: Side, kingside: bool) -> Square {
+    match (side, kingside) {
+        (Side::White, true)  => Square(6),
+        (Side::White, false) => Square(2),
+        (Side::Black, true)  => Square(62),
+        (Side::Black, false) => Square(58),
+    }
+}
 
 // Packed representation of castling rights, inspired by Viridithas.
 // The starting file of each rook is required for DFRC-compatibility.
@@ -160,10 +195,30 @@ impl Rights {
 
 }
 
+// Squares that must not be attacked when the king castles
+pub struct CastleSafety;
+
+impl CastleSafety {
+    pub const WQS: Bitboard = Bitboard(0x000000000000001C);
+    pub const WKS: Bitboard = Bitboard(0x0000000000000070);
+    pub const BQS: Bitboard = Bitboard(0x1C00000000000000);
+    pub const BKS: Bitboard = Bitboard(0x7000000000000000);
+}
+
+// Squares that must be unoccupied when the king castles
+pub struct CastleTravel;
+
+impl CastleTravel {
+    pub const WKS: Bitboard = Bitboard(0x0000000000000060);
+    pub const WQS: Bitboard = Bitboard(0x000000000000000E);
+    pub const BKS: Bitboard = Bitboard(0x6000000000000000);
+    pub const BQS: Bitboard = Bitboard(0x0E00000000000000);
+}
+
 #[cfg(test)]
 mod tests {
     use crate::board::Board;
-    use crate::moves::{Move};
+    use crate::moves::Move;
     use crate::types::castling::Rights;
     use crate::types::side::Side;
     use crate::types::side::Side::{Black, White};
