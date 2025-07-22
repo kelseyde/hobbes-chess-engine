@@ -162,6 +162,8 @@ impl Rights {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::Board;
+    use crate::moves::{Move, MoveFlag};
     use crate::types::castling::Rights;
     use crate::types::side::Side;
     use crate::types::side::Side::{Black, White};
@@ -234,6 +236,30 @@ mod tests {
 
         rights.remove(White, File::G);
         assert_eq!(rights.queenside(Side::White), Some(File::A));
+    }
+
+    #[test]
+    fn test_debug() {
+
+        let mut board =
+            Board::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+        assert!(board.has_kingside_rights(White));
+        assert!(board.has_queenside_rights(White));
+        assert!(board.has_kingside_rights(Black));
+        assert!(board.has_queenside_rights(Black));
+
+        board.make(&Move::parse_uci("a1b1"));
+        assert!(board.has_kingside_rights(White));
+        assert!(!board.has_queenside_rights(White));
+        assert!(board.has_kingside_rights(Black));
+        assert!(board.has_queenside_rights(Black));
+
+        board.make(&Move::parse_uci("h8f8"));
+        assert!(board.has_kingside_rights(White));
+        assert!(!board.has_queenside_rights(White));
+        assert!(!board.has_kingside_rights(Black));
+        assert!(board.has_queenside_rights(Black));
+
     }
 
 }

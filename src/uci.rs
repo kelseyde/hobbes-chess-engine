@@ -311,8 +311,8 @@ impl UCI {
             }
         };
 
-        let start = std::time::Instant::now();
-        let nodes = perft(&self.board, depth);
+        let start = Instant::now();
+        let nodes = perft(&self.board, depth, depth);
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);

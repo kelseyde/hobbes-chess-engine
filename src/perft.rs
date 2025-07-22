@@ -1,8 +1,12 @@
+use std::collections::HashMap;
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
 
-pub fn perft(board: &Board, depth: u8) -> u64 {
+pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
     let moves = gen_moves(board, MoveFilter::All);
+
+    let mut move_counts = if depth == original_depth { Some(HashMap::new()) } else { None };
+
     if depth == 1 {
         let mut nodes = 0;
         for i in 0..moves.len {
@@ -11,6 +15,17 @@ pub fn perft(board: &Board, depth: u8) -> u64 {
             new_board.make(&mv);
             if !is_check(&new_board, board.stm) {
                 nodes += 1;
+                if let Some(ref mut counts) = move_counts {
+                    *counts.entry(mv.to_uci()).or_insert(0) += 1;
+                }
+            }
+        }
+        if let Some(counts) = move_counts {
+            let mut entries: Vec<_> = counts.into_iter().collect();
+            entries.sort_by_key(|(mv, _)| mv.clone());
+
+            for (mv, count) in entries {
+                println!("{} - {}", mv, count);
             }
         }
         return nodes;
@@ -24,8 +39,20 @@ pub fn perft(board: &Board, depth: u8) -> u64 {
         if is_check(&new_board, board.stm) {
             continue;
         }
-        let new_nodes = perft(&new_board, depth - 1);
+        let new_nodes = perft(&new_board, depth - 1, original_depth);
+        if let Some(ref mut counts) = move_counts {
+            *counts.entry(mv.to_uci()).or_insert(0) += new_nodes;
+        }
         nodes += new_nodes;
+    }
+
+    if let Some(counts) = move_counts {
+        let mut entries: Vec<_> = counts.into_iter().collect();
+        entries.sort_by_key(|(mv, _)| mv.clone());
+
+        for (mv, count) in entries {
+            println!("{} - {}", mv, count);
+        }
     }
 
     nodes
@@ -64,7 +91,7 @@ mod test {
 
             println!("Running test on fen for depth {}: {}", depth, fen);
             let board = Board::from_fen(fen);
-            assert_eq!(perft(&board, depth), nodes, "Failed test: {}", fen);
+            assert_eq!(perft(&board, depth, depth), nodes, "Failed test: {}", fen);
         }
     }
 
@@ -72,7 +99,7 @@ mod test {
     fn test_debug() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let board = Board::from_fen(fen);
-        assert_eq!(perft(&board, 5), 4865609);
+        assert_eq!(perft(&board, 5, 5), 4865609);
     }
 
 }

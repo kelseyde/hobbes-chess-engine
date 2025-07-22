@@ -146,10 +146,10 @@ impl Board {
         if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
             new_rights.clear_side(Black, true);
         }
-        if self.rights.wk_sq() == Some(from) || self.rights.wk_sq() == Some(to) {
+        if self.rights.wq_sq() == Some(from) || self.rights.wq_sq() == Some(to) {
             new_rights.clear_side(White, false);
         }
-        if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
+        if self.rights.bq_sq() == Some(from) || self.rights.bq_sq() == Some(to) {
             new_rights.clear_side(Black, false);
         }
 

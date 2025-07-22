@@ -1,6 +1,5 @@
 use crate::attacks;
 use crate::board::{Board, CastleSafety, CastleTravel};
-use crate::movegen::MoveFilter::Quiets;
 use crate::moves::{MoveFlag, MoveList};
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
@@ -75,7 +74,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
 
     }
 
-    if filter != Quiets {
+    if filter != MoveFilter::Quiets {
         for to in left_capture(pawns, side, them) {
             let from = if side == White { to.minus(7) } else { to.plus(9) };
             moves.add_move(from, to, MoveFlag::Standard);
