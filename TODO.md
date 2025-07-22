@@ -54,7 +54,7 @@
 - [x] History pruning
 - [x] Bad noisy pruning
 - [x] Skip quiets
-- [ ] FP history
+- [x] FP history
 - [x] FP movecount
 - [ ] PVS SEE quiet history
 - [ ] PVS SEE noisy history
@@ -67,8 +67,8 @@
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
 - [x] No TT cut in PV nodes
-- [ ] TT buckets
-- [ ] TT aging
+- [x] TT buckets
+- [x] TT aging
 - [ ] TT low depth extension
 - [ ] TT cut PV node depth reduction
 - [ ] Better replacement scheme
@@ -150,8 +150,8 @@
 
 ## UCI
 - [x] Configurable Hash size
-- [ ] PV printing
+- [x] PV printing
 - [x] Nodes/NPS printing
-- [ ] Seldepth
+- [x] Seldepth
 - [x] Hashfull
 - [ ] Pretty print

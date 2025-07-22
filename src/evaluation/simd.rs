@@ -1,6 +1,6 @@
 #[cfg(target_feature = "avx2")]
 pub(crate) mod avx2 {
-    use crate::network::{HIDDEN, QA};
+    use crate::evaluation::network::{HIDDEN, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 16;
@@ -46,7 +46,7 @@ pub(crate) mod avx2 {
 
 #[cfg(not(target_feature = "avx2"))]
 pub(crate) mod scalar {
-    use crate::network::{HIDDEN, QA};
+    use crate::evaluation::network::{HIDDEN, QA};
 
     pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
 
