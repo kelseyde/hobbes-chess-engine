@@ -4,7 +4,6 @@ use crate::search::SearchStack;
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
-use crate::types::square::Square;
 use crate::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -19,7 +18,7 @@ pub struct ContinuationHistory {
 }
 
 pub struct CaptureHistory {
-    entries: Box<[[PieceToHistory<[i16; 6]>; 2]; 2]>,
+    entries: Box<[[[PieceToHistory<[i16; 6]>; 2]; 2]; 2]>,
 }
 
 #[derive(Default)]
@@ -70,7 +69,7 @@ impl Histories {
                                  pc: Piece,
                                  captured: Piece,
                                  threats: Bitboard) -> i32 {
-        self.capture_history.get(board.stm, pc, mv.to(), captured, threats) as i32
+        self.capture_history.get(board.stm, *mv, pc, captured, threats) as i32
     }
 
     pub fn update_continuation_history(&mut self, ss: &SearchStack, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
@@ -156,19 +155,19 @@ impl QuietHistory {
 impl CaptureHistory {
     const MAX: i16 = 16384;
 
-    pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece, threats: Bitboard) -> i16 {
-        let to_attacked = threats.contains(sq);
-        self.entries[stm][to_attacked as usize][pc][sq][captured]
+    pub fn get(&self, stm: Side, mv: Move, pc: Piece, captured: Piece, threats: Bitboard) -> i16 {
+        let threat_index = ThreatIndex::new(mv, threats);
+        self.entries[stm][threat_index.from()][threat_index.to()][pc][mv.to()][captured]
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, threats: Bitboard, bonus: i16) {
-        let to_attacked = threats.contains(sq);
-        let entry = &mut self.entries[stm][to_attacked as usize][pc][sq][captured];
+    pub fn update(&mut self, stm: Side, mv: Move, pc: Piece, captured: Piece, threats: Bitboard, bonus: i16) {
+        let threat_index = ThreatIndex::new(mv, threats);
+        let entry = &mut self.entries[stm][threat_index.from()][threat_index.to()][pc][mv.to()][captured];
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 6]; 64]; 6]; 2]; 2]);
+        self.entries = Box::new([[[[[[0; 6]; 64]; 6]; 2]; 2]; 2]);
     }
 
 }

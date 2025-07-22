@@ -555,7 +555,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
             td.history.capture_history
-                .update(board.stm, pc, best_move.to(), captured, threats, capt_bonus);
+                .update(board.stm, best_move, pc, captured, threats, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
@@ -577,7 +577,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
                     td.history.capture_history
-                        .update(board.stm, pc, mv.to(), captured, threats, capt_malus);
+                        .update(board.stm, *mv, pc, captured, threats, capt_malus);
                 }
             }
         }
