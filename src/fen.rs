@@ -1,3 +1,4 @@
+use regex::Regex;
 use crate::board::Board;
 use crate::types::castling::Rights;
 use crate::types::piece::Piece;
@@ -10,9 +11,47 @@ use crate::zobrist::Zobrist;
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 impl Board {
-    pub fn from_fen(fen: &str) -> Board {
+
+    const PATTERN_BOARD: &str = r"^([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+$";
+    const PATTERN_RANK: &str = r".*\d{2,}.*";
+    const PATTERN_TURN: &str = r"^[wb]$";
+    const PATTERN_CASTLE: &str = r"^(-|[A-HKQ]*[a-hkq]*)$";
+    const PATTERN_EN_PASSANT: &str = r"^(-|[a-h][36])$";
+    const PATTERN_HALF_MOVE: &str = r"^\d+$";
+    const PATTERN_FULL_MOVE: &str = r"^\d+$";
+
+    pub fn from_fen(fen: &str) -> Result<Board, String> {
+
+        if fen.is_empty() {
+            return Err("FEN string cannot be empty".to_string());
+        }
+
         let mut board = Board::empty();
         let parts: Vec<&str> = fen.split_whitespace().collect();
+
+        if parts.len() < 4 || parts.len() > 6 {
+            return Err("FEN string has an invalid number of parts".to_string());
+        }
+
+        let board_part = parts[0];
+        if !Regex::new(Self::PATTERN_BOARD).unwrap().is_match(board_part) {
+            return Err("FEN string has an invalid board representation".to_string());
+        }
+
+        let slash_count = board_part.matches('/').count();
+        if slash_count != 7 {
+            return Err("FEN string does not have exactly 8 ranks".to_string());
+        }
+
+        let white_kings = board_part.matches('K').count();
+        let black_kings = board_part.matches('k').count();
+        let king_count = white_kings + black_kings;
+        if king_count != 2 {
+            return Err("FEN string must have exactly one white and one black king".to_string());
+        }
+        if white_kings > 1 || black_kings > 1 {
+            return Err("FEN string cannot have more than one king of the same color".to_string());
+        }
 
         let rows: Vec<&str> = parts[0].split('/').collect();
         if rows.len() != 8 {
@@ -20,11 +59,20 @@ impl Board {
         }
 
         for (rank, row) in rows.iter().enumerate() {
+
+            if Regex::new(Self::PATTERN_RANK).unwrap().is_match(row) {
+                return Err("Consecutive numbers in rank are not permitted".to_string());
+            }
+
             let mut file = 0;
             for ch in row.chars() {
+                if file >= 8 {
+                    return Err("FEN string has too many squares in a rank".to_string());
+                }
                 match ch {
                     '1'..='8' => {
-                        file += ch.to_digit(10).unwrap() as usize;
+                        let squares = ch.to_digit(10).unwrap() as usize;
+                        file += squares;
                     }
                     'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
                         let sq = Square::from(File::parse(file), Rank::parse(7 - rank));
@@ -36,19 +84,47 @@ impl Board {
                     _ => panic!("Invalid character in FEN string"),
                 }
             }
+            if file != 8 {
+                return Err("FEN string does not add up to 8 squares in a rank".to_string());
+            }
         }
 
-        board.stm = parse_stm(parts[1]);
-        board.rights = parse_castle_rights(parts[2]);
-        board.ep_sq = parse_ep_sq(parts[3]);
-        board.hm = parts.get(4).unwrap_or(&"0").parse().unwrap_or(0);
-        board.fm = parts.get(5).unwrap_or(&"0").parse().unwrap_or(0);
+        let stm_part = parts[1];
+        if !Regex::new(Self::PATTERN_TURN).unwrap().is_match(stm_part) {
+            return Err("FEN string has an invalid side to move".to_string());
+        }
+        board.stm = parse_stm(stm_part);
+
+        let rights_part = parts[2];
+        if !Regex::new(Self::PATTERN_CASTLE).unwrap().is_match(rights_part) {
+            return Err("FEN string has invalid castling rights".to_string());
+        }
+        board.rights = parse_castle_rights(&board, rights_part);
+
+        let ep_part = parts[3];
+        if !Regex::new(Self::PATTERN_EN_PASSANT).unwrap().is_match(ep_part) {
+            return Err("FEN string has an invalid en passant square".to_string());
+        }
+        board.ep_sq = parse_ep_sq(ep_part);
+
+        let hm_part = parts.get(4).unwrap_or(&"0");
+        if !Regex::new(Self::PATTERN_HALF_MOVE).unwrap().is_match(hm_part) {
+            return Err("FEN string has an invalid half move clock".to_string());
+        }
+        board.hm = hm_part.parse().unwrap_or(0);
+
+        let fm_part = parts.get(5).unwrap_or(&"0");
+        if !Regex::new(Self::PATTERN_FULL_MOVE).unwrap().is_match(fm_part) {
+            return Err("FEN string has an invalid full move number".to_string());
+        }
+        board.fm = fm_part.parse().unwrap_or(0);
+
         board.hash = Zobrist::get_hash(&board);
         board.pawn_hash = Zobrist::get_pawn_hash(&board);
         board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.major_hash = Zobrist::get_major_hash(&board);
         board.minor_hash = Zobrist::get_minor_hash(&board);
-        board
+        Ok(board)
     }
 
     pub fn to_fen(self) -> String {
@@ -119,18 +195,52 @@ impl Board {
     }
 }
 
-fn parse_castle_rights(castle: &str) -> Rights {
+
+fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
+    let white_king_sq = board.king_sq(White);
+    let black_king_sq = board.king_sq(Black);
+    let white_king_file = white_king_sq.file();
+    let black_king_file = black_king_sq.file();
+
     let mut rights = Rights::default();
+
     for c in castle.chars() {
         match c {
+            // Standard FEN notation
             'K' => rights.set_kingside(White, File::H),
             'Q' => rights.set_queenside(White, File::A),
             'k' => rights.set_kingside(Black, File::H),
             'q' => rights.set_queenside(Black, File::A),
             '-' => (),
-            _ => panic!("Invalid character in castle rights"),
+
+            // Shredder FEN notation
+            'A'..='H' => {
+                let rook_file = File::from_char(c.to_ascii_lowercase()).unwrap();
+                if rook_file > white_king_file {
+                    // Rook is to the right of king = kingside
+                    rights.set_kingside(White, rook_file);
+                } else {
+                    // Rook is to the left of king = queenside
+                    rights.set_queenside(White, rook_file);
+                }
+            },
+
+            // Shredder FEN notation
+            'a'..='h' => {
+                let rook_file = File::from_char(c).unwrap();
+                if rook_file > black_king_file {
+                    // Rook is to the right of king = kingside
+                    rights.set_kingside(Black, rook_file);
+                } else {
+                    // Rook is to the left of king = queenside
+                    rights.set_queenside(Black, rook_file);
+                }
+            },
+
+            _ => panic!("Invalid character in castle rights: {}", c),
         }
     }
+
     rights
 }
 
@@ -181,5 +291,214 @@ fn piece_to_char(piece: Piece, side: Side) -> char {
         ch.to_ascii_uppercase()
     } else {
         ch
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_null() {
+        assert!(Board::from_fen("").is_err());
+    }
+
+    #[test]
+    fn test_empty() {
+        assert!(Board::from_fen("").is_err());
+    }
+
+    #[test]
+    fn test_random_string() {
+        assert!(Board::from_fen("random string").is_err());
+    }
+
+    #[test]
+    fn test_too_few_parts() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w").is_err());
+    }
+
+    #[test]
+    fn test_too_many_parts() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 extra").is_err());
+    }
+
+    #[test]
+    fn test_board_has_too_few_ranks() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_too_many_ranks() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/rnbqkbnr w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_no_kings() {
+        assert!(Board::from_fen("rnbqbbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQNBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_one_king() {
+        assert!(Board::from_fen("rnbqkbkr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_too_many_kings() {
+        assert!(Board::from_fen("rnbqkbnr/ppppkppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_two_white_kings() {
+        assert!(Board::from_fen("rnbqKbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_has_two_black_kings() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQkBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_board_with_invalid_character() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPP*PPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_rank_does_not_add_up_to_eight() {
+        assert!(Board::from_fen("rnbqkbnr/ppp2ppp/8/8/4p/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_consecutive_numbers_in_rank() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/44/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_number_exceeds_eight() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_empty_rank() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp//8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_rank_with_too_many_pieces() {
+        assert!(Board::from_fen("rnbqkbnrr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_rank_with_too_few_pieces() {
+        assert!(Board::from_fen("rnbqkbn/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_turn() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR white KQkq - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_castling_rights() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkqX - 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_en_passant_random_string() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq randomString 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_en_passant_illegal_square() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq i9 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_en_passant_illegal_en_passant_square() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e4 0 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_half_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - randomString 1").is_err());
+    }
+
+    #[test]
+    fn test_negative_half_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - -1 1").is_err());
+    }
+
+    #[test]
+    fn test_invalid_full_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 randomString").is_err());
+    }
+
+    #[test]
+    fn test_negative_full_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 -1").is_err());
+    }
+
+    #[test]
+    fn test_valid() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_ok());
+    }
+
+    #[test]
+    fn test_valid_shredder_fen() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1").is_ok());
+    }
+
+    #[test]
+    fn test_valid_with_en_passant() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e3 0 1").is_ok());
+    }
+
+    #[test]
+    fn test_valid_missing_full_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0").is_ok());
+    }
+
+    #[test]
+    fn test_valid_missing_half_move() {
+        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0").is_ok());
+    }
+
+    #[test]
+    fn test_dfrc_fens() {
+
+        let board1 =
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1").unwrap();
+        assert!(board1.has_kingside_rights(White)
+            && board1.has_queenside_rights(White)
+            && board1.has_kingside_rights(Black)
+            && board1.has_queenside_rights(Black));
+        assert_eq!(Some(File::H), board1.rights.kingside(White));
+        assert_eq!(Some(File::A), board1.rights.queenside(White));
+        assert_eq!(Some(File::H), board1.rights.kingside(Black));
+        assert_eq!(Some(File::A), board1.rights.queenside(Black));
+
+        let board2 =
+            Board::from_fen("bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd -").unwrap();
+        assert!(board2.has_kingside_rights(White)
+            && board2.has_queenside_rights(White)
+            && board2.has_kingside_rights(Black)
+            && board2.has_queenside_rights(Black));
+        assert_eq!(Some(File::H), board2.rights.kingside(White));
+        assert_eq!(Some(File::D), board2.rights.queenside(White));
+        assert_eq!(Some(File::H), board2.rights.kingside(Black));
+        assert_eq!(Some(File::D), board2.rights.queenside(Black));
+
+        let board3 =
+            Board::from_fen("nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb -").unwrap();
+        assert!(board3.has_kingside_rights(White)
+            && board3.has_queenside_rights(White)
+            && board3.has_kingside_rights(Black)
+            && board3.has_queenside_rights(Black));
+        assert_eq!(Some(File::F), board3.rights.kingside(White));
+        assert_eq!(Some(File::B), board3.rights.queenside(White));
+        assert_eq!(Some(File::F), board3.rights.kingside(Black));
+        assert_eq!(Some(File::B), board3.rights.queenside(Black));
+
     }
 }

@@ -64,12 +64,6 @@ mod test {
     use crate::perft::perft;
     use std::fs;
 
-    pub const PERFT_SUITE: [(&str, &str, u8, u64); 3] = [
-        ("startpos", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 6, 119060324),
-        ("kiwipete", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 5, 193690690),
-        ("en_passant_funhouse", "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 6, 11030083)
-    ];
-
     #[test]
     fn test_perft_suite() {
 
@@ -90,7 +84,7 @@ mod test {
             let nodes: u64 = nodes_str.parse().unwrap();
 
             println!("Running test on fen for depth {}: {}", depth, fen);
-            let board = Board::from_fen(fen);
+            let board = Board::from_fen(fen).unwrap();
             assert_eq!(perft(&board, depth, depth), nodes, "Failed test: {}", fen);
         }
     }
@@ -98,7 +92,7 @@ mod test {
     #[test]
     fn test_debug() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let board = Board::from_fen(fen);
+        let board = Board::from_fen(fen).unwrap();
         assert_eq!(perft(&board, 5, 5), 4865609);
     }
 

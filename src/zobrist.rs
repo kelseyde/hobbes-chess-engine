@@ -188,9 +188,9 @@ mod test {
     }
 
     fn assert_hash(fen1: &str, fen2: &str, m: &Move) {
-        let mut board1 = Board::from_fen(fen1);
+        let mut board1 = Board::from_fen(fen1).unwrap();
         board1.make(m);
-        let board2 = Board::from_fen(fen2);
+        let board2 = Board::from_fen(fen2).unwrap();
         assert_eq!(board1.hash, board2.hash);
     }
 }

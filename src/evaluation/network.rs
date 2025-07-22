@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_startpos() {
-        let board = Board::from_fen(fen::STARTPOS);
+        let board = Board::from_fen(fen::STARTPOS).unwrap();
         let mut eval = NNUE::default();
         let score = eval.evaluate(&board);
         assert_eq!(score, 26);

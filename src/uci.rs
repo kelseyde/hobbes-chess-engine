@@ -148,7 +148,13 @@ impl UCI {
             }
         };
 
-        self.board = Board::from_fen(&fen);
+        self.board = match Board::from_fen(&fen) {
+            Ok(board) => board,
+            Err(e) => {
+                println!("info error invalid fen: {}", e);
+                return;
+            }
+        };
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens

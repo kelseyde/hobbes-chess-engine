@@ -35,7 +35,7 @@ impl Default for Board {
 impl Board {
 
     pub fn new() -> Board {
-        Board::from_fen(fen::STARTPOS)
+        Board::from_fen(fen::STARTPOS).unwrap()
     }
 
     pub fn empty() -> Board {
@@ -629,22 +629,22 @@ mod tests {
 
     #[test]
     fn pseudo_legal_pawn_capture() {
-        let board = Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26");
+        let board = Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
         assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
     }
 
     #[test]
     fn insufficient_material() {
-        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
-        let mut board = Board::from_fen(start_fen);
+        let mut board = Board::from_fen(start_fen).unwrap();
         board.make(&m);
         assert_eq!(board.to_fen(), end_fen);
     }

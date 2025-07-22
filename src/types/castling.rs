@@ -163,7 +163,7 @@ impl Rights {
 #[cfg(test)]
 mod tests {
     use crate::board::Board;
-    use crate::moves::{Move, MoveFlag};
+    use crate::moves::{Move};
     use crate::types::castling::Rights;
     use crate::types::side::Side;
     use crate::types::side::Side::{Black, White};
@@ -242,7 +242,8 @@ mod tests {
     fn test_debug() {
 
         let mut board =
-            Board::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+            Board::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
+                .unwrap();
         assert!(board.has_kingside_rights(White));
         assert!(board.has_queenside_rights(White));
         assert!(board.has_kingside_rights(Black));

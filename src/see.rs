@@ -162,7 +162,7 @@ mod tests {
             let threshold_str = parts[2].trim();
             let threshold: i32 = threshold_str.parse().unwrap();
 
-            let board = Board::from_fen(fen);
+            let board = Board::from_fen(fen).unwrap();
             let mut moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
                 .map(|entry| entry.mv)
@@ -193,7 +193,7 @@ mod tests {
         let threshold_str = parts[2].trim();
         let threshold: i32 = threshold_str.parse().unwrap();
 
-        let board = Board::from_fen(fen);
+        let board = Board::from_fen(fen).unwrap();
         let mut moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
             .map(|entry| entry.mv)
