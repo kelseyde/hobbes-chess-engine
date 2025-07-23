@@ -46,7 +46,7 @@ fn main() {
     println!("Perft 5: 6417013");
 
     println!("reading file...");
-    let perft_suite = fs::read_to_string("resources/frc.epd").unwrap();
+    let perft_suite = fs::read_to_string("resources/pawnocchio.epd").unwrap();
     println!("parsed file!");
 
     for perft_test in perft_suite.lines() {

@@ -169,7 +169,6 @@ impl Board {
         }
         // Any move by the king removes castling rights.
         if piece_type == Piece::King {
-            // TODO correct side?
             new_rights.clear(self.stm);
         }
         // Any move starting from/ending at a rook square removes castling rights for that corner.
