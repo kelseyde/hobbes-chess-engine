@@ -1,7 +1,7 @@
 use crate::board::Board;
 use crate::movegen::MoveFilter;
 use crate::movepicker::{MovePicker, Stage};
-use crate::moves::Move;
+use crate::moves::{Move, MoveList};
 use crate::parameters::*;
 use crate::see::see;
 use crate::thread::ThreadData;
@@ -24,6 +24,13 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     td.pv.clear(0);
     td.nnue.activate(board);
+
+    let root_moves = movegen::gen_legal_moves(board);
+    match root_moves.len {
+        0 => return handle_no_legal_moves(board, td),
+        1 => return handle_one_legal_move(board, td, &root_moves),
+        _ => {}
+    }
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
@@ -966,6 +973,23 @@ fn format_score(score: i32) -> String {
     } else {
         format!("cp {}", score)
     }
+}
+
+fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
+    let mv = root_moves.get(0).unwrap().mv;
+    let static_eval = td.nnue.evaluate(board);
+    td.best_move = mv;
+    td.best_score = static_eval;
+    (td.best_move, td.best_score)
+}
+
+fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
+    println!("info error no legal moves");
+    let in_check = movegen::is_check(board, board.stm);
+    let score = if in_check { -Score::MATE } else { Score::DRAW };
+    td.best_move = Move::NONE;
+    td.best_score = score;
+    (td.best_move, td.best_score)
 }
 
 pub struct SearchStack {
