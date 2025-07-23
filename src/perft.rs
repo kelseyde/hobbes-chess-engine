@@ -63,12 +63,14 @@ mod test {
     use crate::board::Board;
     use crate::perft::perft;
     use std::fs;
+    use crate::moves::{Move, MoveFlag};
+    use crate::types::ray;
 
     #[test]
     fn test_perft_suite() {
 
         println!("reading file...");
-        let perft_suite = fs::read_to_string("resources/perft_suite.epd").unwrap();
+        let perft_suite = fs::read_to_string("resources/standard.epd.epd").unwrap();
         println!("parsed file!");
 
         for perft_test in perft_suite.lines() {
@@ -91,9 +93,13 @@ mod test {
 
     #[test]
     fn test_debug() {
-        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let board = Board::from_fen(fen).unwrap();
-        assert_eq!(perft(&board, 5, 5), 4865609);
+        let fen = "b1q1rrkb/pppppppp/3nn3/8/P7/1PPP4/4PPPP/BQNNRKRB w GE - 1 9";
+        let mut board = Board::from_fen(fen).unwrap();
+
+        ray::init();
+        board.make(&Move::parse_uci_with_flag("f1g1", MoveFlag::CastleK));
+        println!("{}", board.to_fen());
+
     }
 
 }

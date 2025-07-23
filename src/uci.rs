@@ -150,10 +150,11 @@ impl UCI {
         }
 
         let fen = match tokens[1].as_str() {
-            "startpos" => fen::STARTPOS.to_string(), // Convert to owned String
+            "startpos" => fen::STARTPOS.to_string(),
             "fen" => tokens
                 .iter()
                 .skip(2)
+                .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
                 .join(" "), // Returns owned String

@@ -99,7 +99,7 @@ impl Board {
         if !Regex::new(Self::PATTERN_CASTLE).unwrap().is_match(rights_part) {
             return Err("FEN string has invalid castling rights".to_string());
         }
-        board.rights = parse_castle_rights(&board, rights_part);
+        (board.rights, board.frc) = parse_castle_rights(&board, rights_part);
 
         let ep_part = parts[3];
         if !Regex::new(Self::PATTERN_EN_PASSANT).unwrap().is_match(ep_part) {
@@ -196,13 +196,14 @@ impl Board {
 }
 
 
-fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
+fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
     let white_king_sq = board.king_sq(White);
     let black_king_sq = board.king_sq(Black);
     let white_king_file = white_king_sq.file();
     let black_king_file = black_king_sq.file();
 
     let mut rights = Rights::default();
+    let mut frc = false;
 
     for c in castle.chars() {
         match c {
@@ -215,6 +216,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
 
             // Shredder FEN notation
             'A'..='H' => {
+                frc = true;
                 let rook_file = File::from_char(c.to_ascii_lowercase()).unwrap();
                 if rook_file > white_king_file {
                     // Rook is to the right of king = kingside
@@ -227,6 +229,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
 
             // Shredder FEN notation
             'a'..='h' => {
+                frc = true;
                 let rook_file = File::from_char(c).unwrap();
                 if rook_file > black_king_file {
                     // Rook is to the right of king = kingside
@@ -241,7 +244,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
         }
     }
 
-    rights
+    (rights, frc)
 }
 
 fn parse_ep_sq(ep_sq: &str) -> Option<Square> {

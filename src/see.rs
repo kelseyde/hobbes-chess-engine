@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_see_suite() {
 
-        let see_suite = fs::read_to_string("resources/see_suite.epd").unwrap();
+        let see_suite = fs::read_to_string("resources/see.epd").unwrap();
 
         let mut tried = 0;
         let mut passed = 0;

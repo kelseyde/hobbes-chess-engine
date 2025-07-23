@@ -62,26 +62,30 @@ impl Board {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).unwrap();
-        let new_pc = if let Some(promo) = m.promo_piece() { promo } else { pc };
-        let captured = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
+        let captured = self.captured(m);
+        let new_pc = self.new_pc(m, pc);
+        let new_to = self.new_to(m, from, to);
 
         self.toggle_sq(from, pc, side);
         if let Some(captured) = captured {
             let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
             self.toggle_sq(capture_sq, captured, side.flip());
         }
-        let new_to = if m.is_castle() && self.is_frc() {
-            let kingside = castling::is_kingside(from, to);
-            castling::king_to(side, kingside)
-        } else {
-            to
-        };
+        if self.is_frc() && m.is_castle() {
+            // In the case of FRC castling, we first unset the rook to cover the
+            // scenario where the king moves to the occupied rook square.
+            self.toggle_sq(to, Piece::Rook, side);
+        }
         self.toggle_sq(new_to, new_pc, side);
 
         if m.is_castle() {
             let kingside = castling::is_kingside(from, to);
             let (rook_from, rook_to) = self.rook_sqs(to, kingside);
-            self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
+            if self.is_frc() {
+                self.toggle_sq(rook_to, Piece::Rook, side);
+            } else {
+                self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
+            }
         }
 
         self.ep_sq = self.calc_ep(flag, to);
@@ -134,6 +138,25 @@ impl Board {
     #[inline]
     fn ep_capture_sq(&self, to: Square) -> Square {
         if self.stm == White { Square(to.0 - 8) } else { Square(to.0 + 8) }
+    }
+
+    #[inline]
+    fn new_pc(&self, m: &Move, pc: Piece) -> Piece {
+        if let Some(promo) = m.promo_piece() {
+            promo
+        } else {
+            pc
+        }
+    }
+
+    #[inline]
+    fn new_to(&self, m: &Move, from: Square, to: Square) -> Square {
+        if m.is_castle() && self.is_frc() {
+            let kingside = castling::is_kingside(from, to);
+            castling::king_to(self.stm, kingside)
+        } else {
+            to
+        }
     }
 
     #[inline]
