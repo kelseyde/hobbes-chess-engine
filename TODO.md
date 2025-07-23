@@ -126,7 +126,7 @@
 - [x] Prior countermove bonus
 - [ ] Dynamic policy updates
 - [ ] Threats capthist
-- [ ] History factoriser
+- [x] History factoriser
 - [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus

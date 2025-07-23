@@ -22,11 +22,17 @@ pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
 }
 
+pub struct SquareHistory {
+    entries: Box<[[i16; 64]; 2]>,
+}
+
 #[derive(Default)]
 pub struct Histories {
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
+    pub from_history: SquareHistory,
+    pub to_history: SquareHistory,
 }
 
 impl Histories {
@@ -53,6 +59,8 @@ impl Histories {
                                threats: Bitboard) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
         let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
+        let from_score = self.from_history.get(board.stm, mv.from()) as i32;
+        let to_score = self.to_history.get(board.stm, mv.to()) as i32;
         let mut cont_score = 0;
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply  {
@@ -61,7 +69,7 @@ impl Histories {
                 }
             }
         }
-        quiet_score + cont_score
+        quiet_score + from_score + to_score + cont_score
     }
 
     pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
@@ -110,6 +118,13 @@ impl Default for ContinuationHistory {
     }
 }
 
+impl Default for SquareHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() }
+        }
+    }
+}
 
 impl ContinuationHistory {
     const MAX: i16 = 16384;
@@ -164,6 +179,23 @@ impl CaptureHistory {
         self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
     }
 
+}
+
+impl SquareHistory {
+    const MAX: i16 = 8192;
+
+    pub fn get(&self, stm: Side, sq: Square) -> i16 {
+        self.entries[stm][sq]
+    }
+
+    pub fn update(&mut self, stm: Side, sq: Square, bonus: i16) {
+        let entry = &mut self.entries[stm][sq];
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[0; 64]; 2]);
+    }
 }
 
 pub struct ThreatIndex {
