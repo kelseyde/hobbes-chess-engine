@@ -177,6 +177,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let raw_eval = td.nnue.evaluate(board);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+
+        // Use the TT score as a more accurate static evaluation
+        if Score::is_defined(tt_score)
+            && bounds_match(tt_flag, tt_score, static_eval, static_eval) {
+            static_eval = tt_score;
+        }
     };
 
     td.ss[ply].static_eval = static_eval;
