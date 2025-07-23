@@ -12,7 +12,7 @@ tunable_params! {
     rfp_improving_scale         = 80, 40, 100, 10;
     razor_base                  = 303, 200, 500, 25;
     razor_scale                 = 249, 100, 400, 25;
-    nmp_min_depth               = 3, 0, 8, 1;
+    nmp_min_depth               = 0, 0, 8, 1;
     nmp_base_reduction          = 4, 2, 5, 1;
     nmp_depth_divisor           = 3, 1, 4, 1;
     nmp_eval_divisor            = 168, 100, 300, 25;
