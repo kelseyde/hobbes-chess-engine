@@ -550,14 +550,16 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let history_depth = depth + (best_score >= beta + history_depth_beta_margin()) as i32;
 
-        let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let quiet_bonus = quiet_history_bonus(history_depth);
+        let quiet_malus = quiet_history_malus(history_depth);
 
-        let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let capt_bonus = capture_history_bonus(history_depth);
+        let capt_malus = capture_history_malus(history_depth);
+
+        let cont_bonus = cont_history_bonus(history_depth);
+        let cont_malus = cont_history_malus(history_depth);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
