@@ -274,6 +274,23 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         depth -= 1;
     }
 
+    // In-Check Futility Pruning (Stockfish idea)
+    // We are in check, have a TT hit and a noisy TT move, and yet the TT entry and score suggest
+    // a fail high by a significant margin - so we prune the node and return the futility margin.
+    let futility_margin = beta + in_check_futility_margin();
+    if in_check
+        && !pv_node
+        && tt_hit
+        && tt_move_noisy
+        && tt_flag == TTFlag::Lower
+        && tt_depth >= depth - in_check_futility_tt_offset()
+        && tt_score >= futility_margin
+        && !Score::is_mate(tt_score)
+        && !Score::is_mate(beta) {
+        return futility_margin;
+    }
+
+
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 

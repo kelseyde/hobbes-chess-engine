@@ -103,7 +103,7 @@
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
-- [ ] SF small probcut idea
+- [x] SF small probcut idea
 - [ ] Deeper/shallower
 
 ## Move Ordering / History
