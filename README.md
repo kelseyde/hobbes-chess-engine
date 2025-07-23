@@ -1,6 +1,6 @@
 <div align="center">
 
-<p align="center"><img src="resources/hobbes.png" width="220"></p>
+<p align="center"><img src="resources/hobbes.png" width="200"></p>
 
 <h3>Hobbes</h3>
 <b>A chess engine written in Rust.</b>
