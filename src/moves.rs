@@ -1,3 +1,4 @@
+use std::fmt;
 use arrayvec::ArrayVec;
 
 use crate::types::piece::Piece;
@@ -8,13 +9,13 @@ pub struct Move(pub u16);
 
 pub const MAX_MOVES: usize = 256;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MoveList {
     pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
     pub len: usize,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct MoveListEntry {
     pub mv: Move,
     pub score: i32,
@@ -192,6 +193,12 @@ impl Move {
 
 }
 
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_uci())
+    }
+}
+
 impl Default for MoveList {
     fn default() -> Self {
         Self::new()
@@ -230,9 +237,9 @@ impl MoveList {
         self.len
     }
 
-    pub fn get(&mut self, idx: usize) -> Option<&mut MoveListEntry> {
+    pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
         if idx < self.len {
-            Some(&mut self.list[idx])
+            Some(&self.list[idx])
         } else {
             None
         }
