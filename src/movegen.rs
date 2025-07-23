@@ -1,6 +1,6 @@
 use crate::attacks;
 use crate::board::Board;
-use crate::moves::{MoveFlag, MoveList};
+use crate::moves::{MoveFlag, MoveList, MoveListEntry};
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
@@ -15,6 +15,17 @@ pub enum MoveFilter {
     Quiets,
     Noisies,
     Captures
+}
+
+pub fn gen_legal_moves(board: &Board) -> MoveList {
+    let mut moves = gen_moves(board, MoveFilter::All);
+    let mut legal_moves = MoveList::new();
+    for entry in moves.iter() {
+        if board.is_legal(&entry.mv) {
+            legal_moves.add(MoveListEntry {mv: entry.mv, score: 0})
+        }
+    }
+    legal_moves
 }
 
 pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {

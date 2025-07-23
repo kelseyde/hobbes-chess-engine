@@ -13,7 +13,7 @@ tunable_params! {
     razor_base                  = 303, 200, 500, 25;
     razor_scale                 = 249, 100, 400, 25;
     nmp_min_depth               = 3, 0, 8, 1;
-    nmp_base_reduction          = 3, 2, 5, 1;
+    nmp_base_reduction          = 4, 2, 5, 1;
     nmp_depth_divisor           = 3, 1, 4, 1;
     nmp_eval_divisor            = 168, 100, 300, 25;
     nmp_eval_max_reduction      = 4, 2, 6, 1;
@@ -25,7 +25,7 @@ tunable_params! {
     hindsight_red_min_depth     = 2, 1, 5, 1;
     hindsight_red_min_reduction = 1, 1, 5, 1;
     hindsight_red_eval_diff     = 52, 0, 120, 20;
-    fp_max_depth                = 6, 4, 10, 1;
+    fp_max_depth                = 8, 4, 10, 1;
     fp_base                     = 144, 50, 250, 25;
     fp_scale                    = 105, 50, 200, 10;
     fp_movecount_mult           = 4, 2, 8, 1;
@@ -42,6 +42,8 @@ tunable_params! {
     pvs_see_max_depth           = 8, 6, 10, 1;
     pvs_see_quiet_scale         = -56, -72, -36, 12;
     pvs_see_noisy_scale         = -29, -48, -12, 12;
+    pvs_see_quiet_history_div   = 256, 164, 388, 25;
+    pvs_see_noisy_history_div   = 256, 164, 388, 25;
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 32, 16, 48, 6;
