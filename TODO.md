@@ -17,6 +17,7 @@
 - [ ] RFP constant offset
 - [ ] RFP prev-move history
 - [ ] RFP parent PV
+- [x] RFP TTPV
 
 #### NMP
 - [x] NMP
