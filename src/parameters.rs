@@ -25,7 +25,7 @@ tunable_params! {
     hindsight_red_min_depth     = 2, 1, 5, 1;
     hindsight_red_min_reduction = 1, 1, 5, 1;
     hindsight_red_eval_diff     = 52, 0, 120, 20;
-    fp_max_depth                = 6, 4, 10, 1;
+    fp_max_depth                = 8, 4, 10, 1;
     fp_base                     = 144, 50, 250, 25;
     fp_scale                    = 105, 50, 200, 10;
     fp_movecount_mult           = 4, 2, 8, 1;
