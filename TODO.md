@@ -56,8 +56,8 @@
 - [x] Skip quiets
 - [x] FP history
 - [x] FP movecount
-- [ ] PVS SEE quiet history
-- [ ] PVS SEE noisy history
+- [x] PVS SEE quiet history
+- [x] PVS SEE noisy history
 - [ ] Use LMR depth in more places
 - [x] Qs evasion pruning
 - [ ] Qs guard recaptures
