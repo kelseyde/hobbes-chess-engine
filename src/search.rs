@@ -27,7 +27,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
-    let mut score = 0;
+    let mut score;
+    let mut average = Score::MIN;
     let mut delta = asp_delta();
 
     // Iterative Deepening
@@ -41,8 +42,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
         if td.depth >= asp_min_depth() {
-            alpha = (score - delta).max(Score::MIN);
-            beta = (score + delta).min(Score::MAX);
+            delta += average * average / asp_avg_score_divisor();
+            alpha = (average - delta).max(Score::MIN);
+            beta = (average + delta).min(Score::MAX);
         }
 
         loop {
@@ -67,7 +69,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                     beta = (score + delta).min(Score::MAX);
                     delta += (delta * 100) / asp_beta_widening_factor();
                 }
-                _ => break,
+                _ => {
+                    average = if average == Score::MIN { score } else { (average + score) / 2 };
+                    break;
+                },
             }
         }
 

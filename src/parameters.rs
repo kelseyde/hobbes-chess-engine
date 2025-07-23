@@ -6,6 +6,7 @@ tunable_params! {
     asp_min_depth               = 4, 0, 8, 1;
     asp_alpha_widening_factor   = 212, 50, 400, 50;
     asp_beta_widening_factor    = 238, 50, 400, 50;
+    asp_avg_score_divisor       = 26802, 1800, 36000, 2000;
     rfp_max_depth               = 8, 6, 12, 1;
     rfp_base                    = -1, -50, 50, 10;
     rfp_scale                   = 59, 40, 100, 10;
