@@ -179,10 +179,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -228,7 +229,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
             + rfp_scale() * depth
-            - rfp_improving_scale() * improving as i32;
+            - rfp_improving_scale() * improving as i32
+            + rfp_corrplexity_mult() * correction.abs() / rfp_corrplexity_div();
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
