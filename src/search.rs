@@ -169,6 +169,12 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 && !pv_node
                 && tt_depth >= depth
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
+
+                if tt_move.exists() && !tt_move_noisy && tt_score >= beta {
+                    let bonus = tt_cut_history_bonus(depth);
+                    td.history.quiet_history.update(board.stm, &tt_move, threats, bonus);
+                }
+
                 return tt_score;
             }
         }
@@ -931,6 +937,13 @@ fn prior_countermove_bonus(depth: i32) -> i16 {
     let scale = pcm_bonus_scale() as i16;
     let offset = pcm_bonus_offset() as i16;
     let max = pcm_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+fn tt_cut_history_bonus(depth: i32) -> i16 {
+    let scale = tt_cut_hist_bonus_scale() as i16;
+    let offset = tt_cut_hist_bonus_offset() as i16;
+    let max = tt_cut_hist_bonus_max() as i16;
     history_bonus(depth, scale, offset, max)
 }
 
