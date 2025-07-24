@@ -283,6 +283,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
+    let mut failed_singular = false;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
@@ -309,6 +310,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
+        let mut is_singular_candidate = false;
 
         let mut extension = 0;
 
@@ -406,6 +408,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             td.ss[ply].singular = None;
 
             if score < s_beta {
+                is_singular_candidate = true;
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
             } else if s_beta >= beta {
@@ -455,6 +458,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             reduction += !improving as i32 * lmr_improving();
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            }
+            if failed_singular && mv != tt_move {
+                let base = lmr_failed_singular_base();
+                let mult = lmr_failed_singular_mult();
+                reduction -= base - (searched_moves * mult).min(base);
             }
 
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
@@ -545,6 +553,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
                 depth -= 1;
             }
 
+        } else if is_singular_candidate {
+            failed_singular = true;
         }
     }
 

@@ -57,6 +57,8 @@ tunable_params! {
     lmr_improving               = 1039, 0, 2048, 256;
     lmr_hist_offset             = 419, -2048, 2048, 256;
     lmr_hist_divisor            = 17104, 8192, 32768, 2048;
+    lmr_failed_singular_base    = 1540, 0, 2048, 256;
+    lmr_failed_singular_mult    = 384, 0, 512, 64;
     lmr_cont_hist_bonus_scale   = 149, 80, 280, 40;
     lmr_cont_hist_bonus_offset  = 77, 0, 200, 25;
     lmr_cont_hist_bonus_max     = 1154, 1000, 1600, 100;
