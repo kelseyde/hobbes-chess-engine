@@ -30,12 +30,12 @@
 #### LMR
 - [x] LMR
 - [x] LMR improving
-- [ ] LMR PV node
-- [ ] LMR TT-PV
+- [x] LMR PV node
+- [x] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
 - [ ] Noisy LMR
-- [ ] Fractional LMR
+- [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
 - [ ] Corrplexity LMR
@@ -54,21 +54,21 @@
 - [x] History pruning
 - [x] Bad noisy pruning
 - [x] Skip quiets
-- [ ] FP history
-- [ ] FP movecount
-- [ ] PVS SEE quiet history
-- [ ] PVS SEE noisy history
+- [x] FP history
+- [x] FP movecount
+- [x] PVS SEE quiet history
+- [x] PVS SEE noisy history
 - [ ] Use LMR depth in more places
-- [ ] Qs evasion pruning
-- [ ] Qs guard recaptures
+- [x] Qs evasion pruning
+- [x] Qs guard recaptures
 
 #### Transposition Table
 - [ ] Static eval to TT
 - [ ] Early static eval write (Qs)
 - [ ] Early static eval write (PVS)
-- [ ] No TT cut in PV nodes
-- [ ] TT buckets
-- [ ] TT aging
+- [x] No TT cut in PV nodes
+- [x] TT buckets
+- [x] TT aging
 - [ ] TT low depth extension
 - [ ] TT cut PV node depth reduction
 - [ ] Better replacement scheme
@@ -91,7 +91,7 @@
 - [x] Double extensions
 - [ ] Triple extensions
 - [x] Negative extensions
-- [ ] Double negative extensions
+- [x] Double negative extensions
 - [x] Multicut
 
 ### Misc search
@@ -119,7 +119,7 @@
 - [x] Incremental selection sort
 - [x] Staged movegen
 - [x] Quiet threat history
-- [ ] Killer stage
+- [x] Killer stage
 - [x] Split good/bad noisies
 - [ ] Use capthist in SEE margin
 - [ ] Split good/bad quiets
@@ -134,7 +134,7 @@
 ## Evaluation
 - [x] NN
 - [x] UE
-- [ ] SIMD
+- [x] SIMD
 - [x] Horizontal mirroring
 - [x] Output buckets
 - [ ] Lazy updates
@@ -144,14 +144,14 @@
 ## Time Management
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
-- [ ] Node-based scaling
+- [x] Node-based scaling
 - [ ] Best move stability
 - [ ] Eval stability
 
 ## UCI
-- [ ] Configurable Hash size
-- [ ] PV printing
-- [ ] Nodes/NPS printing
-- [ ] Seldepth
-- [ ] Hashfull
+- [x] Configurable Hash size
+- [x] PV printing
+- [x] Nodes/NPS printing
+- [x] Seldepth
+- [x] Hashfull
 - [ ] Pretty print

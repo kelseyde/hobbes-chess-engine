@@ -1,4 +1,4 @@
-use crate::network::{HIDDEN, NETWORK, NUM_BUCKETS};
+use crate::evaluation::network::{HIDDEN, NETWORK, NUM_BUCKETS};
 use crate::types::bitboard::Bitboard;
 use crate::types::side::Side;
 

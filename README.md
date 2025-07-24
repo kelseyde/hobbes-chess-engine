@@ -1,6 +1,14 @@
-<p align="center"><img src="resources/hobbes.png" width="160"></p>
+<div align="center">
 
-# <div align="center"> Hobbes </div>
+<p align="center"><img src="resources/hobbes.png" width="200"></p>
+
+<h3>Hobbes</h3>
+<b>A chess engine written in Rust.</b>
+
+<br>
+<br>
+
+</div>
 
 Hobbes is a work-in-progress chess engine written in Rust.
 

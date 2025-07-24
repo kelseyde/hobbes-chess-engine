@@ -1,3 +1,4 @@
+use crate::types::ray;
 use crate::uci::UCI;
 
 pub mod attacks;
@@ -16,15 +17,23 @@ pub mod tt;
 pub mod history;
 pub mod see;
 pub mod types;
-pub mod network;
-mod time;
-mod movepicker;
-mod nnue;
-mod simd;
+pub mod time;
+pub mod movepicker;
+pub mod evaluation;
+pub mod parameters;
+pub mod utils;
+pub mod correction;
+mod scharnagl;
 
 fn main() {
+
+    // Initialise static data
+    ray::init();
+
+    // Start up the UCI (Universal Chess Interface)
     let args: Vec<String> = std::env::args().collect();
     UCI::new().run(&args);
+
 }
 
 

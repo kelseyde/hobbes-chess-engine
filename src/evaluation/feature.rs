@@ -1,4 +1,4 @@
-use crate::network::{PIECE_OFFSET, SIDE_OFFSET};
+use crate::evaluation::network::{PIECE_OFFSET, SIDE_OFFSET};
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::side::Side::White;
