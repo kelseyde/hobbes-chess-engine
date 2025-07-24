@@ -35,6 +35,7 @@ tunable_params! {
     lmp_improving_base          = 3, 1, 5, 1;
     lmp_scale                   = 34, 10, 100, 20;
     lmp_improving_scale         = 94, 10, 100, 20;
+    qs_lmp_threshold            = 3, 2, 5, 1;
     hp_max_depth                = 4, 4, 8, 1;
     hp_scale                    = -2077, -3072, -1024, 128;
     bnp_max_depth               = 6, 4, 10, 1;
