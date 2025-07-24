@@ -243,6 +243,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
             && static_eval >= beta
+            && ply > td.nmp_min_ply
             && board.has_non_pawns() {
 
             let r = nmp_base_reduction()
@@ -258,7 +259,19 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             td.keys.pop();
 
             if score >= beta {
-                return score;
+                // At low depths, we can directly return the result of the null move search.
+                if td.nmp_min_ply > 0 || depth <= 14 {
+                    return if Score::is_mate(score) { beta } else {score };
+                }
+
+                // At high depths, we do a normal search to verify the null move result.
+                td.nmp_min_ply = (3 * (depth - r) / 4) as usize + ply;
+                let verif_score = alpha_beta(&board, td, depth - r, ply, beta - 1, beta, true);
+                td.nmp_min_ply = 0;
+
+                if verif_score >= beta {
+                    return score;
+                }
             }
         }
 
