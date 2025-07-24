@@ -2,7 +2,7 @@ use crate::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
 
-const DEFAULT_TT_SIZE: usize = 16;
+pub const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
 const BUCKET_SIZE: usize = size_of::<Bucket>();
 const AGE_CYCLE: u8 = 1 << 5;

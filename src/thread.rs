@@ -6,6 +6,7 @@ use crate::history::Histories;
 use crate::moves::Move;
 use crate::search::{Score, SearchStack, MAX_PLY};
 use crate::time::{LimitType, SearchLimits};
+use crate::tt;
 use crate::tt::TranspositionTable;
 
 pub struct ThreadData {
@@ -32,10 +33,17 @@ pub struct ThreadData {
 
 impl Default for ThreadData {
     fn default() -> Self {
+        ThreadData::new(tt::DEFAULT_TT_SIZE)
+    }
+}
+
+impl ThreadData {
+
+    pub fn new(tt_size_mb: usize) -> Self {
         ThreadData {
             id: 0,
             main: true,
-            tt: TranspositionTable::new(64),
+            tt: TranspositionTable::new(tt_size_mb),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
@@ -54,9 +62,6 @@ impl Default for ThreadData {
             best_score: Score::MIN,
         }
     }
-}
-
-impl ThreadData {
 
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();

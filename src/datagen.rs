@@ -5,7 +5,8 @@ use rand::rngs::ThreadRng;
 use crate::board::Board;
 use crate::{fen, movegen};
 use ctrlc;
-use chrono::{Utc}
+use chrono::{Utc};
+use crate::thread::ThreadData;
 
 const DFRC_PERCENT: usize = 10;
 
@@ -35,8 +36,8 @@ pub fn generate(options: DataGenOptions) -> Result<String, String> {
     }).expect("failed to set ctrlc handler");
 
     // Generate the ID for this datagen run
-    let run_id = format!("hobbes-data-{}-{}",
-                         options.description.unwrap_or("default".to_string()),
+    let run_id = format!("hobbes{}{}",
+                         options.description.map(|d| format!("-{}-", d)).unwrap_or("-".to_string()),
                          Utc::now().format("%Y-%m-%d_%H-%M-%S"));
 
     // Create the directory for the data
@@ -45,21 +46,42 @@ pub fn generate(options: DataGenOptions) -> Result<String, String> {
         .map_err(|e| format!("failed to create data directory: {}", e))?;
 
     let mut counters = Vec::new();
+    let num_threads = options.num_threads;
 
     std::thread::scope(|s| {
-        let handles = (0..options.num_threads)
+        let handles = (0..num_threads)
             .map(|id| {
                 // Using a different rng per thread guarantees
                 // that each thread gets a unique sequence.
-                let rng = rand::rng();
+                s.spawn(move || {
+                    let rng = rand::rng();
+                    generate_for_thread(id, rng, &options, &data_dir);
+                })
             })
-    })
+            .collect::<Vec<_>>();
+        for handle in handles {
+            if let Ok(res) = handle.join() {
+                counters.push(res);
+            } else {
+                println!("failed to join thread")
+            }
+        }
+    });
 
     Ok("datagen complete".to_string())
 
 }
 
-fn generate_for_thread(options: &DataGenOptions, data_dir: &Path)
+fn generate_for_thread(id: usize,
+                       rng: ThreadRng,
+                       options: &DataGenOptions,
+                       data_dir: &Path) -> usize {
+
+    let mut td = ThreadData::new(16);
+
+    0
+
+}
 
 fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     let random = rng.random_range(0..100);
