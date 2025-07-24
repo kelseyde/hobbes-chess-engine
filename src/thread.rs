@@ -26,7 +26,7 @@ pub struct ThreadData {
     pub nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
-    pub nmp_min_ply: usize,
+    pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
 }
