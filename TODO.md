@@ -24,7 +24,7 @@
 - [x] NMP eval-based reduction
 - [x] NMP TT capture
 - [ ] Increment NMP base reduction
-- [ ] NMP verification search
+- [x] NMP verification search
 - [ ] NMP TT condition
 
 #### LMR
