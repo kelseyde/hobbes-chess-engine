@@ -462,7 +462,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             if failed_singular && mv != tt_move {
                 let base = lmr_failed_singular_base();
                 let mult = lmr_failed_singular_mult();
-                reduction -= base - (searched_moves * mult).min(base);
+                let max = lmr_failed_singular_max();
+                reduction += (base + searched_moves * mult).min(max);
             }
 
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
