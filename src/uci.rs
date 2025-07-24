@@ -184,7 +184,7 @@ impl UCI {
 
         self.td.keys.clear();
         self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash);
+        self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
             let mut legal_moves = gen_moves(&self.board, MoveFilter::All);
@@ -194,7 +194,7 @@ impl UCI {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash);
+                    self.td.keys.push(self.board.hash());
                     self.td.root_ply += 1;
                 }
                 None => {

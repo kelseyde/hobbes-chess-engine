@@ -2,12 +2,12 @@ use crate::attacks;
 use crate::board::Board;
 use crate::moves::{MoveFlag, MoveList, MoveListEntry};
 use crate::types::bitboard::Bitboard;
+use crate::types::castling::{CastleSafety, CastleTravel};
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::side::Side::White;
 use crate::types::square::Square;
 use crate::types::{castling, ray, File, Rank};
-use crate::types::castling::{CastleSafety, CastleTravel};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -275,27 +275,27 @@ pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> b
         println!("err!");
         println!("{}", board.to_fen());
     }
-    let knight_attacks = attacks::knight(sq) & board.knights(side.flip());
+    let knight_attacks = attacks::knight(sq) & board.knights(!side);
     if !knight_attacks.is_empty() {
         return true;
     }
 
-    let king_attacks = attacks::king(sq) & board.king(side.flip());
+    let king_attacks = attacks::king(sq) & board.king(!side);
     if !king_attacks.is_empty() {
         return true;
     }
 
-    let pawn_attacks = attacks::pawn(sq, side) & board.pawns(side.flip());
+    let pawn_attacks = attacks::pawn(sq, side) & board.pawns(!side);
     if !pawn_attacks.is_empty() {
         return true;
     }
 
-    let ortho_attacks = attacks::rook(sq, occ) & (board.rooks(side.flip()) | board.queens(side.flip()));
+    let ortho_attacks = attacks::rook(sq, occ) & (board.rooks(!side) | board.queens(!side));
     if !ortho_attacks.is_empty() {
         return true;
     }
 
-    let diag_attacks = attacks::bishop(sq, occ) & (board.bishops(side.flip()) | board.queens(side.flip()));
+    let diag_attacks = attacks::bishop(sq, occ) & (board.bishops(!side) | board.queens(!side));
     if !diag_attacks.is_empty() {
         return true;
     }
@@ -308,24 +308,24 @@ pub fn calc_threats(board: &Board, side: Side) -> Bitboard {
     let occ = board.occ();
     let mut threats = Bitboard::empty();
 
-    for sq in board.knights(side.flip()) {
+    for sq in board.knights(!side) {
         threats |= attacks::knight(sq);
     }
 
-    for sq in board.bishops(side.flip()) {
+    for sq in board.bishops(!side) {
         threats |= attacks::bishop(sq, occ);
     }
 
-    for sq in board.rooks(side.flip()) {
+    for sq in board.rooks(!side) {
         threats |= attacks::rook(sq, occ);
     }
 
-    for sq in board.queens(side.flip()) {
+    for sq in board.queens(!side) {
         threats |= attacks::queen(sq, occ);
     }
 
-    threats |= attacks::pawn_attacks(board.pawns(side.flip()), side.flip());
-    threats |= attacks::king(board.king_sq(side.flip()));
+    threats |= attacks::pawn_attacks(board.pawns(!side), !side);
+    threats |= attacks::king(board.king_sq(!side));
 
     threats
 }

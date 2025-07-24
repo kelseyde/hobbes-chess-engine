@@ -49,7 +49,7 @@ impl SearchLimits {
         })
     }
 
-    fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+    const fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }

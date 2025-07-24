@@ -1,6 +1,6 @@
-use std::ops::{Index, IndexMut};
 use crate::types::bitboard::Bitboard;
 use crate::types::square::Square;
+use std::ops::{Index, IndexMut};
 
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]

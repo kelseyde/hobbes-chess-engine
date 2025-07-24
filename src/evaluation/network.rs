@@ -1,5 +1,3 @@
-use crate::types::side::Side::{Black, White};
-use arrayvec::ArrayVec;
 use crate::board::Board;
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
@@ -9,9 +7,11 @@ use crate::search::MAX_PLY;
 use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
+use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
 use crate::types::{castling, File};
 use crate::utils::boxed_and_zeroed;
+use arrayvec::ArrayVec;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -253,7 +253,7 @@ impl NNUE {
 
         let pc_ft = Feature::new(pc, mv.from(), side);
         let new_pc_ft = Feature::new(new_pc, mv.to(), side);
-        let capture_ft = Feature::new(captured, capture_sq, side.flip());
+        let capture_ft = Feature::new(captured, capture_sq, !side);
 
         self.stack[self.current].add_sub_sub(new_pc_ft, pc_ft, capture_ft, w_weights, b_weights);
 

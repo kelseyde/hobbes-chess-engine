@@ -14,12 +14,12 @@ pub struct QuietHistory {
     entries: Box<[[[FromToHistory<i16>; 2]; 2]; 2]>,
 }
 
-pub struct ContinuationHistory {
-    entries: Box<PieceToHistory<PieceToHistory<i16>>>,
-}
-
 pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+}
+
+pub struct ContinuationHistory {
+    entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
 #[derive(Default)]
@@ -110,25 +110,6 @@ impl Default for ContinuationHistory {
     }
 }
 
-
-impl ContinuationHistory {
-    const MAX: i16 = 16384;
-
-    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
-        self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
-    }
-
-    pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
-        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
-    }
-
-    pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
-    }
-
-}
-
 impl QuietHistory {
     const MAX: i16 = 16384;
 
@@ -162,6 +143,24 @@ impl CaptureHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+    }
+
+}
+
+impl ContinuationHistory {
+    const MAX: i16 = 16384;
+
+    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
+        self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
+    }
+
+    pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
+        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
 
 }

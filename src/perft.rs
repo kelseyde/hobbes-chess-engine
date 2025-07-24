@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::board::Board;
 use crate::movegen::{gen_moves, is_check, MoveFilter};
+use std::collections::HashMap;
 
 pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
     let moves = gen_moves(board, MoveFilter::All);
@@ -61,10 +61,10 @@ pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
 #[cfg(test)]
 mod test {
     use crate::board::Board;
-    use crate::perft::perft;
-    use std::fs;
     use crate::moves::{Move, MoveFlag};
+    use crate::perft::perft;
     use crate::types::ray;
+    use std::fs;
 
     #[test]
     fn test_perft_suite() {

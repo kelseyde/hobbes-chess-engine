@@ -1,9 +1,9 @@
 use crate::board::Board;
-use crate::types::{File, Rank};
 use crate::types::castling::Rights;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
+use crate::types::{File, Rank};
 use crate::zobrist::Zobrist;
 
 /// Derive the starting positions of the backrank pieces from a scharnagl index. Used for creating
@@ -114,11 +114,11 @@ impl Board {
             Some(File::parse(queenside_file)),
         );
 
-        board.hash = Zobrist::get_hash(&board);
-        board.pawn_hash = Zobrist::get_pawn_hash(&board);
-        board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
-        board.major_hash = Zobrist::get_major_hash(&board);
-        board.minor_hash = Zobrist::get_minor_hash(&board);
+        board.keys.hash = Zobrist::get_hash(&board);
+        board.keys.pawn_hash = Zobrist::get_pawn_hash(&board);
+        board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
+        board.keys.major_hash = Zobrist::get_major_hash(&board);
+        board.keys.minor_hash = Zobrist::get_minor_hash(&board);
 
         board
     }
@@ -175,11 +175,11 @@ impl Board {
             Some(File::parse(b_queenside_file)),
         );
 
-        board.hash = Zobrist::get_hash(&board);
-        board.pawn_hash = Zobrist::get_pawn_hash(&board);
-        board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
-        board.major_hash = Zobrist::get_major_hash(&board);
-        board.minor_hash = Zobrist::get_minor_hash(&board);
+        board.keys.hash = Zobrist::get_hash(&board);
+        board.keys.pawn_hash = Zobrist::get_pawn_hash(&board);
+        board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
+        board.keys.major_hash = Zobrist::get_major_hash(&board);
+        board.keys.minor_hash = Zobrist::get_minor_hash(&board);
 
         board
     }
@@ -197,7 +197,7 @@ mod tests {
 
         for scharnagl in 0..960 {
             let board = Board::from_frc_idx(scharnagl);
-            let hash = board.hash;
+            let hash = board.keys.hash;
 
             assert!(
                 hashes.insert(hash),

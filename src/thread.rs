@@ -146,7 +146,7 @@ pub struct NodeTable {
 
 impl NodeTable {
 
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         NodeTable { table: [[0; 64]; 64] }
     }
 
@@ -158,7 +158,7 @@ impl NodeTable {
         self.table[mv.from()][mv.to()]
     }
 
-    pub fn clear(&mut self) {
+    pub const fn clear(&mut self) {
         *self = Self::new();
     }
 }

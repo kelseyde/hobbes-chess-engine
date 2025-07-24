@@ -72,11 +72,11 @@ impl Bitboard {
         Bitboard(self.0 << 7 & !File::H.to_bb().0)
     }
 
-    pub fn south_east(self) -> Self {
+    pub const fn south_east(self) -> Self {
         Bitboard(self.0 >> 7 & !File::A.to_bb().0)
     }
 
-    pub fn south_west(self) -> Self {
+    pub const fn south_west(self) -> Self {
         Bitboard(self.0 >> 9 & !File::H.to_bb().0)
     }
 

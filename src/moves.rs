@@ -1,5 +1,5 @@
-use std::fmt;
 use arrayvec::ArrayVec;
+use std::fmt;
 
 use crate::types::piece::Piece;
 use crate::types::square::Square;
@@ -221,20 +221,16 @@ impl MoveList {
         self.len += 1;
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
-        self.list.iter_mut().take(self.len)
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
+    pub const fn len(&self) -> usize {
+        self.len
     }
 
     pub fn contains(&self, m: &Move) -> bool {
         self.list.iter().take(self.len).any(|entry| entry.mv.matches(m))
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
     }
 
     pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
@@ -245,36 +241,8 @@ impl MoveList {
         }
     }
 
-    pub fn pick(&mut self, scores: &mut [i32; MAX_MOVES]) -> Option<Move> {
-        if self.len == 0 {
-            return None;
-        }
-
-        let mut idx = 0;
-        let mut best = i32::MIN;
-        for (i, &score) in scores.iter().enumerate().take(self.len) {
-            if score > best {
-                best = score;
-                idx = i;
-            }
-        }
-        self.len -= 1;
-        scores.swap(idx, self.len);
-        self.list.swap(idx, self.len);
-        Some(self.list[self.len].mv)
-    }
-
-    pub fn sort(&mut self, scores: &[i32; MAX_MOVES]) {
-        let mut indices: Vec<usize> = (0..self.len).collect();
-
-        indices.sort_unstable_by_key(|&i| -scores[i]); // sort descending by score
-
-        let sorted: ArrayVec<MoveListEntry, MAX_MOVES> = indices
-            .into_iter()
-            .map(|i| self.list[i].clone())
-            .collect();
-
-        self.list = sorted;
+    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
+        self.list.iter_mut().take(self.len)
     }
 
 }
