@@ -1,13 +1,13 @@
 use crate::attacks;
-use crate::board::{Board, CastleSafety, CastleTravel};
-use crate::movegen::MoveFilter::Quiets;
+use crate::board::Board;
 use crate::moves::{MoveFlag, MoveList, MoveListEntry};
 use crate::types::bitboard::Bitboard;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::side::Side::White;
 use crate::types::square::Square;
-use crate::types::{File, Rank};
+use crate::types::{castling, ray, File, Rank};
+use crate::types::castling::{CastleSafety, CastleTravel};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -86,7 +86,7 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
 
     }
 
-    if filter != Quiets {
+    if filter != MoveFilter::Quiets {
         for to in left_capture(pawns, side, them) {
             let from = if side == White { to.minus(7) } else { to.plus(9) };
             moves.add_move(from, to, MoveFlag::Standard);
@@ -128,6 +128,15 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
 
 #[inline(always)]
 fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
+    if board.is_frc() {
+        gen_frc_castle_moves(board, side, moves);
+    } else {
+        gen_standard_castle_moves(board, side, moves);
+    }
+}
+
+#[inline(always)]
+pub fn gen_standard_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
     let king_sq = board.king_sq(side);
     let occ = board.occ();
     if board.has_kingside_rights(side) {
@@ -144,6 +153,46 @@ fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
             moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
         }
     }
+}
+
+#[inline(always)]
+pub fn gen_frc_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
+    gen_frc_castle_moves_side(board, side, true, moves);
+    gen_frc_castle_moves_side(board, side, false, moves);
+}
+
+#[inline(always)]
+pub fn gen_frc_castle_moves_side(board: &Board, side: Side, kingside: bool, moves: &mut MoveList) {
+    let occ = board.occ();
+    let rook_file = if kingside {
+        board.rights.kingside(side)
+    } else {
+        board.rights.queenside(side)
+    };
+
+    if let Some(rook_file) = rook_file {
+
+        let king_from = board.king_sq(side);
+        let king_to = castling::king_to(side, kingside);
+
+        let rank = if side == White { Rank::One } else { Rank::Eight };
+        let rook_from = Square::from(rook_file, rank);
+        let rook_to = castling::rook_to(side, kingside);
+
+        let king_travel_sqs = ray::between(king_from, king_to) | Bitboard::of_sq(king_to);
+        let rook_travel_sqs = ray::between(rook_from, rook_to) | Bitboard::of_sq(rook_to);
+
+        let travel_sqs = (king_travel_sqs | rook_travel_sqs) & !Bitboard::of_sq(rook_from) & !Bitboard::of_sq(king_from);
+
+        let blocked_sqs = travel_sqs & occ;
+        let safe_sqs = Bitboard::of_sq(king_from) | ray::between(king_from, king_to) | Bitboard::of_sq(king_to);
+
+        if blocked_sqs.is_empty() && !is_attacked(safe_sqs, side, occ, board) {
+            let flag = if kingside { MoveFlag::CastleK } else { MoveFlag::CastleQ };
+            moves.add_move(king_from, rook_from, flag);
+        }
+    }
+
 }
 
 #[inline(always)]
@@ -222,20 +271,34 @@ pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bo
 #[inline(always)]
 pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> bool {
 
+    if sq.0 == 64 {
+        println!("err!");
+        println!("{}", board.to_fen());
+    }
     let knight_attacks = attacks::knight(sq) & board.knights(side.flip());
-    if !knight_attacks.is_empty() { return true; }
+    if !knight_attacks.is_empty() {
+        return true;
+    }
 
     let king_attacks = attacks::king(sq) & board.king(side.flip());
-    if !king_attacks.is_empty() { return true; }
+    if !king_attacks.is_empty() {
+        return true;
+    }
 
     let pawn_attacks = attacks::pawn(sq, side) & board.pawns(side.flip());
-    if !pawn_attacks.is_empty() { return true; }
+    if !pawn_attacks.is_empty() {
+        return true;
+    }
 
-    let diag_attacks = attacks::rook(sq, occ) & (board.rooks(side.flip()) | board.queens(side.flip()));
-    if !diag_attacks.is_empty() { return true; }
+    let ortho_attacks = attacks::rook(sq, occ) & (board.rooks(side.flip()) | board.queens(side.flip()));
+    if !ortho_attacks.is_empty() {
+        return true;
+    }
 
-    let ortho_attacks = attacks::bishop(sq, occ) & (board.bishops(side.flip()) | board.queens(side.flip()));
-    if !ortho_attacks.is_empty() { return true; }
+    let diag_attacks = attacks::bishop(sq, occ) & (board.bishops(side.flip()) | board.queens(side.flip()));
+    if !diag_attacks.is_empty() {
+        return true;
+    }
 
     false
 }

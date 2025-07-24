@@ -74,6 +74,7 @@ impl UCI {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
+        println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
         #[cfg(feature = "tuning")]
         list_params();
         println!("uciok");
@@ -90,6 +91,7 @@ impl UCI {
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "threads", "value", _] => return, // TODO set threads
+            ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
@@ -106,6 +108,19 @@ impl UCI {
         };
         self.td.tt.resize(value);
         println!("info string Hash {}", value);
+    }
+
+    fn set_chess_960(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.board.set_frc(value);
+        println!("info string Chess960 {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -135,10 +150,11 @@ impl UCI {
         }
 
         let fen = match tokens[1].as_str() {
-            "startpos" => fen::STARTPOS.to_string(), // Convert to owned String
+            "startpos" => fen::STARTPOS.to_string(),
             "fen" => tokens
                 .iter()
                 .skip(2)
+                .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
                 .join(" "), // Returns owned String
@@ -148,7 +164,13 @@ impl UCI {
             }
         };
 
-        self.board = Board::from_fen(&fen);
+        self.board = match Board::from_fen(&fen) {
+            Ok(board) => board,
+            Err(e) => {
+                println!("info error invalid fen: {}", e);
+                return;
+            }
+        };
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens
@@ -311,8 +333,8 @@ impl UCI {
             }
         };
 
-        let start = std::time::Instant::now();
-        let nodes = perft(&self.board, depth);
+        let start = Instant::now();
+        let nodes = perft(&self.board, depth, depth);
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);

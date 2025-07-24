@@ -1,9 +1,9 @@
 use std::time::Instant;
 
 use crate::correction::CorrectionHistories;
+use crate::evaluation::network::NNUE;
 use crate::history::Histories;
 use crate::moves::Move;
-use crate::evaluation::network::NNUE;
 use crate::search::{Score, SearchStack, MAX_PLY};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;

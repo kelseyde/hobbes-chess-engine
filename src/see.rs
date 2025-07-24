@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_see_suite() {
 
-        let see_suite = fs::read_to_string("resources/see_suite.epd").unwrap();
+        let see_suite = fs::read_to_string("resources/see.epd").unwrap();
 
         let mut tried = 0;
         let mut passed = 0;
@@ -162,7 +162,7 @@ mod tests {
             let threshold_str = parts[2].trim();
             let threshold: i32 = threshold_str.parse().unwrap();
 
-            let board = Board::from_fen(fen);
+            let board = Board::from_fen(fen).unwrap();
             let mut moves = movegen::gen_moves(&board, MoveFilter::All);
             let mv = moves.iter()
                 .map(|entry| entry.mv)
@@ -193,7 +193,7 @@ mod tests {
         let threshold_str = parts[2].trim();
         let threshold: i32 = threshold_str.parse().unwrap();
 
-        let board = Board::from_fen(fen);
+        let board = Board::from_fen(fen).unwrap();
         let mut moves = movegen::gen_moves(&board, MoveFilter::All);
         let mv = moves.iter()
             .map(|entry| entry.mv)
