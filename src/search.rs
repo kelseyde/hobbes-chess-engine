@@ -855,7 +855,7 @@ const fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool 
     }
 }
 
-const fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
+fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
