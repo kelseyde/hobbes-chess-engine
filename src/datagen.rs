@@ -6,6 +6,7 @@ use crate::board::Board;
 use crate::{fen, movegen};
 use ctrlc;
 use chrono::{Utc};
+use viriformat::dataformat::Game;
 use crate::thread::ThreadData;
 
 const DFRC_PERCENT: usize = 10;
@@ -77,8 +78,9 @@ fn generate_for_thread(id: usize,
                        options: &DataGenOptions,
                        data_dir: &Path) -> usize {
 
-    let mut td = ThreadData::new(16);
+    let mut td = ThreadData::new(2);
 
+    let game: Game = Game::new(&Board::default())
     0
 
 }
