@@ -445,7 +445,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // reduced depth. If any of those moves beat alpha, we re-search with a full window and depth.
         if depth >= lmr_min_depth()
             && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32
-            && is_quiet {
+            && (move_picker.stage != Stage::GoodNoisies || !tt_pv) {
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
