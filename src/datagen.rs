@@ -26,6 +26,14 @@ pub struct DataGenOptions {
 // #[cfg(feature = "dategen")]
 pub fn generate(options: DataGenOptions) -> Result<String, String> {
 
+    // Reset the datagen global data for a new datagen run
+    FENS_GENERATED.store(0, Ordering::SeqCst);
+    ABORT.store(false, Ordering::SeqCst);
+    ctrlc::set_handler(move || {
+        ABORT.store(true, Ordering::SeqCst);
+        println!("aborting datagen...")
+    }).expect("failed to set ctrlc handler");
+
     // Generate the ID for this datagen run
     let run_id = format!("hobbes-data-{}-{}",
                          options.description.unwrap_or("default".to_string()),
@@ -73,14 +81,4 @@ fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     }
 
     Ok(board)
-}
-
-/// Reset the datagen global data for a new datagen run
-fn reset() {
-    FENS_GENERATED.store(0, Ordering::SeqCst);
-    ABORT.store(false, Ordering::SeqCst);
-    ctrlc::set_handler(move || {
-        ABORT.store(true, Ordering::SeqCst);
-        println!("aborting datagen...")
-    }).expect("failed to set ctrlc handler");
 }
