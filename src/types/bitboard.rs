@@ -20,26 +20,32 @@ impl Bitboard {
         Self::NONE
     }
 
+    #[inline(always)]
     pub fn contains(self, sq: Square) -> bool {
         !(self & Self::of_sq(sq)).is_empty()
     }
 
+    #[inline(always)]
     pub fn of_sq(sq: Square) -> Self {
         Self(1 << sq.0)
     }
 
+    #[inline(always)]
     pub const fn is_empty(self) -> bool {
         self.0 == 0
     }
 
+    #[inline(always)]
     pub const fn count(self) -> u32 {
         self.0.count_ones()
     }
 
+    #[inline(always)]
     pub const fn lsb(self) -> Square {
         Square(self.0.trailing_zeros() as u8)
     }
 
+    #[inline(always)]
     pub const fn shift(self, offset: i8) -> Self {
         if offset > 0 {
             Self(self.0 << offset)
@@ -48,34 +54,42 @@ impl Bitboard {
         }
     }
 
+    #[inline(always)]
     pub const fn pop(self) -> Self {
         Self(self.0 & (self.0 - 1))
     }
 
+    #[inline(always)]
     pub const fn pop_bit(self, sq: Square) -> Self {
         Self(self.0 ^ (1 << sq.0))
     }
 
+    #[inline(always)]
     pub const fn north(self) -> Self {
         Bitboard(self.0 << 8)
     }
 
+    #[inline(always)]
     pub const fn south(self) -> Self {
         Bitboard(self.0 >> 8)
     }
 
+    #[inline(always)]
     pub const fn north_east(self) -> Self {
         Bitboard(self.0 << 9 & !File::A.to_bb().0)
     }
 
+    #[inline(always)]
     pub const fn north_west(self) -> Self {
         Bitboard(self.0 << 7 & !File::H.to_bb().0)
     }
 
+    #[inline(always)]
     pub const fn south_east(self) -> Self {
         Bitboard(self.0 >> 7 & !File::A.to_bb().0)
     }
 
+    #[inline(always)]
     pub const fn south_west(self) -> Self {
         Bitboard(self.0 >> 9 & !File::H.to_bb().0)
     }

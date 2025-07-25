@@ -52,6 +52,7 @@ impl Rank {
         }
     }
 
+    #[inline(always)]
     pub const fn to_bb(self) -> Bitboard {
         Rank::BB[self as usize]
     }

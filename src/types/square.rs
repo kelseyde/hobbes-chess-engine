@@ -9,30 +9,37 @@ impl Square {
 
     pub const COUNT: u8 = 64;
 
+    #[inline(always)]
     pub const fn from(file: File, rank: Rank) -> Square {
         Square((rank as u8) << 3 | (file as u8))
     }
 
+    #[inline(always)]
     pub fn file(self) -> File {
         File::of(self)
     }
 
+    #[inline(always)]
     pub fn rank(self) -> Rank {
         Rank::of(self)
     }
 
+    #[inline(always)]
     pub const fn flip_rank(self) -> Square {
         Square(self.0 ^ 56)
     }
 
+    #[inline(always)]
     pub const fn flip_file(self) -> Square {
         Square(self.0 ^ 7)
     }
 
+    #[inline(always)]
     pub const fn plus(self, offset: u8) -> Square {
         Square(self.0 + offset)
     }
 
+    #[inline(always)]
     pub const fn minus(self, offset: u8) -> Square {
         Square(self.0 - offset)
     }

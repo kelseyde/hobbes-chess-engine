@@ -37,7 +37,6 @@ pub enum MoveFlag {
 const FROM_MASK: u16 = 0x3F;
 const TO_MASK: u16 = 0xFC0;
 const FLAG_MASK: u16 = 0xF000;
-const PROMO_FLAGS: [MoveFlag; 4] = [MoveFlag::PromoQ, MoveFlag::PromoR, MoveFlag::PromoB, MoveFlag::PromoN];
 
 impl Move {
 
@@ -47,15 +46,15 @@ impl Move {
         Move((from.0 as u16) | ((to.0 as u16) << 6) | ((flag as u16) << 12))
     }
 
-    pub fn from(self) -> Square {
+    pub const fn from(self) -> Square {
         Square((self.0 & FROM_MASK) as u8)
     }
 
-    pub fn to(self) -> Square {
+    pub const fn to(self) -> Square {
         Square(((self.0 & TO_MASK) >> 6) as u8)
     }
 
-    pub fn flag(self) -> MoveFlag {
+    pub const fn flag(self) -> MoveFlag {
         match (self.0 & FLAG_MASK) >> 12 {
             0 => MoveFlag::Standard,
             1 => MoveFlag::DoublePush,
@@ -83,10 +82,13 @@ impl Move {
     }
 
     pub fn is_promo(self) -> bool {
-        PROMO_FLAGS.contains(&self.flag())
+        self.flag() == MoveFlag::PromoQ ||
+        self.flag() == MoveFlag::PromoR ||
+        self.flag() == MoveFlag::PromoB ||
+        self.flag() == MoveFlag::PromoN
     }
 
-    pub fn promo_piece(self) -> Option<Piece> {
+    pub const fn promo_piece(self) -> Option<Piece> {
         match self.flag() {
             MoveFlag::PromoQ => Some(Piece::Queen),
             MoveFlag::PromoR => Some(Piece::Rook),

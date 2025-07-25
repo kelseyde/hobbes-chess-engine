@@ -9,6 +9,7 @@ pub enum Side {
 
 impl Side {
 
+    #[inline(always)]
     pub const fn idx(&self) -> usize {
         *self as usize + 6
     }

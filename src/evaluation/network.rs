@@ -291,6 +291,7 @@ impl NNUE {
 
 }
 
+#[inline]
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
 
     if side != board.stm || pc != Piece::King {
@@ -305,6 +306,7 @@ fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     }
 }
 
+#[inline]
 fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
@@ -318,6 +320,7 @@ fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     king_bucket(prev_king_sq , side) != king_bucket(new_king_sq, side)
 }
 
+#[inline]
 fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     if pc != King {
         return false;
@@ -331,11 +334,13 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     should_mirror(prev_king_sq) != should_mirror(new_king_sq)
 }
 
+#[inline(always)]
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
     BUCKETS[sq]
 }
 
+#[inline(always)]
 fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }

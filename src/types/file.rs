@@ -53,6 +53,7 @@ impl File {
         }
     }
 
+    #[inline(always)]
     pub const fn to_bb(self) -> Bitboard {
         File::BB[self as usize]
     }
