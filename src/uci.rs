@@ -226,7 +226,7 @@ impl UCI {
                 Ok(movetime) => Some(movetime),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
-                    return;
+                    Some(500)
                 }
             }
         } else {
