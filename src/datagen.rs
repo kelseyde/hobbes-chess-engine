@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
@@ -10,15 +10,20 @@ use crate::{fen, movegen, search};
 use ctrlc;
 use chrono::{Utc};
 use viriformat::chess::board::{DrawType, GameOutcome, WinType};
-use viriformat::chess::chessmove;
+use viriformat::chess::{chessmove, types};
 use viriformat::chess::chessmove::MoveFlags;
+use viriformat::chess::piece::PieceType;
 use viriformat::dataformat::Game;
 use crate::moves::{Move, MoveFlag};
-use crate::search::search;
+use crate::search::{search, Score};
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
+use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
+
+/// Generates training data for Hobbes' NNUE neural network.
+/// Stores data in viriformat using the viriformat crate, credit to Viridithas author.
 
 const DFRC_PERCENT: usize = 10;
 
@@ -102,7 +107,7 @@ fn generate_for_thread(id: usize,
 
 
     let start = Instant::now();
-    for game in 0..num_games {
+    'game_loop: for game in 0..num_games {
 
         // Reset thread state for a new game
         td.clear();
@@ -116,8 +121,8 @@ fn generate_for_thread(id: usize,
 
         let mut game: Game = Game::new(board.into());
 
-        let mut win_adj_counter;
-        let mut draw_adj_counter;
+        let mut win_adj_counter = 0;
+        let mut draw_adj_counter = 0;
         let outcome = loop {
 
             let outcome = game_outcome(&td, &board);
@@ -128,16 +133,75 @@ fn generate_for_thread(id: usize,
             td.start_time = Instant::now();
             td.tt.birthday();
 
-            let (score, best_move) = search(&board, &mut td);
+            let (best_move, score) = search(&board, &mut td);
+            if !best_move.exists() {
+                println!("error: search returned null best move")
+                continue 'game_loop;
+            }
+
+            game.add_move(best_move.into(), score as i16);
+
+            let abs_score = score.abs();
+            if abs_score >= 2500 {
+                win_adj_counter += 1;
+                draw_adj_counter = 0;
+            } else if abs_score <= 4 {
+                draw_adj_counter += 1;
+                win_adj_counter = 0;
+            } else {
+                win_adj_counter = 0;
+                draw_adj_counter = 0;
+            }
+
+            if win_adj_counter >= 4 {
+                let outcome = if score > 0 {
+                    GameOutcome::WhiteWin(WinType::Adjudication)
+                } else {
+                    GameOutcome::BlackWin(WinType::Adjudication)
+                };
+                break outcome;
+            }
+            if draw_adj_counter >= 12 {
+                break GameOutcome::Draw(DrawType::Adjudication);
+            }
+
+            if Score::is_mate(score) {
+                break if score.is_positive() {
+                    if board.stm == Side::White {
+                        GameOutcome::WhiteWin(WinType::Mate)
+                    } else {
+                        GameOutcome::BlackWin(WinType::Mate)
+                    }
+                } else {
+                    if board.stm == Side::White {
+                        GameOutcome::BlackWin(WinType::Mate)
+                    } else {
+                        GameOutcome::WhiteWin(WinType::Mate)
+                    }
+                }
+            }
+
+            board.make(&best_move);
+
         }
 
+        let count = game.len();
+        game.set_outcome(outcome);
 
+        game.serialise_into(&mut output_buffer)
+            .with_context(|| "Failed to serialise game into output buffer.")?;
+
+        FENS_GENERATED.fetch_add(count as u64, Ordering::SeqCst);
+
+        if ABORT.load(Ordering::SeqCst) {
+            break 'game_loop;
+        }
 
     }
 
-
-    // TODO to_fen for dfrc
-
+    output_buffer
+        .flush()
+        .expect("failed to flush output buffer to file");
 
     0
 
@@ -197,6 +261,7 @@ impl Into<viriformat::chess::board::Board> for Board {
 
     fn into(self) -> viriformat::chess::board::Board {
         let mut board = viriformat::chess::board::Board::new();
+        // todo dfrc tofen
         board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
         board
     }
@@ -229,7 +294,16 @@ impl Into<chessmove::Move> for Move {
             MoveFlag::EnPassant => {
                 chessmove::Move::new_with_flags(from, to, MoveFlags::EnPassant)
             },
-
+            MoveFlag::PromoQ | MoveFlag::PromoR | MoveFlag::PromoB | MoveFlag::PromoN => {
+                let pc = match self.promo_piece().unwrap() {
+                    Piece::Queen => PieceType::Queen,
+                    Piece::Rook => PieceType::Rook,
+                    Piece::Bishop => PieceType::Bishop,
+                    Piece::Knight => PieceType::Knight,
+                    _ => panic!("invalid promotion piece")
+                };
+                chessmove::Move::new_with_promo(from, to, pc)
+            }
         }
     }
 }
