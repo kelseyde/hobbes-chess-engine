@@ -226,7 +226,7 @@ impl UCI {
                 Ok(movetime) => Some(movetime),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
-                    return;
+                    Some(500)
                 }
             }
         } else {
@@ -234,37 +234,25 @@ impl UCI {
         };
 
         let fischer = if tokens.contains(&String::from("wtime")) {
-            let wtime = match self.parse_uint(&tokens, "wtime") {
-                Ok(wtime) => wtime,
-                Err(_) => {
-                    println!("info error: wtime is not a valid number");
-                    return;
-                }
-            };
+            let wtime = self.parse_uint(&tokens, "wtime").unwrap_or_else(|_| {
+                println!("info error: wtime is not a valid number");
+                500
+            });
 
-            let btime = match self.parse_uint(&tokens, "btime") {
-                Ok(btime) => btime,
-                Err(_) => {
-                    println!("info error: btime is not a valid number");
-                    return;
-                }
-            };
+            let btime = self.parse_uint(&tokens, "btime").unwrap_or_else(|_| {
+                println!("info error: btime is not a valid number");
+                500
+            });
 
-            let winc = match self.parse_uint(&tokens, "winc") {
-                Ok(winc) => winc,
-                Err(_) => {
-                    println!("info error: winc is not a valid number");
-                    return;
-                }
-            };
+            let winc = self.parse_uint(&tokens, "winc").unwrap_or_else(|_| {
+                println!("info error: winc is not a valid number");
+                0
+            });
 
-            let binc = match self.parse_uint(&tokens, "binc") {
-                Ok(binc) => binc,
-                Err(_) => {
-                    println!("info error: binc is not a valid number");
-                    return;
-                }
-            };
+            let binc = self.parse_uint(&tokens, "binc").unwrap_or_else(|_| {
+                println!("info error: binc is not a valid number");
+                0
+            });
 
             let (time, inc) = match self.board.stm {
                 White => (wtime, winc),
