@@ -11,14 +11,6 @@ pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -
 
 impl Board {
 
-    // const PATTERN_BOARD: &str = r"^([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+$";
-    // const PATTERN_RANK: &str = r".*\d{2,}.*";
-    // const PATTERN_TURN: &str = r"^[wb]$";
-    // const PATTERN_CASTLE: &str = r"^(-|[A-HKQ]*[a-hkq]*)$";
-    // const PATTERN_EN_PASSANT: &str = r"^(-|[a-h][36])$";
-    // const PATTERN_HALF_MOVE: &str = r"^\d+$";
-    // const PATTERN_FULL_MOVE: &str = r"^\d+$";
-
     pub fn from_fen(fen: &str) -> Result<Board, String> {
 
         if fen.is_empty() {
