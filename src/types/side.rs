@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Not};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum Side {
@@ -9,17 +9,22 @@ pub enum Side {
 
 impl Side {
 
-    pub fn flip(&self) -> Side {
+    #[inline(always)]
+    pub const fn idx(&self) -> usize {
+        *self as usize + 6
+    }
+
+}
+
+impl Not for Side {
+    type Output = Side;
+
+    fn not(self) -> Self::Output {
         match self {
             Side::White => Side::Black,
             Side::Black => Side::White
         }
     }
-
-    pub const fn idx(&self) -> usize {
-        *self as usize + 6
-    }
-
 }
 
 impl<T, const N: usize> Index<Side> for [T; N] {

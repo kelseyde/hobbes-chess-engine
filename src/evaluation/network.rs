@@ -1,5 +1,3 @@
-use crate::types::side::Side::{Black, White};
-use arrayvec::ArrayVec;
 use crate::board::Board;
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
@@ -9,9 +7,11 @@ use crate::search::MAX_PLY;
 use crate::types::piece::Piece;
 use crate::types::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::types::side::Side;
+use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
 use crate::types::{castling, File};
 use crate::utils::boxed_and_zeroed;
+use arrayvec::ArrayVec;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -253,7 +253,7 @@ impl NNUE {
 
         let pc_ft = Feature::new(pc, mv.from(), side);
         let new_pc_ft = Feature::new(new_pc, mv.to(), side);
-        let capture_ft = Feature::new(captured, capture_sq, side.flip());
+        let capture_ft = Feature::new(captured, capture_sq, !side);
 
         self.stack[self.current].add_sub_sub(new_pc_ft, pc_ft, capture_ft, w_weights, b_weights);
 
@@ -291,6 +291,7 @@ impl NNUE {
 
 }
 
+#[inline]
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
 
     if side != board.stm || pc != Piece::King {
@@ -305,6 +306,7 @@ fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     }
 }
 
+#[inline]
 fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
@@ -318,6 +320,7 @@ fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     king_bucket(prev_king_sq , side) != king_bucket(new_king_sq, side)
 }
 
+#[inline]
 fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     if pc != King {
         return false;
@@ -331,11 +334,13 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     should_mirror(prev_king_sq) != should_mirror(new_king_sq)
 }
 
+#[inline(always)]
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
     BUCKETS[sq]
 }
 
+#[inline(always)]
 fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }

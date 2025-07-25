@@ -1,7 +1,7 @@
+use crate::types::bitboard::Bitboard;
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::types::{File, Rank};
-use crate::types::bitboard::Bitboard;
 
 // Check if the castling move is kingside or queenside
 pub fn is_kingside(from: Square, to: Square) -> bool {
@@ -101,7 +101,7 @@ impl Rights {
         (self.data & Self::KEY_MASK) as u8
     }
 
-    pub fn is_empty(self) -> bool {
+    pub const fn is_empty(self) -> bool {
         (self.data & Self::KEY_MASK) == 0
     }
 
@@ -221,7 +221,6 @@ mod tests {
     use crate::moves::Move;
     use crate::types::castling::Rights;
     use crate::types::side::Side;
-    use crate::types::side::Side::{Black, White};
     use crate::types::File;
 
     #[test]
@@ -265,13 +264,13 @@ mod tests {
         assert_eq!(rights.kingside(Side::Black), Some(File::H));
         assert_eq!(rights.queenside(Side::Black), Some(File::A));
 
-        rights.clear(White);
+        rights.clear(Side::White);
         assert_eq!(rights.kingside(Side::White), None);
         assert_eq!(rights.queenside(Side::White), None);
         assert_eq!(rights.kingside(Side::Black), Some(File::H));
         assert_eq!(rights.queenside(Side::Black), Some(File::A));
 
-        rights.clear(Black);
+        rights.clear(Side::Black);
         assert_eq!(rights.kingside(Side::Black), None);
         assert_eq!(rights.queenside(Side::Black), None);
     }
@@ -281,15 +280,15 @@ mod tests {
         let mut rights =
             Rights::new(Some(File::H), Some(File::A), Some(File::H), Some(File::A));
 
-        rights.remove(White, File::H);
+        rights.remove(Side::White, File::H);
         assert_eq!(rights.kingside(Side::White), None);
         assert_eq!(rights.queenside(Side::White), Some(File::A));
 
-        rights.remove(Black, File::A);
+        rights.remove(Side::Black, File::A);
         assert_eq!(rights.kingside(Side::Black), Some(File::H));
         assert_eq!(rights.queenside(Side::Black), None);
 
-        rights.remove(White, File::G);
+        rights.remove(Side::White, File::G);
         assert_eq!(rights.queenside(Side::White), Some(File::A));
     }
 
@@ -299,22 +298,22 @@ mod tests {
         let mut board =
             Board::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
                 .unwrap();
-        assert!(board.has_kingside_rights(White));
-        assert!(board.has_queenside_rights(White));
-        assert!(board.has_kingside_rights(Black));
-        assert!(board.has_queenside_rights(Black));
+        assert!(board.has_kingside_rights(Side::White));
+        assert!(board.has_queenside_rights(Side::White));
+        assert!(board.has_kingside_rights(Side::Black));
+        assert!(board.has_queenside_rights(Side::Black));
 
         board.make(&Move::parse_uci("a1b1"));
-        assert!(board.has_kingside_rights(White));
-        assert!(!board.has_queenside_rights(White));
-        assert!(board.has_kingside_rights(Black));
-        assert!(board.has_queenside_rights(Black));
+        assert!(board.has_kingside_rights(Side::White));
+        assert!(!board.has_queenside_rights(Side::White));
+        assert!(board.has_kingside_rights(Side::Black));
+        assert!(board.has_queenside_rights(Side::Black));
 
         board.make(&Move::parse_uci("h8f8"));
-        assert!(board.has_kingside_rights(White));
-        assert!(!board.has_queenside_rights(White));
-        assert!(!board.has_kingside_rights(Black));
-        assert!(board.has_queenside_rights(Black));
+        assert!(board.has_kingside_rights(Side::White));
+        assert!(!board.has_queenside_rights(Side::White));
+        assert!(!board.has_kingside_rights(Side::Black));
+        assert!(board.has_queenside_rights(Side::Black));
 
     }
 
