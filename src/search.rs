@@ -582,7 +582,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
-
             td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
             td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
 
