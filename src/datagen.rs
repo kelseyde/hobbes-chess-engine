@@ -1,13 +1,24 @@
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Instant;
 use rand::{Rng};
 use rand::rngs::ThreadRng;
 use crate::board::Board;
-use crate::{fen, movegen};
+use crate::{fen, movegen, search};
 use ctrlc;
 use chrono::{Utc};
+use viriformat::chess::board::{DrawType, GameOutcome, WinType};
+use viriformat::chess::chessmove;
+use viriformat::chess::chessmove::MoveFlags;
 use viriformat::dataformat::Game;
+use crate::moves::{Move, MoveFlag};
+use crate::search::search;
 use crate::thread::ThreadData;
+use crate::time::SearchLimits;
+use crate::types::side::Side;
+use crate::types::square::Square;
 
 const DFRC_PERCENT: usize = 10;
 
@@ -74,13 +85,60 @@ pub fn generate(options: DataGenOptions) -> Result<String, String> {
 }
 
 fn generate_for_thread(id: usize,
-                       rng: ThreadRng,
+                       rng: &mut ThreadRng,
                        options: &DataGenOptions,
                        data_dir: &Path) -> usize {
 
     let mut td = ThreadData::new(2);
 
-    let game: Game = Game::new(&Board::default())
+    let num_games = options.num_games / options.num_threads;
+    let mut output_file = File::create(data_dir.join(format!("thread_{id}.bin")))
+        .expect("failed to create output file!");
+    let mut output_buffer = BufWriter::new(&mut output_file);
+    td.limits = SearchLimits::node_limits(
+        options.soft_nodes as u64,
+        (options.soft_nodes * 8) as u64
+    );
+
+
+    let start = Instant::now();
+    for game in 0..num_games {
+
+        // Reset thread state for a new game
+        td.clear();
+        let mut board = generate_startpos(rng).expect("failed to generate startpos!");
+
+        // Skip wildly unbalanced exits
+        td.nnue.activate(&board);
+        if td.nnue.evaluate(&board).abs() > 1000 {
+            continue;
+        }
+
+        let mut game: Game = Game::new(board.into());
+
+        let mut win_adj_counter;
+        let mut draw_adj_counter;
+        let outcome = loop {
+
+            let outcome = game_outcome(&td, &board);
+            if outcome != GameOutcome::Ongoing {
+                break outcome;
+            }
+            td.reset();
+            td.start_time = Instant::now();
+            td.tt.birthday();
+
+            let (score, best_move) = search(&board, &mut td);
+        }
+
+
+
+    }
+
+
+    // TODO to_fen for dfrc
+
+
     0
 
 }
@@ -98,11 +156,80 @@ fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     for _ in 0..random_plies {
         let mut moves = movegen::gen_legal_moves(&board);
         if moves.is_empty() {
-            return Err("reached a terminal position".to_string());
+            // Recursively try again
+            return generate_startpos(rng);
         }
         let mv = moves.get(rng.random_range(0..moves.len()));
         board.make(&mv.unwrap().mv);
     }
 
     Ok(board)
+}
+
+fn game_outcome(td: &ThreadData, board: &Board) -> GameOutcome {
+
+    if board.is_fifty_move_rule() {
+        return GameOutcome::Draw(DrawType::FiftyMoves);
+    }
+    if board.is_insufficient_material() {
+        return GameOutcome::Draw(DrawType::InsufficientMaterial);
+    }
+    if search::is_repetition(board, td, false) {
+        return GameOutcome::Draw(DrawType::Repetition);
+    }
+    let legal_moves = movegen::gen_legal_moves(board);
+    if legal_moves.is_empty() {
+        return if movegen::is_check(board, board.stm) {
+            match board.stm {
+                Side::White => GameOutcome::BlackWin(WinType::Mate),
+                Side::Black => GameOutcome::WhiteWin(WinType::Mate)
+            }
+        } else {
+            GameOutcome::Draw(DrawType::Stalemate)
+        }
+    }
+    GameOutcome::Ongoing
+
+}
+
+// TODO cfg features datagen
+impl Into<viriformat::chess::board::Board> for Board {
+
+    fn into(self) -> viriformat::chess::board::Board {
+        let mut board = viriformat::chess::board::Board::new();
+        board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
+        board
+    }
+
+}
+
+impl Into<viriformat::chess::types::Square> for Square {
+    fn into(self) -> viriformat::chess::types::Square {
+        viriformat::chess::types::Square::new(self.0).unwrap()
+    }
+}
+
+impl Into<chessmove::MoveFlags> for MoveFlag {
+    fn into(self) -> MoveFlags {
+        todo!()
+    }
+}
+
+impl Into<chessmove::Move> for Move {
+    fn into(self) -> chessmove::Move {
+        let from = self.from().into();
+        let to = self.to().into();
+        match self.flag() {
+            MoveFlag::Standard | MoveFlag::DoublePush => {
+                chessmove::Move::new(from, to)
+            },
+            MoveFlag::CastleK | MoveFlag::CastleQ => {
+                chessmove::Move::new_with_flags(from, to, MoveFlags::Castle)
+            }
+            MoveFlag::EnPassant => {
+                chessmove::Move::new_with_flags(from, to, MoveFlags::EnPassant)
+            },
+
+        }
+    }
 }

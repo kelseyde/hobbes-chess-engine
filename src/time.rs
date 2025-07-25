@@ -41,6 +41,16 @@ impl SearchLimits {
         }
     }
 
+    pub fn node_limits(soft_nodes: u64, hard_nodes: u64) -> Self {
+        SearchLimits {
+            hard_time:  None,
+            soft_time:  None,
+            soft_nodes: Some(soft_nodes),
+            hard_nodes: Some(hard_nodes),
+            depth:      None,
+        }
+    }
+
     pub fn scaled_soft_limit(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
             let scaled = soft_time.as_secs_f32()
@@ -49,7 +59,7 @@ impl SearchLimits {
         })
     }
 
-    fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+    const fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }

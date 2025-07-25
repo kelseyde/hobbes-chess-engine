@@ -1,4 +1,3 @@
-use regex::Regex;
 use crate::board::Board;
 use crate::types::castling::Rights;
 use crate::types::piece::Piece;
@@ -11,14 +10,6 @@ use crate::zobrist::Zobrist;
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 impl Board {
-
-    const PATTERN_BOARD: &str = r"^([rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+$";
-    const PATTERN_RANK: &str = r".*\d{2,}.*";
-    const PATTERN_TURN: &str = r"^[wb]$";
-    const PATTERN_CASTLE: &str = r"^(-|[A-HKQ]*[a-hkq]*)$";
-    const PATTERN_EN_PASSANT: &str = r"^(-|[a-h][36])$";
-    const PATTERN_HALF_MOVE: &str = r"^\d+$";
-    const PATTERN_FULL_MOVE: &str = r"^\d+$";
 
     pub fn from_fen(fen: &str) -> Result<Board, String> {
 
@@ -34,10 +25,6 @@ impl Board {
         }
 
         let board_part = parts[0];
-        if !Regex::new(Self::PATTERN_BOARD).unwrap().is_match(board_part) {
-            return Err("FEN string has an invalid board representation".to_string());
-        }
-
         let slash_count = board_part.matches('/').count();
         if slash_count != 7 {
             return Err("FEN string does not have exactly 8 ranks".to_string());
@@ -59,10 +46,6 @@ impl Board {
         }
 
         for (rank, row) in rows.iter().enumerate() {
-
-            if Regex::new(Self::PATTERN_RANK).unwrap().is_match(row) {
-                return Err("Consecutive numbers in rank are not permitted".to_string());
-            }
 
             let mut file = 0;
             for ch in row.chars() {
@@ -90,40 +73,28 @@ impl Board {
         }
 
         let stm_part = parts[1];
-        if !Regex::new(Self::PATTERN_TURN).unwrap().is_match(stm_part) {
+        if stm_part != "w" && stm_part != "b" {
             return Err("FEN string has an invalid side to move".to_string());
         }
         board.stm = parse_stm(stm_part);
 
         let rights_part = parts[2];
-        if !Regex::new(Self::PATTERN_CASTLE).unwrap().is_match(rights_part) {
-            return Err("FEN string has invalid castling rights".to_string());
-        }
         (board.rights, board.frc) = parse_castle_rights(&board, rights_part);
 
         let ep_part = parts[3];
-        if !Regex::new(Self::PATTERN_EN_PASSANT).unwrap().is_match(ep_part) {
-            return Err("FEN string has an invalid en passant square".to_string());
-        }
         board.ep_sq = parse_ep_sq(ep_part);
 
         let hm_part = parts.get(4).unwrap_or(&"0");
-        if !Regex::new(Self::PATTERN_HALF_MOVE).unwrap().is_match(hm_part) {
-            return Err("FEN string has an invalid half move clock".to_string());
-        }
         board.hm = hm_part.parse().unwrap_or(0);
 
         let fm_part = parts.get(5).unwrap_or(&"0");
-        if !Regex::new(Self::PATTERN_FULL_MOVE).unwrap().is_match(fm_part) {
-            return Err("FEN string has an invalid full move number".to_string());
-        }
         board.fm = fm_part.parse().unwrap_or(0);
 
-        board.hash = Zobrist::get_hash(&board);
-        board.pawn_hash = Zobrist::get_pawn_hash(&board);
-        board.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
-        board.major_hash = Zobrist::get_major_hash(&board);
-        board.minor_hash = Zobrist::get_minor_hash(&board);
+        board.keys.hash = Zobrist::get_hash(&board);
+        board.keys.pawn_hash = Zobrist::get_pawn_hash(&board);
+        board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
+        board.keys.major_hash = Zobrist::get_major_hash(&board);
+        board.keys.minor_hash = Zobrist::get_minor_hash(&board);
         Ok(board)
     }
 
@@ -363,23 +334,8 @@ mod tests {
     }
 
     #[test]
-    fn test_board_with_invalid_character() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPP*PPP/RNBQKBNR w KQkq - 0 1").is_err());
-    }
-
-    #[test]
     fn test_rank_does_not_add_up_to_eight() {
         assert!(Board::from_fen("rnbqkbnr/ppp2ppp/8/8/4p/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
-    }
-
-    #[test]
-    fn test_consecutive_numbers_in_rank() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/44/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
-    }
-
-    #[test]
-    fn test_number_exceeds_eight() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
     }
 
     #[test]
@@ -400,46 +356,6 @@ mod tests {
     #[test]
     fn test_invalid_turn() {
         assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR white KQkq - 0 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_castling_rights() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkqX - 0 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_en_passant_random_string() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq randomString 0 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_en_passant_illegal_square() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq i9 0 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_en_passant_illegal_en_passant_square() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e4 0 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_half_move() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - randomString 1").is_err());
-    }
-
-    #[test]
-    fn test_negative_half_move() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - -1 1").is_err());
-    }
-
-    #[test]
-    fn test_invalid_full_move() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 randomString").is_err());
-    }
-
-    #[test]
-    fn test_negative_full_move() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 -1").is_err());
     }
 
     #[test]

@@ -50,7 +50,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     let diagonal = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
     let orthogonal = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
 
-    let mut stm = board.stm.flip();
+    let mut stm = !board.stm;
 
     loop {
         let our_attackers = attackers & board.side(stm);
@@ -60,7 +60,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
         let attacker = least_valuable_attacker(board, our_attackers);
 
-        if attacker == Piece::King && !(attackers & board.side(stm.flip())).is_empty() {
+        if attacker == Piece::King && !(attackers & board.side(!stm)).is_empty() {
             break;
         }
 
@@ -68,7 +68,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         let pcs = board.pcs(attacker) & our_attackers;
         let sq = (our_attackers & pcs).lsb();
         occ = occ.pop_bit(sq);
-        stm = stm.flip();
+        stm = !stm;
 
         balance = -balance - 1 - value(attacker);
         if balance >= 0 {

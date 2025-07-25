@@ -154,7 +154,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash) {
+        if let Some(entry) = td.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_depth = entry.depth() as i32;
@@ -243,6 +243,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
             && static_eval >= beta
+            && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns() {
 
             let r = nmp_base_reduction()
@@ -253,12 +254,24 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
-            td.keys.push(board.hash);
+            td.keys.push(board.hash());
             let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
-                return score;
+                // At low depths, we can directly return the result of the null move search.
+                if td.nmp_min_ply > 0 || depth <= 14 {
+                    return if Score::is_mate(score) { beta } else {score };
+                }
+
+                // At high depths, we do a normal search to verify the null move result.
+                td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
+                let verif_score = alpha_beta(&board, td, depth - r, ply, beta - 1, beta, true);
+                td.nmp_min_ply = 0;
+
+                if verif_score >= beta {
+                    return score;
+                }
             }
         }
 
@@ -429,8 +442,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
-        td.keys.push(board.hash);
-        td.tt.prefetch(board.hash);
+        td.keys.push(board.hash());
+        td.tt.prefetch(board.hash());
 
         searched_moves += 1;
         td.nodes += 1;
@@ -569,7 +582,6 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
-
             td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
             td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
 
@@ -602,7 +614,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
-            td.history.quiet_history.update(board.stm.flip(), &prev_mv, prev_threats, quiet_bonus);
+            td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, quiet_bonus);
         }
     }
 
@@ -628,7 +640,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash, best_move, best_score, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash(), best_move, best_score, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -675,7 +687,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     // Transposition Table Lookup
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
-    if let Some(entry) = td.tt.probe(board.hash) {
+    if let Some(entry) = td.tt.probe(board.hash()) {
         tt_pv = tt_pv || entry.pv();
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
@@ -758,8 +770,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
-        td.keys.push(board.hash);
-        td.tt.prefetch(board.hash);
+        td.keys.push(board.hash());
+        td.tt.prefetch(board.hash());
 
         move_count += 1;
         td.nodes += 1;
@@ -802,18 +814,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(board.hash, best_move, best_score, 0, ply, flag, tt_pv);
+        td.tt.insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
     }
 
     best_score
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
-    board.is_fifty_move_rule() || board.is_insufficient_material() || is_repetition(board, td)
+    board.is_fifty_move_rule() || board.is_insufficient_material() || is_repetition(board, td, true)
 }
 
-fn is_repetition(board: &Board, td: &ThreadData) -> bool {
-    let curr_hash = board.hash;
+pub fn is_repetition(board: &Board, td: &ThreadData, twofold: bool) -> bool {
+    let curr_hash = board.hash();
     let mut repetitions = 0;
     let end = td.keys.len().saturating_sub(board.hm as usize + 1);
     for ply in (end..td.keys.len().saturating_sub(2)).rev() {
@@ -821,7 +833,7 @@ fn is_repetition(board: &Board, td: &ThreadData) -> bool {
         repetitions += u8::from(curr_hash == hash);
 
         // Two-fold repetition of positions within the search tree
-        if repetitions == 1 && ply >= td.root_ply {
+        if twofold && repetitions == 1 && ply >= td.root_ply {
             return true;
         }
 
@@ -833,7 +845,7 @@ fn is_repetition(board: &Board, td: &ThreadData) -> bool {
     false
 }
 
-fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
+const fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
     match flag {
         TTFlag::None => false,
         TTFlag::Exact => true,
@@ -1059,11 +1071,11 @@ impl Score {
     pub const MIN: i32 = -32767;
     pub const MATE: i32 = 32766;
 
-    pub fn is_mate(score: i32) -> bool {
+    pub const fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_DEPTH
     }
 
-    pub fn is_defined(score: i32) -> bool {
+    pub const fn is_defined(score: i32) -> bool {
         score >= -Score::MATE && score <= Score::MATE
     }
 }
