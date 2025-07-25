@@ -40,20 +40,20 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
     // depth is reached or the search is aborted.
-    while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
+    while td.root_depth < MAX_DEPTH && !td.should_stop(Soft) {
 
         // Aspiration Windows
         // Use the score from the previous iteration to guess the score from the current iteration.
         // Based on this guess, we narrow the alpha-beta window around the previous score, causing
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
-        if td.depth >= asp_min_depth() {
+        if td.root_depth >= asp_min_depth() {
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
+            score = alpha_beta(board, td, td.root_depth, 0, alpha, beta, false);
 
             if td.main {
                 print_search_info(td);
@@ -82,7 +82,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        td.depth += 1;
+        td.root_depth += 1;
     }
 
     (td.best_move, td.best_score)
@@ -408,6 +408,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
             && tt_hit
             && mv == tt_move
             && depth >= se_min_depth()
+            && ply <= 2 * td.root_depth as usize
             && tt_flag != TTFlag::Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
@@ -955,7 +956,7 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 }
 
 fn print_search_info(td: &mut ThreadData) {
-    let depth = td.depth;
+    let depth = td.root_depth;
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
