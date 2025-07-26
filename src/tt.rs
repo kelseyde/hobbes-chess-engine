@@ -58,7 +58,7 @@ impl Default for Entry {
 
 impl Entry {
 
-    pub fn best_move(&self) -> Move {
+    pub const fn best_move(&self) -> Move {
         Move(self.best_move)
     }
 
@@ -66,19 +66,19 @@ impl Entry {
         to_search(self.score as i32, ply)
     }
 
-    pub fn depth(&self) -> u8 {
+    pub const fn depth(&self) -> u8 {
         self.depth
     }
 
-    pub fn flag(&self) -> TTFlag {
+    pub const fn flag(&self) -> TTFlag {
         self.flags.bound()
     }
 
-    pub fn pv(&self) -> bool {
+    pub const fn pv(&self) -> bool {
         self.flags.pv()
     }
 
-    pub fn validate_key(&self, key: u64) -> bool {
+    pub const fn validate_key(&self, key: u64) -> bool {
         self.key == (key & 0xFFFF) as u16
     }
 
@@ -117,7 +117,7 @@ impl TranspositionTable {
         self.age = 0;
     }
 
-    pub fn birthday(&mut self) {
+    pub const fn birthday(&mut self) {
         self.age = (self.age + 1) & AGE_MASK;
     }
 
@@ -181,13 +181,13 @@ impl TranspositionTable {
         entry.flags = Flags::new(flag, pv, tt_age);
     }
 
-    fn idx(&self, hash: u64) -> usize {
+    const fn idx(&self, hash: u64) -> usize {
         let key = hash as u128;
-        let len = self.table.len() as u128;
+        let len = self.size as u128;
         ((key * len) >> 64) as usize
     }
 
-    pub fn size_mb(&self) -> usize {
+    pub const fn size_mb(&self) -> usize {
         self.size_mb
     }
 
@@ -235,14 +235,14 @@ impl Flags {
     }
 }
 
-fn to_tt(score: i32, ply: usize) -> i16 {
+const fn to_tt(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16 ;
     }
     if score > 0 { (score - ply as i32) as i16 } else { (score + ply as i32) as i16 }
 }
 
-fn to_search(score: i32, ply: usize) -> i16 {
+const fn to_search(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
         return score as i16
     }

@@ -1,12 +1,12 @@
 use crate::movegen::{is_attacked, is_check};
 use crate::types::bitboard::Bitboard;
+use crate::types::castling::{CastleSafety, CastleTravel, Rights};
 use crate::types::piece::Piece;
-use crate::types::piece::Piece::{King, Pawn};
 use crate::types::side::Side;
 use crate::types::side::Side::{Black, White};
 use crate::types::square::Square;
-use crate::types::{File, Rank};
-use crate::zobrist::Zobrist;
+use crate::types::{castling, File, Rank};
+use crate::zobrist::{Keys, Zobrist};
 use crate::{attacks, fen};
 use crate::{moves::Move, moves::MoveFlag};
 
@@ -18,12 +18,9 @@ pub struct Board {
     pub hm: u8,                    // number of half moves since last capture or pawn move
     pub fm: u8,                    // number of full moves
     pub ep_sq: Option<Square>,     // en passant square (0-63)
-    pub castle: u8,                // encoded castle rights
-    pub hash: u64,                 // Zobrist hash
-    pub pawn_hash: u64,            // Zobrist hash for pawns
-    pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
-    pub major_hash: u64,           // Zobrist hash for major pieces
-    pub minor_hash: u64,           // Zobrist hash for minor pieces
+    pub rights: Rights,            // encoded castle rights
+    pub keys: Keys,                // zobrist hashes
+    pub frc: bool                  // whether the game is Fischer Random Chess
 }
 
 impl Default for Board {
@@ -35,7 +32,7 @@ impl Default for Board {
 impl Board {
 
     pub fn new() -> Board {
-        Board::from_fen(fen::STARTPOS)
+        Board::from_fen(fen::STARTPOS).unwrap()
     }
 
     pub fn empty() -> Board {
@@ -46,12 +43,9 @@ impl Board {
             hm: 0,
             fm: 0,
             ep_sq: None,
-            castle: 0,
-            hash: 0,
-            pawn_hash: 0,
-            non_pawn_hashes: [0, 0],
-            major_hash: 0,
-            minor_hash: 0,
+            rights: Rights::default(),
+            keys: Keys::default(),
+            frc: false,
         }
     }
 
@@ -60,27 +54,38 @@ impl Board {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).unwrap();
-        let new_pc = if let Some(promo) = m.promo_piece() { promo } else { pc };
-        let captured = if flag == MoveFlag::EnPassant { Some(Piece::Pawn) } else { self.pcs[to] };
+        let captured = self.captured(m);
+        let new_pc = self.new_pc(m, pc);
+        let new_to = self.new_to(m, from, to);
 
         self.toggle_sq(from, pc, side);
         if let Some(captured) = captured {
             let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
-            self.toggle_sq(capture_sq, captured, side.flip());
+            self.toggle_sq(capture_sq, captured, !side);
         }
-        self.toggle_sq(to, new_pc, side);
+        if self.is_frc() && m.is_castle() {
+            // In the case of FRC castling, we first unset the rook to cover the
+            // scenario where the king moves to the occupied rook square.
+            self.toggle_sq(to, Piece::Rook, side);
+        }
+        self.toggle_sq(new_to, new_pc, side);
 
         if m.is_castle() {
-            let (rook_from, rook_to) = self.rook_sqs(to);
-            self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
+            let kingside = castling::is_kingside(from, to);
+            let (rook_from, rook_to) = self.rook_sqs(to, kingside);
+            if self.is_frc() {
+                self.toggle_sq(rook_to, Piece::Rook, side);
+            } else {
+                self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
+            }
         }
 
         self.ep_sq = self.calc_ep(flag, to);
-        self.castle = self.calc_castle_rights(from, to, pc);
+        self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
-        self.hash ^= Zobrist::stm();
-        self.stm = self.stm.flip();
+        self.keys.hash ^= Zobrist::stm();
+        self.stm = !self.stm;
 
     }
 
@@ -90,16 +95,16 @@ impl Board {
         self.bb[pc] ^= bb;
         self.bb[side.idx()] ^= bb;
         self.pcs[sq] = if self.pcs[sq] == Some(pc) { None } else { Some(pc) };
-        self.hash ^= Zobrist::sq(pc, side, sq);
-        if pc == Pawn {
-            self.pawn_hash ^= Zobrist::sq(Pawn, side, sq);
+        self.keys.hash ^= Zobrist::sq(pc, side, sq);
+        if pc == Piece::Pawn {
+            self.keys.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
         } else {
-            self.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
+            self.keys.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
             if pc.is_major() {
-                self.major_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.major_hash ^= Zobrist::sq(pc, side, sq);
             }
             if pc.is_minor() {
-                self.minor_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.minor_hash ^= Zobrist::sq(pc, side, sq);
             }
         }
     }
@@ -111,14 +116,15 @@ impl Board {
     }
 
     #[inline]
-    fn rook_sqs(&self, king_to_sq: Square) -> (Square, Square) {
-        match king_to_sq.0 {
-            2 => (Square(0), Square(3)),
-            6 => (Square(7), Square(5)),
-            58 => (Square(56), Square(59)),
-            62 => (Square(63), Square(61)),
-            _ => unreachable!()
-        }
+    fn rook_sqs(&self, king_to_sq: Square, kingside: bool) -> (Square, Square) {
+        let rook_from = if self.is_frc() {
+            // In Chess960, castling moves are encoded as king captures rook
+            king_to_sq
+        } else {
+            castling::rook_from(self.stm, kingside)
+        };
+        let rook_to = castling::rook_to(self.stm, kingside);
+        (rook_from, rook_to)
     }
 
     #[inline]
@@ -127,62 +133,86 @@ impl Board {
     }
 
     #[inline]
-    fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> u8 {
-        let original_rights = self.castle;
-        let mut new_rights = self.castle;
-        if new_rights == Rights::None as u8 {
-            // Both sides already lost castling rights, so nothing to calculate.
-            return new_rights;
+    fn new_pc(&self, m: &Move, pc: Piece) -> Piece {
+        if let Some(promo) = m.promo_piece() {
+            promo
+        } else {
+            pc
+        }
+    }
+
+    #[inline]
+    fn new_to(&self, m: &Move, from: Square, to: Square) -> Square {
+        if m.is_castle() && self.is_frc() {
+            let kingside = castling::is_kingside(from, to);
+            castling::king_to(self.stm, kingside)
+        } else {
+            to
+        }
+    }
+
+    #[inline]
+    fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> Rights {
+        let original_rights = self.rights;
+        let mut new_rights = self.rights;
+        // Both sides already lost castling rights, so nothing to calculate.
+        if new_rights.is_empty() {
+            return new_rights
         }
         // Any move by the king removes castling rights.
         if piece_type == Piece::King {
-            new_rights &= if self.stm == White { Rights::Black as u8 } else { Rights::White as u8 };
+            new_rights.clear(self.stm);
         }
         // Any move starting from/ending at a rook square removes castling rights for that corner.
-        if from.0 == 7 || to.0 == 7    { new_rights &= !(Rights::WKS as u8); }
-        if from.0 == 63 || to.0 == 63  { new_rights &= !(Rights::BKS as u8); }
-        if from.0 == 0 || to.0 == 0    { new_rights &= !(Rights::WQS as u8); }
-        if from.0 == 56 || to.0 == 56  { new_rights &= !(Rights::BQS as u8); }
-        self.hash ^= Zobrist::castle(original_rights) ^ Zobrist::castle(new_rights);
+        if self.rights.wk_sq() == Some(from) || self.rights.wk_sq() == Some(to) {
+            new_rights.clear_side(White, true);
+        }
+        if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
+            new_rights.clear_side(Black, true);
+        }
+        if self.rights.wq_sq() == Some(from) || self.rights.wq_sq() == Some(to) {
+            new_rights.clear_side(White, false);
+        }
+        if self.rights.bq_sq() == Some(from) || self.rights.bq_sq() == Some(to) {
+            new_rights.clear_side(Black, false);
+        }
+
+        self.keys.hash ^= Zobrist::castle(original_rights.hash()) ^ Zobrist::castle(new_rights.hash());
         new_rights
     }
 
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square>{
         if self.ep_sq.is_some() {
-            self.hash ^= Zobrist::ep(self.ep_sq.unwrap());
+            self.keys.hash ^= Zobrist::ep(self.ep_sq.unwrap());
         }
         let ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(sq)) } else { None };
         if ep_sq.is_some() {
-            self.hash ^= Zobrist::ep(ep_sq.unwrap());
+            self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
         }
         ep_sq
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {
-        if side == White {
-            self.castle & Rights::WKS as u8 != 0
-        } else {
-            self.castle & Rights::BKS as u8 != 0
-        }
+        self.rights.kingside(side).is_some()
     }
 
     pub fn has_queenside_rights(&self, side: Side) -> bool {
-        if side == White {
-            self.castle & Rights::WQS as u8 != 0
-        } else {
-            self.castle & Rights::BQS as u8 != 0
-        }
+        self.rights.queenside(side).is_some()
     }
 
     pub fn make_null_move(&mut self) {
         self.hm = 0;
-        self.stm = self.stm.flip();
-        self.hash ^= Zobrist::stm();
+        self.stm = !self.stm;
+        self.keys.hash ^= Zobrist::stm();
         if let Some(ep_sq) = self.ep_sq {
-            self.hash ^= Zobrist::ep(ep_sq);
+            self.keys.hash ^= Zobrist::ep(ep_sq);
             self.ep_sq = None;
         }
+    }
+
+    pub const fn hash(&self) -> u64 {
+        self.keys.hash
     }
 
     pub fn pawns(&self, side: Side) -> Bitboard {
@@ -238,7 +268,7 @@ impl Board {
     }
 
     pub fn them(&self) -> Bitboard {
-        self.bb[self.stm.flip().idx()]
+        self.bb[(!self.stm).idx()]
     }
 
     pub fn our(&self, piece: Piece) -> Bitboard {
@@ -246,7 +276,7 @@ impl Board {
     }
 
     pub fn their(&self, piece: Piece) -> Bitboard {
-        self.bb[piece] & self.bb[self.stm.flip().idx()]
+        self.bb[piece] & self.bb[(!self.stm).idx()]
     }
 
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
@@ -277,7 +307,7 @@ impl Board {
         self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
     }
 
-    pub fn is_fifty_move_rule(&self) -> bool {
+    pub const fn is_fifty_move_rule(&self) -> bool {
         self.hm >= 100
     }
 
@@ -345,7 +375,7 @@ impl Board {
         if let Some(captured) = captured {
 
             // Cannot capture a king
-            if captured == King {
+            if captured == Piece::King {
                 return false;
             }
 
@@ -408,7 +438,7 @@ impl Board {
 
         }
 
-        if pc == Pawn {
+        if pc == Piece::Pawn {
 
             if mv.is_ep() {
                 // Cannot en passant if no en passant square
@@ -442,7 +472,13 @@ impl Board {
             let from_file = File::of(from);
             let to_file = File::of(to);
 
+            // Pawn captures
             if from_file != to_file {
+
+                // Must be capturing a piece
+                if captured.is_none() {
+                    return false;
+                }
 
                 // Must capture on an adjacent file
                 if to_file as usize != from_file as usize + 1
@@ -450,8 +486,23 @@ impl Board {
                     return false;
                 }
 
-                // Must be capturing a piece
-                captured.is_some() || mv.is_ep()
+                if mv.is_ep() {
+                    if self.ep_sq.is_none() {
+                        // Cannot en passant if no en passant square
+                        return false;
+                    }
+                    if self.piece_at(self.ep_sq.unwrap()) != Some(Piece::Pawn) {
+                        // Cannot en passant if no pawn on the en passant square
+                        return false;
+                    }
+                } else {
+                    // Must be a valid capture square
+                    if !attacks::pawn(from, self.stm).contains(to) {
+                        return false;
+                    }
+                }
+
+                true
 
             } else {
 
@@ -504,36 +555,14 @@ impl Board {
         !is_check(&new_board, self.stm)
     }
 
-}
+    pub const fn is_frc(&self) -> bool {
+        self.frc
+    }
 
-pub enum Rights {
-    None = 0b0000,
-    WKS = 0b0001,
-    WQS = 0b0010,
-    BKS = 0b0100,
-    BQS = 0b1000,
-    White = 0b0011,
-    Black = 0b1100,
-}
+    pub const fn set_frc(&mut self, frc: bool) {
+        self.frc = frc;
+    }
 
-// Squares that must not be attacked when the king castles
-pub struct CastleSafety;
-
-impl CastleSafety {
-    pub const WQS: Bitboard = Bitboard(0x000000000000001C);
-    pub const WKS: Bitboard = Bitboard(0x0000000000000070);
-    pub const BQS: Bitboard = Bitboard(0x1C00000000000000);
-    pub const BKS: Bitboard = Bitboard(0x7000000000000000);
-}
-
-// Squares that must be unoccupied when the king castles
-pub struct CastleTravel;
-
-impl CastleTravel {
-    pub const WKS: Bitboard = Bitboard(0x0000000000000060);
-    pub const WQS: Bitboard = Bitboard(0x000000000000000E);
-    pub const BKS: Bitboard = Bitboard(0x6000000000000000);
-    pub const BQS: Bitboard = Bitboard(0x0E00000000000000);
 }
 
 #[cfg(test)]
@@ -605,17 +634,23 @@ mod tests {
     }
 
     #[test]
+    fn pseudo_legal_pawn_capture() {
+        let board = Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
+        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
+    }
+
+    #[test]
     fn insufficient_material() {
-        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
-        let mut board = Board::from_fen(start_fen);
+        let mut board = Board::from_fen(start_fen).unwrap();
         board.make(&m);
         assert_eq!(board.to_fen(), end_fen);
     }

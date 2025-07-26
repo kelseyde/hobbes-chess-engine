@@ -74,6 +74,7 @@ impl UCI {
         println!("id name Hobbes");
         println!("id author Dan Kelsey");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
+        println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
         #[cfg(feature = "tuning")]
         list_params();
         println!("uciok");
@@ -90,6 +91,7 @@ impl UCI {
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "threads", "value", _] => return, // TODO set threads
+            ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
@@ -106,6 +108,19 @@ impl UCI {
         };
         self.td.tt.resize(value);
         println!("info string Hash {}", value);
+    }
+
+    fn set_chess_960(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.board.set_frc(value);
+        println!("info string Chess960 {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -135,10 +150,11 @@ impl UCI {
         }
 
         let fen = match tokens[1].as_str() {
-            "startpos" => fen::STARTPOS.to_string(), // Convert to owned String
+            "startpos" => fen::STARTPOS.to_string(),
             "fen" => tokens
                 .iter()
                 .skip(2)
+                .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
                 .join(" "), // Returns owned String
@@ -148,7 +164,13 @@ impl UCI {
             }
         };
 
-        self.board = Board::from_fen(&fen);
+        self.board = match Board::from_fen(&fen) {
+            Ok(board) => board,
+            Err(e) => {
+                println!("info error invalid fen: {}", e);
+                return;
+            }
+        };
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens
@@ -162,7 +184,7 @@ impl UCI {
 
         self.td.keys.clear();
         self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash);
+        self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
             let mut legal_moves = gen_moves(&self.board, MoveFilter::All);
@@ -172,7 +194,7 @@ impl UCI {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash);
+                    self.td.keys.push(self.board.hash());
                     self.td.root_ply += 1;
                 }
                 None => {
@@ -187,56 +209,86 @@ impl UCI {
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
 
-        if tokens.contains(&String::from("movetime")) {
-            match self.parse_uint(&tokens, "movetime") {
-                Ok(movetime) => {
-                    self.td.limits = SearchLimits::new(None, Some(movetime), None, None, None)
-                }
+        let nodes = if tokens.contains(&String::from("nodes")) {
+            match self.parse_uint(&tokens, "nodes") {
+                Ok(nodes) => Some(nodes),
                 Err(_) => {
-                    println!("info error: movetime is not a valid number");
+                    println!("info error: nodes is not a valid number");
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("wtime")) {
-            let wtime = match self.parse_uint(&tokens, "wtime") {
-                Ok(wtime) => wtime,
-                Err(_) => {
-                    println!("info error: wtime is not a valid number");
-                    return;
-                }
-            };
+        } else {
+            None
+        };
 
-            let btime = match self.parse_uint(&tokens, "btime") {
-                Ok(btime) => btime,
+        let movetime = if tokens.contains(&String::from("movetime")) {
+            match self.parse_uint(&tokens, "movetime") {
+                Ok(movetime) => Some(movetime),
                 Err(_) => {
-                    println!("info error: btime is not a valid number");
-                    return;
+                    println!("info error: movetime is not a valid number");
+                    Some(500)
                 }
-            };
+            }
+        } else {
+            None
+        };
 
-            let winc = match self.parse_uint(&tokens, "winc") {
-                Ok(winc) => winc,
-                Err(_) => {
-                    println!("info error: winc is not a valid number");
-                    return;
-                }
-            };
+        let fischer = if tokens.contains(&String::from("wtime")) {
+            let wtime = self.parse_uint(&tokens, "wtime").unwrap_or_else(|_| {
+                println!("info error: wtime is not a valid number");
+                500
+            });
 
-            let binc = match self.parse_uint(&tokens, "binc") {
-                Ok(binc) => binc,
-                Err(_) => {
-                    println!("info error: binc is not a valid number");
-                    return;
-                }
-            };
+            let btime = self.parse_uint(&tokens, "btime").unwrap_or_else(|_| {
+                println!("info error: btime is not a valid number");
+                500
+            });
+
+            let winc = self.parse_uint(&tokens, "winc").unwrap_or_else(|_| {
+                println!("info error: winc is not a valid number");
+                0
+            });
+
+            let binc = self.parse_uint(&tokens, "binc").unwrap_or_else(|_| {
+                println!("info error: binc is not a valid number");
+                0
+            });
 
             let (time, inc) = match self.board.stm {
                 White => (wtime, winc),
                 Black => (btime, binc),
             };
 
-            self.td.limits = SearchLimits::new(Some((time, inc)), None, None, None, None);
-        }
+            Some((time, inc))
+        } else {
+            None
+        };
+
+        let softnodes = if tokens.contains(&String::from("softnodes")) {
+            match self.parse_uint(&tokens, "softnodes") {
+                Ok(softnodes) => Some(softnodes),
+                Err(_) => {
+                    println!("info error: softnodes is not a valid number");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let depth = if tokens.contains(&String::from("depth")) {
+            match self.parse_uint(&tokens, "depth") {
+                Ok(depth) => Some(depth),
+                Err(_) => {
+                    println!("info error: depth is not a valid number");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
         // Perform the search
         search(&self.board, &mut self.td);
@@ -269,8 +321,8 @@ impl UCI {
             }
         };
 
-        let start = std::time::Instant::now();
-        let nodes = perft(&self.board, depth);
+        let start = Instant::now();
+        let nodes = perft(&self.board, depth, depth);
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);

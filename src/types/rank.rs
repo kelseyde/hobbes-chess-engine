@@ -52,15 +52,16 @@ impl Rank {
         }
     }
 
+    #[inline(always)]
     pub const fn to_bb(self) -> Bitboard {
         Rank::BB[self as usize]
     }
 
-    pub fn to_char(self) -> char {
+    pub const fn to_char(self) -> char {
         Rank::CHARS[self as usize]
     }
 
-    pub fn from_char(c: char) -> Option<Rank> {
+    pub const fn from_char(c: char) -> Option<Rank> {
         match c {
             '1' => Some(Rank::One),
             '2' => Some(Rank::Two),

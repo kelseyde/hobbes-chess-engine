@@ -25,6 +25,15 @@ pub const EP_KEYS: [u64; 64] = [15924569520556073402, 9944164381255554503, 10054
 pub const CASTLE_KEYS: [u64; 16] = [8406779754442449593, 871698248595409707, 8792824521864740815, 4589510442007724706, 4083044191740519165, 6740404646480981973, 15570744254755882244, 2329145575591560654, 510348464190612988, 9157648730753369883, 14254612341539302221, 8855270439616209896, 13893838058836631177, 12622557577655849614, 12093051889040103024, 1772028295636336235];
 pub const SIDE_KEY: u64 = 4747071328949516916;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Keys {
+    pub hash: u64,                 // Zobrist hash for the board
+    pub pawn_hash: u64,            // Zobrist hash for pawns
+    pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
+    pub major_hash: u64,           // Zobrist hash for major pieces
+    pub minor_hash: u64,           // Zobrist hash for minor pieces
+}
+
 pub struct Zobrist;
 
 impl Zobrist {
@@ -44,7 +53,7 @@ impl Zobrist {
         }
 
         // Add castling rights
-        hash ^= CASTLE_KEYS[board.castle as usize];
+        hash ^= CASTLE_KEYS[board.rights.hash() as usize];
 
         // Add side to move
         if board.stm == Side::Black {
@@ -188,9 +197,9 @@ mod test {
     }
 
     fn assert_hash(fen1: &str, fen2: &str, m: &Move) {
-        let mut board1 = Board::from_fen(fen1);
+        let mut board1 = Board::from_fen(fen1).unwrap();
         board1.make(m);
-        let board2 = Board::from_fen(fen2);
-        assert_eq!(board1.hash, board2.hash);
+        let board2 = Board::from_fen(fen2).unwrap();
+        assert_eq!(board1.hash(), board2.hash());
     }
 }

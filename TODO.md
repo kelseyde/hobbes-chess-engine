@@ -24,7 +24,7 @@
 - [x] NMP eval-based reduction
 - [x] NMP TT capture
 - [ ] Increment NMP base reduction
-- [ ] NMP verification search
+- [x] NMP verification search
 - [ ] NMP TT condition
 
 #### LMR
@@ -56,8 +56,8 @@
 - [x] Skip quiets
 - [x] FP history
 - [x] FP movecount
-- [ ] PVS SEE quiet history
-- [ ] PVS SEE noisy history
+- [x] PVS SEE quiet history
+- [x] PVS SEE noisy history
 - [ ] Use LMR depth in more places
 - [x] Qs evasion pruning
 - [ ] Qs guard recaptures
@@ -91,7 +91,7 @@
 - [x] Double extensions
 - [ ] Triple extensions
 - [x] Negative extensions
-- [ ] Double negative extensions
+- [x] Double negative extensions
 - [x] Multicut
 
 ### Misc search

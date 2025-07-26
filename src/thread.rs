@@ -1,9 +1,9 @@
 use std::time::Instant;
 
 use crate::correction::CorrectionHistories;
+use crate::evaluation::network::NNUE;
 use crate::history::Histories;
 use crate::moves::Move;
-use crate::evaluation::network::NNUE;
 use crate::search::{Score, SearchStack, MAX_PLY};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
@@ -26,6 +26,7 @@ pub struct ThreadData {
     pub nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
+    pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
 }
@@ -50,6 +51,7 @@ impl Default for ThreadData {
             nodes: 0,
             depth: 0,
             seldepth: 0,
+            nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: Score::MIN,
         }
@@ -144,7 +146,7 @@ pub struct NodeTable {
 
 impl NodeTable {
 
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         NodeTable { table: [[0; 64]; 64] }
     }
 
@@ -156,7 +158,7 @@ impl NodeTable {
         self.table[mv.from()][mv.to()]
     }
 
-    pub fn clear(&mut self) {
+    pub const fn clear(&mut self) {
         *self = Self::new();
     }
 }

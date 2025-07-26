@@ -16,11 +16,13 @@ impl Piece {
 
     pub const COUNT: usize = 6;
 
-    pub fn is_major(self) -> bool {
+    #[inline(always)]
+    pub const fn is_major(self) -> bool {
         matches!(self, Piece::Queen | Piece::Rook | Piece::King)
     }
 
-    pub fn is_minor(self) -> bool {
+    #[inline(always)]
+    pub const fn is_minor(self) -> bool {
         matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
     }
 

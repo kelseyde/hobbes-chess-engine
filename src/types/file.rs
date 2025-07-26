@@ -1,5 +1,6 @@
 use crate::types::bitboard::Bitboard;
 use crate::types::square::Square;
+use std::ops::{Index, IndexMut};
 
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
@@ -52,6 +53,7 @@ impl File {
         }
     }
 
+    #[inline(always)]
     pub const fn to_bb(self) -> Bitboard {
         File::BB[self as usize]
     }
@@ -74,4 +76,22 @@ impl File {
         }
     }
 
+    pub fn iter() -> impl Iterator<Item = File> {
+        [File::A, File::B, File::C, File::D, File::E, File::F, File::G, File::H].iter().copied()
+    }
+
+}
+
+impl<T> Index<File> for [T] {
+    type Output = T;
+
+    fn index(&self, file: File) -> &Self::Output {
+        &self[file as usize]
+    }
+}
+
+impl<T> IndexMut<File> for [T] {
+    fn index_mut(&mut self, file: File) -> &mut Self::Output {
+        &mut self[file as usize]
+    }
 }
