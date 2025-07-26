@@ -1,6 +1,7 @@
 .idea
 *.iml
 hobbes-chess-engine
+data
 
 # Added by cargo
 

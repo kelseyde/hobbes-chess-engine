@@ -55,7 +55,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
-            if td.main {
+            if td.main && td.print {
                 print_search_info(td);
             }
 

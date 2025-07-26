@@ -12,6 +12,7 @@ use crate::tt::TranspositionTable;
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
+    pub print: bool,
     pub tt: TranspositionTable,
     pub pv: PrincipalVariationTable,
     pub ss: SearchStack,
@@ -44,6 +45,7 @@ impl ThreadData {
         ThreadData {
             id: 0,
             main: true,
+            print: true,
             tt: TranspositionTable::new(tt_size_mb),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),

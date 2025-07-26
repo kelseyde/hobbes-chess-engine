@@ -62,6 +62,7 @@ impl UCI {
                 "fen" => self.handle_fen(),
                 "eval" => self.handle_eval(),
                 "perft" => self.handle_perft(tokens),
+                "datagen" => self.handle_datagen(tokens),
                 "help" => self.handle_help(),
                 #[cfg(feature = "tuning")]
                 "params" => print_params_ob(),
@@ -346,15 +347,10 @@ impl UCI {
             0
         });
         
-        let description: Option<String> = tokens.iter()
-            .position(|x| x == "description")
-            .and_then(|index| tokens.get(index + 1).cloned());
-        
         let options = DataGenOptions {
             num_games: num_games as usize,
             num_threads: num_threads as usize,
             soft_nodes: soft_nodes as usize,
-            description,
         };
         
         let result = datagen::generate(options);

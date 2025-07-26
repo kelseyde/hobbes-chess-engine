@@ -7,10 +7,9 @@ use rand::{Rng};
 use rand::rngs::ThreadRng;
 use crate::board::Board;
 use crate::{fen, movegen, search};
-use ctrlc;
 use chrono::{Utc};
 use viriformat::chess::board::{DrawType, GameOutcome, WinType};
-use viriformat::chess::{chessmove, types};
+use viriformat::chess::{chessmove};
 use viriformat::chess::chessmove::MoveFlags;
 use viriformat::chess::piece::PieceType;
 use viriformat::dataformat::Game;
@@ -27,12 +26,10 @@ use crate::types::square::Square;
 
 const DFRC_PERCENT: usize = 10;
 
-static ABORT: AtomicBool = AtomicBool::new(false);
 static FENS_GENERATED: AtomicU64 = AtomicU64::new(0);
 
+#[derive(Copy, Clone)]
 pub struct DataGenOptions {
-    // An optional description to append to the filename
-    pub description: Option<String>,
     // Number of games to generate
     pub num_games: usize,
     // Number of threads to use
@@ -46,11 +43,6 @@ pub fn generate(options: DataGenOptions) -> Result<String, String> {
 
     // Reset the datagen global data for a new datagen run
     FENS_GENERATED.store(0, Ordering::SeqCst);
-    ABORT.store(false, Ordering::SeqCst);
-    ctrlc::set_handler(move || {
-        ABORT.store(true, Ordering::SeqCst);
-        println!("aborting datagen...")
-    }).expect("failed to set ctrlc handler");
 
     // Generate the ID for this datagen run
     let run_id = format!("hobbes{}{}",
@@ -60,136 +52,126 @@ pub fn generate(options: DataGenOptions) -> Result<String, String> {
 
     // Create the directory for the data
     let data_dir = PathBuf::from("data").join(run_id);
+    let path = data_dir.as_path();
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| format!("failed to create data directory: {}", e))?;
 
-    // let mut counters = Vec::new();
-    let num_threads = options.num_threads;
+    println!("starting datagen with {} games, {} threads, soft nodes: {}",
+             options.num_games, options.num_threads, options.soft_nodes);
 
-    // std::thread::scope(|s| {
-    //     let handles = (0..num_threads)
-    //         .map(|id| {
-    //             // Using a different rng per thread guarantees
-    //             // that each thread gets a unique sequence.
-    //             s.spawn(move || {
-    //                 let mut rng = rand::rng();
-    //                 generate_for_thread(id, &mut rng, &options, &data_dir);
-    //             })
-    //         })
-    //         .collect::<Vec<_>>();
-    //     for handle in handles {
-    //         if let Ok(res) = handle.join() {
-    //             counters.push(res);
-    //         } else {
-    //             println!("failed to join thread")
-    //         }
-    //     }
-    // });
+    std::thread::scope(|s| {
+        let handles = (0..options.num_threads)
+            .map(|id| s.spawn(move || {
+                let mut rng = rand::rng();
+                let opt_ref = &options;
+                generate_for_thread(id, &mut rng, opt_ref, path);
+            }))
+            .collect::<Vec<_>>();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    });
 
     Ok("datagen complete".to_string())
 
 }
 
-// fn generate_for_thread(id: usize,
-//                        rng: &mut ThreadRng,
-//                        options: &DataGenOptions,
-//                        data_dir: &Path) -> usize {
-//
-//     let mut td = ThreadData::new(2);
-//
-//     let num_games = options.num_games / options.num_threads;
-//     let mut output_file = File::create(data_dir.join(format!("thread_{id}.bin")))
-//         .expect("failed to create output file!");
-//     let mut output_buffer = BufWriter::new(&mut output_file);
-//     td.limits = SearchLimits::node_limits(
-//         options.soft_nodes as u64,
-//         (options.soft_nodes * 8) as u64
-//     );
-//
-//
-//     let start = Instant::now();
-//     'game_loop: for game in 0..num_games {
-//
-//         // Reset thread state for a new game
-//         td.clear();
-//         let mut board = generate_startpos(rng).expect("failed to generate startpos!");
-//
-//         // Skip wildly unbalanced exits
-//         td.nnue.activate(&board);
-//         if td.nnue.evaluate(&board).abs() > 1000 {
-//             continue;
-//         }
-//
-//         let mut game: Game = Game::new(board.into());
-//
-//         let mut win_adj_counter = 0;
-//         let mut draw_adj_counter = 0;
-//         let outcome = loop {
-//
-//             let outcome = game_outcome(&td, &board);
-//             if outcome != GameOutcome::Ongoing {
-//                 break outcome;
-//             }
-//             td.reset();
-//             td.start_time = Instant::now();
-//             td.tt.birthday();
-//
-//             let (best_move, score) = search(&board, &mut td);
-//             if !best_move.exists() {
-//                 println!("error: search returned null best move");
-//                 continue 'game_loop;
-//             }
-//
-//             game.add_move(best_move.into(), score as i16);
-//
-//             let abs_score = score.abs();
-//             if abs_score >= 2500 {
-//                 win_adj_counter += 1;
-//                 draw_adj_counter = 0;
-//             } else if abs_score <= 4 {
-//                 draw_adj_counter += 1;
-//                 win_adj_counter = 0;
-//             } else {
-//                 win_adj_counter = 0;
-//                 draw_adj_counter = 0;
-//             }
-//
-//             if win_adj_counter >= 4 {
-//                 break win_adjudication_outcome(score);
-//             }
-//             if draw_adj_counter >= 12 {
-//                 break GameOutcome::Draw(DrawType::Adjudication);
-//             }
-//
-//             if Score::is_mate(score) {
-//                 break mate_outcome(&board, score);
-//             }
-//
-//             board.make(&best_move);
-//
-//         };
-//
-//         let count = game.len();
-//         game.set_outcome(outcome);
-//
-//         game.serialise_into(&mut output_buffer)
-//             .expect("Failed to serialise game into output buffer.");
-//
-//         FENS_GENERATED.fetch_add(count as u64, Ordering::SeqCst);
-//
-//         if ABORT.load(Ordering::SeqCst) {
-//             break 'game_loop;
-//         }
-//
-//     }
-//
-//     output_buffer
-//         .flush()
-//         .expect("failed to flush output buffer to file");
-//
-//     0
-//
-// }
+fn generate_for_thread(id: usize,
+                       rng: &mut ThreadRng,
+                       options: &DataGenOptions,
+                       data_dir: &Path) -> u32 {
+
+    let mut td = ThreadData::new(2);
+    td.print = false;
+
+    let num_games = options.num_games / options.num_threads;
+    let mut output_file = File::create(data_dir.join(format!("thread_{id}.bin")))
+        .expect("failed to create output file!");
+    let mut output_buffer = BufWriter::new(&mut output_file);
+    td.limits = SearchLimits::node_limits(
+        options.soft_nodes as u64,
+        (options.soft_nodes * 8) as u64
+    );
+
+    'game_loop: for _ in 0..num_games {
+
+        // Reset thread state for a new game
+        td.clear();
+        let mut board = generate_startpos(rng).expect("failed to generate startpos!");
+
+        // Skip wildly unbalanced exits
+        td.nnue.activate(&board);
+        if td.nnue.evaluate(&board).abs() > 1000 {
+            continue;
+        }
+
+        let viri_board: viriformat::chess::board::Board = board.into();
+        let mut game: Game = Game::new(&viri_board);
+
+        let mut win_adj_counter = 0;
+        let mut draw_adj_counter = 0;
+        let outcome = loop {
+
+            let outcome = game_outcome(&td, &board);
+            if outcome != GameOutcome::Ongoing {
+                break outcome;
+            }
+            td.reset();
+            td.start_time = Instant::now();
+            td.tt.birthday();
+
+            let (best_move, score) = search(&board, &mut td);
+            if !best_move.exists() {
+                println!("error: search returned null best move");
+                continue 'game_loop;
+            }
+
+            game.add_move(best_move.into(), score as i16);
+
+            let abs_score = score.abs();
+            if abs_score >= 2500 {
+                win_adj_counter += 1;
+                draw_adj_counter = 0;
+            } else if abs_score <= 4 {
+                draw_adj_counter += 1;
+                win_adj_counter = 0;
+            } else {
+                win_adj_counter = 0;
+                draw_adj_counter = 0;
+            }
+
+            if win_adj_counter >= 4 {
+                break win_adjudication_outcome(score);
+            }
+            if draw_adj_counter >= 12 {
+                break GameOutcome::Draw(DrawType::Adjudication);
+            }
+
+            if Score::is_mate(score) {
+                break mate_outcome(&board, score);
+            }
+
+            board.make(&best_move);
+
+        };
+
+        let count = game.len();
+        game.set_outcome(outcome);
+
+        game.serialise_into(&mut output_buffer)
+            .expect("Failed to serialise game into output buffer.");
+
+        FENS_GENERATED.fetch_add(count as u64, Ordering::SeqCst);
+
+    }
+
+    output_buffer
+        .flush()
+        .expect("failed to flush output buffer to file");
+
+    0
+
+}
 
 fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     let random = rng.random_range(0..100);
