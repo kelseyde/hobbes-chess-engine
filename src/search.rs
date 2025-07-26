@@ -190,7 +190,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
         if Score::is_defined(tt_score)
             && bounds_match(tt_flag, tt_score, static_eval, static_eval) {
-
+            eval = tt_score;
         }
     };
 
@@ -251,7 +251,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta
+            && eval >= beta
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns() {
 
