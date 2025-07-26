@@ -1,18 +1,4 @@
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::Instant;
-use rand::{Rng};
-use rand::rngs::ThreadRng;
 use crate::board::Board;
-use crate::{fen, movegen, search};
-use chrono::{Utc};
-use viriformat::chess::board::{DrawType, GameOutcome, WinType};
-use viriformat::chess::{chessmove};
-use viriformat::chess::chessmove::MoveFlags;
-use viriformat::chess::piece::PieceType;
-use viriformat::dataformat::Game;
 use crate::moves::{Move, MoveFlag};
 use crate::search::{search, Score};
 use crate::thread::ThreadData;
@@ -20,13 +6,27 @@ use crate::time::SearchLimits;
 use crate::types::piece::Piece;
 use crate::types::side::Side;
 use crate::types::square::Square;
+use crate::{fen, movegen, search};
+use chrono::Utc;
+use rand::rngs::ThreadRng;
+use rand::Rng;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
+use viriformat::chess::board::{DrawType, GameOutcome, WinType};
+use viriformat::chess::chessmove::MoveFlags;
+use viriformat::chess::piece::PieceType;
+use viriformat::chess::chessmove;
+use viriformat::dataformat::Game;
 
 /// Generates training data for Hobbes' NNUE neural network.
 /// Stores data in viriformat using the viriformat crate, credit to Viridithas author.
 
 const DFRC_PERCENT: usize = 10;
 
-static FENS_GENERATED: AtomicU64 = AtomicU64::new(0);
+static FEN_COUNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Copy, Clone)]
 pub struct DataGenOptions {
@@ -42,13 +42,11 @@ pub struct DataGenOptions {
 pub fn generate(options: DataGenOptions) -> Result<String, String> {
 
     // Reset the datagen global data for a new datagen run
-    FENS_GENERATED.store(0, Ordering::SeqCst);
+    FEN_COUNT.store(0, Ordering::SeqCst);
 
     // Generate the ID for this datagen run
-    let run_id = format!("hobbes{}{}",
-                         // (*options).description.map(|d| format!("-{}-", d)).unwrap_or("-".to_string()),
-                        "",
-                         Utc::now().format("%Y-%m-%d_%H-%M-%S"));
+    let timestamp = Utc::now().format("%Y-%m-%d_%H-%M-%S");
+    let run_id = format!("hobbes-{}", timestamp);
 
     // Create the directory for the data
     let data_dir = PathBuf::from("data").join(run_id);
@@ -88,12 +86,29 @@ fn generate_for_thread(id: usize,
     let mut output_file = File::create(data_dir.join(format!("thread_{id}.bin")))
         .expect("failed to create output file!");
     let mut output_buffer = BufWriter::new(&mut output_file);
-    td.limits = SearchLimits::node_limits(
-        options.soft_nodes as u64,
-        (options.soft_nodes * 8) as u64
-    );
 
-    'game_loop: for _ in 0..num_games {
+    let soft_nodes = options.soft_nodes as u64;
+    let hard_nodes = (options.soft_nodes * 8) as u64;
+    td.limits = SearchLimits::node_limits(soft_nodes, hard_nodes);
+    let start = Instant::now();
+
+    'game_loop: for game in 0..num_games {
+
+        if id == 0 && game > 0 {
+            let percentage = game * 100_000 / num_games;
+            let percentage = percentage as f64 / 1000.0;
+            let time_per_game = start.elapsed().as_secs_f64() / game as f64;
+            let games_to_go = num_games as f64 - game as f64;
+            let time_remaining = games_to_go * time_per_game;
+            let fens = FEN_COUNT.load(Ordering::Relaxed);
+            let fps = FEN_COUNT.load(Ordering::Relaxed) as f64 / start.elapsed().as_secs_f64();
+            println!("main thread: \
+                games: {game}  ({percentage:.1}%), \
+                gps: {time_per_game:.2}, \
+                fens: {fens}, \
+                fps: {fps:.2} \
+                time remaining: {time_remaining:.2} seconds");
+        }
 
         // Reset thread state for a new game
         td.clear();
@@ -128,6 +143,7 @@ fn generate_for_thread(id: usize,
 
             game.add_move(best_move.into(), score as i16);
 
+            // todo adjudication logic into own thing
             let abs_score = score.abs();
             if abs_score >= 2500 {
                 win_adj_counter += 1;
@@ -161,7 +177,7 @@ fn generate_for_thread(id: usize,
         game.serialise_into(&mut output_buffer)
             .expect("Failed to serialise game into output buffer.");
 
-        FENS_GENERATED.fetch_add(count as u64, Ordering::SeqCst);
+        FEN_COUNT.fetch_add(count as u64, Ordering::SeqCst);
 
     }
 
@@ -176,9 +192,11 @@ fn generate_for_thread(id: usize,
 fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     let random = rng.random_range(0..100);
     let mut board = if random < DFRC_PERCENT {
+        println!("frc");
         let random = rng.random_range(0..960 * 960);
         Board::from_dfrc_idx(random)
     } else {
+        println!("standard");
         Board::from_fen(fen::STARTPOS)?
     };
 
@@ -192,6 +210,8 @@ fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
         let mv = moves.get(rng.random_range(0..moves.len()));
         board.make(&mv.unwrap().mv);
     }
+
+    println!("startpos: {}", board.to_fen());
 
     Ok(board)
 }
