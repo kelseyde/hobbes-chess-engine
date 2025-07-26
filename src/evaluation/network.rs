@@ -12,6 +12,7 @@ use crate::types::square::Square;
 use crate::types::{castling, File};
 use crate::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
+use crate::parameters::{material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen, scale_value_rook};
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1024;
@@ -86,6 +87,7 @@ impl NNUE {
         output += NETWORK.output_bias as i32;
         output *= SCALE;
         output /= QAB;
+        output = scale_evaluation(board, output);
         output
 
     }
@@ -343,6 +345,23 @@ fn king_bucket(sq: Square, side: Side) -> usize {
 #[inline(always)]
 fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
+}
+
+fn scale_evaluation(board: &Board, eval: i32) -> i32 {
+    let phase = material_phase(board);
+    eval * (material_scaling_base() + phase) / 32768
+}
+
+fn material_phase(board: &Board) -> i32 {
+    let knights = board.pieces(Knight).count();
+    let bishops = board.pieces(Bishop).count();
+    let rooks = board.pieces(Rook).count();
+    let queens = board.pieces(Queen).count();
+
+    scale_value_knight() * knights as i32
+    + scale_value_bishop() * bishops as i32
+    + scale_value_rook() * rooks as i32
+    + scale_value_queen() * queens as i32
 }
 
 #[cfg(test)]

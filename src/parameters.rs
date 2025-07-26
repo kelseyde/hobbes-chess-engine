@@ -98,6 +98,11 @@ tunable_params! {
     see_value_bishop            = 309, 200, 500, 50;
     see_value_rook              = 521, 400, 700, 50;
     see_value_queen             = 843, 800, 1200, 50;
+    scale_value_knight          = 450, 300, 500, 25;
+    scale_value_bishop          = 450, 300, 500, 25;
+    scale_value_rook            = 650, 500, 700, 25;
+    scale_value_queen           = 1250, 1000, 1400, 25;
+    material_scaling_base       = 26500, 10000, 40000, 150;
     qs_futility_threshold       = 138, 80, 250, 10;
     qs_see_threshold            = -27, -200, 100, 25;
 }
