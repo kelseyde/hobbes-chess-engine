@@ -180,11 +180,18 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut eval = Score::MIN;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+        eval = static_eval;
+
+        if Score::is_defined(tt_score)
+            && bounds_match(tt_flag, tt_score, static_eval, static_eval) {
+
+        }
     };
 
     td.ss[ply].static_eval = static_eval;
