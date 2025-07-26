@@ -257,7 +257,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
-                + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
+                + ((eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
                 + tt_move_noisy as i32;
 
             let mut board = *board;
