@@ -355,6 +355,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         if !pv_node
             && !root_node
             && !is_mate_score
+            && !in_check
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
