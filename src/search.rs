@@ -82,6 +82,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
+        delta = asp_delta();
         td.depth += 1;
     }
 
