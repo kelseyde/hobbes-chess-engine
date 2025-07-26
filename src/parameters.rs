@@ -10,6 +10,7 @@ tunable_params! {
     rfp_base                    = -1, -50, 50, 10;
     rfp_scale                   = 59, 40, 100, 10;
     rfp_improving_scale         = 80, 40, 100, 10;
+    rfp_tt_move_noisy_scale     = 30, 0, 70, 10;
     razor_base                  = 303, 200, 500, 25;
     razor_scale                 = 249, 100, 400, 25;
     nmp_min_depth               = 3, 0, 8, 1;
@@ -17,7 +18,7 @@ tunable_params! {
     nmp_depth_divisor           = 3, 1, 4, 1;
     nmp_eval_divisor            = 168, 100, 300, 25;
     nmp_eval_max_reduction      = 4, 2, 6, 1;
-    iir_min_depth               = 5, 1, 10, 1;
+    iir_min_depth               = 4, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;
     hindsight_ext_min_depth     = 1, 1, 5, 1;
     hindsight_ext_min_reduction = 3, 1, 5, 1;
