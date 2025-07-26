@@ -631,6 +631,11 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         };
     }
 
+    // Depth-dependent fail-firm (deranged SF dark magic)
+    if best_score >= beta && !Score::is_mate(best_score) && !Score::is_mate(beta) {
+        best_score = (best_score * depth + beta) / (depth + 1);
+    }
+
     // Update static eval correction history.
     if !in_check
         && !singular_search
