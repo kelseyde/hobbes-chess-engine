@@ -208,7 +208,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
         let prev_mv = td.ss[ply - 1].mv.unwrap();
         let prev_threats = td.ss[ply - 1].threats;
 
-        let value = -dynamic_policy_mult() * -(static_eval + prev_eval);
+        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
         let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
         td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, bonus);
     }
