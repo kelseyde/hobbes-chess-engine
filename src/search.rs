@@ -292,7 +292,8 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
-    let mut move_picker = MovePicker::new(tt_move, ply, threats);
+    let killer = td.ss[ply].killer.unwrap_or(Move::NONE);
+    let mut move_picker = MovePicker::new(tt_move, killer, ply, threats);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;

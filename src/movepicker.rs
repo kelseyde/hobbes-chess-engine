@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies, Killer};
 use crate::moves::{Move, MoveList, MoveListEntry};
 use crate::see::see;
 use crate::thread::ThreadData;
@@ -13,6 +13,7 @@ pub enum Stage {
     TTMove,
     GenerateNoisies,
     GoodNoisies,
+    Killer,
     GenerateQuiets,
     Quiets,
     BadNoisies,
@@ -25,6 +26,7 @@ pub struct MovePicker {
     idx: usize,
     pub stage: Stage,
     tt_move: Move,
+    killer: Move,
     ply: usize,
     threats: Bitboard,
     pub skip_quiets: bool,
@@ -34,7 +36,7 @@ pub struct MovePicker {
 
 impl MovePicker {
 
-    pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
+    pub fn new(tt_move: Move, killer: Move, ply: usize, threats: Bitboard) -> Self {
         let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
             moves: MoveList::new(),
@@ -42,6 +44,7 @@ impl MovePicker {
             idx: 0,
             stage,
             tt_move,
+            killer,
             ply,
             threats,
             skip_quiets: false,
@@ -58,6 +61,7 @@ impl MovePicker {
             idx: 0,
             stage,
             tt_move,
+            killer: Move::NONE,
             ply,
             threats,
             skip_quiets: true,
@@ -94,7 +98,18 @@ impl MovePicker {
                 return Some(best_move)
             } else {
                 self.idx = 0;
+                self.stage = Killer;
+            }
+        }
+        if self.stage == Killer {
+            if self.skip_quiets {
+                self.idx = 0;
+                self.stage = BadNoisies;
+            } else {
                 self.stage = GenerateQuiets;
+                if self.killer.exists() && board.is_pseudo_legal(&self.killer) {
+                    return Some(self.killer);
+                }
             }
         }
         if self.stage == GenerateQuiets {
@@ -143,9 +158,7 @@ impl MovePicker {
         } else {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, &td.ss, mv, ply, threats);
-            let is_killer = td.ss[ply].killer == Some(*mv);
-            let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score;
+            entry.score = quiet_score;
         }
 
     }
@@ -178,7 +191,7 @@ impl MovePicker {
 
             if let Some(best_move) = moves.get(self.idx) {
                 let mv = best_move.mv;
-                if mv == self.tt_move {
+                if mv == self.tt_move || mv == self.killer {
                     self.idx += 1;
                     continue;
                 }
