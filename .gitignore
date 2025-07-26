@@ -3,7 +3,6 @@
 hobbes-chess-engine
 data
 
-# Added by cargo
 
 /target
 flamegraph.svg
