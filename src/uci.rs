@@ -4,7 +4,8 @@ use std::time::Instant;
 
 use crate::bench::bench;
 use crate::board::Board;
-use crate::fen;
+use crate::datagen::{DataGenOptions};
+use crate::{datagen, fen};
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
 use crate::perft::perft;
@@ -326,6 +327,42 @@ impl UCI {
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);
+    }
+
+    fn handle_datagen(&self, tokens: Vec<String>) {
+        
+        let num_games = self.parse_uint(&tokens, "games").unwrap_or_else(|_| {
+            println!("info error: 'games' is not specified");
+            0 // todo
+        });
+        
+        let num_threads = self.parse_uint(&tokens, "threads").unwrap_or_else(|_| {
+            println!("info error: 'threads' is not specified");
+            0
+        });
+        
+        let soft_nodes = self.parse_uint(&tokens, "nodes").unwrap_or_else(|_| {
+            println!("info error: 'nodes' is not specified");
+            0
+        });
+        
+        let description: Option<String> = tokens.iter()
+            .position(|x| x == "description")
+            .and_then(|index| tokens.get(index + 1).cloned());
+        
+        let options = DataGenOptions {
+            num_games: num_games as usize,
+            num_threads: num_threads as usize,
+            soft_nodes: soft_nodes as usize,
+            description,
+        };
+        
+        let result = datagen::generate(options);
+        match result {
+            Ok(message) => println!("{}", message),
+            Err(e) => println!("info error: {}", e),
+        }
+        
     }
 
     fn handle_stop(&mut self) {
