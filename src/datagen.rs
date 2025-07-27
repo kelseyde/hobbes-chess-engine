@@ -3,7 +3,7 @@ use crate::moves::{Move, MoveFlag};
 use crate::search::{search, Score};
 use crate::thread::ThreadData;
 use crate::time::SearchLimits;
-use crate::types::piece::Piece;
+use crate::types::piece::{Piece, PIECES};
 use crate::types::side::Side;
 use crate::types::square::Square;
 use crate::{fen, movegen, search};
@@ -19,6 +19,8 @@ use viriformat::chess::board::{DrawType, GameOutcome, WinType};
 use viriformat::chess::chessmove::MoveFlags;
 use viriformat::chess::piece::PieceType;
 use viriformat::chess::chessmove;
+use viriformat::chess::piecelayout::PieceLayout;
+use viriformat::chess::squareset::SquareSet;
 use viriformat::dataformat::Game;
 
 /// Generates training data for Hobbes' NNUE neural network.
@@ -36,6 +38,17 @@ pub struct DataGenOptions {
     pub num_threads: usize,
     // The soft node limit to use during search
     pub soft_nodes: usize,
+}
+
+#[derive(Copy, Clone)]
+pub struct Arbiter {
+    win_adj_counter: usize,
+    win_adj_ply_threshold: usize,
+    win_adj_score_threshold: i32,
+
+    draw_adj_counter: usize,
+    draw_adj_ply_threshold: usize,
+    draw_adj_score_threshold: i32,
 }
 
 // #[cfg(feature = "dategen")]
@@ -120,14 +133,12 @@ fn generate_for_thread(id: usize,
             continue;
         }
 
-        let viri_board: viriformat::chess::board::Board = board.into();
-        let mut game: Game = Game::new(&viri_board);
+        let mut game: Game = Game::new(&board.into());
 
-        let mut win_adj_counter = 0;
-        let mut draw_adj_counter = 0;
+        let mut arbiter = Arbiter::default();
         let outcome = loop {
 
-            let outcome = game_outcome(&td, &board);
+            let outcome = arbiter.game_outcome(&td, &board);
             if outcome != GameOutcome::Ongoing {
                 break outcome;
             }
@@ -143,28 +154,9 @@ fn generate_for_thread(id: usize,
 
             game.add_move(best_move.into(), score as i16);
 
-            // todo adjudication logic into own thing
-            let abs_score = score.abs();
-            if abs_score >= 2500 {
-                win_adj_counter += 1;
-                draw_adj_counter = 0;
-            } else if abs_score <= 4 {
-                draw_adj_counter += 1;
-                win_adj_counter = 0;
-            } else {
-                win_adj_counter = 0;
-                draw_adj_counter = 0;
-            }
-
-            if win_adj_counter >= 4 {
-                break win_adjudication_outcome(score);
-            }
-            if draw_adj_counter >= 12 {
-                break GameOutcome::Draw(DrawType::Adjudication);
-            }
-
-            if Score::is_mate(score) {
-                break mate_outcome(&board, score);
+            let outcome = arbiter.adjudicate(&board, score);
+            if outcome != GameOutcome::Ongoing {
+                break outcome;
             }
 
             board.make(&best_move);
@@ -192,11 +184,9 @@ fn generate_for_thread(id: usize,
 fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     let random = rng.random_range(0..100);
     let mut board = if random < DFRC_PERCENT {
-        println!("frc");
-        let random = rng.random_range(0..960 * 960);
-        Board::from_dfrc_idx(random)
+        let scharnagl_idx = rng.random_range(0..960 * 960);
+        Board::from_dfrc_idx(scharnagl_idx)
     } else {
-        println!("standard");
         Board::from_fen(fen::STARTPOS)?
     };
 
@@ -204,7 +194,8 @@ fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     for _ in 0..random_plies {
         let moves = movegen::gen_legal_moves(&board);
         if moves.is_empty() {
-            // Recursively try again
+            // If we reached a terminal position,
+            // recursively generate a new startpos
             return generate_startpos(rng);
         }
         let mv = moves.get(rng.random_range(0..moves.len()));
@@ -216,54 +207,89 @@ fn generate_startpos(rng: &mut ThreadRng) -> Result<Board, String> {
     Ok(board)
 }
 
-fn game_outcome(td: &ThreadData, board: &Board) -> GameOutcome {
+impl Default for Arbiter {
+    fn default() -> Self {
+        Arbiter {
+            win_adj_counter: 0,
+            win_adj_score_threshold: 2500,
+            win_adj_ply_threshold: 4,
+            draw_adj_counter: 0,
+            draw_adj_ply_threshold: 12,
+            draw_adj_score_threshold: 4,
+        }
+    }
+}
 
-    if board.is_fifty_move_rule() {
-        return GameOutcome::Draw(DrawType::FiftyMoves);
-    }
-    if board.is_insufficient_material() {
-        return GameOutcome::Draw(DrawType::InsufficientMaterial);
-    }
-    if search::is_repetition(board, td, false) {
-        return GameOutcome::Draw(DrawType::Repetition);
-    }
-    let legal_moves = movegen::gen_legal_moves(board);
-    if legal_moves.is_empty() {
-        return if movegen::is_check(board, board.stm) {
-            match board.stm {
-                Side::White => GameOutcome::BlackWin(WinType::Mate),
-                Side::Black => GameOutcome::WhiteWin(WinType::Mate)
+impl Arbiter {
+
+    pub fn game_outcome(&self, td: &ThreadData, board: &Board) -> GameOutcome {
+
+        if board.is_fifty_move_rule() {
+            return GameOutcome::Draw(DrawType::FiftyMoves);
+        }
+        if board.is_insufficient_material() {
+            return GameOutcome::Draw(DrawType::InsufficientMaterial);
+        }
+        if search::is_repetition(board, td, false) {
+            return GameOutcome::Draw(DrawType::Repetition);
+        }
+        let legal_moves = movegen::gen_legal_moves(board);
+        if legal_moves.is_empty() {
+            return if movegen::is_check(board, board.stm) {
+                match board.stm {
+                    Side::White => GameOutcome::BlackWin(WinType::Mate),
+                    Side::Black => GameOutcome::WhiteWin(WinType::Mate)
+                }
+            } else {
+                GameOutcome::Draw(DrawType::Stalemate)
             }
-        } else {
-            GameOutcome::Draw(DrawType::Stalemate)
         }
+        GameOutcome::Ongoing
+
     }
-    GameOutcome::Ongoing
 
-}
-
-fn win_adjudication_outcome(score: i32) -> GameOutcome {
-    if score > 0 {
-        GameOutcome::WhiteWin(WinType::Adjudication)
-    } else {
-        GameOutcome::BlackWin(WinType::Adjudication)
-    }
-}
-
-fn mate_outcome(board: &Board, score: i32) -> GameOutcome {
-    if score.is_positive() {
-        if board.stm == Side::White {
-            GameOutcome::WhiteWin(WinType::Mate)
+    pub fn adjudicate(&mut self, board: &Board, score: i32) -> GameOutcome {
+        let abs_score = score.abs();
+        if abs_score >= self.win_adj_score_threshold {
+            self.win_adj_counter += 1;
+            self.draw_adj_counter = 0;
+        } else if abs_score <= self.draw_adj_score_threshold {
+            self.draw_adj_counter += 1;
+            self.win_adj_counter = 0;
         } else {
-            GameOutcome::BlackWin(WinType::Mate)
+            self.win_adj_counter = 0;
+            self.draw_adj_counter = 0;
         }
-    } else {
-        if board.stm == Side::White {
-            GameOutcome::BlackWin(WinType::Mate)
-        } else {
-            GameOutcome::WhiteWin(WinType::Mate)
+
+        if self.win_adj_counter >= self.win_adj_ply_threshold {
+            return if score > 0 {
+                GameOutcome::WhiteWin(WinType::Adjudication)
+            } else {
+                GameOutcome::BlackWin(WinType::Adjudication)
+            };
         }
+        if self.draw_adj_counter >= self.draw_adj_ply_threshold {
+            return GameOutcome::Draw(DrawType::Adjudication);
+        }
+
+        if Score::is_mate(score) {
+            return if score.is_positive() {
+                if board.stm == Side::White {
+                    GameOutcome::WhiteWin(WinType::Mate)
+                } else {
+                    GameOutcome::BlackWin(WinType::Mate)
+                }
+            } else {
+                if board.stm == Side::White {
+                    GameOutcome::BlackWin(WinType::Mate)
+                } else {
+                    GameOutcome::WhiteWin(WinType::Mate)
+                }
+            }
+        };
+        GameOutcome::Ongoing
     }
+
 }
 
 // TODO cfg features datagen
@@ -271,8 +297,45 @@ impl Into<viriformat::chess::board::Board> for Board {
 
     fn into(self) -> viriformat::chess::board::Board {
         let mut board = viriformat::chess::board::Board::new();
+
+        let pieces: [SquareSet; 6] = PIECES.iter()
+            .map(|&piece| SquareSet::from_inner(self.pieces(piece).0))
+            .collect::<Vec<SquareSet>>()
+            .try_into()
+            .expect("failed to convert piece bbs to array");
+        let colours: [SquareSet; 2] = [Side::White, Side::Black]
+            .iter()
+            .map(|&side| SquareSet::from_inner(self.side(side).0))
+            .collect::<Vec<SquareSet>>()
+            .try_into()
+            .expect("failed to convert side bbs to array");
+
+        board.pieces = PieceLayout { pieces, colours };
+        board.piece_array = Square::iter()
+            .map(|sq| {
+                self.piece_at(sq).map(|pc| {
+                    let colour = match self.side_at(sq).unwrap() {
+                        Side::White => viriformat::chess::piece::Colour::White,
+                        Side::Black => viriformat::chess::piece::Colour::Black,
+                    };
+                    let piece_type = match pc {
+                        Piece::Pawn => PieceType::Pawn,
+                        Piece::Knight => PieceType::Knight,
+                        Piece::Bishop => PieceType::Bishop,
+                        Piece::Rook => PieceType::Rook,
+                        Piece::Queen => PieceType::Queen,
+                        Piece::King => PieceType::King,
+                    };
+                    viriformat::chess::piece::Piece::new(colour, piece_type)
+                })
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("failed to convert piece array to array of Option<Piece>");
+
+
         // todo dfrc tofen
-        board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
+        // board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
         board
     }
 
