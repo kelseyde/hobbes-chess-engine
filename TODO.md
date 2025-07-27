@@ -41,7 +41,7 @@
 - [ ] Corrplexity LMR
 - [ ] Futility LMR
 - [ ] LMR if no TT-PV
-- [ ] Cutoff-count LMR
+- [x] Cutoff-count LMR
 
 #### Move-loop pruning
 - [x] Late move pruning
