@@ -194,6 +194,25 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
     let improving = is_improving(td, ply, static_eval);
 
+    // Hindsight history updates
+    // Use the difference between the static eval in the current node and parent node to update the
+    // history score for the parent move.
+    if !in_check
+        && !root_node
+        && !singular_search
+        && td.ss[ply - 1].mv.is_some()
+        && td.ss[ply - 1].captured.is_none()
+        && Score::is_defined(td.ss[ply - 1].static_eval) {
+
+        let prev_eval = td.ss[ply - 1].static_eval;
+        let prev_mv = td.ss[ply - 1].mv.unwrap();
+        let prev_threats = td.ss[ply - 1].threats;
+
+        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
+        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
+        td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, bonus);
+    }
+
     // Hindsight extension
     // If we reduced depth in the parent node, but now the static eval indicates the position is
     // improving, we correct the reduction 'in hindsight' by extending depth in the current node.
