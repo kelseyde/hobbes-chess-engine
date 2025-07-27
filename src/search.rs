@@ -194,7 +194,7 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
     let improving = is_improving(td, ply, static_eval);
 
-    // Dynamic policy
+    // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
     if !in_check
