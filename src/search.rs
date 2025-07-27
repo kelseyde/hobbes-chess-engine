@@ -90,7 +90,13 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 }
 
 #[rustfmt::skip]
-fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mut alpha: i32, beta: i32, cut_node: bool) -> i32 {
+fn alpha_beta(board: &Board,
+              td: &mut ThreadData,
+              mut depth: i32,
+              ply: usize,
+              mut alpha: i32,
+              mut beta: i32,
+              cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -131,6 +137,14 @@ fn alpha_beta(board: &Board, td: &mut ThreadData, mut depth: i32, ply: usize, mu
     // If the maximum depth is reached, return the static evaluation of the position
     if ply >= MAX_PLY {
         return td.nnue.evaluate(board);
+    }
+
+    // Mate Distance Pruning
+    // If we have already found a mate, prune nodes where no shorter mate is possible
+    alpha = alpha.max(Score::mated_in(ply));
+    beta = beta.min(Score::mate_in(ply));
+    if alpha >= beta {
+        return alpha;
     }
 
     // Clear the principal variation for this ply.
@@ -1084,7 +1098,7 @@ impl IndexMut<usize> for SearchStack {
 
 pub const MAX_DEPTH: i32 = 255;
 
-pub struct Score {}
+pub struct Score;
 
 impl Score {
     pub const DRAW: i32 = 0;
@@ -1099,4 +1113,13 @@ impl Score {
     pub const fn is_defined(score: i32) -> bool {
         score >= -Score::MATE && score <= Score::MATE
     }
+
+    pub const fn mate_in(ply: usize) -> i32 {
+        Score::MATE - ply as i32
+    }
+
+    pub const fn mated_in(ply: usize) -> i32 {
+        -Score::MATE + ply as i32
+    }
+
 }
