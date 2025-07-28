@@ -46,7 +46,7 @@ impl Default for ThreadData {
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
-            node_table: NodeTable::new(),
+            node_table: NodeTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
@@ -145,11 +145,13 @@ pub struct NodeTable {
     table: Box<[[u64; 64]; 64]>,
 }
 
-impl NodeTable {
-
-    pub fn new() -> Self {
+impl Default for NodeTable {
+    fn default() -> Self {
         NodeTable { table: unsafe { boxed_and_zeroed() } }
     }
+}
+
+impl NodeTable {
 
     pub fn add(&mut self, mv: &Move, nodes: u64) {
         self.table[mv.from()][mv.to()] += nodes;
@@ -160,7 +162,7 @@ impl NodeTable {
     }
 
     pub fn clear(&mut self) {
-        *self = Self::new();
+        *self = Self::default();
     }
 }
 
