@@ -12,6 +12,7 @@ use crate::types::piece::Piece;
 use crate::{movegen, see};
 use arrayvec::ArrayVec;
 use std::ops::{Index, IndexMut};
+use rand::Rng;
 
 pub const MAX_PLY: usize = 256;
 
@@ -23,7 +24,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     td.pv.clear(0);
-    td.nnue.activate(board);
+    // td.nnue.activate(board);
 
     let root_moves = movegen::gen_legal_moves(board);
     match root_moves.len {
@@ -140,7 +141,8 @@ fn alpha_beta(board: &Board,
 
     // If the maximum depth is reached, return the static evaluation of the position
     if ply >= MAX_PLY {
-        return td.nnue.evaluate(board);
+        // return td.nnue.evaluate(board);
+        return td.rng.random_range(-4000..4000);
     }
 
     // Mate Distance Pruning
@@ -200,7 +202,8 @@ fn alpha_beta(board: &Board,
     let mut static_eval = Score::MIN;
 
     if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+        // let raw_eval = td.nnue.evaluate(board);
+        let raw_eval = td.rng.random_range(-4000..4000);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
@@ -475,7 +478,7 @@ fn alpha_beta(board: &Board,
         // We have decided that the current move should not be pruned and is worth searching further.
         // Therefore, we make the move on the board and search the resulting position.
         let mut board = *board;
-        td.nnue.update(&mv, pc, captured, &board);
+        // td.nnue.update(&mv, pc, captured, &board);
         board.make(&mv);
 
         td.ss[ply].mv = Some(mv);
@@ -551,7 +554,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].pc = None;
         td.ss[ply].captured = None;
         td.keys.pop();
-        td.nnue.undo();
+        // td.nnue.undo();
 
         if root_node {
             td.node_table.add(&mv, td.nodes - initial_nodes);
@@ -715,7 +718,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // If the maximum depth is reached, return the static evaluation of the position.
     if ply >= MAX_PLY {
-        return td.nnue.evaluate(board);
+        // return td.nnue.evaluate(board);
+        return td.rng.random_range(-4000..4000);
     }
 
     // Determine if we are currently in check.
@@ -741,7 +745,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut static_eval = -Score::MATE + ply as i32;
 
     if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+        // let raw_eval = td.nnue.evaluate(board);
+        let raw_eval = td.rng.random_range(-4000..4000);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
 
@@ -803,7 +808,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         let mut board = *board;
-        td.nnue.update(&mv, pc, captured, &board);
+        // td.nnue.update(&mv, pc, captured, &board);
 
         board.make(&mv);
         td.ss[ply].mv = Some(mv);
@@ -821,7 +826,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.ss[ply].pc = None;
         td.ss[ply].captured = None;
         td.keys.pop();
-        td.nnue.undo();
+        // td.nnue.undo();
 
         if td.should_stop(Hard) {
             break;
@@ -1032,7 +1037,8 @@ fn format_score(score: i32) -> String {
 
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
-    let static_eval = td.nnue.evaluate(board);
+    // let static_eval = td.nnue.evaluate(board);
+    let static_eval = td.rng.random_range(-4000..4000);
     td.best_move = mv;
     td.best_score = static_eval;
     (td.best_move, td.best_score)

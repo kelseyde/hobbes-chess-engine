@@ -1,5 +1,6 @@
 use std::time::Instant;
-
+use rand::prelude::StdRng;
+use rand::{SeedableRng};
 use crate::correction::CorrectionHistories;
 use crate::evaluation::network::NNUE;
 use crate::history::Histories;
@@ -31,6 +32,7 @@ pub struct ThreadData {
     pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
+    pub rng: StdRng,
 }
 
 impl Default for ThreadData {
@@ -57,6 +59,7 @@ impl Default for ThreadData {
             nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: Score::MIN,
+            rng: StdRng::seed_from_u64(1234)
         }
     }
 }
