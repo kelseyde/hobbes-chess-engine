@@ -18,7 +18,7 @@ use std::time::Instant;
 use viriformat::chess::board::{DrawType, GameOutcome, WinType};
 use viriformat::chess::chessmove::MoveFlags;
 use viriformat::chess::piece::PieceType;
-use viriformat::chess::chessmove;
+use viriformat::chess::{chessmove, CHESS960};
 use viriformat::chess::piecelayout::PieceLayout;
 use viriformat::chess::squareset::SquareSet;
 use viriformat::dataformat::Game;
@@ -26,7 +26,7 @@ use viriformat::dataformat::Game;
 /// Generates training data for Hobbes' NNUE neural network.
 /// Stores data in viriformat using the viriformat crate, credit to Viridithas author.
 
-const DFRC_PERCENT: usize = 10;
+const DFRC_PERCENT: usize = 0;
 
 static FEN_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -296,46 +296,9 @@ impl Arbiter {
 impl Into<viriformat::chess::board::Board> for Board {
 
     fn into(self) -> viriformat::chess::board::Board {
+        CHESS960.store(self.is_frc(), Ordering::SeqCst);
         let mut board = viriformat::chess::board::Board::new();
-
-        let pieces: [SquareSet; 6] = PIECES.iter()
-            .map(|&piece| SquareSet::from_inner(self.pieces(piece).0))
-            .collect::<Vec<SquareSet>>()
-            .try_into()
-            .expect("failed to convert piece bbs to array");
-        let colours: [SquareSet; 2] = [Side::White, Side::Black]
-            .iter()
-            .map(|&side| SquareSet::from_inner(self.side(side).0))
-            .collect::<Vec<SquareSet>>()
-            .try_into()
-            .expect("failed to convert side bbs to array");
-
-        board.pieces = PieceLayout { pieces, colours };
-        board.piece_array = Square::iter()
-            .map(|sq| {
-                self.piece_at(sq).map(|pc| {
-                    let colour = match self.side_at(sq).unwrap() {
-                        Side::White => viriformat::chess::piece::Colour::White,
-                        Side::Black => viriformat::chess::piece::Colour::Black,
-                    };
-                    let piece_type = match pc {
-                        Piece::Pawn => PieceType::Pawn,
-                        Piece::Knight => PieceType::Knight,
-                        Piece::Bishop => PieceType::Bishop,
-                        Piece::Rook => PieceType::Rook,
-                        Piece::Queen => PieceType::Queen,
-                        Piece::King => PieceType::King,
-                    };
-                    viriformat::chess::piece::Piece::new(colour, piece_type)
-                })
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("failed to convert piece array to array of Option<Piece>");
-
-
-        // todo dfrc tofen
-        // board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
+        board.set_from_fen(self.to_fen().as_str()).expect("failed to set from fen!");
         board
     }
 

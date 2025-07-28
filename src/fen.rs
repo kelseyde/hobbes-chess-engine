@@ -136,17 +136,34 @@ impl Board {
         if self.rights.is_empty() {
             fen.push('-');
         } else {
-            if self.rights.kingside(White).is_some() {
-                fen.push('K');
-            }
-            if self.rights.queenside(White).is_some() {
-                fen.push('Q');
-            }
-            if self.rights.kingside(Black).is_some() {
-                fen.push('k');
-            }
-            if self.rights.queenside(Black).is_some() {
-                fen.push('q');
+            if self.is_frc() {
+                for (color, side) in &[(White, true), (White, false), (Black, true), (Black, false)] {
+                    let file_opt = if *side {
+                        self.rights.kingside(*color)
+                    } else {
+                        self.rights.queenside(*color)
+                    };
+                    if let Some(file) = file_opt {
+                        let mut ch = file.to_char();
+                        if *color == White {
+                            ch.make_ascii_uppercase();
+                        }
+                        fen.push(ch);
+                    }
+                }
+            } else {
+                if self.rights.kingside(White).is_some() {
+                    fen.push('K');
+                }
+                if self.rights.queenside(White).is_some() {
+                    fen.push('Q');
+                }
+                if self.rights.kingside(Black).is_some() {
+                    fen.push('k');
+                }
+                if self.rights.queenside(Black).is_some() {
+                    fen.push('q');
+                }
             }
         }
 
