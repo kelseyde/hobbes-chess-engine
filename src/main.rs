@@ -24,6 +24,7 @@ pub mod parameters;
 pub mod utils;
 pub mod correction;
 mod scharnagl;
+mod datagen;
 
 fn main() {
 
