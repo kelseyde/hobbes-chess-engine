@@ -46,6 +46,12 @@ fn generate_random_opening(td: &mut ThreadData,
         return generate_random_opening(td, rng, random_moves);
     }
 
+    let legal_moves = movegen::gen_legal_moves(&board);
+    // If we reached a terminal position, retry recursively
+    if legal_moves.is_empty() {
+        return generate_random_opening(td, rng, random_moves);
+    }
+
     board.to_fen()
 }
 
