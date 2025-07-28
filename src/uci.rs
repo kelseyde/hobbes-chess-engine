@@ -75,6 +75,7 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
+        println!("option name Minimal type check default false");
         #[cfg(feature = "tuning")]
         list_params();
         println!("uciok");
@@ -92,6 +93,7 @@ impl UCI {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "threads", "value", _] => return, // TODO set threads
             ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
+            ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
@@ -121,6 +123,19 @@ impl UCI {
         };
         self.board.set_frc(value);
         println!("info string Chess960 {}", value);
+    }
+
+    fn set_minimal(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.td.minimal_output = value;
+        println!("info string Minimal {}", value);
     }
 
     #[cfg(feature = "tuning")]
