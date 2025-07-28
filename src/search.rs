@@ -268,7 +268,9 @@ fn alpha_beta(board: &Board,
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
+        if depth <= rfp_max_depth()
+            && (!tt_move.exists() || tt_move_noisy)
+            && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
 
