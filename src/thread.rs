@@ -7,6 +7,7 @@ use crate::moves::Move;
 use crate::search::{Score, SearchStack, MAX_PLY};
 use crate::time::{LimitType, SearchLimits};
 use crate::tt::TranspositionTable;
+use crate::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
     pub id: usize,
@@ -47,7 +48,7 @@ impl Default for ThreadData {
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
-            node_table: NodeTable::new(),
+            node_table: NodeTable::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
@@ -143,14 +144,16 @@ impl ThreadData {
 }
 
 pub struct NodeTable {
-    table: [[u64; 64]; 64],
+    table: Box<[[u64; 64]; 64]>,
+}
+
+impl Default for NodeTable {
+    fn default() -> Self {
+        NodeTable { table: unsafe { boxed_and_zeroed() } }
+    }
 }
 
 impl NodeTable {
-
-    pub const fn new() -> Self {
-        NodeTable { table: [[0; 64]; 64] }
-    }
 
     pub fn add(&mut self, mv: &Move, nodes: u64) {
         self.table[mv.from()][mv.to()] += nodes;
@@ -160,13 +163,13 @@ impl NodeTable {
         self.table[mv.from()][mv.to()]
     }
 
-    pub const fn clear(&mut self) {
-        *self = Self::new();
+    pub fn clear(&mut self) {
+        *self = Self::default();
     }
 }
 
 pub struct PrincipalVariationTable {
-    table: [[Move; MAX_PLY + 1]; MAX_PLY + 1],
+    table: Box<[[Move; MAX_PLY + 1]; MAX_PLY + 1]>,
     len: [usize; MAX_PLY + 1],
 }
 
@@ -196,14 +199,14 @@ impl PrincipalVariationTable {
 impl Default for PrincipalVariationTable {
     fn default() -> Self {
         Self {
-            table: [[Move::NONE; MAX_PLY + 1]; MAX_PLY + 1],
+            table: unsafe { boxed_and_zeroed() },
             len: [0; MAX_PLY + 1],
         }
     }
 }
 
 pub struct LmrTable {
-    table: [[i32; 64]; 256],
+    table: Box<[[i32; 64]; 256]>,
 }
 
 impl LmrTable {
@@ -217,7 +220,7 @@ impl Default for LmrTable {
         let base = 0.92;
         let divisor = 3.11;
 
-        let mut table = [[0; 64]; 256];
+        let mut table: Box<[[i32; 64]; 256]> = unsafe { boxed_and_zeroed() };
 
         for depth in 1..256 {
             for move_count in 1..64 {
