@@ -55,7 +55,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
-            if td.main {
+            if td.main && !td.minimal_output {
                 print_search_info(td);
             }
 
@@ -84,6 +84,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
         delta = asp_delta();
         td.depth += 1;
+    }
+
+    if td.main && td.minimal_output {
+        print_search_info(td);
     }
 
     (td.best_move, td.best_score)
