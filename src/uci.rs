@@ -30,9 +30,15 @@ impl UCI {
     }
 
     pub fn run(&mut self, args: &[String]) {
+
         if args.len() > 1 && args[1] == "bench" {
             println!("Running benchmark...");
             self.handle_bench();
+            return;
+        }
+        if args.len() > 1 && args[1].contains("genfens") {
+            let tokens = self.split_args(args[1].clone());
+            self.handle_genfens(tokens);
             return;
         }
 
@@ -45,10 +51,7 @@ impl UCI {
                 .read_line(&mut command)
                 .expect("info error failed to parse command");
 
-            let tokens: Vec<String> = command
-                .split_whitespace()
-                .map(|v| v.trim().to_string())
-                .collect();
+            let tokens = self.split_args(command.clone());
 
             match command.split_ascii_whitespace().next().unwrap() {
                 "uci" => self.handle_uci(),
@@ -349,7 +352,7 @@ impl UCI {
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
 
-        let count = self.parse_uint(&tokens, "count").unwrap_or_else(|_| {
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
             println!("info error: count is not a valid number");
             0
         }) as usize;
@@ -402,6 +405,12 @@ impl UCI {
             },
             None => Err(format!("info error: {} is missing", name)),
         }
+    }
+
+    fn split_args(&self, args_str: String) -> Vec<String> {
+        args_str.split_whitespace()
+            .map(|v| v.trim().to_string())
+            .collect()
     }
 
 }
