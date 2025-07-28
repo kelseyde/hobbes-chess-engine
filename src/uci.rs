@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use crate::bench::bench;
 use crate::board::Board;
+use crate::datagen::generate_random_openings;
 use crate::fen;
 use crate::movegen::{gen_moves, MoveFilter};
 use crate::moves::Move;
@@ -61,6 +62,7 @@ impl UCI {
                 "fen" => self.handle_fen(),
                 "eval" => self.handle_eval(),
                 "perft" => self.handle_perft(tokens),
+                "genfens" => self.handle_genfens(tokens),
                 "help" => self.handle_help(),
                 #[cfg(feature = "tuning")]
                 "params" => print_params_ob(),
@@ -341,6 +343,30 @@ impl UCI {
         let elapsed = start.elapsed().as_millis();
         println!("info nodes {}", nodes);
         println!("info ms {}", elapsed);
+    }
+
+    /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
+    /// be used in an OB datagen workload.
+    fn handle_genfens(&mut self, tokens: Vec<String>) {
+
+        let count = self.parse_uint(&tokens, "count").unwrap_or_else(|_| {
+            println!("info error: count is not a valid number");
+            0
+        }) as usize;
+
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or_else(|_| {
+            println!("info error: seed is not a valid number");
+            0
+        });
+
+        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or_else(|_| {
+            8
+        }) as usize;
+
+        for opening in generate_random_openings(&mut self.td, count, seed, random_moves) {
+            println!("info string genfens {}", opening);
+        }
+
     }
 
     fn handle_stop(&mut self) {
