@@ -412,5 +412,4 @@ impl UCI {
             .map(|v| v.trim().to_string())
             .collect()
     }
-
 }
