@@ -81,6 +81,7 @@ impl UCI {
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
         println!("option name Minimal type check default false");
+        println!("option name UseSoftNodes type check default false");
         #[cfg(feature = "tuning")]
         list_params();
         println!("uciok");
@@ -99,6 +100,7 @@ impl UCI {
             ["setoption", "name", "threads", "value", _] => return, // TODO set threads
             ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
             ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
+            ["setoption", "name", "usesoftnodes", "value", bool_str] => self.set_use_soft_nodes(bool_str),
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => { println!("info error unknown option"); }
@@ -141,6 +143,19 @@ impl UCI {
         };
         self.td.minimal_output = value;
         println!("info string Minimal {}", value);
+    }
+
+    fn set_use_soft_nodes(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.td.use_soft_nodes = value;
+        println!("info string UseSoftNodes {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -229,7 +244,7 @@ impl UCI {
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
 
-        let nodes = if tokens.contains(&String::from("nodes")) {
+        let nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -289,6 +304,14 @@ impl UCI {
                 Ok(softnodes) => Some(softnodes),
                 Err(_) => {
                     println!("info error: softnodes is not a valid number");
+                    return;
+                }
+            }
+        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+            match self.parse_uint(&tokens, "nodes") {
+                Ok(nodes) => Some(nodes),
+                Err(_) => {
+                    println!("info error: nodes is not a valid number");
                     return;
                 }
             }
