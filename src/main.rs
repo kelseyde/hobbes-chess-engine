@@ -27,20 +27,12 @@ mod scharnagl;
 
 fn main() {
 
-    let builder = std::thread::Builder::new()
-        .name("test".into())
-        .stack_size(1 * 1024 * 1024); // 1MB stack
+    // Initialise static data
+    ray::init();
 
-    let handle = builder.spawn(|| {
-        // Initialise static data
-        ray::init();
-
-        // Start up the UCI (Universal Chess Interface)
-        let args: Vec<String> = std::env::args().collect();
-        UCI::new().run(&args);
-    }).unwrap();
-
-    handle.join().unwrap();
+    // Start up the UCI (Universal Chess Interface)
+    let args: Vec<String> = std::env::args().collect();
+    UCI::new().run(&args);
 
 }
 
