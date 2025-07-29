@@ -55,7 +55,7 @@ tunable_params! {
     se_depth_divisor            = 2, 1, 4, 1;
     se_double_ext_margin        = 19, 10, 30, 5;
     lmr_min_depth               = 3, 1, 5, 1;
-    lmr_min_moves               = 3, 1, 4, 1;
+    lmr_min_moves               = 2, 1, 4, 1;
     lmr_pv_node                 = 1083, 0, 2048, 256;
     lmr_cut_node                = 1155, 0, 2048, 256;
     lmr_improving               = 1039, 0, 2048, 256;
