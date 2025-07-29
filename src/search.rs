@@ -1018,7 +1018,7 @@ fn print_search_info(td: &mut ThreadData) {
     // if td.pv.line().is_empty() {
     //     print!(" {}", td.pv.best_move().to_uci());
     // }
-    print!(" {}", td.pv.best_move().to_uci());
+    print!(" {}", td.best_move);
     println!();
 
 }
