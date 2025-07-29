@@ -86,7 +86,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         td.depth += 1;
     }
 
-    if td.main && td.minimal_output {
+    // Print the final search stats
+    if td.main {
         print_search_info(td);
     }
 
@@ -1033,8 +1034,10 @@ fn format_score(score: i32) -> String {
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
     let static_eval = td.nnue.evaluate(board);
+    td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
+    print_search_info(td);
     (td.best_move, td.best_score)
 }
 
