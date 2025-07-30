@@ -15,7 +15,7 @@ use arrayvec::ArrayVec;
 use crate::parameters::{material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen, scale_value_rook};
 
 pub const FEATURES: usize = 768;
-pub const HIDDEN: usize = 1024;
+pub const HIDDEN: usize = 32;
 pub const SCALE: i32 = 400;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
@@ -38,11 +38,11 @@ pub const BUCKETS: [usize; 64] = [
 ];
 
 pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/calvin1024_8b.nnue")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/hobbes-random.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
-    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
+    pub feature_weights: FeatureWeights,
     pub feature_bias: [i16; HIDDEN],
     pub output_weights: [[i16; HIDDEN]; 2],
     pub output_bias: i16,
@@ -117,11 +117,15 @@ impl NNUE {
         self.stack[self.current] = Accumulator::default();
         self.cache = InputBucketCache::default();
 
-        let w_mirror = should_mirror(board.king_sq(White));
-        let b_mirror = should_mirror(board.king_sq(Black));
+        // let w_mirror = should_mirror(board.king_sq(White));
+        let w_mirror = false;
+        // let b_mirror = should_mirror(board.king_sq(Black));
+        let b_mirror = false;
 
-        let w_bucket = king_bucket(board.king_sq(White), White);
-        let b_bucket = king_bucket(board.king_sq(Black), Black);
+        // let w_bucket = king_bucket(board.king_sq(White), White);
+        let w_bucket = 0;
+        // let b_bucket = king_bucket(board.king_sq(Black), Black);
+        let b_bucket = 0;
 
         self.full_refresh(board, self.current, White, w_mirror, w_bucket);
         self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
@@ -163,7 +167,7 @@ impl NNUE {
             }
         }
 
-        let weights = &NETWORK.feature_weights[bucket];
+        let weights = &NETWORK.feature_weights;
 
         for add in adds {
             acc.add(add, weights, perspective);
@@ -192,24 +196,26 @@ impl NNUE {
         let w_king_sq = king_square(board, *mv, new_pc, White);
         let b_king_sq = king_square(board, *mv, new_pc, Black);
 
-        let w_bucket = king_bucket(w_king_sq, White);
-        let b_bucket = king_bucket(b_king_sq, Black);
+        // let w_bucket = king_bucket(w_king_sq, White);
+        let w_bucket = 0;
+        // let b_bucket = king_bucket(b_king_sq, Black);
+        let b_bucket = 0;
 
-        let w_weights = &NETWORK.feature_weights[w_bucket];
-        let b_weights = &NETWORK.feature_weights[b_bucket];
+        let w_weights = &NETWORK.feature_weights;
+        let b_weights = &NETWORK.feature_weights;
 
-        let mirror_changed = mirror_changed(board, *mv, new_pc);
-        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
-        let refresh_required = mirror_changed || bucket_changed;
-
-        if refresh_required {
-            let bucket = if us == White { w_bucket } else { b_bucket };
-            let mut mirror = should_mirror(board.king_sq(us));
-            if mirror_changed {
-                mirror = !mirror
-            }
-            self.full_refresh(board, self.current, us, mirror, bucket);
-        }
+        // let mirror_changed = mirror_changed(board, *mv, new_pc);
+        // let bucket_changed = bucket_changed(board, *mv, new_pc, us);
+        // let refresh_required = mirror_changed || bucket_changed;
+        //
+        // if refresh_required {
+        //     let bucket = if us == White { w_bucket } else { b_bucket };
+        //     let mut mirror = should_mirror(board.king_sq(us));
+        //     if mirror_changed {
+        //         mirror = !mirror
+        //     }
+        //     self.full_refresh(board, self.current, us, mirror, bucket);
+        // }
 
         if mv.is_castle() {
             self.handle_castle(board, mv, us, w_weights, b_weights);
