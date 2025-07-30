@@ -23,4 +23,4 @@ export CARGO_BUILD_JOBS := $(JOBS)
 export CARGO_INCREMENTAL := 1
 
 openbench:
-	cargo rustc --release -p hobbes-chess-engine --jobs $(JOBS) -- $(RUSTFLAGS) --emit link=$(EXE)
+	cargo rustc --release --features "tuning" -p hobbes-chess-engine --jobs $(JOBS) -- $(RUSTFLAGS) --emit link=$(EXE)
