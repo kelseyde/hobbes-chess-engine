@@ -38,7 +38,7 @@ pub const BUCKETS: [usize; 64] = [
 ];
 
 pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/hobbes-random.nnue")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../hobbes.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
