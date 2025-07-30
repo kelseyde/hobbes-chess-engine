@@ -1,4 +1,4 @@
-NET ID        | ARCH            DESCRIPTION                  | vs. SELFGEN                                   | vs. CALVIN NET                               |
+NET ID        | ARCH           | DESCRIPTION                 | vs. SELFGEN                                   | vs. CALVIN NET                               |
 --------------|----------------|-----------------------------|-----------------------------------------------|----------------------------------------------|
 hobbes-random | (768->32)x2->1 | trained on random eval      | Elo   | 1199.83 +- 0.00 (95%)                 | Elo   | -1199.83 +- 0.00 (95%)               |
               |                | 33 million dataset          | SPRT  | 8.0+0.08s Threads=1 Hash=8MB          | Conf  | 8.0+0.08s Threads=1 Hash=8MB         |
