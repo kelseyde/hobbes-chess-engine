@@ -2,6 +2,7 @@
 *.iml
 hobbes-chess-engine
 data
+*.nnue
 
 
 /target
