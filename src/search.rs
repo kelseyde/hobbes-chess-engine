@@ -117,6 +117,7 @@ fn alpha_beta(board: &Board,
     // Determine if we are currently in check.
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+    let active_threats = !(threats & board.us()).is_empty();
     td.ss[ply].threats = threats;
 
     // Update the selective search depth
@@ -268,6 +269,7 @@ fn alpha_beta(board: &Board,
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
+            + rfp_active_threats_scale() * active_threats as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
