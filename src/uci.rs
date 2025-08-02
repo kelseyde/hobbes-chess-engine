@@ -244,7 +244,7 @@ impl UCI {
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
 
-        let nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -330,6 +330,13 @@ impl UCI {
         } else {
             None
         };
+
+        if let Some(soft_nodes) = softnodes {
+            if nodes.is_none() {
+                // When doing a soft-nodes search, always ensure a hard node limit is set.
+                nodes = Some(soft_nodes * 10);
+            }
+        }
 
         self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
