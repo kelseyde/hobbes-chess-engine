@@ -27,14 +27,14 @@ pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 pub const NUM_BUCKETS: usize = 8;
 
 pub const BUCKETS: [usize; 64] = [
-    0, 1, 2, 3, 3, 2, 1, 0,
-    4, 4, 5, 5, 5, 5, 4, 4,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 pub(crate) static NETWORK: Network =
@@ -117,10 +117,8 @@ impl NNUE {
         self.stack[self.current] = Accumulator::default();
         self.cache = InputBucketCache::default();
 
-        // let w_mirror = should_mirror(board.king_sq(White));
-        let w_mirror = false;
-        // let b_mirror = should_mirror(board.king_sq(Black));
-        let b_mirror = false;
+        let w_mirror = should_mirror(board.king_sq(White));
+        let b_mirror = should_mirror(board.king_sq(Black));
 
         // let w_bucket = king_bucket(board.king_sq(White), White);
         let w_bucket = 0;
@@ -196,26 +194,24 @@ impl NNUE {
         let w_king_sq = king_square(board, *mv, new_pc, White);
         let b_king_sq = king_square(board, *mv, new_pc, Black);
 
-        // let w_bucket = king_bucket(w_king_sq, White);
-        let w_bucket = 0;
-        // let b_bucket = king_bucket(b_king_sq, Black);
-        let b_bucket = 0;
+        let w_bucket = king_bucket(w_king_sq, White);
+        let b_bucket = king_bucket(b_king_sq, Black);
 
         let w_weights = &NETWORK.feature_weights;
         let b_weights = &NETWORK.feature_weights;
 
-        // let mirror_changed = mirror_changed(board, *mv, new_pc);
-        // let bucket_changed = bucket_changed(board, *mv, new_pc, us);
-        // let refresh_required = mirror_changed || bucket_changed;
-        //
-        // if refresh_required {
-        //     let bucket = if us == White { w_bucket } else { b_bucket };
-        //     let mut mirror = should_mirror(board.king_sq(us));
-        //     if mirror_changed {
-        //         mirror = !mirror
-        //     }
-        //     self.full_refresh(board, self.current, us, mirror, bucket);
-        // }
+        let mirror_changed = mirror_changed(board, *mv, new_pc);
+        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
+        let refresh_required = mirror_changed || bucket_changed;
+
+        if refresh_required {
+            let bucket = if us == White { w_bucket } else { b_bucket };
+            let mut mirror = should_mirror(board.king_sq(us));
+            if mirror_changed {
+                mirror = !mirror
+            }
+            self.full_refresh(board, self.current, us, mirror, bucket);
+        }
 
         if mv.is_castle() {
             self.handle_castle(board, mv, us, w_weights, b_weights);
