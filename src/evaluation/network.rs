@@ -15,7 +15,7 @@ use arrayvec::ArrayVec;
 use crate::parameters::{material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen, scale_value_rook};
 
 pub const FEATURES: usize = 768;
-pub const HIDDEN: usize = 768;
+pub const HIDDEN: usize = 1024;
 pub const SCALE: i32 = 400;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
