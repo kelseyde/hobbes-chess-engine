@@ -81,10 +81,10 @@ hobbes-13     | (768hm->768)x2->1 | source: hobbes 5 -> 12      | Elo   | 25.75 
               | optim: AdamW      | wdl: 100sb constant(0.2),   | Penta | [10, 191, 407, 288, 30]               | https://chess.n9x.co/test/3976/              |
               |                   |      300sb linear(0.2,0.4)  | https://chess.n9x.co/test/3975/               |                                              |
 --------------|-------------------|-----------------------------|-----------------------------------------------|----------------------------------------------|
-hobbes-14     | (768hm->768)x2->1 | source: hobbes 6 -> 12      |                                               |                                              |
-              | activ: screlu     | dataset: 1 billion          |                                               |                                              |
-              | scale: 400        | sb: 400                     |                                               |                                              |
-              | quant: [255,64]   | lr: cosine(0.001,0.0000081) |                                               |                                              |
-              | optim: AdamW      | wdl: 100sb constant(0.2),   |                                               |                                              |
-              |                   |      300sb linear(0.2,0.4)  |                                               |                                              |
+hobbes-14     | (768hm->768)x2->1 | source: hobbes 6 -> 12      | Elo   | 4.07 +- 3.14 (95%)                    | Elo   | -83.36 +- 9.02 (95%)                 |
+              | activ: screlu     | dataset: 1 billion          | SPRT  | 8.0+0.08s Threads=1 Hash=8MB          | Conf  | 8.0+0.08s Threads=1 Hash=8MB         |
+              | scale: 400        | sb: 400                     | LLR   | 2.55 (-2.23, 2.55) [0.00, 4.00]       | Games | N: 2026 W: 322 L: 799 D: 905         |
+              | quant: [255,64]   | lr: cosine(0.001,0.0000081) | Games | N: 14438 W: 3917 L: 3748 D: 6773      | Penta | [75, 436, 399, 97, 6]                |
+              | optim: AdamW      | wdl: 100sb constant(0.2),   | Penta | [125, 1629, 3543, 1796, 126]          | https://chess.n9x.co/test/3987/              |
+              |                   |      300sb linear(0.2,0.4)  | https://chess.n9x.co/test/3985/               |                                              |
 --------------|-------------------|-----------------------------|-----------------------------------------------|----------------------------------------------|
