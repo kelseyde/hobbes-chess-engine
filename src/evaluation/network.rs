@@ -24,17 +24,17 @@ pub const QAB: i32 = QA * QB;
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
-pub const NUM_BUCKETS: usize = 8;
+pub const NUM_BUCKETS: usize = 4;
 
 pub const BUCKETS: [usize; 64] = [
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 0, 0,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
 ];
 
 pub(crate) static NETWORK: Network =
@@ -42,7 +42,7 @@ pub(crate) static NETWORK: Network =
 
 #[repr(C, align(64))]
 pub struct Network {
-    pub feature_weights: FeatureWeights,
+    pub feature_weights: [FeatureWeights; NUM_BUCKETS],
     pub feature_bias: [i16; HIDDEN],
     pub output_weights: [[i16; HIDDEN]; 2],
     pub output_bias: i16,
@@ -120,10 +120,8 @@ impl NNUE {
         let w_mirror = should_mirror(board.king_sq(White));
         let b_mirror = should_mirror(board.king_sq(Black));
 
-        // let w_bucket = king_bucket(board.king_sq(White), White);
-        let w_bucket = 0;
-        // let b_bucket = king_bucket(board.king_sq(Black), Black);
-        let b_bucket = 0;
+        let w_bucket = king_bucket(board.king_sq(White), White);
+        let b_bucket = king_bucket(board.king_sq(Black), Black);
 
         self.full_refresh(board, self.current, White, w_mirror, w_bucket);
         self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
@@ -165,7 +163,7 @@ impl NNUE {
             }
         }
 
-        let weights = &NETWORK.feature_weights;
+        let weights = &NETWORK.feature_weights[bucket];
 
         for add in adds {
             acc.add(add, weights, perspective);
@@ -197,8 +195,8 @@ impl NNUE {
         let w_bucket = king_bucket(w_king_sq, White);
         let b_bucket = king_bucket(b_king_sq, Black);
 
-        let w_weights = &NETWORK.feature_weights;
-        let b_weights = &NETWORK.feature_weights;
+        let w_weights = &NETWORK.feature_weights[w_bucket];
+        let b_weights = &NETWORK.feature_weights[b_bucket];
 
         let mirror_changed = mirror_changed(board, *mv, new_pc);
         let bucket_changed = bucket_changed(board, *mv, new_pc, us);
