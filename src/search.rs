@@ -91,6 +91,13 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         print_search_info(td);
     }
 
+    // If time expired before a best move was found in search, pick the first legal move.
+    if !td.best_move.exists() {
+        if let Some(root_move) = root_moves.get(0) {
+            td.best_move = root_move.mv;
+        }
+    }
+
     (td.best_move, td.best_score)
 }
 
