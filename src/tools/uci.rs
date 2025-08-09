@@ -1,20 +1,18 @@
-use crate::types::side::Side::{Black, White};
+use crate::board::movegen::{gen_moves, MoveFilter};
+use crate::board::moves::Move;
+use crate::board::side::Side::{Black, White};
+use crate::board::Board;
+#[cfg(feature = "tuning")]
+use crate::search::parameters::{list_params, print_params_ob, set_param};
+use crate::search::search;
+use crate::search::thread::ThreadData;
+use crate::search::time::SearchLimits;
+use crate::tools::bench::bench;
+use crate::tools::datagen::generate_random_openings;
+use crate::tools::fen;
+use crate::tools::perft::perft;
 use std::io;
 use std::time::Instant;
-
-use crate::bench::bench;
-use crate::board::Board;
-use crate::datagen::generate_random_openings;
-use crate::fen;
-use crate::movegen::{gen_moves, MoveFilter};
-use crate::moves::Move;
-use crate::perft::perft;
-use crate::search::search;
-use crate::thread::ThreadData;
-use crate::time::SearchLimits;
-
-#[cfg(feature = "tuning")]
-use crate::parameters::{list_params, print_params_ob, set_param};
 
 pub struct UCI {
     pub board: Board,

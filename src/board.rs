@@ -1,15 +1,34 @@
-use crate::movegen::{is_attacked, is_check};
-use crate::types::bitboard::Bitboard;
-use crate::types::castling::{CastleSafety, CastleTravel, Rights};
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::side::Side::{Black, White};
-use crate::types::square::Square;
-use crate::types::{castling, File, Rank};
-use crate::zobrist::{Keys, Zobrist};
-use crate::{attacks, fen};
-use crate::{moves::Move, moves::MoveFlag};
+pub mod attacks;
+pub mod magics;
+pub mod zobrist;
+pub mod bitboard;
+pub mod square;
+pub mod file;
+pub mod rank;
+pub mod piece;
+pub mod side;
+pub mod castling;
+pub mod ray;
+pub mod movegen;
+pub mod moves;
 
+use crate::board::castling::{CastleSafety, CastleTravel, Rights};
+use crate::board::file::File;
+use crate::board::movegen::{is_attacked, is_check};
+use crate::board::rank::Rank;
+use crate::board::zobrist::{Keys, Zobrist};
+use crate::tools::fen;
+use bitboard::Bitboard;
+use moves::{Move, MoveFlag};
+use piece::Piece;
+use side::Side;
+use side::Side::{Black, White};
+use square::Square;
+
+/// Represents the current state of the chess board, including the positions of the pieces, the side
+/// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
+/// and 'unmake' moves on the board. Uses bitboards to represent the pieces and 'toggling' functions
+/// to set and unset pieces.
 #[derive(Clone, Copy)]
 pub struct Board {
     pub bb: [Bitboard; 8],         // bitboards for each piece type (0-5) and for both colours (6-7)
@@ -567,8 +586,8 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::moves::{Move, MoveFlag};
     use crate::board::Board;
-    use crate::moves::{Move, MoveFlag};
 
     #[test]
     fn standard_move() {

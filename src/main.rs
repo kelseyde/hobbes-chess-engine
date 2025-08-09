@@ -1,30 +1,10 @@
-use crate::types::ray;
-use crate::uci::UCI;
+use crate::tools::uci::UCI;
+use board::ray;
 
-pub mod attacks;
-pub mod bench;
 pub mod board;
-pub mod fen;
-pub mod magics;
-pub mod movegen;
-pub mod moves;
-pub mod perft;
-pub mod search;
-pub mod thread;
-pub mod uci;
-pub mod zobrist;
-pub mod tt;
-pub mod history;
-pub mod see;
-pub mod types;
-pub mod time;
-pub mod movepicker;
 pub mod evaluation;
-pub mod parameters;
-pub mod utils;
-pub mod correction;
-mod scharnagl;
-mod datagen;
+pub mod search;
+pub mod tools;
 
 fn main() {
 

@@ -1,12 +1,11 @@
+use crate::board::bitboard::Bitboard;
+use crate::board::movegen::{gen_moves, MoveFilter};
+use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::Board;
-use crate::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::moves::{Move, MoveList, MoveListEntry};
-use crate::see::see;
-use crate::thread::ThreadData;
-use crate::types::bitboard::Bitboard;
-use crate::{movegen, see};
-use movegen::{gen_moves, MoveFilter};
+use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::search::see;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {

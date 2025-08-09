@@ -1,13 +1,14 @@
-use crate::attacks;
+use crate::board::bitboard::Bitboard;
+use crate::board::castling::{CastleSafety, CastleTravel};
+use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
+use crate::board::piece::Piece;
+use crate::board::side::Side;
+use crate::board::side::Side::White;
+use crate::board::square::Square;
 use crate::board::Board;
-use crate::moves::{MoveFlag, MoveList, MoveListEntry};
-use crate::types::bitboard::Bitboard;
-use crate::types::castling::{CastleSafety, CastleTravel};
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::side::Side::White;
-use crate::types::square::Square;
-use crate::types::{castling, ray, File, Rank};
+use crate::board::{attacks, castling, ray};
+use crate::board::file::File;
+use crate::board::rank::Rank;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {

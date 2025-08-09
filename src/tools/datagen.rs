@@ -1,8 +1,8 @@
+use crate::board::{movegen, Board};
+use crate::search::thread::ThreadData;
+use crate::tools::fen;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use crate::board::Board;
-use crate::{fen, movegen};
-use crate::thread::ThreadData;
 
 pub fn generate_random_openings(td: &mut ThreadData,
                                 count: usize,

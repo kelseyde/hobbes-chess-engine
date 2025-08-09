@@ -1,7 +1,8 @@
-use crate::types::bitboard::Bitboard;
-use crate::types::side::Side;
-use crate::types::square::Square;
-use crate::types::{File, Rank};
+use crate::board::bitboard::Bitboard;
+use crate::board::file::File;
+use crate::board::rank::Rank;
+use crate::board::side::Side;
+use crate::board::square::Square;
 
 // Check if the castling move is kingside or queenside
 pub fn is_kingside(from: Square, to: Square) -> bool {
@@ -217,10 +218,11 @@ impl CastleTravel {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::castling::Rights;
+    use crate::board::moves::Move;
+    use crate::board::side::Side;
     use crate::board::Board;
-    use crate::moves::Move;
-    use crate::types::castling::Rights;
-    use crate::types::side::Side;
+    use crate::board::file::File;
     use crate::types::File;
 
     #[test]

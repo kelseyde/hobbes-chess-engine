@@ -1,6 +1,6 @@
-use crate::types::square::Square;
-use crate::types::File;
+use crate::board::square::Square;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, Shr};
+use crate::board::file::File;
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Debug)]
 #[repr(transparent)]

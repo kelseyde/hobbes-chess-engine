@@ -1,5 +1,6 @@
-use crate::types::{File, Rank};
 use std::ops::{Index, IndexMut};
+use crate::board::file::File;
+use crate::board::rank::Rank;
 
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 #[repr(transparent)]
