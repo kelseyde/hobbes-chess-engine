@@ -98,7 +98,7 @@ impl NNUE {
         #[cfg(target_feature = "avx2")]
         {
             use crate::evaluation::simd::avx2;
-            let weights = &crate::evaluation::network::NETWORK.output_weights;
+            let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(not(target_feature = "avx2"))]
