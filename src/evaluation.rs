@@ -1,3 +1,9 @@
+pub mod accumulator;
+pub mod cache;
+pub mod feature;
+pub mod network;
+pub mod simd;
+
 use crate::board::file::File;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
@@ -14,12 +20,6 @@ use crate::search::parameters::{material_scaling_base, scale_value_bishop, scale
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
-
-pub mod accumulator;
-pub mod cache;
-pub mod feature;
-pub mod network;
-pub mod simd;
 
 pub const PIECE_OFFSET: usize = 64;
 pub const SIDE_OFFSET: usize = 64 * 6;
