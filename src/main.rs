@@ -27,5 +27,3 @@ fn main() {
     UCI::new().run(&args);
 
 }
-
-
