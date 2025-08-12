@@ -2,7 +2,6 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
-use crate::evaluation::{PIECE_OFFSET, SIDE_OFFSET};
 
 /// Represents a single feature used by the neural network. A feature is a piece on a square on the
 /// board, with a colour (white or black). The feature can either be activated - meaning the piece
@@ -13,6 +12,9 @@ pub struct Feature {
     sq: Square,
     side: Side
 }
+
+const PIECE_OFFSET: usize = 64;
+const SIDE_OFFSET: usize = 64 * 6;
 
 impl Feature {
 

@@ -272,10 +272,6 @@ pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bo
 #[inline(always)]
 pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> bool {
 
-    if sq.0 == 64 {
-        println!("err!");
-        println!("{}", board.to_fen());
-    }
     let knight_attacks = attacks::knight(sq) & board.knights(!side);
     if !knight_attacks.is_empty() {
         return true;
