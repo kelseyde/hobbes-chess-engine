@@ -116,7 +116,7 @@ impl NNUE {
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
     /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
     /// features of the board that have changed since the last refresh.
-    pub fn full_refresh(&mut self,
+    fn full_refresh(&mut self,
                         board: &Board,
                         idx: usize,
                         perspective: Side,
