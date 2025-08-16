@@ -1,4 +1,4 @@
-use crate::board::{movegen, Board};
+use crate::board::Board;
 use crate::search::thread::ThreadData;
 use crate::tools::fen;
 use rand::rngs::StdRng;
@@ -29,7 +29,7 @@ fn generate_random_opening(td: &mut ThreadData,
     let random_moves = if rng.random_bool(0.5) { random_moves } else { random_moves + 1 };
 
     for _ in 0..random_moves {
-        let legal_moves = movegen::gen_legal_moves(&board);
+        let legal_moves = board.gen_legal_moves();
 
         // If we reached a terminal position, retry recursively
         if legal_moves.is_empty() {
@@ -46,7 +46,7 @@ fn generate_random_opening(td: &mut ThreadData,
         return generate_random_opening(td, rng, random_moves);
     }
 
-    let legal_moves = movegen::gen_legal_moves(&board);
+    let legal_moves = board.gen_legal_moves();
     // If we reached a terminal position, retry recursively
     if legal_moves.is_empty() {
         return generate_random_opening(td, rng, random_moves);

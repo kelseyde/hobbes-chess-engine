@@ -1,6 +1,6 @@
-use std::ops::{Index, IndexMut};
 use crate::board::file::File;
 use crate::board::rank::Rank;
+use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 #[repr(transparent)]

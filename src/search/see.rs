@@ -142,7 +142,6 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::movegen;
     use crate::board::movegen::MoveFilter;
     use crate::board::Board;
     use std::fs;
@@ -163,7 +162,7 @@ mod tests {
             let threshold: i32 = threshold_str.parse().unwrap();
 
             let board = Board::from_fen(fen).unwrap();
-            let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+            let mut moves = board.gen_moves(MoveFilter::All);
             let mv = moves.iter()
                 .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
@@ -194,7 +193,7 @@ mod tests {
         let threshold: i32 = threshold_str.parse().unwrap();
 
         let board = Board::from_fen(fen).unwrap();
-        let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+        let mut moves = board.gen_moves(MoveFilter::All);
         let mv = moves.iter()
             .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)

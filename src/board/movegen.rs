@@ -1,14 +1,14 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
+use crate::board::file::File;
 use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
+use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::{attacks, castling, ray};
-use crate::board::file::File;
-use crate::board::rank::Rank;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -18,49 +18,53 @@ pub enum MoveFilter {
     Captures
 }
 
-pub fn gen_legal_moves(board: &Board) -> MoveList {
-    let mut moves = gen_moves(board, MoveFilter::All);
-    let mut legal_moves = MoveList::new();
-    for entry in moves.iter() {
-        if board.is_legal(&entry.mv) {
-            legal_moves.add(MoveListEntry {mv: entry.mv, score: 0})
-        }
-    }
-    legal_moves
-}
+impl Board {
 
-pub fn gen_moves(board: &Board, filter: MoveFilter) -> MoveList {
-    let side = board.stm;
-    let mut moves = MoveList::new();
-
-    let us = board.us();
-    let them = board.them();
-    let occ = us | them;
-
-    // handle special moves first (en passant, promo, castling etc.)
-    gen_pawn_moves(board, side, occ, them, filter, &mut moves);
-    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-        gen_castle_moves(board, side, &mut moves);
-    }
-
-    let filter_mask = match filter {
-        MoveFilter::All => Bitboard::ALL,
-        MoveFilter::Quiets => !them,
-        MoveFilter::Noisies => them,
-        MoveFilter::Captures => them
-    };
-
-    // handle standard moves
-    for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
-        for from in board.pcs(pc) & us {
-            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
-            for to in attacks {
-                moves.add_move(from, to, MoveFlag::Standard);
+    pub fn gen_legal_moves(&self) -> MoveList {
+        let mut moves = self.gen_moves(MoveFilter::All);
+        let mut legal_moves = MoveList::new();
+        for entry in moves.iter() {
+            if self.is_legal(&entry.mv) {
+                legal_moves.add(MoveListEntry {mv: entry.mv, score: 0})
             }
         }
+        legal_moves
     }
 
-    moves
+    pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+        let side = self.stm;
+        let mut moves = MoveList::new();
+
+        let us = self.us();
+        let them = self.them();
+        let occ = us | them;
+
+        // handle special moves first (en passant, promo, castling etc.)
+        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
+        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+            gen_castle_moves(self, side, &mut moves);
+        }
+
+        let filter_mask = match filter {
+            MoveFilter::All => Bitboard::ALL,
+            MoveFilter::Quiets => !them,
+            MoveFilter::Noisies => them,
+            MoveFilter::Captures => them
+        };
+
+        // handle standard moves
+        for &pc in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King].iter() {
+            for from in self.pcs(pc) & us {
+                let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+                for to in attacks {
+                    moves.add_move(from, to, MoveFlag::Standard);
+                }
+            }
+        }
+
+        moves
+    }
+
 }
 
 #[inline(always)]

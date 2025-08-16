@@ -1,11 +1,11 @@
 use crate::board::bitboard::Bitboard;
-use crate::board::movegen::{gen_moves, MoveFilter};
+use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::search::see;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -75,7 +75,7 @@ impl MovePicker {
         }
         if self.stage == GenerateNoisies {
             self.idx = 0;
-            let mut moves = gen_moves(board, self.filter);
+            let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
                 if self.see_threshold
@@ -101,7 +101,7 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.moves = gen_moves(board, MoveFilter::Quiets);
+                self.moves = board.gen_moves(MoveFilter::Quiets);
                 self.moves.iter()
                     .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
                 self.stage = Quiets;
