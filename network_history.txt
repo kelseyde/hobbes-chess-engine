@@ -185,12 +185,12 @@ hobbes-21     | (768x6hm->1024)x2->1 | source: hobbes 6 -> 19      | Elo   | 15.
               | 5, 5, 5, 5,          |                             |                                                |                                                |
               | 5, 5, 5, 5,          |                             |                                                |                                                |
 --------------|----------------------|-----------------------------|------------------------------------------------|------------------------------------------------|
-hobbes-22     | (768x6hm->1024)x2->1 | source: hobbes 6 -> 21      | Elo   | 15.65 +- 7.08 (95%)                    | Elo   | -24.54 +- 7.39 (95%)                   |
+hobbes-22     | (768x6hm->1024)x2->1 | source: hobbes 6 -> 21      | Elo   | 12.54 +- 6.19 (95%)                    | Elo   | -23.45 +- 7.28 (95%)                   |
               | activ: screlu        | dataset: 4.2 billion        | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
-              | scale: 400           | sb: 400                     | LLR   | 2.60 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3006 W: 711 L: 923 D: 1372          |
-              | quant: [255,64]      | lr: cosine(0.001,0.0000081) | Games | N: 3198 W: 941 L: 797 D: 1460          | Penta | [56, 453, 665, 305, 24]                |
-              | optim: AdamW         | wdl: 100sb constant(0.2),   | Penta | [32, 335, 741, 439, 52]                | https://kelseyde.pythonanywhere.com/test/1117/ |
-              | buckets:             |      300sb linear(0.2,0.4)  | https://kelseyde.pythonanywhere.com/test/1116/ |                                                |
+              | scale: 400           | sb: 400                     | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3012 W: 718 L: 921 D: 1373          |
+              | quant: [255,64]      | lr: cosine(0.001,0.0000081) | Games | N: 3854 W: 1114 L: 975 D: 1765         | Penta | [51, 447, 688, 294, 26]                |
+              | optim: AdamW         | wdl: 100sb constant(0.2),   | Penta | [34, 399, 932, 518, 44]                | https://kelseyde.pythonanywhere.com/test/1227/ |
+              | buckets:             |      300sb linear(0.2,0.4)  | https://kelseyde.pythonanywhere.com/test/1226/ |                                                |
               | 0, 0, 1, 1,          | viriformat -> bulletformat  |                                                |                                                |
               | 2, 2, 3, 3,          |                             |                                                |                                                |
               | 4, 4, 4, 4,          |                             |                                                |                                                |
