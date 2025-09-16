@@ -1,5 +1,29 @@
 ## Search
 
+### New Ideas to Yoink
+- [ ] SEE-bucketed noisy hist: https://kelseyde.pythonanywhere.com/test/1507/
+- [ ] SE depth stuff: https://recklesschess.space/test/7711/
+- [ ] SEE pruning movecount: https://recklesschess.space/test/7684/
+- [ ] TTPV Cutnode LMR: https://recklesschess.space/test/7617/
+- [ ] RFP easy capture: https://chess.swehosting.se/test/11716/ 
+- [ ] RFP min margin: https://recklesschess.space/test/7584/
+- [ ] FP alpha compensation: https://recklesschess.space/test/7592/
+- [ ] LMP initial depth: https://recklesschess.space/test/7382/
+- [ ] Razoring initial depth: https://recklesschess.space/test/7357/
+- [ ] Check/capture bucketed conthist: https://recklesschess.space/test/7196/
+- [ ] FP quadratic depth: https://recklesschess.space/test/7138/
+- [ ] Refuse non-TT move: https://recklesschess.space/test/6822/
+- [ ] LMR MVV: https://recklesschess.space/test/6810/
+- [ ] TTPV SEE threshold: https://recklesschess.space/test/6418/
+- [ ] Cutnode quiet bonus: https://recklesschess.space/test/6307/
+- [ ] Cutnode noisy bonus: https://recklesschess.space/test/6380/
+- [ ] IIR TT move hist: http://verdict.shaheryarsohail.com/test/1174/
+- [ ] NMP TT move hist: http://verdict.shaheryarsohail.com/test/1129/
+- [ ] Quadratic RFP: http://verdict.shaheryarsohail.com/test/1112/
+- [ ] Razoring easy capture: http://verdict.shaheryarsohail.com/test/1093/
+- [ ] LMP static eval fail high: https://chess.swehosting.se/test/11848/
+- [ ] SF LMR PV ext: https://chess.swehosting.se/test/11585/
+
 #### Basics
 - [x] Iterative Deepening
 - [x] MVV-LVA
