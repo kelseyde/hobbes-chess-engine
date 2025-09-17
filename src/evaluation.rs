@@ -21,18 +21,18 @@ use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
 
-pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
-pub const NUM_BUCKETS: usize = 6;
 pub const BUCKETS: [usize; 64] = [
-    0, 0, 1, 1, 1, 1, 0, 0,
-    2, 2, 3, 3, 3, 3, 2, 2,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
+    0, 1, 2, 3, 3, 2, 1, 0,
+    4, 4, 5, 5, 5, 5, 4, 4,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7,
 ];
+pub const NUM_BUCKETS: usize = get_num_buckets(&BUCKETS);
+pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
@@ -348,6 +348,19 @@ fn material_phase(board: &Board) -> i32 {
     + scale_value_bishop() * bishops as i32
     + scale_value_rook() * rooks as i32
     + scale_value_queen() * queens as i32
+}
+
+pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
+    let mut max = 0;
+    let mut i = 0;
+
+    while i < N {
+        if arr[i] > max {
+            max = arr[i];
+        }
+        i += 1;
+    }
+    max + 1
 }
 
 #[cfg(test)]
