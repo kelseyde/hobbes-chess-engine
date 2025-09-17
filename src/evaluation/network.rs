@@ -34,11 +34,11 @@ pub const BUCKETS: [usize; 64] = [
     6, 6, 6, 6, 6, 6, 6, 6,
     7, 7, 7, 7, 7, 7, 7, 7,
     7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7
+    7, 7, 7, 7, 7, 7, 7, 7,
 ];
 
 pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/calvin1024_8b.nnue")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../hobbes.nnue")) };
 
 #[repr(C, align(64))]
 pub struct Network {
@@ -98,7 +98,7 @@ impl NNUE {
         #[cfg(target_feature = "avx2")]
         {
             use crate::evaluation::simd::avx2;
-            let weights = &crate::evaluation::network::NETWORK.output_weights;
+            let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(not(target_feature = "avx2"))]
