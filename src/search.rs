@@ -215,10 +215,11 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -284,7 +285,8 @@ fn alpha_beta(board: &Board,
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            + rfp_complexity_mult() * correction.abs() / 1024;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
