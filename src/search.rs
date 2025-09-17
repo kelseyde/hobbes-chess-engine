@@ -1,16 +1,24 @@
-use crate::board::Board;
-use crate::movegen::MoveFilter;
-use crate::movepicker::{MovePicker, Stage};
-use crate::moves::{Move, MoveList};
-use crate::parameters::*;
-use crate::see::see;
-use crate::thread::ThreadData;
-use crate::time::LimitType::{Hard, Soft};
-use crate::tt::TTFlag;
-use crate::types::bitboard::Bitboard;
-use crate::types::piece::Piece;
-use crate::{movegen, see};
+pub mod correction;
+pub mod history;
+pub mod movepicker;
+pub mod parameters;
+pub mod see;
+pub mod thread;
+pub mod time;
+pub mod tt;
+
+use crate::board::bitboard::Bitboard;
+use crate::board::movegen::MoveFilter;
+use crate::board::moves::{Move, MoveList};
+use crate::board::piece::Piece;
+use crate::board::{movegen, Board};
+use crate::search::movepicker::{MovePicker, Stage};
+use crate::search::see::see;
+use crate::search::thread::ThreadData;
+use crate::search::time::LimitType::{Hard, Soft};
+use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
+use parameters::*;
 use std::ops::{Index, IndexMut};
 
 pub const MAX_PLY: usize = 256;
@@ -25,7 +33,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
 
-    let root_moves = movegen::gen_legal_moves(board);
+    let root_moves = board.gen_legal_moves();
     match root_moves.len {
         0 => return handle_no_legal_moves(board, td),
         1 => return handle_one_legal_move(board, td, &root_moves),

@@ -1,9 +1,9 @@
-use crate::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
-use crate::types::bitboard::Bitboard;
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::side::Side::White;
-use crate::types::square::Square;
+use crate::board::bitboard::Bitboard;
+use crate::board::magics::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
+use crate::board::piece::Piece;
+use crate::board::side::Side;
+use crate::board::side::Side::White;
+use crate::board::square::Square;
 
 #[inline(always)]
 pub fn attacks(sq: Square, piece: Piece, side: Side, occ: Bitboard) -> Bitboard {

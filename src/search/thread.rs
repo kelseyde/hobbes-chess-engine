@@ -1,13 +1,13 @@
 use std::time::Instant;
 
-use crate::correction::CorrectionHistories;
-use crate::evaluation::network::NNUE;
-use crate::history::Histories;
-use crate::moves::Move;
+use crate::board::moves::Move;
+use crate::evaluation::NNUE;
+use crate::search::correction::CorrectionHistories;
+use crate::search::history::Histories;
+use crate::search::time::{LimitType, SearchLimits};
+use crate::search::tt::TranspositionTable;
 use crate::search::{Score, SearchStack, MAX_PLY};
-use crate::time::{LimitType, SearchLimits};
-use crate::tt::TranspositionTable;
-use crate::utils::boxed_and_zeroed;
+use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
     pub id: usize,

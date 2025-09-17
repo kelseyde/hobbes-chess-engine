@@ -1,8 +1,8 @@
+use crate::board::piece::Piece;
+use crate::board::piece::Piece::Pawn;
+use crate::board::side::Side;
+use crate::board::square::Square;
 use crate::board::Board;
-use crate::types::piece::Piece;
-use crate::types::piece::Piece::Pawn;
-use crate::types::side::Side;
-use crate::types::square::Square;
 
 #[rustfmt::skip]
 pub const PIECE_KEYS: [[u64; 64]; 12] = [
@@ -148,8 +148,8 @@ impl Zobrist {
 
 #[cfg(test)]
 mod test {
+    use crate::board::moves::{Move, MoveFlag};
     use crate::board::Board;
-    use crate::moves::{Move, MoveFlag};
 
     #[test]
     fn test_move_piece() {

@@ -1,10 +1,11 @@
+use crate::board::castling::Rights;
+use crate::board::file::File;
+use crate::board::piece::Piece;
+use crate::board::rank::Rank;
+use crate::board::side::Side;
+use crate::board::square::Square;
+use crate::board::zobrist::Zobrist;
 use crate::board::Board;
-use crate::types::castling::Rights;
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::square::Square;
-use crate::types::{File, Rank};
-use crate::zobrist::Zobrist;
 
 /// Derive the starting positions of the backrank pieces from a scharnagl index. Used for creating
 /// a starting position for FRC and DFRC chess. Implementation based on Viridithas. Original source:

@@ -1,11 +1,11 @@
+use crate::board::bitboard::Bitboard;
+use crate::board::moves::Move;
+use crate::board::piece::Piece;
+use crate::board::side::Side;
+use crate::board::square::Square;
 use crate::board::Board;
-use crate::moves::Move;
 use crate::search::SearchStack;
-use crate::types::bitboard::Bitboard;
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::square::Square;
-use crate::utils::boxed_and_zeroed;
+use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];

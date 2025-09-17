@@ -1,8 +1,8 @@
 use arrayvec::ArrayVec;
 use std::fmt;
 
-use crate::types::piece::Piece;
-use crate::types::square::Square;
+use crate::board::piece::Piece;
+use crate::board::square::Square;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);

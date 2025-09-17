@@ -1,7 +1,8 @@
-use crate::types::bitboard::Bitboard;
-use crate::types::side::Side;
-use crate::types::square::Square;
-use crate::types::{File, Rank};
+use crate::board::bitboard::Bitboard;
+use crate::board::file::File;
+use crate::board::rank::Rank;
+use crate::board::side::Side;
+use crate::board::square::Square;
 
 // Check if the castling move is kingside or queenside
 pub fn is_kingside(from: Square, to: Square) -> bool {
@@ -50,22 +51,22 @@ pub struct Rights {
 impl Rights {
 
     // Bits representing the presence/absence of castling rights for colour/side
-    pub const WKCA: u16 = 0b0001;
-    pub const WQCA: u16 = 0b0010;
-    pub const BKCA: u16 = 0b0100;
-    pub const BQCA: u16 = 0b1000;
+    const WKCA: u16 = 0b0001;
+    const WQCA: u16 = 0b0010;
+    const BKCA: u16 = 0b0100;
+    const BQCA: u16 = 0b1000;
 
     // Bits representing the starting file of each of the four rooks
-    pub const WK_MASK: u16 = 0b111_000_000_000_0000;
-    pub const WQ_MASK: u16 = 0b000_111_000_000_0000;
-    pub const BK_MASK: u16 = 0b000_000_111_000_0000;
-    pub const BQ_MASK: u16 = 0b000_000_000_111_0000;
+    const WK_MASK: u16 = 0b111_000_000_000_0000;
+    const WQ_MASK: u16 = 0b000_111_000_000_0000;
+    const BK_MASK: u16 = 0b000_000_111_000_0000;
+    const BQ_MASK: u16 = 0b000_000_000_111_0000;
 
     // Bits used to shift rook starting files into/out of their appropriate positions
-    pub const WK_SHIFT: u8 = 4 + 3 + 3 + 3;
-    pub const WQ_SHIFT: u8 = 4 + 3 + 3;
-    pub const BK_SHIFT: u8 = 4 + 3;
-    pub const BQ_SHIFT: u8 = 4;
+    const WK_SHIFT: u8 = 4 + 3 + 3 + 3;
+    const WQ_SHIFT: u8 = 4 + 3 + 3;
+    const BK_SHIFT: u8 = 4 + 3;
+    const BQ_SHIFT: u8 = 4;
 
     // Mask for the rights part of the encoding, used in zobrist updates
     pub const KEY_MASK: u16 = 0b1111;
@@ -217,11 +218,11 @@ impl CastleTravel {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::castling::Rights;
+    use crate::board::file::File;
+    use crate::board::moves::Move;
+    use crate::board::side::Side;
     use crate::board::Board;
-    use crate::moves::Move;
-    use crate::types::castling::Rights;
-    use crate::types::side::Side;
-    use crate::types::File;
 
     #[test]
     fn test_kingside_basics() {

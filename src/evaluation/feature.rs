@@ -1,14 +1,20 @@
-use crate::evaluation::network::{PIECE_OFFSET, SIDE_OFFSET};
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::side::Side::White;
-use crate::types::square::Square;
+use crate::board::piece::Piece;
+use crate::board::side::Side;
+use crate::board::side::Side::White;
+use crate::board::square::Square;
 
+/// Represents a single feature used by the neural network. A feature is a piece on a square on the
+/// board, with a colour (white or black). The feature can either be activated - meaning the piece
+/// is present on that square - or not  activated - meaning the piece is not present on that square.
+/// The presence or absence of a feature is represented by a 1 or 0 respectively in the input layer.
 pub struct Feature {
     pc: Piece,
     sq: Square,
     side: Side
 }
+
+const PIECE_OFFSET: usize = 64;
+const SIDE_OFFSET: usize = 64 * 6;
 
 impl Feature {
 

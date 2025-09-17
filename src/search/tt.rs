@@ -1,4 +1,4 @@
-use crate::moves::Move;
+use crate::board::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
 
@@ -252,8 +252,8 @@ const fn to_search(score: i32, ply: usize) -> i16 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moves::MoveFlag;
-    use crate::types::square::Square;
+    use crate::board::moves::MoveFlag;
+    use crate::board::square::Square;
 
     #[test]
     fn test_tt() {
