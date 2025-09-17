@@ -10,14 +10,20 @@ use crate::tools::utils::boxed_and_zeroed;
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];
 
+/// Quiet moves are indexed by side to move, whether the from and to squares are threatened by
+/// enemy attacks, and the from and to squares themselves.
 pub struct QuietHistory {
     entries: Box<[[[FromToHistory<i16>; 2]; 2]; 2]>,
 }
 
+/// Capture moves are indexed by side to move, the capturing piece, the to-square, the captured piece,
+/// and whether the move is a 'good noisy' (meaning, it passed a SEE threshold during move ordering).
 pub struct CaptureHistory {
     entries: Box<[PieceToHistory<[[i16; 2]; 6]>; 2]>,
 }
 
+/// Continuation history is indexed by the previous (ply - n) move's piece and to-square, and the
+/// current move's piece and to-square.
 pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
