@@ -642,8 +642,8 @@ fn alpha_beta(board: &Board,
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            let good_noisy = move_picker.stage == Stage::GoodNoisies;
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, good_noisy, capt_bonus);
+            let is_good_noisy = move_picker.stage == Stage::GoodNoisies;
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, is_good_noisy, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);

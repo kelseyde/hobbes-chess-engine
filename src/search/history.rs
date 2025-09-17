@@ -148,8 +148,8 @@ impl CaptureHistory {
         self.entries[stm][pc][sq][captured][is_good_noisy as usize]
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, good_noisy: bool, bonus: i16) {
-        let entry = &mut self.entries[stm][pc][sq][captured][good_noisy as usize];
+    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, is_good_noisy: bool, bonus: i16) {
+        let entry = &mut self.entries[stm][pc][sq][captured][is_good_noisy as usize];
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
