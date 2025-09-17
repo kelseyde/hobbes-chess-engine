@@ -351,13 +351,15 @@ fn alpha_beta(board: &Board,
     let mut legal_moves = 0;
     let mut searched_moves = 0;
     let mut quiet_count = 0;
-    let mut capture_count = 0;
+    let mut good_capture_count = 0;
+    let mut bad_capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
-    let mut captures = ArrayVec::<Move, 32>::new();
+    let mut good_captures = ArrayVec::<Move, 32>::new();
+    let mut bad_captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -375,7 +377,8 @@ fn alpha_beta(board: &Board,
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
+        let is_good_noisy = move_picker.stage == Stage::GoodNoisies;
+        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured, is_good_noisy);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
@@ -559,9 +562,14 @@ fn alpha_beta(board: &Board,
         if is_quiet && quiet_count < 32 {
             quiets.push(mv);
             quiet_count += 1;
-        } else if captured.is_some() && capture_count < 32 {
-            captures.push(mv);
-            capture_count += 1;
+        } else if captured.is_some() {
+            if move_picker.stage == Stage::GoodNoisies && good_capture_count < 32 {
+                good_captures.push(mv);
+                good_capture_count += 1;
+            } else if move_picker.stage == Stage::BadNoisies && bad_capture_count < 32 {
+                bad_captures.push(mv);
+                bad_capture_count += 1;
+            }
         }
 
         td.ss[ply].mv = None;
@@ -634,7 +642,8 @@ fn alpha_beta(board: &Board,
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            let good_noisy = move_picker.stage == Stage::GoodNoisies;
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, good_noisy, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
@@ -651,10 +660,13 @@ fn alpha_beta(board: &Board,
         }
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
-        for mv in captures.iter() {
+        let captures = good_captures.iter().map(|m| (m, true))
+            .chain(bad_captures.iter().map(|m| (m, false)));
+
+        for (mv, is_good_noisy) in captures {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, is_good_noisy, capt_malus);
                 }
             }
         }

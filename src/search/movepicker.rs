@@ -77,13 +77,17 @@ impl MovePicker {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
-                MovePicker::score(entry, board, td, self.ply, self.threats);
-                if self.see_threshold
-                    .map(|threshold| !see(board, &entry.mv, threshold))
-                    .unwrap_or(false) {
-                    self.bad_noisies.add(*entry);
-                } else {
+
+                let is_good_noisy = self.see_threshold
+                    .map(|threshold| see(board, &entry.mv, threshold))
+                    .unwrap_or(true);
+
+                MovePicker::score(entry, board, td, self.ply, self.threats, is_good_noisy);
+
+                if is_good_noisy {
                     self.moves.add(*entry);
+                } else {
+                    self.bad_noisies.add(*entry);
                 }
             }
             self.stage = GoodNoisies;
@@ -103,7 +107,7 @@ impl MovePicker {
             } else {
                 self.moves = board.gen_moves(MoveFilter::Quiets);
                 self.moves.iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
+                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats, false));
                 self.stage = Quiets;
             }
         }
@@ -131,13 +135,18 @@ impl MovePicker {
 
     }
 
-    fn score(entry: &mut MoveListEntry, board: &Board, td: &ThreadData, ply: usize, threats: Bitboard) {
+    fn score(entry: &mut MoveListEntry,
+             board: &Board,
+             td: &ThreadData,
+             ply: usize,
+             threats: Bitboard,
+             passes_see: bool) {
 
         let mv = &entry.mv;
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
             let victim_value = see::value(victim);
-            let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            let history_score = td.history.capture_history_score(board, mv, attacker, victim, passes_see);
             entry.score = victim_value + history_score;
         } else {
             // Score quiet
