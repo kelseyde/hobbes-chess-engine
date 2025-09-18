@@ -277,7 +277,7 @@ fn alpha_beta(board: &Board,
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
@@ -522,10 +522,7 @@ fn alpha_beta(board: &Board,
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
-            if is_quiet {
-                reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            }
-
+            reduction -= (history_score - lmr_hist_offset(is_quiet)) / lmr_hist_divisor(is_quiet) * 1024;
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -1008,6 +1005,22 @@ fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 
 fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
     -(scale * depth as i16 - offset).min(max)
+}
+
+fn lmr_hist_offset(is_quiet: bool) -> i32 {
+    if is_quiet {
+        lmr_quiet_hist_offset()
+    } else {
+        lmr_noisy_hist_offset()
+    }
+}
+
+fn lmr_hist_divisor(is_quiet: bool) -> i32 {
+    if is_quiet {
+        lmr_quiet_hist_divisor()
+    } else {
+        lmr_noisy_hist_divisor()
+    }
 }
 
 fn print_search_info(td: &mut ThreadData) {
