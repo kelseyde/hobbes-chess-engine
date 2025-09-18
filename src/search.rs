@@ -133,7 +133,10 @@ fn alpha_beta(board: &Board,
     // Determine if we are currently in check.
     let threats = movegen::calc_threats(board, board.stm);
     let in_check = threats.contains(board.king_sq(board.stm));
+
+    td.ss[ply].pv_node = pv_node;
     td.ss[ply].threats = threats;
+    let parent_is_pv = ply > 0 && td.ss[ply - 1].pv_node;
 
     // Update the selective search depth
     if ply + 1 > td.seldepth {
@@ -284,7 +287,8 @@ fn alpha_beta(board: &Board,
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            + rfp_parent_pv_scale() * parent_is_pv as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
@@ -1072,6 +1076,7 @@ pub struct SearchStack {
 
 #[derive(Copy, Clone)]
 pub struct StackEntry {
+    pub pv_node: bool,
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub captured: Option<Piece>,
@@ -1092,6 +1097,7 @@ impl SearchStack {
     pub fn new() -> Self {
         SearchStack {
             data: [StackEntry {
+                pv_node: false,
                 mv: None,
                 pc: None,
                 captured: None,
