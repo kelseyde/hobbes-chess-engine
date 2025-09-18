@@ -90,7 +90,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        delta = asp_delta();
+        delta = asp_delta() - td.depth / asp_delta_depth_divisor();
         td.depth += 1;
     }
 
