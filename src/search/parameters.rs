@@ -2,8 +2,9 @@ use crate::tunable_params;
 
 #[rustfmt::skip]
 tunable_params! {
-    asp_delta                   = 18, 4, 36, 4;
-    asp_delta_depth_divisor     = 3, 1, 6, 1;
+    asp_delta_base              = 20, 4, 36, 4;
+    asp_delta_min               = 4, 0, 14, 2;
+    asp_delta_depth_divisor     = 4, 1, 10, 1;
     asp_min_depth               = 4, 0, 8, 1;
     asp_alpha_widening_factor   = 156, 50, 400, 50;
     asp_beta_widening_factor    = 276, 50, 400, 50;
