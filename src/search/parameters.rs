@@ -96,6 +96,7 @@ tunable_params! {
     corr_minor_weight           = 100, 0, 200, 10;
     corr_counter_weight         = 102, 0, 200, 10;
     corr_follow_up_weight       = 105, 0, 200, 10;
+    corr_counter_counter_weight = 100, 0, 200, 10;
     see_value_pawn              = 92, 50, 150, 10;
     see_value_knight            = 280, 200, 500, 50;
     see_value_bishop            = 283, 200, 500, 50;

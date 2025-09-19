@@ -17,6 +17,7 @@ pub struct CorrectionHistories {
     nonpawn_corrhist: [CorrectionHistory; 2],
     countermove_corrhist: CorrectionHistory,
     follow_up_move_corrhist: CorrectionHistory,
+    counter_countermove_corrhist: CorrectionHistory,
     major_corrhist: CorrectionHistory,
     minor_corrhist: CorrectionHistory,
 }
@@ -45,6 +46,7 @@ impl CorrectionHistories {
         self.minor_corrhist.update(us, minor_hash, depth, static_eval, best_score);
         self.update_countermove_correction(board, ss, ply, depth, static_eval, best_score);
         self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
+        self.update_counter_countermove_correction(board, ss, ply, depth, static_eval, best_score);
 
     }
 
@@ -58,13 +60,14 @@ impl CorrectionHistories {
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        let pawn       = self.pawn_corrhist.get(us, pawn_hash);
-        let white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
-        let black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
-        let major      = self.major_corrhist.get(us, major_hash);
-        let minor      = self.minor_corrhist.get(us, minor_hash);
-        let counter    = self.countermove_correction(board, ss, ply);
-        let follow_up  = self.follow_up_move_correction(board, ss, ply);
+        let pawn            = self.pawn_corrhist.get(us, pawn_hash);
+        let white           = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
+        let black           = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
+        let major           = self.major_corrhist.get(us, major_hash);
+        let minor           = self.minor_corrhist.get(us, minor_hash);
+        let counter         = self.countermove_correction(board, ss, ply);
+        let follow_up       = self.follow_up_move_correction(board, ss, ply);
+        let counter_counter = self.counter_countermove_correction(board, ss, ply);
 
         (pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -73,6 +76,7 @@ impl CorrectionHistories {
             + (minor * 100 / corr_minor_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight())
+            + (counter_counter * 100 / corr_counter_counter_weight())
 
     }
 
@@ -90,6 +94,15 @@ impl CorrectionHistories {
             if let Some(prev_mv) = ss[ply - 2].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
                 self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+            }
+        }
+    }
+
+    fn update_counter_countermove_correction(&mut self, board: &Board, ss: &SearchStack, ply: usize, depth: i32, static_eval: i32, best_score: i32) {
+        if ply >= 3 {
+            if let Some(prev_mv) = ss[ply - 3].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                self.counter_countermove_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
             }
         }
     }
@@ -114,11 +127,22 @@ impl CorrectionHistories {
         0
     }
 
+    fn counter_countermove_correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+        if ply >= 3 {
+            if let Some(prev_mv) = ss[ply - 3].mv {
+                let encoded_mv = prev_mv.encoded() as u64;
+                return self.counter_countermove_corrhist.get(board.stm, encoded_mv);
+            }
+        }
+        0
+    }
+
     pub fn clear(&mut self) {
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist.iter_mut().for_each(|hist| hist.clear());
         self.countermove_corrhist.clear();
         self.follow_up_move_corrhist.clear();
+        self.counter_countermove_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
     }
