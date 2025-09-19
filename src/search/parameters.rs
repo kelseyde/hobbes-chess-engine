@@ -90,6 +90,12 @@ tunable_params! {
     pcm_bonus_scale             = 155, 80, 280, 40;
     pcm_bonus_offset            = 78, 0, 200, 25;
     pcm_bonus_max               = 1244, 1000, 1600, 100;
+    tt_quiet_hist_bonus_scale   = 190, 80, 280, 40;
+    tt_quiet_hist_bonus_offset  = 86, 0, 200, 25;
+    tt_quiet_hist_bonus_max     = 1098, 1000, 1600, 100;
+    tt_cont_hist_bonus_scale    = 81, 80, 280, 40;
+    tt_cont_hist_bonus_offset   = 165, 0, 200, 25;
+    tt_cont_hist_bonus_max      = 1087, 1000, 1600, 100;
     corr_pawn_weight            = 125, 0, 200, 10;
     corr_non_pawn_weight        = 89, 0, 200, 10;
     corr_major_weight           = 91, 0, 200, 10;

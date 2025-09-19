@@ -205,6 +205,16 @@ fn alpha_beta(board: &Board,
                 && !pv_node
                 && tt_depth >= depth
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
+
+                // Update quiet histories on TT cut-off
+                if tt_move.exists() && !tt_move_noisy && tt_score >= beta {
+                    let quiet_bonus = tt_quiet_history_bonus(depth);
+                    let cont_bonus = tt_cont_history_bonus(depth);
+                    let tt_pc = board.piece_at(tt_move.from()).unwrap();
+                    td.history.quiet_history.update(board.stm, &tt_move, threats, quiet_bonus);
+                    td.history.update_continuation_history(&td.ss, ply, &tt_move, tt_pc, cont_bonus);
+                }
+
                 return tt_score;
             }
         }
@@ -999,6 +1009,20 @@ fn prior_countermove_bonus(depth: i32) -> i16 {
     let scale = pcm_bonus_scale() as i16;
     let offset = pcm_bonus_offset() as i16;
     let max = pcm_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+fn tt_quiet_history_bonus(depth: i32) -> i16 {
+    let scale = tt_quiet_hist_bonus_scale() as i16;
+    let offset = tt_quiet_hist_bonus_offset() as i16;
+    let max = tt_quiet_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+fn tt_cont_history_bonus(depth: i32) -> i16 {
+    let scale = tt_cont_hist_bonus_scale() as i16;
+    let offset = tt_cont_hist_bonus_offset() as i16;
+    let max = tt_cont_hist_bonus_max() as i16;
     history_bonus(depth, scale, offset, max)
 }
 
