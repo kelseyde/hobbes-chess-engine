@@ -476,7 +476,8 @@ fn alpha_beta(board: &Board,
 
             if score < s_beta {
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
+                let double_margin = se_double_ext_margin() + se_double_ext_pv_node() * pv_node as i32;
+                extension += (score < s_beta - double_margin) as i32;
             } else if s_beta >= beta {
                 return s_beta;
             } else if tt_score >= beta {
