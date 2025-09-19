@@ -2,7 +2,6 @@ use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
-use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
@@ -15,7 +14,7 @@ pub struct QuietHistory {
 }
 
 pub struct CaptureHistory {
-    entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+    entries: Box<[[[[FromToHistory<i16>; 6]; 2]; 2]; 2]>,
 }
 
 pub struct ContinuationHistory {
@@ -36,10 +35,9 @@ impl Histories {
                          ss: &SearchStack,
                          mv: &Move, ply: usize,
                          threats: Bitboard,
-                         pc: Piece,
                          captured: Option<Piece>) -> i32 {
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, mv, captured, threats)
         } else {
             self.quiet_history_score(board, ss, mv, ply, threats)
         }
@@ -64,8 +62,8 @@ impl Histories {
         quiet_score + cont_score
     }
 
-    pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
-        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+    pub fn capture_history_score(&self, board: &Board, mv: &Move, captured: Piece, threats: Bitboard) -> i32 {
+        self.capture_history.get(board.stm, *mv, captured, threats) as i32
     }
 
     pub fn update_continuation_history(&mut self, ss: &SearchStack, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
@@ -132,17 +130,19 @@ impl QuietHistory {
 impl CaptureHistory {
     const MAX: i16 = 16384;
 
-    pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
-        self.entries[stm][pc][sq][captured]
+    pub fn get(&self, stm: Side, mv: Move, captured: Piece, threats: Bitboard) -> i16 {
+        let threat_index = ThreatIndex::new(mv, threats);
+        self.entries[stm][threat_index.from()][threat_index.to()][captured][mv.from()][mv.to()]
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
-        let entry = &mut self.entries[stm][pc][sq][captured];
+    pub fn update(&mut self, stm: Side, mv: &Move, captured: Piece, threats: Bitboard, bonus: i16) {
+        let threat_index = ThreatIndex::new(*mv, threats);
+        let entry = &mut self.entries[stm][threat_index.from()][threat_index.to()][captured][mv.from()][mv.to()];
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+        self.entries = Box::new([[[[[[0; 64]; 64]; 6]; 2]; 2]; 2]);
     }
 
 }

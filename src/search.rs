@@ -375,7 +375,7 @@ fn alpha_beta(board: &Board,
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
+        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
@@ -634,7 +634,7 @@ fn alpha_beta(board: &Board,
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            td.history.capture_history.update(board.stm, &best_move, captured, threats, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
@@ -654,7 +654,7 @@ fn alpha_beta(board: &Board,
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history.capture_history.update(board.stm, mv, captured, threats, capt_malus);
                 }
             }
         }
