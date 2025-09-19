@@ -283,6 +283,7 @@ fn alpha_beta(board: &Board,
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
             + rfp_scale() * depth
+            + rfp_ttpv_scale() * tt_pv as i32
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
