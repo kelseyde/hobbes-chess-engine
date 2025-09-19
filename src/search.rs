@@ -43,7 +43,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut delta = asp_delta();
+    let mut delta = asp_delta_base();
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -90,7 +90,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        delta = asp_delta();
+        delta = (asp_delta_base() - td.depth / asp_delta_depth_divisor()).max(asp_delta_min());
         td.depth += 1;
     }
 
