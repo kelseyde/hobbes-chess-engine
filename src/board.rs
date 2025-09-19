@@ -216,7 +216,7 @@ impl Board {
         threats |= attacks::pawn_attacks(self.pawns(side), side);
 
         // threats now include all attacks from pawns; so knights and bishops would be worth more
-        lesser_threats |= (self.all_knights() | self.all_bishops()) & threats;
+        lesser_threats |= (self.knights(!self.stm) | self.bishops(!self.stm)) & threats;
 
         for sq in self.knights(side) {
             threats |= attacks::knight(sq);
@@ -227,14 +227,14 @@ impl Board {
         }
 
         // threats now include all attacks from pawns, knights and bishops; so rooks would be worth more
-        lesser_threats |= self.all_rooks() & threats;
+        lesser_threats |= self.rooks(!self.stm) & threats;
 
         for sq in self.rooks(side) {
             threats |= attacks::rook(sq, occ);
         }
 
         // threats now include all attacks from pawns, knights, bishops and rooks; so queens would be worth more
-        lesser_threats |= self.all_queens() & threats;
+        lesser_threats |= self.queens(!self.stm) & threats;
 
         for sq in self.queens(side) {
             threats |= attacks::queen(sq, occ);
@@ -288,40 +288,20 @@ impl Board {
         self.bb[Piece::Pawn] & self.bb[side.idx()]
     }
 
-    pub fn all_knights(&self) -> Bitboard {
-        self.bb[Piece::Knight]
-    }
-
     pub fn knights(&self, side: Side) -> Bitboard {
         self.bb[Piece::Knight] & self.bb[side.idx()]
-    }
-
-    pub fn all_bishops(&self) -> Bitboard {
-        self.bb[Piece::Bishop]
     }
 
     pub fn bishops(&self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop] & self.bb[side.idx()]
     }
 
-    pub fn all_rooks(&self) -> Bitboard {
-        self.bb[Piece::Rook]
-    }
-
     pub fn rooks(&self, side: Side) -> Bitboard {
         self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
-    pub fn all_queens(&self) -> Bitboard {
-        self.bb[Piece::Queen]
-    }
-
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
-    }
-
-    pub fn kings(&self) -> Bitboard {
-        self.bb[Piece::King]
     }
 
     pub fn king(&self, side: Side) -> Bitboard {
