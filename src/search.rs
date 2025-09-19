@@ -624,13 +624,13 @@ fn alpha_beta(board: &Board,
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
+        let quiet_bonus = quiet_history_bonus(depth, cut_node);
         let quiet_malus = quiet_history_malus(depth);
 
-        let capt_bonus = capture_history_bonus(depth);
+        let capt_bonus = capture_history_bonus(depth, cut_node);
         let capt_malus = capture_history_malus(depth);
 
-        let cont_bonus = cont_history_bonus(depth);
+        let cont_bonus = cont_history_bonus(depth, cut_node);
         let cont_malus = cont_history_malus(depth);
 
         if let Some(captured) = board.captured(&best_move) {
@@ -954,11 +954,12 @@ fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
     }
 }
 
-fn quiet_history_bonus(depth: i32) -> i16 {
+fn quiet_history_bonus(depth: i32, cut_node: bool) -> i16 {
     let scale = quiet_hist_bonus_scale() as i16;
     let offset = quiet_hist_bonus_offset() as i16;
+    let cut_node_penalty = quiet_hist_bonus_cutnode() as i16 * cut_node as i16;
     let max = quiet_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
+    history_bonus(depth, scale, offset, max) - cut_node_penalty
 }
 
 fn quiet_history_malus(depth: i32) -> i16 {
@@ -968,11 +969,12 @@ fn quiet_history_malus(depth: i32) -> i16 {
     history_malus(depth, scale, offset, max)
 }
 
-fn capture_history_bonus(depth: i32) -> i16 {
+fn capture_history_bonus(depth: i32, cut_node: bool) -> i16 {
     let scale = capt_hist_bonus_scale() as i16;
     let offset = capt_hist_bonus_offset() as i16;
+    let cut_node_penalty = capt_hist_bonus_cutnode() as i16 * cut_node as i16;
     let max = capt_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
+    history_bonus(depth, scale, offset, max) - cut_node_penalty
 }
 
 fn capture_history_malus(depth: i32) -> i16 {
@@ -982,11 +984,12 @@ fn capture_history_malus(depth: i32) -> i16 {
     history_malus(depth, scale, offset, max)
 }
 
-fn cont_history_bonus(depth: i32) -> i16 {
+fn cont_history_bonus(depth: i32, cut_node: bool) -> i16 {
     let scale = cont_hist_bonus_scale() as i16;
     let offset = cont_hist_bonus_offset() as i16;
+    let cut_node_penalty = cont_hist_bonus_cutnode() as i16 * cut_node as i16;
     let max = cont_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
+    history_bonus(depth, scale, offset, max) - cut_node_penalty
 }
 
 fn cont_history_malus(depth: i32) -> i16 {
