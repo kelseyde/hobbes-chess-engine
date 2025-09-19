@@ -2,7 +2,7 @@ use crate::tools::uci::UCI;
 use board::ray;
 
 pub const AUTHOR: &str = "Dan Kelsey";
-pub const CONTRIBUTORS: &str = "Jonathan Hallstrom, Mattia Giambirtone";
+pub const CONTRIBUTORS: &str = "Jonathan Hallström, Mattia Giambirtone";
 pub const VERSION: f32 = 0.1;
 
 /// The board module contains board representation, move generation, move legality checking, and
