@@ -131,7 +131,7 @@ fn alpha_beta(board: &Board,
     let root_node = ply == 0;
 
     // Determine if we are currently in check.
-    let threats = movegen::calc_threats(board, board.stm);
+    let threats = board.threats[!board.stm];
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
@@ -277,13 +277,16 @@ fn alpha_beta(board: &Board,
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
+
+        let opponent_has_easy_capture = !(board.us() & board.lesser_threats[!board.stm]).is_empty();
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
+            + rfp_opp_easy_capture_scale() * opponent_has_easy_capture as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
@@ -736,7 +739,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     // Determine if we are currently in check.
-    let threats = movegen::calc_threats(board, board.stm);
+    let threats = board.threats[!board.stm];
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 

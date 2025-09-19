@@ -29,15 +29,17 @@ use square::Square;
 /// to set and unset pieces.
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8],         // bitboards for each piece type (0-5) and for both colours (6-7)
-    pub pcs: [Option<Piece>; 64],  // piece type on each square
-    pub stm: Side,                 // side to move (White or Black)
-    pub hm: u8,                    // number of half moves since last capture or pawn move
-    pub fm: u8,                    // number of full moves
-    pub ep_sq: Option<Square>,     // en passant square (0-63)
-    pub rights: Rights,            // encoded castle rights
-    pub keys: Keys,                // zobrist hashes
-    pub frc: bool                  // whether the game is Fischer Random Chess
+    pub bb: [Bitboard; 8],             // bitboards for each piece type (0-5) and for both colours (6-7)
+    pub pcs: [Option<Piece>; 64],      // piece type on each square
+    pub stm: Side,                     // side to move (White or Black)
+    pub hm: u8,                        // number of half moves since last capture or pawn move
+    pub fm: u8,                        // number of full moves
+    pub ep_sq: Option<Square>,         // en passant square (0-63)
+    pub rights: Rights,                // encoded castle rights
+    pub threats: [Bitboard; 2],        // squares attacked by each side
+    pub lesser_threats: [Bitboard; 2], // squares attacked by each side excluding pawns
+    pub keys: Keys,                    // zobrist hashes
+    pub frc: bool                      // whether the game is Fischer Random Chess
 }
 
 impl Default for Board {
@@ -61,6 +63,8 @@ impl Board {
             fm: 0,
             ep_sq: None,
             rights: Rights::default(),
+            threats: [Bitboard::empty(); 2],
+            lesser_threats: [Bitboard::empty(); 2],
             keys: Keys::default(),
             frc: false,
         }
@@ -102,6 +106,7 @@ impl Board {
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
         self.keys.hash ^= Zobrist::stm();
+        self.update_masks();
         self.stm = !self.stm;
 
     }
@@ -198,6 +203,49 @@ impl Board {
         new_rights
     }
 
+    pub fn update_masks(&mut self) {
+        self.calc_threats(White);
+        self.calc_threats(Black);
+    }
+
+    fn calc_threats(&mut self, side: Side) {
+        let occ = self.occ();
+        let mut threats = Bitboard::empty();
+        let mut lesser_threats = Bitboard::empty();
+
+        threats |= attacks::pawn_attacks(self.pawns(side), side);
+
+        // threats now include all attacks from pawns; so knights and bishops would be worth more
+        lesser_threats |= (self.all_knights() | self.all_bishops()) & threats;
+
+        for sq in self.knights(side) {
+            threats |= attacks::knight(sq);
+        }
+
+        for sq in self.bishops(side) {
+            threats |= attacks::bishop(sq, occ);
+        }
+
+        // threats now include all attacks from pawns, knights and bishops; so rooks would be worth more
+        lesser_threats |= self.all_rooks() & threats;
+
+        for sq in self.rooks(side) {
+            threats |= attacks::rook(sq, occ);
+        }
+
+        // threats now include all attacks from pawns, knights, bishops and rooks; so queens would be worth more
+        lesser_threats |= self.all_queens() & threats;
+
+        for sq in self.queens(side) {
+            threats |= attacks::queen(sq, occ);
+        }
+
+        threats |= attacks::king(self.king_sq(side));
+
+        self.threats[side] = threats;
+        self.lesser_threats[side] = lesser_threats;
+    }
+
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square>{
         if self.ep_sq.is_some() {
@@ -232,24 +280,48 @@ impl Board {
         self.keys.hash
     }
 
+    pub fn all_pawns(&self) -> Bitboard {
+        self.bb[Piece::Pawn]
+    }
+
     pub fn pawns(&self, side: Side) -> Bitboard {
         self.bb[Piece::Pawn] & self.bb[side.idx()]
+    }
+
+    pub fn all_knights(&self) -> Bitboard {
+        self.bb[Piece::Knight]
     }
 
     pub fn knights(&self, side: Side) -> Bitboard {
         self.bb[Piece::Knight] & self.bb[side.idx()]
     }
 
+    pub fn all_bishops(&self) -> Bitboard {
+        self.bb[Piece::Bishop]
+    }
+
     pub fn bishops(&self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop] & self.bb[side.idx()]
+    }
+
+    pub fn all_rooks(&self) -> Bitboard {
+        self.bb[Piece::Rook]
     }
 
     pub fn rooks(&self, side: Side) -> Bitboard {
         self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
+    pub fn all_queens(&self) -> Bitboard {
+        self.bb[Piece::Queen]
+    }
+
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
+    }
+
+    pub fn kings(&self) -> Bitboard {
+        self.bb[Piece::King]
     }
 
     pub fn king(&self, side: Side) -> Bitboard {
