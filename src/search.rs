@@ -868,6 +868,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return -Score::MATE + ply as i32;
     }
 
+    if !pv_node && !Score::is_mate(best_score) && !Score::is_mate(best_score) && best_score >= beta {
+        best_score = (best_score + beta) / 2;
+    }
+
     // Write to transposition table
     if !td.hard_limit_reached() {
         td.tt.insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
