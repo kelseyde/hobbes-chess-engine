@@ -59,6 +59,7 @@ tunable_params! {
     lmr_pv_node                 = 1124, 0, 2048, 256;
     lmr_cut_node                = 1398, 0, 2048, 256;
     lmr_improving               = 629, 0, 2048, 256;
+    lmr_tt_fail_low             = 1024, 0, 2048, 256;
     lmr_hist_offset             = 387, -2048, 2048, 256;
     lmr_hist_divisor            = 19156, 8192, 32768, 2048;
     lmr_cont_hist_bonus_scale   = 209, 80, 280, 40;
