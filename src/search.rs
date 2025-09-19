@@ -175,6 +175,7 @@ fn alpha_beta(board: &Board,
 
     let singular = td.ss[ply].singular;
     let singular_search = singular.is_some();
+    let initial_depth = depth;
 
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
@@ -415,7 +416,7 @@ fn alpha_beta(board: &Board,
             && !is_mate_score
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves > late_move_threshold(initial_depth, improving) {
             move_picker.skip_quiets = true;
             continue;
         }
