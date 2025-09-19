@@ -1,11 +1,11 @@
-use crate::attacks;
+use crate::board::attacks;
+use crate::board::bitboard::Bitboard;
+use crate::board::moves::Move;
+use crate::board::piece::Piece;
+use crate::board::side::Side;
+use crate::board::square::Square;
 use crate::board::Board;
-use crate::moves::Move;
-use crate::parameters::{see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook};
-use crate::types::bitboard::Bitboard;
-use crate::types::piece::Piece;
-use crate::types::side::Side;
-use crate::types::square::Square;
+use crate::search::parameters::{see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook};
 
 pub fn value(pc: Piece) -> i32 {
     match pc {
@@ -142,15 +142,14 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::board::movegen::MoveFilter;
     use crate::board::Board;
-    use crate::movegen;
-    use crate::movegen::MoveFilter;
     use std::fs;
 
     #[test]
     fn test_see_suite() {
 
-        let see_suite = fs::read_to_string("resources/see.epd").unwrap();
+        let see_suite = fs::read_to_string("../../resources/see.epd").unwrap();
 
         let mut tried = 0;
         let mut passed = 0;
@@ -163,7 +162,7 @@ mod tests {
             let threshold: i32 = threshold_str.parse().unwrap();
 
             let board = Board::from_fen(fen).unwrap();
-            let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+            let mut moves = board.gen_moves(MoveFilter::All);
             let mv = moves.iter()
                 .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
@@ -194,7 +193,7 @@ mod tests {
         let threshold: i32 = threshold_str.parse().unwrap();
 
         let board = Board::from_fen(fen).unwrap();
-        let mut moves = movegen::gen_moves(&board, MoveFilter::All);
+        let mut moves = board.gen_moves(MoveFilter::All);
         let mv = moves.iter()
             .map(|entry| entry.mv)
             .find(|m| m.to_uci() == mv_uci)

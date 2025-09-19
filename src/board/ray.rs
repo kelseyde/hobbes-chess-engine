@@ -1,6 +1,6 @@
-use crate::attacks;
-use crate::types::bitboard::Bitboard;
-use crate::types::square::Square;
+use crate::board::attacks;
+use crate::board::bitboard::Bitboard;
+use crate::board::square::Square;
 
 static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
 

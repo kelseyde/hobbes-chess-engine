@@ -1,8 +1,8 @@
+use crate::board::side::Side;
 use crate::board::Board;
-use crate::parameters::{corr_counter_weight, corr_follow_up_weight, corr_major_weight, corr_minor_weight, corr_non_pawn_weight, corr_pawn_weight};
+use crate::search::parameters::*;
 use crate::search::SearchStack;
-use crate::types::side::Side;
-use crate::utils::boxed_and_zeroed;
+use crate::tools::utils::boxed_and_zeroed;
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between

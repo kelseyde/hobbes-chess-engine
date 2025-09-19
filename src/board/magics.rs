@@ -1,4 +1,4 @@
-use crate::types::bitboard::Bitboard;
+use crate::board::bitboard::Bitboard;
 
 #[derive(Debug, Copy, Clone)]
 pub struct MagicLookup {
