@@ -800,6 +800,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let is_recapture = td.ss[ply - 1].mv.map_or(false, |prev_mv| mv.to() == prev_mv.from());
+
+        // Late Move Pruning
+        // Only search the first few moves in quiescence search.
+        if !is_mate_score && !is_recapture && move_count >= qs_late_move_count() {
+            break;
+        }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.

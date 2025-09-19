@@ -115,4 +115,5 @@ tunable_params! {
     material_scaling_base       = 26574, 10000, 40000, 150;
     qs_futility_threshold       = 145, 80, 250, 10;
     qs_see_threshold            = -36, -200, 100, 25;
+    qs_late_move_count          = 3, 2, 5, 1;
 }
