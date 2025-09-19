@@ -478,6 +478,10 @@ fn alpha_beta(board: &Board,
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
             } else if s_beta >= beta {
+                if !in_check && s_beta > static_eval {
+                    td.correction_history
+                        .update_correction_history(board, &td.ss, s_depth, ply, static_eval, s_beta)
+                }
                 return s_beta;
             } else if tt_score >= beta {
                 extension = -3;
