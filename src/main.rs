@@ -1,6 +1,10 @@
 use crate::tools::uci::UCI;
 use board::ray;
 
+pub const AUTHOR: &str = "Dan Kelsey";
+pub const CONTRIBUTORS: &str = "Jonathan Hallstrom";
+pub const VERSION: f32 = 0.1;
+
 /// The board module contains board representation, move generation, move legality checking, and
 /// everything related to the rules of chess.
 pub mod board;
