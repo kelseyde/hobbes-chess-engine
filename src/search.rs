@@ -505,7 +505,7 @@ fn alpha_beta(board: &Board,
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let new_depth = depth - 1 + extension;
+        let mut new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
 
@@ -535,6 +535,11 @@ fn alpha_beta(board: &Board,
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
+                // Adjust the depth of the re-search based on the results of the reduced search.
+                let do_deeper = score > best_score + lmr_do_deeper_base() + lmr_do_deeper_scale() * new_depth;
+                let do_shallower = score < best_score + new_depth;
+                new_depth += (do_deeper as i32) - (do_shallower as i32);
+
                 score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                 if is_quiet && (score <= alpha || score >= beta) {
