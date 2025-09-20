@@ -9,7 +9,7 @@ use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
-use crate::tools::fen;
+use crate::tools::{fen, pretty};
 use crate::tools::perft::perft;
 use std::io;
 use std::time::Instant;
@@ -40,8 +40,7 @@ impl UCI {
             return;
         }
 
-        println!("🐅🐅🐅 Hobbes by Dan Kelsey 🐅🐅🐅");
-        println!("(type 'help' for a list of commands)");
+        pretty::print_uci_info();
 
         loop {
             let mut command = String::new();
