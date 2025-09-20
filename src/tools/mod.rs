@@ -5,4 +5,4 @@ pub mod perft;
 pub mod scharnagl;
 pub mod uci;
 pub mod utils;
-mod pretty;
+pub mod pretty;
