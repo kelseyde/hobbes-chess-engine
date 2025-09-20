@@ -420,7 +420,6 @@ fn alpha_beta(board: &Board,
         // Skip quiet moves that have a bad history score.
         if !pv_node
             && !root_node
-            && !in_check
             && !is_mate_score
             && is_quiet
             && depth <= hp_max_depth()
