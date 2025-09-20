@@ -520,6 +520,7 @@ fn alpha_beta(board: &Board,
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut reduction = base_reduction * 1024;
             reduction -= tt_pv as i32 * lmr_pv_node();
+            reduction -= in_check as i32 * 1024;
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
             if is_quiet {
