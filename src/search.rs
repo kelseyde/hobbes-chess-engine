@@ -117,7 +117,7 @@ fn alpha_beta(board: &Board,
               ply: usize,
               mut alpha: i32,
               mut beta: i32,
-              cut_node: bool) -> i32 {
+              mut cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -488,6 +488,7 @@ fn alpha_beta(board: &Board,
             }
 
         }
+        cut_node |= extension < 0;
 
         // We have decided that the current move should not be pruned and is worth searching further.
         // Therefore, we make the move on the board and search the resulting position.
