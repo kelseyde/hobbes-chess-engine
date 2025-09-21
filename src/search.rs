@@ -20,6 +20,7 @@ use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
 use std::ops::{Index, IndexMut};
+use std::os::macos::raw::stat;
 
 pub const MAX_PLY: usize = 256;
 
@@ -620,16 +621,18 @@ fn alpha_beta(board: &Board,
     // When the best move causes a beta cut-off, we update the history tables to reward the best move
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
     if best_move.exists() {
+
+        let history_depth = depth + (!in_check && static_eval <= best_score) as i32;
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let quiet_bonus = quiet_history_bonus(history_depth);
+        let quiet_malus = quiet_history_malus(history_depth);
 
-        let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let capt_bonus = capture_history_bonus(history_depth);
+        let capt_malus = capture_history_malus(history_depth);
 
-        let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let cont_bonus = cont_history_bonus(history_depth);
+        let cont_malus = cont_history_malus(history_depth);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
