@@ -48,20 +48,20 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
     // depth is reached or the search is aborted.
-    while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
+    while td.root_depth < MAX_DEPTH && !td.should_stop(Soft) {
 
         // Aspiration Windows
         // Use the score from the previous iteration to guess the score from the current iteration.
         // Based on this guess, we narrow the alpha-beta window around the previous score, causing
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
-        if td.depth >= asp_min_depth() {
+        if td.root_depth >= asp_min_depth() {
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
+            score = alpha_beta(board, td, td.root_depth, 0, alpha, beta, false);
 
             if td.main && !td.minimal_output {
                 print_search_info(td);
@@ -91,7 +91,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         delta = asp_delta();
-        td.depth += 1;
+        td.root_depth += 1;
     }
 
     // Print the final search stats
@@ -504,7 +504,7 @@ fn alpha_beta(board: &Board,
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let new_depth = depth - 1 + extension;
+        let mut new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
 
@@ -551,6 +551,10 @@ fn alpha_beta(board: &Board,
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+            if mv == tt_move && tt_depth > 1 && td.root_depth > 8 {
+                // In PV nodes, don't allow the TT move to be reduced into quiescence search.
+                new_depth = new_depth.max(1);
+            }
             score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
@@ -1010,7 +1014,7 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 }
 
 fn print_search_info(td: &mut ThreadData) {
-    let depth = td.depth;
+    let depth = td.root_depth;
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
@@ -1049,7 +1053,7 @@ fn format_score(score: i32) -> String {
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
     let static_eval = td.nnue.evaluate(board);
-    td.depth = 1;
+    td.root_depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
     print_search_info(td);
