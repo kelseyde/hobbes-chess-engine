@@ -521,6 +521,8 @@ fn alpha_beta(board: &Board,
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
+
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
