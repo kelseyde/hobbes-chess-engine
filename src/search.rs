@@ -180,6 +180,7 @@ fn alpha_beta(board: &Board,
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut has_tt_score = false;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
@@ -193,6 +194,7 @@ fn alpha_beta(board: &Board,
         if let Some(entry) = td.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            has_tt_score = Score::is_defined(tt_score);
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
@@ -518,7 +520,11 @@ fn alpha_beta(board: &Board,
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut reduction = base_reduction * 1024;
-            reduction -= tt_pv as i32 * lmr_pv_node();
+            if tt_pv {
+                reduction -= lmr_ttpv_base();
+                reduction -= lmr_ttpv_tt_score() * (has_tt_score && tt_score > alpha) as i32;
+                reduction -= lmr_ttpv_tt_depth() * (has_tt_score && tt_depth >= depth) as i32;
+            }
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
             reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
