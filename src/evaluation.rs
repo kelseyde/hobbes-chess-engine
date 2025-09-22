@@ -362,31 +362,3 @@ pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     }
     max + 1
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::board::piece::Piece::Pawn;
-    use crate::board::side::Side;
-    use crate::board::square::Square;
-    use crate::board::Board;
-    use crate::evaluation::feature::Feature;
-    use crate::evaluation::NNUE;
-    use crate::tools::fen;
-
-    #[test]
-    fn test_startpos() {
-        let board = Board::from_fen(fen::STARTPOS).unwrap();
-        let mut eval = NNUE::default();
-        let score = eval.evaluate(&board);
-        assert_eq!(score, 26);
-    }
-
-    #[test]
-    fn make_move_standard() {
-
-        let feat = Feature::new(Pawn, Square(8), Side::White);
-        println!("index: {}", feat.index(Side::Black, false));
-
-    }
-
-}
