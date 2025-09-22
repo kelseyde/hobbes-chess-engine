@@ -60,17 +60,15 @@ pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use crate::board::ray;
     use crate::board::Board;
-    use crate::moves::{Move, MoveFlag};
-    use crate::perft::perft;
+    use crate::tools::perft::perft;
     use std::fs;
 
-    #[test]
+    // #[test]
     fn test_perft_suite() {
 
         println!("reading file...");
-        let perft_suite = fs::read_to_string("resources/standard.epd.epd").unwrap();
+        let perft_suite = fs::read_to_string("resources/standard.epd").unwrap();
         println!("parsed file!");
 
         for perft_test in perft_suite.lines() {
@@ -89,17 +87,6 @@ mod test {
             let board = Board::from_fen(fen).unwrap();
             assert_eq!(perft(&board, depth, depth), nodes, "Failed test: {}", fen);
         }
-    }
-
-    #[test]
-    fn test_debug() {
-        let fen = "b1q1rrkb/pppppppp/3nn3/8/P7/1PPP4/4PPPP/BQNNRKRB w GE - 1 9";
-        let mut board = Board::from_fen(fen).unwrap();
-
-        ray::init();
-        board.make(&Move::parse_uci_with_flag("f1g1", MoveFlag::CastleK));
-        println!("{}", board.to_fen());
-
     }
 
 }

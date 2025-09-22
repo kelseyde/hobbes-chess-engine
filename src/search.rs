@@ -527,8 +527,12 @@ fn alpha_beta(board: &Board,
             }
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
+
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            } else {
+                reduction -= captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor())
             }
 
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
@@ -871,6 +875,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if move_count == 0 && in_check {
         return -Score::MATE + ply as i32;
+    }
+
+    if best_score >= beta && Score::is_defined(best_score) {
+        best_score = (best_score + beta) / 2;
     }
 
     // Write to transposition table
