@@ -227,7 +227,8 @@ fn alpha_beta(board: &Board,
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
-    let improving = is_improving(td, ply, static_eval);
+    let improvement = calc_improvement(td, ply, static_eval, in_check);
+    let improving = improvement > 0;
 
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
@@ -520,7 +521,10 @@ fn alpha_beta(board: &Board,
             let mut reduction = base_reduction * 1024;
             reduction -= tt_pv as i32 * lmr_pv_node();
             reduction += cut_node as i32 * lmr_cut_node();
-            reduction += !improving as i32 * lmr_improving();
+            if !improving {
+                reduction += lmr_improving_base()
+                    - (lmr_improvement_mult() * improvement / lmr_improvement_div()).min(lmr_improvement_max());
+            }
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             }
@@ -913,23 +917,14 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
-fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
-    if static_eval == Score::MIN {
-        return false;
+fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
+    if ply >= 2 && Score::is_defined(td.ss[ply - 2].static_eval) && !in_check {
+        return static_eval - td.ss[ply - 2].static_eval;
     }
-    if ply > 1 {
-        let prev_eval = td.ss[ply - 2].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
+    else if ply >= 4 && Score::is_defined(td.ss[ply - 4].static_eval) && !in_check {
+        return static_eval - td.ss[ply - 4].static_eval;
     }
-    if ply > 3 {
-        let prev_eval = td.ss[ply - 4].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
-    }
-    true
+    0
 }
 
 fn late_move_threshold(depth: i32, improving: bool) -> i32 {

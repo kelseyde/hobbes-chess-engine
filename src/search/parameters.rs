@@ -58,7 +58,10 @@ tunable_params! {
     lmr_min_moves               = 3, 1, 4, 1;
     lmr_pv_node                 = 1124, 0, 2048, 256;
     lmr_cut_node                = 1398, 0, 2048, 256;
-    lmr_improving               = 629, 0, 2048, 256;
+    lmr_improving_base          = 500, 0, 2048, 256;
+    lmr_improvement_mult        = 26, 0, 100, 10;
+    lmr_improvement_div         = 8, 4, 16, 2;
+    lmr_improvement_max         = 3, 1, 5, 1;
     lmr_hist_offset             = 387, -2048, 2048, 256;
     lmr_hist_divisor            = 19156, 8192, 32768, 2048;
     lmr_cont_hist_bonus_scale   = 209, 80, 280, 40;
