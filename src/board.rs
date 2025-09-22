@@ -120,9 +120,6 @@ impl Board {
             if pc.is_major() {
                 self.keys.major_hash ^= Zobrist::sq(pc, side, sq);
             }
-            if pc.is_minor() {
-                self.keys.minor_hash ^= Zobrist::sq(pc, side, sq);
-            }
         }
     }
 
