@@ -525,6 +525,8 @@ fn alpha_beta(board: &Board,
 
             if is_quiet {
                 reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            } else {
+                reduction -= captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor())
             }
 
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
