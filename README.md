@@ -8,10 +8,31 @@
 <br>
 <br>
 
+[![Beta][beta-badge]][beta-link]
+[![License][license-badge]][license-link]
+
+<br>
+
 </div>
 
-Hobbes is a work-in-progress chess engine written in Rust. It is the sequel to my other chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches!) towards turning Hobbes into a strong engine. 
+A strong chess engine written in Rust, with NNUE evaluation trained from zero knowledge, using self-generated training data.
 
-At the time of writing Hobbes is 10-15 elo stronger than Calvin, meaning it should be rated roughly 3620 CCRL blitz. However, Hobbes is still using Calvin's neural network, and the plan is only to release once Hobbes has a network of its own, trained from scratch with data generated from self-play, from zero knowledge. Therefore there won't be any Hobbes releases in the short term.
+Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches) towards turning Hobbes into a strong engine. 
 
-Watch this space!
+## Strength
+
+Hobbes is not yet officially released. The current strength is approximately 3640 elo CCRL blitz.
+
+## Search
+
+## Evaluation
+
+## Building Hobbes
+
+## Acknowledgements
+
+[beta-badge]: https://img.shields.io/badge/version-BETA-A8DEFF?style=for-the-badge
+[beta-link]: https://github.com/kelseyde/hobbes-chess-engine
+
+[license-badge]: https://img.shields.io/github/license/kelseyde/hobbes-chess-engine?style=for-the-badge&color=fab157
+[license-link]: https://github.com/kelseyde/hobbes-chess-engine/blob/main/LICENSE
