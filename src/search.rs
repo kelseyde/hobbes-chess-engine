@@ -275,6 +275,8 @@ fn alpha_beta(board: &Board,
         depth -= 1;
     }
 
+    let maybe_singularity = depth >= se_min_depth() && !tt_flag.is_upper() && tt_depth >= depth - se_tt_depth_offset();
+
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search{
@@ -300,6 +302,7 @@ fn alpha_beta(board: &Board,
         if depth >= nmp_min_depth()
             && static_eval >= beta
             && ply as i32 > td.nmp_min_ply
+            && !maybe_singularity
             && board.has_non_pawns() {
 
             let r = nmp_base_reduction()
@@ -461,10 +464,8 @@ fn alpha_beta(board: &Board,
         if !root_node
             && !singular_search
             && tt_hit
-            && mv == tt_move
-            && depth >= se_min_depth()
-            && tt_flag != TTFlag::Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && maybe_singularity
+            && mv == tt_move {
 
             let s_beta = (tt_score - depth * se_beta_scale() / 16).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();

@@ -39,6 +39,12 @@ pub enum TTFlag {
     Upper = 3,
 }
 
+impl TTFlag {
+    pub fn is_upper(&self) -> bool {
+        *self == TTFlag::Upper
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct Flags {
     data: u8,
