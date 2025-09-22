@@ -13,6 +13,7 @@ use crate::tools::{fen, pretty};
 use crate::tools::perft::perft;
 use std::io;
 use std::time::Instant;
+use crate::VERSION;
 
 pub struct UCI {
     pub board: Board,
@@ -73,7 +74,7 @@ impl UCI {
     }
 
     fn handle_uci(&self) {
-        println!("id name Hobbes");
+        println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
         println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
         println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
