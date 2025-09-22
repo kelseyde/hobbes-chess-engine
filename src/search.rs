@@ -203,7 +203,7 @@ fn alpha_beta(board: &Board,
 
             if !root_node
                 && !pv_node
-                && tt_depth >= depth
+                && tt_depth >= depth - (tt_score <= beta) as i32 - (tt_flag == TTFlag::Exact) as i32
                 && bounds_match(entry.flag(), tt_score, alpha, beta) {
                 return tt_score;
             }
