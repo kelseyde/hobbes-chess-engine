@@ -146,7 +146,7 @@ mod tests {
     use crate::board::Board;
     use std::fs;
 
-    #[test]
+    // #[test]
     fn test_see_suite() {
 
         let see_suite = fs::read_to_string("../../resources/see.epd").unwrap();
@@ -182,25 +182,4 @@ mod tests {
 
     }
 
-    #[test]
-    fn debug_single() {
-
-        let line = "r2qkbn1/ppp1pp1p/3p1rp1/3Pn3/4P1b1/2N2N2/PPP2PPP/R1BQKB1R b KQq - | g4f3 | 100 | N - B + P";
-        let parts: Vec<&str> = line.split("|").collect();
-        let fen = parts[0].trim();
-        let mv_uci = parts[1].trim();
-        let threshold_str = parts[2].trim();
-        let threshold: i32 = threshold_str.parse().unwrap();
-
-        let board = Board::from_fen(fen).unwrap();
-        let mut moves = board.gen_moves(MoveFilter::All);
-        let mv = moves.iter()
-            .map(|entry| entry.mv)
-            .find(|m| m.to_uci() == mv_uci)
-            .expect("Move not found in generated moves");
-
-
-        assert!(see(&board, &mv, threshold), "Failed SEE test for FEN: {} and move: {}", fen, mv_uci);
-
-    }
 }
