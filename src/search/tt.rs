@@ -171,6 +171,9 @@ impl TranspositionTable {
             || flag == TTFlag::Exact
             || depth + 4 > entry.depth as i32
             || entry.flags.age() != tt_age) {
+            if entry.depth >= 5 && entry.flags.bound() != TTFlag::Exact {
+                entry.depth -= 1;
+            }
             return;
         }
 
