@@ -432,7 +432,9 @@ fn alpha_beta(board: &Board,
 
         // Bad Noisy Pruning
         // Skip bad noisies when the static evaluation + some margin is still below alpha.
-        let futility_margin = static_eval + bnp_scale() * lmr_depth;
+        let futility_margin = static_eval
+            + bnp_scale() * lmr_depth
+            + captured.map_or(0, |c| see::value(c) / bnp_mvv_divisor());
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
