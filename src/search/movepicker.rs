@@ -7,7 +7,6 @@ use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 use crate::board::piece::Piece;
-use crate::search::parameters::movepick_see_threshold;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -29,7 +28,6 @@ pub struct MovePicker {
     ply: usize,
     threats: Bitboard,
     pub skip_quiets: bool,
-    see_threshold: Option<i32>,
     bad_noisies: MoveList,
 }
 
@@ -46,7 +44,6 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(movepick_see_threshold()),
             bad_noisies: MoveList::new(),
         }
     }
@@ -62,7 +59,6 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: true,
-            see_threshold: None,
             bad_noisies: MoveList::new(),
         }
     }
@@ -85,10 +81,13 @@ impl MovePicker {
                     // Queen and knight promos are treated as good noisies
                     entry.mv.promo_piece().map_or(false, |p| p == Piece::Queen || p == Piece::Knight)
                 } else {
+                    let pc = board.piece_at(entry.mv.from()).unwrap();
+                    let captured = board.captured(&entry.mv);
+                    let mvv_score = captured.map_or(0, |cap| see::value(cap));
+                    let history_score = td.history.capture_history_score(board, &entry.mv, pc, captured?);
+                    let see_threshold = -(mvv_score + history_score) / 8 - 2;
                     // Captures are sorted based on whether they pass a SEE threshold
-                    self.see_threshold
-                        .map(|threshold| see(board, &entry.mv, threshold))
-                        .unwrap_or(true)
+                    see(board, &entry.mv, see_threshold)
                 };
 
                 if good_noisy {
