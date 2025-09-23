@@ -402,7 +402,7 @@ fn alpha_beta(board: &Board,
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mate_score
-            && futility_margin <= alpha {
+            && futility_value <= alpha {
             if !Score::is_mate(best_score) && best_score <= futility_value {
                 best_score = futility_value;
             }
