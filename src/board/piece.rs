@@ -21,11 +21,6 @@ impl Piece {
         matches!(self, Piece::Queen | Piece::Rook | Piece::King)
     }
 
-    #[inline(always)]
-    pub const fn is_minor(self) -> bool {
-        matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
-    }
-
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {
