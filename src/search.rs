@@ -217,10 +217,11 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -528,6 +529,7 @@ fn alpha_beta(board: &Board,
             }
             reduction += cut_node as i32 * lmr_cut_node();
             reduction += !improving as i32 * lmr_improving();
+            reduction -= (correction.abs() * correction.abs() / 24).min(1536);
             reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
 
             if is_quiet {
