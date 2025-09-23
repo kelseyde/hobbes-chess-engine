@@ -97,6 +97,7 @@ tunable_params! {
     corr_pawn_weight            = 125, 0, 200, 10;
     corr_non_pawn_weight        = 89, 0, 200, 10;
     corr_major_weight           = 91, 0, 200, 10;
+    corr_minor_weight           = 100, 0, 200, 10;
     corr_counter_weight         = 102, 0, 200, 10;
     corr_follow_up_weight       = 105, 0, 200, 10;
     see_value_pawn              = 92, 50, 150, 10;
