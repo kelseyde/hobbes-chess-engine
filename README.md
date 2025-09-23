@@ -34,6 +34,7 @@ Hobbes is not yet officially released. The current strength is approximately 364
 - Mattia and Jonathan, the authors of [Heimdall](https://github.com/nocturn9x/heimdall) and [Pawnocchio](https://github.com/JonathanHallstrom/pawnocchio) respectively, who both contributed major improvements in the early days of Hobbes.
 - The members of the [MattBench](https://chess.n9x.co/index/) OpenBench instance who have contributed hardware towards running Hobbes tests.
 - Jamie, the author of [bullet](https://github.com/jw1912/bullet), an incredible tool for training NNUEs among other things, with which I have trained all of Hobbes's neural networks.
+- Other engines, including (in no particular order): [Stockfish](https://github.com/official-stockfish/Stockfish), [Reckless](https://github.com/codedeliveryservice/Reckless), [Integral](https://github.com/aronpetko/integral), [Sirius](https://github.com/mcthouacbb/Sirius), [Stormphrax](https://github.com/Ciekce/Stormphrax), [Pawnocchio](https://github.com/JonathanHallstrom/pawnocchio) and [Simbelmyne](https://github.com/sroelants/simbelmyne).
 - The Stockfish discord community for endless amounts of useful information.
 - Bill Watterson, the author of the [comic book](https://en.wikipedia.org/wiki/Calvin_and_Hobbes) which gave this engine its name.
 
