@@ -6,6 +6,7 @@ use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::search::parameters::movepick_see_threshold;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -44,7 +45,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(-100),
+            see_threshold: Some(movepick_see_threshold()),
             bad_noisies: MoveList::new(),
         }
     }
