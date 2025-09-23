@@ -356,6 +356,7 @@ fn alpha_beta(board: &Board,
     let mut capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
+    let mut best_move_was_noisy = false;
     let mut flag = TTFlag::Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
@@ -598,6 +599,10 @@ fn alpha_beta(board: &Board,
             best_move = mv;
             flag = TTFlag::Exact;
 
+            if captured.is_some() {
+                best_move_was_noisy = true;
+            }
+
             if pv_node {
                 td.pv.update(ply, mv);
                 if root_node {
@@ -697,6 +702,7 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
+        && !best_move_was_noisy
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
