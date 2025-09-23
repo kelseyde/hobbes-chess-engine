@@ -6,6 +6,7 @@ use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::board::piece::Piece;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -78,12 +79,21 @@ impl MovePicker {
             let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
-                if self.see_threshold
-                    .map(|threshold| !see(board, &entry.mv, threshold))
-                    .unwrap_or(false) {
-                    self.bad_noisies.add(*entry);
+
+                let good_noisy = if entry.mv.is_promo() {
+                    // Queen and knight promos are treated as good noisies
+                    entry.mv.promo_piece().map_or(false, |p| p == Piece::Queen || p == Piece::Knight)
                 } else {
+                    // Captures are sorted based on whether they pass a SEE threshold
+                    self.see_threshold
+                        .map(|threshold| see(board, &entry.mv, threshold))
+                        .unwrap_or(true)
+                };
+
+                if good_noisy {
                     self.moves.add(*entry);
+                } else {
+                    self.bad_noisies.add(*entry);
                 }
             }
             self.stage = GoodNoisies;
