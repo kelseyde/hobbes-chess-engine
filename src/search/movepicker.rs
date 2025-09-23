@@ -86,14 +86,14 @@ impl MovePicker {
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
                     self.see_threshold
-                        .map(|threshold| !see(board, &entry.mv, threshold))
-                        .unwrap_or(false)
+                        .map(|threshold| see(board, &entry.mv, threshold))
+                        .unwrap_or(true)
                 };
 
                 if good_noisy {
-                    self.bad_noisies.add(*entry);
-                } else {
                     self.moves.add(*entry);
+                } else {
+                    self.bad_noisies.add(*entry);
                 }
             }
             self.stage = GoodNoisies;
