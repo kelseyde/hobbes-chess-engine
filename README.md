@@ -25,9 +25,27 @@ Hobbes is not yet officially released. The current strength is approximately 364
 
 ## Search
 
+Hobbes features a classical alpha-beta negamax search with iterative deepening. Other features include aspiration windows, quiescence search, principle variation search, reverse futility pruning, null move pruning, singular extensions, and many more. 
+
 ## Evaluation
 
+Hobbes uses an efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x10hm->1024)x2->1`. Other NNUE optimisations that Hobbes employs are fused refreshes, Finny tables, and lazy updates.
+
+The network is trained entirely on data generated from self-play. The network was initialised from random values and trained up over many iterations; the full history of past nets is documented [here](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network_history.txt). 
+
 ## Building Hobbes
+
+Official Hobbes binaries can be downloaded from the [Releases](https://github.com/kelseyde/hobbes-chess-engine/releases) page. 
+
+If you would like to build Hobbes from source, it is first necessary to [install Rust](https://www.rust-lang.org/tools/install).
+
+Then, you need to download Hobbes' latest neural network. The latest network name is recorded in [network.txt](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network.txt). Then, execute this command in the root directory (substituting {lastest_net} for the net name):
+
+`curl -L -o hobbes.nnue https://github.com/kelseyde/hobbes-networks/releases/download/{latest_net}/{latest_net}.nnue`
+
+Then, call `cargo build -r`. The executable will be created in the `target/release` directory.
+
+Please note, building Hobbes from source using these steps will create a basic executable with SIMD disabled. If you desire to build an optimised, tournament-ready executable from source, please refer to the Makefile, or else contact me directly.
 
 ## Acknowledgements
 
