@@ -229,7 +229,8 @@ fn alpha_beta(board: &Board,
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
-    let improving = is_improving(td, ply, static_eval);
+    let improvement = calc_improvement(td, ply, static_eval, in_check);
+    let improving = improvement > 0;
 
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
@@ -927,23 +928,14 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
-fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
-    if static_eval == Score::MIN {
-        return false;
+fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
+    if ply >= 2 && Score::is_defined(td.ss[ply - 2].static_eval) && !in_check {
+        static_eval - td.ss[ply - 2].static_eval
+    } else if ply >= 4 && Score::is_defined(td.ss[ply - 4].static_eval) && !in_check {
+        static_eval - td.ss[ply - 4].static_eval
+    } else {
+        0
     }
-    if ply > 1 {
-        let prev_eval = td.ss[ply - 2].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
-    }
-    if ply > 3 {
-        let prev_eval = td.ss[ply - 4].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
-    }
-    true
 }
 
 fn late_move_threshold(depth: i32, improving: bool) -> i32 {
