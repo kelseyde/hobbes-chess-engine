@@ -529,7 +529,8 @@ fn alpha_beta(board: &Board,
             r -= extension * 1024 / 3;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
-            let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
+            let reduced_depth = (new_depth - r / 1024)
+                .clamp(pv_node as i32, new_depth + cut_node as i32 + 2 * pv_node as i32);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.ss[ply].reduction = r;
