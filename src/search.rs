@@ -520,21 +520,16 @@ fn alpha_beta(board: &Board,
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut reduction = base_reduction * 1024;
-            if tt_pv {
-                reduction -= lmr_ttpv_base();
-                reduction -= lmr_ttpv_tt_score() * (has_tt_score && tt_score > alpha) as i32;
-                reduction -= lmr_ttpv_tt_depth() * (has_tt_score && tt_depth >= depth) as i32;
-            }
-            reduction += cut_node as i32 * lmr_cut_node();
-            reduction += !improving as i32 * lmr_improving();
-            reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
-            reduction -= extension * 1024 / 3;
 
-            if is_quiet {
-                reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            } else {
-                reduction -= captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor())
-            }
+            reduction -= lmr_ttpv_base() * (is_quiet && tt_pv) as i32;
+            reduction -= lmr_ttpv_tt_score() * (is_quiet && tt_pv && has_tt_score && tt_score > alpha) as i32;
+            reduction -= lmr_ttpv_tt_depth() * (is_quiet && tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            reduction += lmr_cut_node() * (is_quiet && cut_node) as i32;
+            reduction += lmr_improving() * (is_quiet && !improving) as i32;
+            reduction -= lmr_shallow() * (is_quiet && depth == lmr_min_depth()) as i32;
+            reduction -= is_quiet as i32 * extension * 1024 / 3;
+            reduction -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            //reduction -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
 
             let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
 
