@@ -523,9 +523,9 @@ fn alpha_beta(board: &Board,
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
+            r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
-            r -= 1024 * captured.is_some() as i32;
             r -= extension * 1024 / 3;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
