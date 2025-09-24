@@ -514,33 +514,25 @@ fn alpha_beta(board: &Board,
         // Principal Variation Search
         // We assume that the first move will be best, and search all others with a null window and/or
         // reduced depth. If any of those moves beat alpha, we re-search with a full window and depth.
-        if depth >= lmr_min_depth()
-            && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32
-            && is_quiet {
+        if depth >= lmr_min_depth() && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32 {
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut reduction = base_reduction * 1024;
-            if tt_pv {
-                reduction -= lmr_ttpv_base();
-                reduction -= lmr_ttpv_tt_score() * (has_tt_score && tt_score > alpha) as i32;
-                reduction -= lmr_ttpv_tt_depth() * (has_tt_score && tt_depth >= depth) as i32;
-            }
-            reduction += cut_node as i32 * lmr_cut_node();
-            reduction += !improving as i32 * lmr_improving();
-            reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
-            reduction -= extension * 1024 / 3;
-
-            if is_quiet {
-                reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            } else {
-                reduction -= captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor())
-            }
-
-            let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
+            let mut r = base_reduction * 1024;
+            r -= lmr_ttpv_base() * tt_pv as i32;
+            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
+            r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r += lmr_cut_node() * cut_node as i32;
+            r -= lmr_capture() * captured.is_some() as i32;
+            r += lmr_improving() * !improving as i32;
+            r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
+            r -= extension * 1024 / 3;
+            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
+            let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
-            td.ss[ply].reduction = reduction;
+            td.ss[ply].reduction = r;
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
             td.ss[ply].reduction = 0;
 
