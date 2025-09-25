@@ -354,8 +354,8 @@ fn alpha_beta(board: &Board,
         && tt_flag == TTFlag::Lower
         && tt_depth >= depth - 4
         && tt_score >= probcut_beta
-        && Score::is_mate(tt_score)
-        && Score::is_mate(beta) {
+        && !Score::is_mate(tt_score)
+        && !Score::is_mate(beta) {
         return probcut_beta;
     }
 
