@@ -346,6 +346,19 @@ fn alpha_beta(board: &Board,
         depth -= 1;
     }
 
+    let probcut_beta = beta + 350;
+
+    // Stockfish 'Small Probcut' idea
+    if !pv_node
+        && !singular_search
+        && tt_flag == TTFlag::Lower
+        && tt_depth >= depth - 4
+        && tt_score >= probcut_beta
+        && Score::is_mate(tt_score)
+        && Score::is_mate(beta) {
+        return probcut_beta;
+    }
+
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
