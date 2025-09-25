@@ -2,6 +2,7 @@ use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
+use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 
 // Check if the castling move is kingside or queenside
@@ -107,26 +108,22 @@ impl Rights {
     }
 
     pub fn wk_sq(self) -> Option<Square> {
-        let file_value = (self.data & Self::WK_MASK) >> Self::WK_SHIFT;
-        let file = File::parse(file_value as usize);
+        let file = self.file(Self::WK_MASK, Self::WK_SHIFT);
         Some(Square::from(file, Rank::One))
     }
 
     pub fn wq_sq(self) -> Option<Square> {
-        let file_value = (self.data & Self::WQ_MASK) >> Self::WQ_SHIFT;
-        let file = File::parse(file_value as usize);
+        let file = self.file(Self::WQ_MASK, Self::WQ_SHIFT);
         Some(Square::from(file, Rank::One))
     }
 
     pub fn bk_sq(self) -> Option<Square> {
-        let file_value = (self.data & Self::BK_MASK) >> Self::BK_SHIFT;
-        let file = File::parse(file_value as usize);
+        let file = self.file(Self::BK_MASK, Self::BK_SHIFT);
         Some(Square::from(file, Rank::Eight))
     }
 
     pub fn bq_sq(self) -> Option<Square> {
-        let file_value = (self.data & Self::BQ_MASK) >> Self::BQ_SHIFT;
-        let file = File::parse(file_value as usize);
+        let file = self.file(Self::BQ_MASK, Self::BQ_SHIFT);
         Some(Square::from(file, Rank::Eight))
     }
 
@@ -192,6 +189,44 @@ impl Rights {
         let value = file as u16;
         self.data &= mask;
         self.data |= (value << shift) | presence;
+    }
+
+    pub fn to_string(self, frc: bool) -> String {
+        let mut rights = String::new();
+        if self.is_empty() {
+            rights.push('-');
+        } else {
+            if self.kingside(White).is_some() {
+                let file_char = if !frc { 'K' } else { self.dfrc_file_char(White, true) };
+                rights.push(file_char);
+            }
+            if self.queenside(White).is_some() {
+                let file_char = if !frc { 'Q' } else { self.dfrc_file_char(White, false) };
+                rights.push(file_char);
+            }
+            if self.kingside(Black).is_some() {
+                let file_char = if !frc { 'k' } else { self.dfrc_file_char(Black, true) };
+                rights.push(file_char);
+            }
+            if self.queenside(Black).is_some() {
+                let file_char = if !frc { 'q' } else { self.dfrc_file_char(Black, false) };
+                rights.push(file_char);
+            }
+        }
+        rights
+    }
+
+    fn file(self, mask: u16, shift: u8) -> File {
+        let file_value = (self.data & mask) >> shift;
+        File::parse(file_value as usize)
+    }
+
+    fn dfrc_file_char(self, side: Side, kingside: bool) -> char {
+        let file = if kingside { self.kingside(side).unwrap() } else { self.queenside(side).unwrap() };
+        match side {
+            White => file.to_char().to_ascii_uppercase(),
+            Black => file.to_char().to_ascii_lowercase()
+        }
     }
 
 }
@@ -316,6 +351,15 @@ mod tests {
         assert!(!board.has_kingside_rights(Side::Black));
         assert!(board.has_queenside_rights(Side::Black));
 
+    }
+
+    #[test]
+    fn test_dfrc_rights_string() {
+        let rights = Rights::new(Some(File::H), Some(File::A), Some(File::H), Some(File::A));
+        assert_eq!(rights.to_string(true), "HAha".to_string());
+
+        let rights = Rights::new(Some(File::G), Some(File::B), Some(File::F), Some(File::C));
+        assert_eq!(rights.to_string(true), "GBfc".to_string());
     }
 
 }

@@ -394,7 +394,8 @@ impl UCI {
             8
         }) as usize;
 
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves) {
+        let dfrc = self.board.frc;
+        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
 
