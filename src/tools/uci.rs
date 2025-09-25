@@ -9,11 +9,11 @@ use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
-use crate::tools::{fen, pretty};
 use crate::tools::perft::perft;
+use crate::tools::{fen, pretty};
+use crate::VERSION;
 use std::io;
 use std::time::Instant;
-use crate::VERSION;
 
 pub struct UCI {
     pub board: Board,
