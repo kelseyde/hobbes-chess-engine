@@ -60,6 +60,7 @@ tunable_params! {
     lmr_ttpv_tt_score           = 700, 0, 2048, 256;
     lmr_ttpv_tt_depth           = 700, 0, 2048, 256;
     lmr_cut_node                = 1398, 0, 2048, 256;
+    lmr_capture                 = 1024, 0, 2048, 256;
     lmr_improving               = 629, 0, 2048, 256;
     lmr_shallow                 = 1024, 0, 2048, 256;
     lmr_hist_offset             = 387, -2048, 2048, 256;

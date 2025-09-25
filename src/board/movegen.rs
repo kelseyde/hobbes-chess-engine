@@ -84,11 +84,6 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
             moves.add_move(from, to, MoveFlag::DoublePush);
         }
 
-        for to in push_promos(pawns, side, occ) {
-            let from = if side == White { to.minus(8) } else { to.plus(8) };
-            add_promos(moves, from, to);
-        }
-
     }
 
     if filter != MoveFilter::Quiets {
@@ -115,6 +110,11 @@ fn gen_pawn_moves(board: &Board, side: Side, occ: Bitboard, them: Bitboard, filt
                 moves.add_move(from, to, MoveFlag::EnPassant);
             }
 
+        }
+
+        for to in push_promos(pawns, side, occ) {
+            let from = if side == White { to.minus(8) } else { to.plus(8) };
+            add_promos(moves, from, to);
         }
 
         for to in left_capture_promos(pawns, side, them) {

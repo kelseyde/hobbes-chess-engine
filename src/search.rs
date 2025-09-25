@@ -229,7 +229,8 @@ fn alpha_beta(board: &Board,
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
-    let improving = is_improving(td, ply, static_eval);
+    let improvement = calc_improvement(td, ply, static_eval, in_check);
+    let improving = improvement > 0;
 
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
@@ -444,7 +445,9 @@ fn alpha_beta(board: &Board,
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            (pvs_see_quiet_scale() * depth) - history_score / pvs_see_quiet_history_div()
+            (pvs_see_quiet_scale() * depth)
+                - history_score / pvs_see_quiet_history_div()
+                - 12 * lmr_depth * tt_pv as i32
         } else {
             (pvs_see_noisy_scale() * depth * depth) - history_score / pvs_see_noisy_history_div()
         };
@@ -513,32 +516,25 @@ fn alpha_beta(board: &Board,
         // Principal Variation Search
         // We assume that the first move will be best, and search all others with a null window and/or
         // reduced depth. If any of those moves beat alpha, we re-search with a full window and depth.
-        if depth >= lmr_min_depth()
-            && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32
-            && is_quiet {
+        if depth >= lmr_min_depth() && searched_moves > lmr_min_moves() + root_node as i32 + pv_node as i32 {
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut reduction = base_reduction * 1024;
-            if tt_pv {
-                reduction -= lmr_ttpv_base();
-                reduction -= lmr_ttpv_tt_score() * (has_tt_score && tt_score > alpha) as i32;
-                reduction -= lmr_ttpv_tt_depth() * (has_tt_score && tt_depth >= depth) as i32;
-            }
-            reduction += cut_node as i32 * lmr_cut_node();
-            reduction += !improving as i32 * lmr_improving();
-            reduction -= (depth == lmr_min_depth()) as i32 * lmr_shallow();
-
-            if is_quiet {
-                reduction -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            } else {
-                reduction -= captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor())
-            }
-
-            let reduced_depth = (new_depth - (reduction / 1024)).clamp(1, new_depth);
+            let mut r = base_reduction * 1024;
+            r -= lmr_ttpv_base() * tt_pv as i32;
+            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
+            r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r += lmr_cut_node() * cut_node as i32;
+            r -= lmr_capture() * captured.is_some() as i32;
+            r += lmr_improving() * !improving as i32;
+            r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
+            r -= extension * 1024 / 3;
+            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
+            let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
-            td.ss[ply].reduction = reduction;
+            td.ss[ply].reduction = r;
             score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
             td.ss[ply].reduction = 0;
 
@@ -927,23 +923,14 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
 
-fn is_improving(td: &ThreadData, ply: usize, static_eval: i32) -> bool {
-    if static_eval == Score::MIN {
-        return false;
+fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
+    if ply >= 2 && Score::is_defined(td.ss[ply - 2].static_eval) && !in_check {
+        static_eval - td.ss[ply - 2].static_eval
+    } else if ply >= 4 && Score::is_defined(td.ss[ply - 4].static_eval) && !in_check {
+        static_eval - td.ss[ply - 4].static_eval
+    } else {
+        0
     }
-    if ply > 1 {
-        let prev_eval = td.ss[ply - 2].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
-    }
-    if ply > 3 {
-        let prev_eval = td.ss[ply - 4].static_eval;
-        if prev_eval != Score::MIN {
-            return static_eval > prev_eval;
-        }
-    }
-    true
 }
 
 fn late_move_threshold(depth: i32, improving: bool) -> i32 {
