@@ -447,9 +447,11 @@ fn alpha_beta(board: &Board,
         let see_threshold = if is_quiet {
             (pvs_see_quiet_scale() * depth)
                 - history_score / pvs_see_quiet_history_div()
-                - 12 * lmr_depth * tt_pv as i32
+                - lmr_depth * tt_pv as i32 * pvs_see_quiet_ttpv_scale()
         } else {
-            (pvs_see_noisy_scale() * depth * depth) - history_score / pvs_see_noisy_history_div()
+            (pvs_see_noisy_scale() * depth * depth)
+                - history_score / pvs_see_noisy_history_div()
+                - lmr_depth * tt_pv as i32 * pvs_see_noisy_ttpv_scale()
         };
         if !pv_node
             && depth <= pvs_see_max_depth()
