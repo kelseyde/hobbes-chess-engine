@@ -412,9 +412,8 @@ fn alpha_beta(board: &Board,
         if !pv_node
             && !root_node
             && !is_mate_score
-            && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves > late_move_threshold(depth, improving, is_quiet) {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -933,10 +932,10 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     }
 }
 
-fn late_move_threshold(depth: i32, improving: bool) -> i32 {
+fn late_move_threshold(depth: i32, improving: bool, is_quiet: bool) -> i32 {
     let base = if improving { lmp_improving_base() } else { lmp_base() };
     let scale = if improving { lmp_improving_scale() } else { lmp_scale() };
-    (base + depth * scale) / 10
+    ((base + depth * scale) / 10) + is_quiet as i32 * 5
 }
 
 fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
