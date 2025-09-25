@@ -43,7 +43,6 @@ tunable_params! {
     hp_scale                    = -2111, -3072, -1024, 128;
     bnp_max_depth               = 6, 4, 10, 1;
     bnp_scale                   = 122, 64, 256, 16;
-    pvs_see_max_depth           = 8, 6, 10, 1;
     pvs_see_quiet_scale         = -47, -72, -36, 12;
     pvs_see_noisy_scale         = -24, -48, -12, 12;
     pvs_see_quiet_history_div   = 265, 164, 388, 25;

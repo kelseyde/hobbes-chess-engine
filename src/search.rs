@@ -452,7 +452,6 @@ fn alpha_beta(board: &Board,
             (pvs_see_noisy_scale() * depth * depth) - history_score / pvs_see_noisy_history_div()
         };
         if !pv_node
-            && depth <= pvs_see_max_depth()
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
