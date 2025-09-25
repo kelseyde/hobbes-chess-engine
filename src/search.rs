@@ -381,6 +381,7 @@ fn alpha_beta(board: &Board,
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
+        td.ss[ply + 1].quiet_move_streak = if is_quiet { td.ss[ply].quiet_move_streak + 1 } else { 0 };
 
         let mut extension = 0;
 
@@ -531,6 +532,7 @@ fn alpha_beta(board: &Board,
             r -= extension * 1024 / 3;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
+            r += td.ss[ply + 1].quiet_move_streak as i32 * 50;
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -1079,7 +1081,8 @@ pub struct StackEntry {
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub static_eval: i32,
-    pub reduction: i32
+    pub reduction: i32,
+    pub quiet_move_streak: usize
 }
 
 impl Default for SearchStack {
@@ -1099,7 +1102,8 @@ impl SearchStack {
                 singular: None,
                 threats: Bitboard::empty(),
                 static_eval: Score::MIN,
-                reduction: 0
+                reduction: 0,
+                quiet_move_streak: 0,
             }; MAX_PLY + 8],
         }
     }
