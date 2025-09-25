@@ -935,7 +935,7 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
 fn late_move_threshold(depth: i32, improving: bool, is_quiet: bool) -> i32 {
     let base = if improving { lmp_improving_base() } else { lmp_base() };
     let scale = if improving { lmp_improving_scale() } else { lmp_scale() };
-    ((base + depth * scale) / 10) + is_quiet as i32 * 5
+    ((base + depth * scale) / 10) + !is_quiet as i32 * 5
 }
 
 fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
