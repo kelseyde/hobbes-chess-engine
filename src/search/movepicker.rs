@@ -88,7 +88,8 @@ impl MovePicker {
                     let history_score = entry.history_score;
                     // Captures are sorted based on whether they pass a SEE threshold
                     if let Some(mut threshold) = self.see_threshold {
-                        threshold -= history_score / 8 - 2;
+                        threshold -= history_score / 64 - 2;
+                        // println!("history score: {}, original: {}, adjusted threshold: {}", history_score, self.see_threshold.unwrap(), threshold);
                         if threshold <= -see::value(Queen) {
                             true
                         } else if threshold >= see::value(Queen) {
