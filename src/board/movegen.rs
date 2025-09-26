@@ -25,7 +25,7 @@ impl Board {
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add(MoveListEntry {mv: entry.mv, score: 0})
+                legal_moves.add(MoveListEntry {mv: entry.mv, history_score: 0, score: 0})
             }
         }
         legal_moves

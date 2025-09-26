@@ -19,6 +19,7 @@ pub struct MoveList {
 pub struct MoveListEntry {
     pub mv: Move,
     pub score: i32,
+    pub history_score: i32,
 }
 
 #[derive(Eq, PartialEq)]
@@ -214,7 +215,7 @@ impl MoveList {
     }
 
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
-        self.list.push(MoveListEntry { mv: Move::new(from, to, flag), score: 0 });
+        self.list.push(MoveListEntry { mv: Move::new(from, to, flag), history_score: 0, score: 0 });
         self.len += 1;
     }
 

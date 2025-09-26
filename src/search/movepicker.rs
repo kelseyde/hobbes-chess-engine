@@ -8,6 +8,7 @@ use crate::search::parameters::movepick_see_threshold;
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::board::piece::Piece::Queen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -80,15 +81,24 @@ impl MovePicker {
             let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
-
                 let good_noisy = if entry.mv.is_promo() {
                     // Queen and knight promos are treated as good noisies
                     entry.mv.promo_piece().map_or(false, |p| p == Piece::Queen || p == Piece::Knight)
                 } else {
+                    let history_score = entry.history_score;
                     // Captures are sorted based on whether they pass a SEE threshold
-                    self.see_threshold
-                        .map(|threshold| see(board, &entry.mv, threshold))
-                        .unwrap_or(true)
+                    if let Some(mut threshold) = self.see_threshold {
+                        threshold -= history_score / 8 - 2;
+                        if threshold <= -see::value(Queen) {
+                            true
+                        } else if threshold >= see::value(Queen) {
+                            false
+                        } else {
+                            see(board, &entry.mv, threshold)
+                        }
+                    } else {
+                        true
+                    }
                 };
 
                 if good_noisy {
@@ -149,13 +159,15 @@ impl MovePicker {
             // Score capture
             let victim_value = see::value(victim);
             let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            entry.history_score = history_score;
             entry.score = victim_value + history_score;
         } else {
             // Score quiet
-            let quiet_score = td.history.quiet_history_score(board, &td.ss, mv, ply, threats);
+            let history_score = td.history.quiet_history_score(board, &td.ss, mv, ply, threats);
             let is_killer = td.ss[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score;
+            entry.history_score = history_score;
+            entry.score = base + history_score;
         }
 
     }
