@@ -626,7 +626,7 @@ fn alpha_beta(board: &Board,
     // Update history tables
     // When the best move causes a beta cut-off, we update the history tables to reward the best move
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
-    if best_move.exists() {
+    if best_score >= beta {
         let pc = board.piece_at(best_move.from()).unwrap();
 
         let quiet_bonus = quiet_history_bonus(depth);
