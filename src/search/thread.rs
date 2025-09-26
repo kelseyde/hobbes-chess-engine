@@ -208,28 +208,32 @@ impl Default for PrincipalVariationTable {
 }
 
 pub struct LmrTable {
-    table: Box<[[i32; 64]; 256]>,
+    table: Box<[[[i32; 2]; 64]; 256]>,
 }
 
 impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(255) as usize][move_count.min(63) as usize]
+    pub fn reduction(&self, depth: i32, move_count: i32, is_noisy: bool) -> i32 {
+        self.table[depth.min(255) as usize][move_count.min(63) as usize][is_noisy as usize]
     }
 }
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let base = 0.92;
-        let divisor = 3.11;
+        let quiet_base = 0.92;
+        let quiet_divisor = 3.11;
+        let noisy_base = -0.12;
+        let noisy_divisor = 2.48;
 
-        let mut table: Box<[[i32; 64]; 256]> = unsafe { boxed_and_zeroed() };
+        let mut table: Box<[[[i32; 2]; 64]; 256]> = unsafe { boxed_and_zeroed() };
 
         for depth in 1..256 {
             for move_count in 1..64 {
                 let ln_depth = (depth as f32).ln();
                 let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
-                table[depth as usize][move_count as usize] = reduction;
+                let quiet_reduction = (quiet_base + (ln_depth * ln_move_count / quiet_divisor)) as i32;
+                let noisy_reduction = (noisy_base + (ln_depth * ln_move_count / noisy_divisor)) as i32;
+                table[depth as usize][move_count as usize][0] = quiet_reduction;
+                table[depth as usize][move_count as usize][1] = noisy_reduction;
             }
         }
 
