@@ -449,7 +449,8 @@ fn alpha_beta(board: &Board,
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
         } else {
-            (pvs_see_noisy_scale() * depth * depth) - history_score / pvs_see_noisy_history_div()
+            depth * depth * pvs_see_noisy_scale()
+                - history_score / pvs_see_noisy_history_div()
         };
         if !pv_node
             && depth <= pvs_see_max_depth()
