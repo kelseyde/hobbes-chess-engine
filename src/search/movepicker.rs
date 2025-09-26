@@ -87,16 +87,16 @@ impl MovePicker {
                 } else {
                     let history_score = entry.history_score;
                     // Captures are sorted based on whether they pass a SEE threshold
-                    if let Some(mut threshold) = self.see_threshold {
-                        // forget the configured threshold for now, just use capthist score
-                        threshold -= history_score / 128;
-                        // println!("history score: {}, original: {}, adjusted threshold: {}", history_score, self.see_threshold.unwrap(), threshold);
-                        if threshold <= -see::value(Queen) {
-                            true
-                        } else if threshold >= see::value(Queen) {
-                            false
-                        } else {
-                            see(board, &entry.mv, threshold)
+                    if let (Some(mut threshold), Some(captured)) = (self.see_threshold, board.captured(&entry.mv)) {
+                        let base = see::value(captured) + history_score / 8;
+                        threshold = -base / 8 + 2;
+                        // println!("see value, history, threshold: {}, {}, {}", see::value(captured), history_score, threshold);
+                        let queen_value = see::value(Queen);
+                        match threshold {
+                            // skip SEE if the threshold is >= or <= the maximum possible material gain/loss
+                            t if t <= -queen_value => true,
+                            t if t >= queen_value => false,
+                            _ => see(board, &entry.mv, threshold),
                         }
                     } else {
                         true
