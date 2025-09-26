@@ -85,19 +85,17 @@ impl MovePicker {
                     // Queen and knight promos are treated as good noisies
                     entry.mv.promo_piece().map_or(false, |p| p == Piece::Queen || p == Piece::Knight)
                 } else {
-                    let history_score = entry.history_score;
                     // Captures are sorted based on whether they pass a SEE threshold
-                    if let (Some(mut threshold), Some(captured)) = (self.see_threshold, board.captured(&entry.mv)) {
-                        let base = see::value(captured) + history_score / 8;
-                        threshold = -base / 8 + 2;
-                        // println!("see value, history, threshold: {}, {}, {}", see::value(captured), history_score, threshold);
-                        let queen_value = see::value(Queen);
-                        match threshold {
-                            // skip SEE if the threshold is >= or <= the maximum possible material gain/loss
-                            t if t <= -queen_value => true,
-                            t if t >= queen_value => false,
-                            _ => see(board, &entry.mv, threshold),
-                        }
+                    if let Some(threshold) = self.see_threshold {
+                        let history_score = entry.history_score;
+                        let threshold = if history_score <= -2000 {
+                            1
+                        } else if history_score <= 1000 {
+                            0
+                        } else  {
+                            -1
+                        };
+                        see(board, &entry.mv, threshold)
                     } else {
                         true
                     }
