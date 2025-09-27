@@ -76,6 +76,42 @@ impl CorrectionHistories {
 
     }
 
+    #[rustfmt::skip]
+    pub fn squared_correction_terms(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+
+        let us = board.stm;
+        let pawn_hash = board.keys.pawn_hash;
+        let w_nonpawn_hash = board.keys.non_pawn_hashes[Side::White];
+        let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
+        let major_hash = board.keys.major_hash;
+        let minor_hash = board.keys.minor_hash;
+
+        let mut pawn       = self.pawn_corrhist.get(us, pawn_hash);
+        let mut white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
+        let mut black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
+        let mut major      = self.major_corrhist.get(us, major_hash);
+        let mut minor      = self.minor_corrhist.get(us, minor_hash);
+        let mut counter    = self.countermove_correction(board, ss, ply);
+        let mut follow_up  = self.follow_up_move_correction(board, ss, ply);
+
+        pawn = pawn * 100 / corr_pawn_weight();
+        white = white * 100 / corr_non_pawn_weight();
+        black = black * 100 / corr_non_pawn_weight();
+        major = major * 100 / corr_major_weight();
+        minor = minor * 100 / corr_minor_weight();
+        counter = counter * 100 / corr_counter_weight();
+        follow_up = follow_up * 100 / corr_follow_up_weight();
+
+        pawn * pawn
+            + white * white
+            + black * black
+            + major * major
+            + minor * minor
+            + counter * counter
+            + follow_up * follow_up
+
+    }
+
     fn update_countermove_correction(&mut self, board: &Board, ss: &SearchStack, ply: usize, depth: i32, static_eval: i32, best_score: i32) {
         if ply >= 1 {
             if let Some(prev_mv) = ss[ply - 1].mv {
