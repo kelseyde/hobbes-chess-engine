@@ -229,7 +229,7 @@ fn alpha_beta(board: &Board,
         if tt_hit
             && has_tt_score
             && !singular_search
-            && bounds_match(tt_flag, tt_score, raw_eval, raw_eval) {
+            && bounds_match(tt_flag, tt_score, alpha, beta) {
             tt_corrected_eval = tt_score;
         }
     };
