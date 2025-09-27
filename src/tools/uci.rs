@@ -394,7 +394,10 @@ impl UCI {
             8
         }) as usize;
 
-        let dfrc = self.board.frc;
+        let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
+            println!("info error: dfrc is not a valid boolean");
+            false
+        });
         for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
@@ -433,6 +436,20 @@ impl UCI {
                 None => Err(format!("info error: {} is missing a value", name)),
             },
             None => Err(format!("info error: {} is missing", name)),
+        }
+    }
+
+    fn parse_bool(&self, tokens: &[String], name: &str, default: bool) -> Result<bool, String> {
+        match tokens.iter().position(|x| x == name) {
+            Some(index) => match tokens.get(index + 1) {
+                Some(value) => match value.as_str() {
+                    "true" => Ok(true),
+                    "false" => Ok(false),
+                    _ => Err(format!("info error: {} is not a valid boolean", name)),
+                },
+                None => Err(format!("info error: {} is missing a value", name)),
+            },
+            None => Ok(default),
         }
     }
 
