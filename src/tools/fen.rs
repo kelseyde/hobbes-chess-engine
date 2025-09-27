@@ -95,6 +95,7 @@ impl Board {
         board.keys.pawn_hash = Zobrist::get_pawn_hash(&board);
         board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.keys.major_hash = Zobrist::get_major_hash(&board);
+        board.keys.minor_hash = Zobrist::get_minor_hash(&board);
         Ok(board)
     }
 
@@ -133,22 +134,7 @@ impl Board {
         fen.push(if self.stm == White { 'w' } else { 'b' });
 
         fen.push(' ');
-        if self.rights.is_empty() {
-            fen.push('-');
-        } else {
-            if self.rights.kingside(White).is_some() {
-                fen.push('K');
-            }
-            if self.rights.queenside(White).is_some() {
-                fen.push('Q');
-            }
-            if self.rights.kingside(Black).is_some() {
-                fen.push('k');
-            }
-            if self.rights.queenside(Black).is_some() {
-                fen.push('q');
-            }
-        }
+        fen.push_str(self.rights.to_string(self.frc).as_str());
 
         fen.push(' ');
         if let Some(ep_sq) = self.ep_sq {
@@ -396,6 +382,7 @@ mod tests {
         assert_eq!(Some(File::A), board1.rights.queenside(White));
         assert_eq!(Some(File::H), board1.rights.kingside(Black));
         assert_eq!(Some(File::A), board1.rights.queenside(Black));
+        assert_eq!("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1", board1.to_fen());
 
         let board2 =
             Board::from_fen("bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd -").unwrap();
@@ -407,6 +394,7 @@ mod tests {
         assert_eq!(Some(File::D), board2.rights.queenside(White));
         assert_eq!(Some(File::H), board2.rights.kingside(Black));
         assert_eq!(Some(File::D), board2.rights.queenside(Black));
+        assert_eq!("bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd - 0 0", board2.to_fen());
 
         let board3 =
             Board::from_fen("nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb -").unwrap();
@@ -418,6 +406,7 @@ mod tests {
         assert_eq!(Some(File::B), board3.rights.queenside(White));
         assert_eq!(Some(File::F), board3.rights.kingside(Black));
         assert_eq!(Some(File::B), board3.rights.queenside(Black));
+        assert_eq!("nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb - 0 0", board3.to_fen());
 
     }
 }

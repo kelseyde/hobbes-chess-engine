@@ -48,6 +48,7 @@ tunable_params! {
     pvs_see_noisy_scale         = -24, -48, -12, 12;
     pvs_see_quiet_history_div   = 265, 164, 388, 25;
     pvs_see_noisy_history_div   = 273, 164, 388, 25;
+    pvs_see_quiet_ttpv_scale    = 12, 0, 36, 6;
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 16, 16, 48, 6;
@@ -60,12 +61,14 @@ tunable_params! {
     lmr_ttpv_tt_score           = 700, 0, 2048, 256;
     lmr_ttpv_tt_depth           = 700, 0, 2048, 256;
     lmr_cut_node                = 1398, 0, 2048, 256;
+    lmr_capture                 = 1024, 0, 2048, 256;
     lmr_improving               = 629, 0, 2048, 256;
     lmr_shallow                 = 1024, 0, 2048, 256;
     lmr_fail_high_count         = 1024, 0, 2048, 256;
     lmr_hist_offset             = 387, -2048, 2048, 256;
     lmr_hist_divisor            = 19156, 8192, 32768, 2048;
     lmr_mvv_divisor             = 3, 1, 5, 1;
+    lmr_extension_divisor       = 4, 1, 6, 1;
     lmr_cont_hist_bonus_scale   = 209, 80, 280, 40;
     lmr_cont_hist_bonus_offset  = 83, 0, 200, 25;
     lmr_cont_hist_bonus_max     = 1031, 1000, 1600, 100;
@@ -98,6 +101,7 @@ tunable_params! {
     corr_pawn_weight            = 125, 0, 200, 10;
     corr_non_pawn_weight        = 89, 0, 200, 10;
     corr_major_weight           = 91, 0, 200, 10;
+    corr_minor_weight           = 100, 0, 200, 10;
     corr_counter_weight         = 102, 0, 200, 10;
     corr_follow_up_weight       = 105, 0, 200, 10;
     see_value_pawn              = 92, 50, 150, 10;
@@ -112,5 +116,5 @@ tunable_params! {
     material_scaling_base       = 26574, 10000, 40000, 150;
     qs_futility_threshold       = 145, 80, 250, 10;
     qs_see_threshold            = -36, -200, 100, 25;
-    movepick_see_threshold      = -100, -150, 50, 50;
+    movepick_see_threshold      = -50, -100, 100, 50;
 }
