@@ -803,6 +803,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
@@ -815,7 +816,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !see::see(&board, &mv, qs_see_threshold()) {
+        let see_threshold = qs_see_threshold() - history_score / qs_see_history_div();
+        if !in_check && !see::see(&board, &mv, see_threshold) {
             continue;
         }
 
