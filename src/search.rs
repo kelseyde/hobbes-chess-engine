@@ -217,11 +217,21 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut tt_corrected_eval = Score::MIN;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+        tt_corrected_eval = static_eval;
+
+        // The TT score may be used as a more accurate static eval in some circumstances.
+        if tt_hit
+            && has_tt_score
+            && !singular_search
+            && bounds_match(tt_flag, tt_score, raw_eval, raw_eval) {
+            tt_corrected_eval = tt_score;
+        }
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -288,8 +298,8 @@ fn alpha_beta(board: &Board,
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
-            return beta + (static_eval - beta) / 3;
+        if depth <= rfp_max_depth() && tt_corrected_eval - futility_margin >= beta {
+            return beta + (tt_corrected_eval - beta) / 3;
         }
 
         // Razoring
