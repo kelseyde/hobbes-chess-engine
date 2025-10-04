@@ -288,7 +288,7 @@ fn alpha_beta(board: &Board,
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
-            + rfp_zugzwang_risk_scale() * (!board.has_non_pawns(board.stm) && board.has_non_pawns(!board.stm)) as i32;
+            + rfp_zugzwang_risk_scale() * !board.has_non_pawns() as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
@@ -304,7 +304,7 @@ fn alpha_beta(board: &Board,
         if depth >= nmp_min_depth()
             && static_eval >= beta
             && ply as i32 > td.nmp_min_ply
-            && board.is_kp_endgame() {
+            && board.has_non_pawns() {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
