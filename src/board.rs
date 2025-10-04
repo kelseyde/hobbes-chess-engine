@@ -320,8 +320,12 @@ impl Board {
         else { None }
     }
 
-    pub fn has_non_pawns(&self) -> bool {
-        self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
+    pub fn is_kp_endgame(&self) -> bool {
+        self.has_non_pawns(White) && self.has_non_pawns(Black)
+    }
+
+    pub fn has_non_pawns(&self, side: Side) -> bool {
+        self.king(side) | self.pawns(side) != self.side(side)
     }
 
     pub const fn is_fifty_move_rule(&self) -> bool {
