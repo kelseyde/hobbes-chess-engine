@@ -276,6 +276,12 @@ fn alpha_beta(board: &Board,
         && Score::is_defined(td.ss[ply - 1].static_eval)
         && static_eval + td.ss[ply - 1].static_eval > hindsight_red_eval_diff() {
         depth -= 1;
+
+        if depth >= hindsight_red_min_depth() + 1
+            && td.ss[ply - 1].reduction >= hindsight_red_min_reduction() + 1
+            && static_eval + td.ss[ply - 1].static_eval > hindsight_red_eval_diff() + 40 {
+            depth -= 1;
+        }
     }
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
