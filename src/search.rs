@@ -217,10 +217,11 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -629,7 +630,7 @@ fn alpha_beta(board: &Board,
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
+        let quiet_bonus = quiet_history_bonus(depth) + (correction.abs() * quiet_hist_corr_factor() / 100) as i16;
         let quiet_malus = quiet_history_malus(depth);
 
         let capt_bonus = capture_history_bonus(depth);

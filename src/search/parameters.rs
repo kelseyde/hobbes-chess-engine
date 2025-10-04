@@ -78,6 +78,7 @@ tunable_params! {
     alpha_raise_max_depth       = 12, 8, 16, 1;
     quiet_hist_bonus_scale      = 190, 80, 280, 40;
     quiet_hist_bonus_offset     = 86, 0, 200, 25;
+    quiet_hist_corr_factor      = 150, -400, 400, 50;
     quiet_hist_bonus_max        = 1098, 1000, 1600, 100;
     quiet_hist_malus_scale      = 144, 80, 280, 40;
     quiet_hist_malus_offset     = 33, 0, 200, 25;
