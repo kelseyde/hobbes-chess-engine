@@ -472,7 +472,7 @@ fn alpha_beta(board: &Board,
             && tt_flag != TTFlag::Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
-            let s_beta = (tt_score - depth * se_beta_scale() / 16).max(-Score::MATE + 1);
+            let s_beta = ((tt_score * 1024 - depth * se_beta_scale()) / 1024).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
