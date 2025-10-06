@@ -33,6 +33,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
 
+    td.root_static_eval = td.nnue.evaluate(board);
+    td.root_qs_eval = qs(board, td, Score::MIN, Score::MAX, 0);
+    td.root_complexity = (td.root_static_eval - td.root_qs_eval).abs();
+
     let root_moves = board.gen_legal_moves();
     match root_moves.len {
         0 => return handle_no_legal_moves(board, td),
@@ -43,7 +47,10 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut delta = asp_delta();
+
+    let asp_complexity_factor = (td.root_complexity / asp_delta_complexity_div()).min(asp_delta_complexity_max());
+    let base_delta = asp_delta() + asp_complexity_factor;
+    let mut delta = base_delta;
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -90,7 +97,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        delta = asp_delta();
+        delta = base_delta;
         td.depth += 1;
     }
 
