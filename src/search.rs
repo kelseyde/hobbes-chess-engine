@@ -698,6 +698,7 @@ fn alpha_beta(board: &Board,
         && !Score::is_mate(best_score)
         && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
+
         let correction_depth = if flag == Exact { depth + 3 } else { depth };
         td.correction_history.update_correction_history(board, &td.ss, correction_depth, ply, static_eval, best_score);
     }
