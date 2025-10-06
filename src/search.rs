@@ -20,6 +20,7 @@ use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
 use std::ops::{Index, IndexMut};
+use crate::search::tt::TTFlag::Exact;
 
 pub const MAX_PLY: usize = 256;
 
@@ -695,14 +696,14 @@ fn alpha_beta(board: &Board,
     if !in_check
         && !singular_search
         && !Score::is_mate(best_score)
+        && bounds_match(flag, best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        let bounds_match = bounds_match(flag, best_score, static_eval, static_eval);
-        let correction_depth = if bounds_match { depth } else { depth / 3 };
+        let correction_depth = if flag == Exact { depth + 3 } else { depth };
         td.correction_history.update_correction_history(board, &td.ss, correction_depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
-    if !singular_search && !td.hard_limit_reached(){
+    if !singular_search && !td.hard_limit_reached() {
         td.tt.insert(board.hash(), best_move, best_score, depth, ply, flag, tt_pv);
     }
 
