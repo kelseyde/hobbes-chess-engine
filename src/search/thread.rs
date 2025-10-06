@@ -30,6 +30,7 @@ pub struct ThreadData {
     pub depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
+    pub root_delta: i32,
     pub best_move: Move,
     pub best_score: i32,
 }
@@ -57,6 +58,7 @@ impl Default for ThreadData {
             depth: 0,
             seldepth: 0,
             nmp_min_ply: 0,
+            root_delta: 0,
             best_move: Move::NONE,
             best_score: Score::MIN,
         }
