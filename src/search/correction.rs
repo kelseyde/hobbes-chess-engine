@@ -138,7 +138,7 @@ impl CorrectionHistory {
     const MASK: usize = Self::SIZE - 1;
     const SCALE: i32 = 256;
     const GRAIN: i32 = 256;
-    const MAX: i32 = Self::GRAIN * 32;
+    const MAX: i32 = Self::GRAIN * 64;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
