@@ -395,7 +395,8 @@ fn alpha_beta(board: &Board,
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
             - legal_moves * fp_movecount_mult()
-            + history_score / fp_history_divisor();
+            + history_score / fp_history_divisor()
+            + tt_pv as i32 * 40;
         if !pv_node
             && !root_node
             && !in_check
