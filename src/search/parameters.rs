@@ -64,6 +64,7 @@ tunable_params! {
     lmr_capture                 = 1410, 0, 2048, 256;
     lmr_improving               = 639, 0, 2048, 256;
     lmr_shallow                 = 968, 0, 2048, 256;
+    lmr_killer                  = 1024, 0, 2048, 256;
     lmr_hist_offset             = 227, -2048, 2048, 256;
     lmr_hist_divisor            = 20952, 8192, 32768, 2048;
     lmr_mvv_divisor             = 3, 1, 5, 1;
