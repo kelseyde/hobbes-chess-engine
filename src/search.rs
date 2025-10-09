@@ -529,6 +529,7 @@ fn alpha_beta(board: &Board,
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
+            r -= td.ss[ply].killer.is_some_and(|k| k == mv) as i32 * lmr_killer();
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
