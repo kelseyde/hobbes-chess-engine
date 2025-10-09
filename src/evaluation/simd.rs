@@ -44,6 +44,49 @@ pub(crate) mod avx2 {
 
 }
 
+#[cfg(target_feature = "neon")]
+pub(crate) mod neon {
+    use crate::evaluation::network::{HIDDEN, QA};
+    use std::arch::aarch64::*;
+
+    const CHUNK_SIZE: usize = 8;
+    const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
+
+    #[inline]
+    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+        let mut sum = vdupq_n_s32(0);
+        for i in 0..LOOP_LENGTH {
+            let f_ptr = features.as_ptr().add(i * CHUNK_SIZE);
+            let w_ptr = weights.as_ptr().add(i * CHUNK_SIZE);
+            let f = vld1q_s16(f_ptr);
+            let w = vld1q_s16(w_ptr);
+            let clipped = clipped_relu(f);
+            let v = vmulq_s16(clipped, w);
+            // Multiply and accumulate: (v * clipped) as i32
+            let v_lo = vget_low_s16(v);
+            let c_lo = vget_low_s16(clipped);
+            let v_hi = vget_high_s16(v);
+            let c_hi = vget_high_s16(clipped);
+            let acc_lo = vmlal_s16(vdupq_n_s32(0), v_lo, c_lo);
+            let acc_hi = vmlal_s16(vdupq_n_s32(0), v_hi, c_hi);
+            sum = vaddq_s32(sum, vaddq_s32(acc_lo, acc_hi));
+        }
+        horizontal_add(sum)
+    }
+
+    #[inline]
+    unsafe fn horizontal_add(sum: int32x4_t) -> i32 {
+        vaddvq_s32(sum)
+    }
+
+    #[inline]
+    unsafe fn clipped_relu(i: int16x8_t) -> int16x8_t {
+        let min = vdupq_n_s16(0);
+        let max = vdupq_n_s16(QA as i16);
+        vminq_s16(vmaxq_s16(i, min), max)
+    }
+}
+
 #[cfg(not(target_feature = "avx2"))]
 pub(crate) mod scalar {
     use crate::evaluation::network::{HIDDEN, QA};
