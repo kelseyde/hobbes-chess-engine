@@ -377,7 +377,7 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
+        let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv);
         let is_mate_score = Score::is_mate(best_score);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
@@ -396,8 +396,7 @@ fn alpha_beta(board: &Board,
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
             - legal_moves * fp_movecount_mult()
-            + history_score / fp_history_divisor()
-            + is_killer * fp_killer();
+            + history_score / fp_history_divisor();
         if !pv_node
             && !root_node
             && !in_check
@@ -450,6 +449,7 @@ fn alpha_beta(board: &Board,
             depth * pvs_see_quiet_scale()
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+                - is_killer as i32 * pvs_see_quiet_killer_scale()
         } else {
             depth * depth * pvs_see_noisy_scale()
                 - history_score / pvs_see_noisy_history_div()
@@ -531,7 +531,7 @@ fn alpha_beta(board: &Board,
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
-            r -= is_killer * lmr_killer();
+            r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());

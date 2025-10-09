@@ -34,7 +34,6 @@ tunable_params! {
     fp_scale                    = 89, 50, 200, 10;
     fp_movecount_mult           = 4, 2, 8, 1;
     fp_history_divisor          = 95, 64, 256, 16;
-    fp_killer                   = 40, 16, 64, 8;
     lmp_max_depth               = 8, 6, 10, 1;
     lmp_base                    = 2, 1, 5, 1;
     lmp_improving_base          = 3, 1, 5, 1;
@@ -50,6 +49,7 @@ tunable_params! {
     pvs_see_quiet_history_div   = 258, 164, 388, 25;
     pvs_see_noisy_history_div   = 252, 164, 388, 25;
     pvs_see_quiet_ttpv_scale    = 25, 0, 36, 6;
+    pvs_see_quiet_killer_scale  = 40, 0, 64, 8;
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 17, 16, 48, 6;
