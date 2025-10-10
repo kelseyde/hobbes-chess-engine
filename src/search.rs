@@ -786,7 +786,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     };
     let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
 
     let futility_margin = static_eval + qs_futility_threshold();
 
@@ -800,10 +801,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
+        legal_moves += 1;
+
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+
+        // Late Move Pruning
+        // Only search the first few moves in quiescence search
+        if !in_check && !is_mate_score && legal_moves >= 3 {
+            break;
+        }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
@@ -822,7 +831,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+        if in_check && searched_moves > 1 && is_quiet && !is_mate_score {
             break;
         }
 
@@ -836,7 +845,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.keys.push(board.hash());
         td.tt.prefetch(board.hash());
 
-        move_count += 1;
+        searched_moves += 1;
         td.nodes += 1;
 
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
@@ -871,7 +880,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    if move_count == 0 && in_check {
+    if searched_moves == 0 && in_check {
         return -Score::MATE + ply as i32;
     }
 
