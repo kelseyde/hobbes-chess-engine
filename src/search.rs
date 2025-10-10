@@ -510,7 +510,7 @@ fn alpha_beta(board: &Board,
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let new_depth = depth - 1 + extension;
+        let mut new_depth = depth - 1 + extension;
 
         let mut score = Score::MIN;
 
@@ -542,11 +542,19 @@ fn alpha_beta(board: &Board,
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
-                score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                // Adjust the depth of the re-search based on the score from the reduced search.
+                let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
+                let do_shallower_margin = best_score + new_depth;
+                new_depth += (score > do_deeper_margin) as i32;
+                new_depth -= (score < do_shallower_margin) as i32;
 
-                if is_quiet && (score <= alpha || score >= beta) {
-                    let bonus = lmr_conthist_bonus(depth, score >= beta);
-                    td.history.update_continuation_history(&td.ss, ply, &mv, pc, bonus);
+                if new_depth > reduced_depth {
+                    score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+
+                    if is_quiet && (score <= alpha || score >= beta) {
+                        let bonus = lmr_conthist_bonus(depth, score >= beta);
+                        td.history.update_continuation_history(&td.ss, ply, &mv, pc, bonus);
+                    }
                 }
             }
         }
