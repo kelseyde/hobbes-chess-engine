@@ -54,7 +54,8 @@ tunable_params! {
     se_beta_scale               = 17, 16, 48, 6;
     se_depth_offset             = 1, 0, 3, 1;
     se_depth_divisor            = 2, 1, 4, 1;
-    se_double_ext_margin        = 12, 10, 30, 5;
+    se_double_ext_margin        = 12, 10, 30, 10;
+    se_triple_ext_margin        = 50, 40, 100, 10;
     lmr_min_depth               = 2, 1, 5, 1;
     lmr_min_moves               = 3, 1, 4, 1;
     lmr_ttpv_base               = 567, 0, 2048, 256;
