@@ -114,7 +114,7 @@ tunable_params! {
     scale_value_rook            = 642, 500, 700, 25;
     scale_value_queen           = 1248, 1000, 1400, 25;
     material_scaling_base       = 26670, 10000, 40000, 150;
-    qs_futility_threshold       = 148, 80, 250, 10;
+    qs_futility_margin          = 80, 80, 250, 10;
     qs_see_threshold            = -69, -200, 100, 25;
     movepick_see_threshold      = -86, -100, 100, 50;
 }

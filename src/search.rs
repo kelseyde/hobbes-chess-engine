@@ -763,6 +763,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     let mut static_eval = -Score::MATE + ply as i32;
+    let mut futility_base = Score::MIN;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
@@ -777,22 +778,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if alpha >= beta {
             return alpha;
         }
+        futility_base = static_eval + qs_futility_margin();
     }
 
-    let filter = if in_check {
-        MoveFilter::All
-    } else {
-        MoveFilter::Captures
-    };
+    let filter = if in_check { MoveFilter::All } else { MoveFilter::Captures };
     let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
-
-    let mut move_count = 0;
-
-    let futility_margin = static_eval + qs_futility_threshold();
 
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
+    let mut move_count = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -805,8 +800,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
+        // Evasion Pruning
+        // In check, stop searching quiet moves after finding at least one non-losing move.
+        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+            break;
+        }
+
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
+        let futility_margin = futility_base + 32 * captured.map_or(0, |c| see::value(c)) / 128;
         if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
             if best_score < futility_margin {
                 best_score = futility_margin;
@@ -818,12 +820,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // Skip moves which lose material once all the pieces are swapped off.
         if !in_check && !see::see(&board, &mv, qs_see_threshold()) {
             continue;
-        }
-
-        // Evasion Pruning
-        // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
-            break;
         }
 
         let mut board = *board;
