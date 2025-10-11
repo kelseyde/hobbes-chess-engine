@@ -23,6 +23,7 @@ tunable_params! {
     hindsight_ext_min_depth     = 1, 1, 5, 1;
     hindsight_ext_min_reduction = 3, 1, 5, 1;
     hindsight_ext_eval_diff     = -15, -50, 50, 5;
+    hindsight_ext_corr_div      = 4, 1, 6, 1;
     hindsight_red_min_depth     = 2, 1, 5, 1;
     hindsight_red_min_reduction = 1, 1, 5, 1;
     hindsight_red_eval_diff     = 52, 0, 120, 20;

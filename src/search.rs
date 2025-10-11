@@ -217,10 +217,11 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     };
 
@@ -254,13 +255,14 @@ fn alpha_beta(board: &Board,
     // Hindsight extension
     // If we reduced depth in the parent node, but now the static eval indicates the position is
     // improving, we correct the reduction 'in hindsight' by extending depth in the current node.
+    let hindsight_ext_threshold = hindsight_ext_eval_diff() + correction.abs() / hindsight_ext_corr_div();
     if !root_node
         && !in_check
         && !singular_search
         && depth >= hindsight_ext_min_depth()
         && td.ss[ply - 1].reduction >= hindsight_ext_min_reduction()
         && Score::is_defined(td.ss[ply - 1].static_eval)
-        && static_eval + td.ss[ply - 1].static_eval < hindsight_ext_eval_diff() {
+        && static_eval + td.ss[ply - 1].static_eval < hindsight_ext_threshold {
         depth += 1;
     }
 
