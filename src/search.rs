@@ -681,7 +681,9 @@ fn alpha_beta(board: &Board,
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node
         && flag == TTFlag::Upper
-        && td.ss[ply - 1].captured.is_none() {
+        && td.ss[ply - 1].captured.is_none()
+        && (!quiets.is_empty() || depth > 3) {
+
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
