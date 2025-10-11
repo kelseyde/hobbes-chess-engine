@@ -439,6 +439,9 @@ fn alpha_beta(board: &Board,
             && lmr_depth < bnp_max_depth()
             && move_picker.stage == Stage::BadNoisies
             && futility_margin <= alpha {
+            if !Score::is_mate(best_score) && best_score <= futility_margin {
+                best_score = futility_margin;
+            }
             break;
         }
 
