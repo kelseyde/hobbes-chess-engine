@@ -20,6 +20,7 @@ use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
 use std::ops::{Index, IndexMut};
+use crate::search::tt::TTFlag::Upper;
 
 pub const MAX_PLY: usize = 256;
 
@@ -332,6 +333,14 @@ fn alpha_beta(board: &Board,
                     return score;
                 }
             }
+        }
+
+        if depth <= 2
+            && static_eval >= beta
+            && tt_move.exists()
+            && tt_flag == Upper
+            && tt_score >= beta {
+            return qs(board, td, alpha, beta, ply);
         }
 
     }
