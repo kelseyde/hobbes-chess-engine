@@ -482,8 +482,8 @@ fn alpha_beta(board: &Board,
             if score < s_beta {
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
-            } else if s_beta >= beta {
-                return s_beta;
+            } else if score >= beta {
+                return score;
             } else if tt_score >= beta {
                 extension = -3;
             } else if cut_node {
