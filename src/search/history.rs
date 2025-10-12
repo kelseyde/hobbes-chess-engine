@@ -61,7 +61,7 @@ impl Histories {
                 }
             }
         }
-        quiet_score + cont_score
+        quiet_score + 2 * cont_score
     }
 
     pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
