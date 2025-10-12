@@ -15,6 +15,7 @@ tunable_params! {
     razor_scale                 = 273, 100, 400, 25;
     nmp_min_depth               = 3, 0, 8, 1;
     nmp_margin                  = 30, 0, 80, 10;
+    nmp_improving_margin        = 15, 0, 80, 10;
     nmp_base_reduction          = 4, 2, 5, 1;
     nmp_depth_divisor           = 3, 1, 4, 1;
     nmp_eval_divisor            = 213, 100, 300, 25;
