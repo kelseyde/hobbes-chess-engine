@@ -3,22 +3,27 @@ use crate::board::Board;
 use crate::search::parameters::*;
 use crate::search::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
+use std::marker::PhantomData;
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
 /// the static eval and the search score of previously searched positions.
-pub struct CorrectionHistory {
-    entries: Box<[[i32; CorrectionHistory::SIZE]; 2]>,
+pub struct CorrectionHistory<const N: usize> {
+    entries: Box<[[i32; N]; 2]>,
+    _marker: PhantomData<[i32; N]>,
 }
+
+pub type HashCorrectionHistory = CorrectionHistory<16384>;
+pub type FromToCorrectionHistory = CorrectionHistory<4096>;
 
 #[derive(Default)]
 pub struct CorrectionHistories {
-    pawn_corrhist: CorrectionHistory,
-    nonpawn_corrhist: [CorrectionHistory; 2],
-    countermove_corrhist: CorrectionHistory,
-    follow_up_move_corrhist: CorrectionHistory,
-    major_corrhist: CorrectionHistory,
-    minor_corrhist: CorrectionHistory,
+    pawn_corrhist: HashCorrectionHistory,
+    nonpawn_corrhist: [HashCorrectionHistory; 2],
+    countermove_corrhist: FromToCorrectionHistory,
+    follow_up_move_corrhist: FromToCorrectionHistory,
+    major_corrhist: HashCorrectionHistory,
+    minor_corrhist: HashCorrectionHistory,
 }
 
 impl CorrectionHistories {
@@ -122,20 +127,19 @@ impl CorrectionHistories {
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
     }
-
 }
 
-impl Default for CorrectionHistory {
+impl<const N: usize> Default for CorrectionHistory<N> {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() }
+            entries: unsafe { boxed_and_zeroed() },
+            _marker: PhantomData,
         }
     }
 }
 
-impl CorrectionHistory {
-    const SIZE: usize = 16384;
-    const MASK: usize = Self::SIZE - 1;
+impl<const N: usize> CorrectionHistory<N> {
+    const MASK: usize = N - 1;
     const SCALE: i32 = 256;
     const GRAIN: i32 = 256;
     const MAX: i32 = Self::GRAIN * 32;
@@ -158,7 +162,7 @@ impl CorrectionHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[0; Self::SIZE]; 2]);
+        self.entries = Box::new([[0; N]; 2]);
     }
 
     fn index(&self, key: u64) -> usize {
