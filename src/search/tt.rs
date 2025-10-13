@@ -27,6 +27,7 @@ pub struct Entry {
     key: u16,           // 2 bytes
     best_move: u16,     // 2 bytes
     score: i16,         // 2 bytes
+    static_eval: i16,   // 2 bytes
     depth: u8,          // 1 byte
     flags: Flags,       // 1 byte
 }
@@ -51,6 +52,7 @@ impl Default for Entry {
             depth: 0,
             best_move: 0,
             score: Score::MIN as i16,
+            static_eval: Score::MIN as i16,
             flags: Flags::new(TTFlag::None, false, 0)
         }
     }
@@ -64,6 +66,10 @@ impl Entry {
 
     pub fn score(&self, ply: usize) -> i16 {
         to_search(self.score as i32, ply)
+    }
+
+    pub fn static_eval(&self) -> i16 {
+        self.static_eval
     }
 
     pub const fn depth(&self) -> u8 {
@@ -136,6 +142,7 @@ impl TranspositionTable {
                   hash: u64,
                   best_move: Move,
                   score: i32,
+                  static_eval: i32,
                   depth: i32,
                   ply: usize,
                   flag: TTFlag,
@@ -177,6 +184,7 @@ impl TranspositionTable {
         entry.key = key_part;
         entry.best_move = mv.0;
         entry.score = to_tt(score, ply);
+        entry.static_eval = static_eval as i16;
         entry.depth = depth as u8;
         entry.flags = Flags::new(flag, pv, tt_age);
     }
@@ -261,16 +269,18 @@ mod tests {
         let hash = 0x1234567890ABCDEF;
         let best_move = Move::new(Square(0), Square(1), MoveFlag::Standard);
         let score = 100;
+        let static_eval = -10000;
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, depth, 0, flag, true);
+        tt.insert(hash, best_move, score, depth, 0, static_eval, flag, true);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 
         let entry = tt.probe(hash).unwrap();
         assert_eq!(entry.best_move(), best_move);
         assert_eq!(entry.score(0), score as i16);
+        assert_eq!(entry.static_eval(), static_eval as i16);
         assert_eq!(entry.depth() as i32, depth);
         assert_eq!(entry.flag(), flag);
         assert!(entry.pv());
