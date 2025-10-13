@@ -384,12 +384,6 @@ fn alpha_beta(board: &Board,
 
         let mut extension = 0;
 
-        // Check Extensions
-        // If we are in check then the position is likely tactical, so we extend the search depth.
-        if in_check {
-            extension = 1;
-        }
-
         // Futility Pruning
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
         let futility_margin = fp_base()
