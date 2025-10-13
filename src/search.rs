@@ -217,11 +217,17 @@ fn alpha_beta(board: &Board,
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
     let mut static_eval = Score::MIN;
+    let mut line_complexity = 0;
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+
+        let complexity = correction.abs() as u32;
+        let total_complexity = if root_node { complexity } else { td.ss[ply - 1].total_complexity + complexity };
+        td.ss[ply].total_complexity = total_complexity;
+        line_complexity = if root_node { total_complexity } else { total_complexity / ply as u32 };
     };
 
     td.ss[ply].static_eval = static_eval;
@@ -533,6 +539,7 @@ fn alpha_beta(board: &Board,
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
+            r -= line_complexity as i32 * 12;
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -1089,7 +1096,8 @@ pub struct StackEntry {
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub static_eval: i32,
-    pub reduction: i32
+    pub reduction: i32,
+    pub total_complexity: u32,
 }
 
 impl Default for SearchStack {
@@ -1109,7 +1117,8 @@ impl SearchStack {
                 singular: None,
                 threats: Bitboard::empty(),
                 static_eval: Score::MIN,
-                reduction: 0
+                reduction: 0,
+                total_complexity: 0,
             }; MAX_PLY + 8],
         }
     }
