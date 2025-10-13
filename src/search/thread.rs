@@ -19,7 +19,6 @@ pub struct ThreadData {
     pub ss: SearchStack,
     pub nnue: NNUE,
     pub keys: Vec<u64>,
-    pub root_ply: usize,
     pub history: Histories,
     pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
@@ -27,7 +26,8 @@ pub struct ThreadData {
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub nodes: u64,
-    pub depth: i32,
+    pub root_ply: usize,
+    pub root_depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
     pub best_move: Move,
@@ -46,7 +46,6 @@ impl Default for ThreadData {
             ss: SearchStack::new(),
             nnue: NNUE::default(),
             keys: Vec::new(),
-            root_ply: 0,
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
@@ -54,7 +53,8 @@ impl Default for ThreadData {
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
-            depth: 0,
+            root_ply: 0,
+            root_depth: 0,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
@@ -69,7 +69,7 @@ impl ThreadData {
         self.ss = SearchStack::new();
         self.node_table.clear();
         self.nodes = 0;
-        self.depth = 1;
+        self.root_depth = 1;
         self.seldepth = 0;
         self.best_move = Move::NONE;
         self.best_score = 0;
@@ -88,7 +88,7 @@ impl ThreadData {
     }
 
     pub fn should_stop(&self, limit_type: LimitType) -> bool {
-        if self.depth <= 1 {
+        if self.root_depth <= 1 {
             // Always clear the first depth, to ensure at least one legal move
             return false;
         }
@@ -101,7 +101,7 @@ impl ThreadData {
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
 
-        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+        if let Some(soft_time) = self.limits.scaled_soft_limit(self.root_depth, self.nodes, best_move_nodes) {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
@@ -114,7 +114,7 @@ impl ThreadData {
         }
 
         if let Some(depth_limit) = self.limits.depth {
-            if self.depth >= depth_limit as i32 {
+            if self.root_depth >= depth_limit as i32 {
                 return true;
             }
         }
@@ -136,7 +136,7 @@ impl ThreadData {
         }
 
         if let Some(depth_limit) = self.limits.depth {
-            if self.depth >= depth_limit as i32 {
+            if self.root_depth >= depth_limit as i32 {
                 return true;
             }
         }
