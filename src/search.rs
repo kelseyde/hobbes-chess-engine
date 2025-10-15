@@ -334,6 +334,60 @@ fn alpha_beta(board: &Board,
             }
         }
 
+        let pc_beta = beta + pc_beta_margin();
+        let pc_depth = (depth - pc_depth_offset()).max(1);
+
+        if !pv_node
+            && depth >= pc_min_depth()
+            && !Score::is_mate(beta)
+            && !Score::is_mate(pc_beta)
+            && !(tt_hit && tt_depth >= pc_depth && tt_score < pc_beta) {
+
+            let see_threshold = (pc_beta - static_eval) * pc_see_scale() / 16;
+            let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats, see_threshold);
+
+            while let Some(mv) = move_picker.next(board, td) {
+
+                if singular.is_some_and(|s| s == mv) || !board.is_legal(&mv) {
+                    continue;
+                }
+
+                let pc = board.piece_at(mv.from()).unwrap();
+                let captured = board.captured(&mv);
+
+                let mut board = *board;
+                td.nnue.update(&mv, pc, captured, &board);
+                board.make(&mv);
+
+                td.ss[ply].mv = Some(mv);
+                td.ss[ply].pc = Some(pc);
+                td.ss[ply].captured = captured;
+                td.keys.push(board.hash());
+                td.tt.prefetch(board.hash());
+                td.nodes += 1;
+
+                let mut score = -qs(&board, td, -pc_beta, -pc_beta + 1, ply + 1);
+
+                if score >= pc_beta {
+                    score = -alpha_beta(&board, td, pc_depth - 1, ply + 1, -pc_beta, -pc_beta + 1, !cut_node);
+                }
+
+                td.ss[ply].mv = None;
+                td.ss[ply].pc = None;
+                td.ss[ply].captured = None;
+                td.keys.pop();
+                td.nnue.undo();
+
+                if td.hard_limit_reached() {
+                    return Score::DRAW;
+                }
+
+                if score >= pc_beta {
+                    return score;
+                }
+            }
+        }
+
     }
 
     // Internal Iterative Reductions
