@@ -20,6 +20,7 @@ use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
 use std::ops::{Index, IndexMut};
+use crate::search::movepicker::Stage::BadNoisies;
 
 pub const MAX_PLY: usize = 256;
 
@@ -806,6 +807,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         if !board.is_legal(&mv) {
             continue;
+        }
+
+        if move_picker.stage == BadNoisies {
+            break;
         }
 
         let pc = board.piece_at(mv.from()).unwrap();
