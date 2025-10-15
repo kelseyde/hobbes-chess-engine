@@ -20,6 +20,7 @@ use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
 use std::ops::{Index, IndexMut};
+use crate::search::movepicker::Stage::BadNoisies;
 
 pub const MAX_PLY: usize = 256;
 
@@ -350,6 +351,10 @@ fn alpha_beta(board: &Board,
 
                 if singular.is_some_and(|s| s == mv) || !board.is_legal(&mv) {
                     continue;
+                }
+
+                if move_picker.stage == BadNoisies {
+                    break;
                 }
 
                 let pc = board.piece_at(mv.from()).unwrap();
