@@ -165,10 +165,18 @@ fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
     for c in castle.chars() {
         match c {
             // Standard FEN notation
-            'K' => rights.set_kingside(White, File::H),
-            'Q' => rights.set_queenside(White, File::A),
-            'k' => rights.set_kingside(Black, File::H),
-            'q' => rights.set_queenside(Black, File::A),
+            'K' => if let Some(file) = find_rook_file(board, White, true){
+                rights.set_kingside(White, file)
+            },
+            'Q' => if let Some(file) = find_rook_file(board, White, false) {
+                rights.set_queenside(White, file)
+            }
+            'k' => if let Some(file) = find_rook_file(board, Black, true) {
+                rights.set_kingside(Black, file)
+            }
+            'q' => if let Some(file) = find_rook_file(board, Black, false) {
+                rights.set_queenside(Black, file)
+            }
             '-' => (),
 
             // Shredder FEN notation
@@ -252,6 +260,23 @@ fn piece_to_char(piece: Piece, side: Side) -> char {
     } else {
         ch
     }
+}
+
+fn find_rook_file(board: &Board, side: Side, kingside: bool) -> Option<File> {
+    let king_sq = board.king_sq(side);
+    let rooks = board.rooks(side);
+    let candidate_files = if kingside {
+        [File::H, File::G, File::F, File::E, File::D, File::C]
+    } else {
+        [File::A, File::B, File::C, File::D, File::E, File::F]
+    };
+    for &file in &candidate_files {
+        let sq = Square::from(file, king_sq.rank());
+        if rooks.contains(sq) {
+            return Some(file);
+        }
+    }
+    None
 }
 
 
