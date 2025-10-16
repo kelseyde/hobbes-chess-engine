@@ -18,13 +18,15 @@ use std::time::Instant;
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
+    pub frc: bool,
 }
 
 impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default())
+            td: Box::new(ThreadData::default()),
+            frc: false,
         }
     }
 
@@ -126,6 +128,7 @@ impl UCI {
                 return;
             }
         };
+        self.frc = value;
         self.board.set_frc(value);
         println!("info string Chess960 {}", value);
     }
@@ -204,6 +207,7 @@ impl UCI {
                 return;
             }
         };
+        self.board.set_frc(self.frc);
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens

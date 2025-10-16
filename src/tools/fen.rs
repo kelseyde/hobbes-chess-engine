@@ -80,7 +80,7 @@ impl Board {
         board.stm = parse_stm(stm_part);
 
         let rights_part = parts[2];
-        (board.rights, board.frc) = parse_castle_rights(&board, rights_part);
+        board.rights = parse_castle_rights(&board, rights_part);
 
         let ep_part = parts[3];
         board.ep_sq = parse_ep_sq(ep_part);
@@ -153,14 +153,13 @@ impl Board {
 }
 
 
-fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
+fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
     let white_king_sq = board.king_sq(White);
     let black_king_sq = board.king_sq(Black);
     let white_king_file = white_king_sq.file();
     let black_king_file = black_king_sq.file();
 
     let mut rights = Rights::default();
-    let mut frc = false;
 
     for c in castle.chars() {
         match c {
@@ -181,7 +180,6 @@ fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
 
             // Shredder FEN notation
             'A'..='H' => {
-                frc = true;
                 let rook_file = File::from_char(c.to_ascii_lowercase()).unwrap();
                 if rook_file > white_king_file {
                     // Rook is to the right of king = kingside
@@ -194,7 +192,6 @@ fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
 
             // Shredder FEN notation
             'a'..='h' => {
-                frc = true;
                 let rook_file = File::from_char(c).unwrap();
                 if rook_file > black_king_file {
                     // Rook is to the right of king = kingside
@@ -209,7 +206,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> (Rights, bool) {
         }
     }
 
-    (rights, frc)
+    rights
 }
 
 fn parse_ep_sq(ep_sq: &str) -> Option<Square> {
