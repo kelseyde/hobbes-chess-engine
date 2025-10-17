@@ -335,7 +335,9 @@ fn should_mirror(king_sq: Square) -> bool {
 
 fn scale_evaluation(board: &Board, eval: i32) -> i32 {
     let phase = material_phase(board);
-    eval * (material_scaling_base() + phase) / 32768
+    eval
+        * (material_scaling_base() + phase) / 32768
+        * (200 - board.hm as i32) / 200
 }
 
 fn material_phase(board: &Board) -> i32 {
