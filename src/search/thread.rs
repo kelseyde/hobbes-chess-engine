@@ -4,9 +4,10 @@ use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
+use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{Score, SearchStack, MAX_PLY};
+use crate::search::{Score, MAX_PLY};
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
