@@ -4,7 +4,8 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::SearchStack;
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale};
+use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -186,6 +187,77 @@ impl ThreatIndex {
         self.to_attacked as usize
     }
 
+}
+
+pub fn quiet_history_bonus(depth: i32) -> i16 {
+    let scale = quiet_hist_bonus_scale() as i16;
+    let offset = quiet_hist_bonus_offset() as i16;
+    let max = quiet_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn quiet_history_malus(depth: i32) -> i16 {
+    let scale = quiet_hist_malus_scale() as i16;
+    let offset = quiet_hist_malus_offset() as i16;
+    let max = quiet_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn capture_history_bonus(depth: i32) -> i16 {
+    let scale = capt_hist_bonus_scale() as i16;
+    let offset = capt_hist_bonus_offset() as i16;
+    let max = capt_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn capture_history_malus(depth: i32) -> i16 {
+    let scale = capt_hist_malus_scale() as i16;
+    let offset = capt_hist_malus_offset() as i16;
+    let max = capt_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn cont_history_bonus(depth: i32) -> i16 {
+    let scale = cont_hist_bonus_scale() as i16;
+    let offset = cont_hist_bonus_offset() as i16;
+    let max = cont_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn cont_history_malus(depth: i32) -> i16 {
+    let scale = cont_hist_malus_scale() as i16;
+    let offset = cont_hist_malus_offset() as i16;
+    let max = cont_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn prior_countermove_bonus(depth: i32) -> i16 {
+    let scale = pcm_bonus_scale() as i16;
+    let offset = pcm_bonus_offset() as i16;
+    let max = pcm_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
+    if good {
+        let scale = lmr_cont_hist_bonus_scale() as i16;
+        let offset = lmr_cont_hist_bonus_offset() as i16;
+        let max = lmr_cont_hist_bonus_max() as i16;
+        history_bonus(depth, scale, offset, max)
+    } else {
+        let scale = lmr_cont_hist_malus_scale() as i16;
+        let offset = lmr_cont_hist_malus_offset() as i16;
+        let max = lmr_cont_hist_malus_max() as i16;
+        history_malus(depth, scale, offset, max)
+    }
+}
+
+fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
+    (scale * depth as i16 - offset).min(max)
+}
+
+fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
+    -(scale * depth as i16 - offset).min(max)
 }
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {

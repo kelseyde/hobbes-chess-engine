@@ -11,7 +11,7 @@ pub mod castling;
 pub mod ray;
 pub mod movegen;
 pub mod moves;
-mod legal;
+pub mod legal;
 
 use crate::board::castling::Rights;
 use crate::board::zobrist::{Keys, Zobrist};

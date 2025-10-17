@@ -39,6 +39,17 @@ pub enum TTFlag {
     Upper = 3,
 }
 
+impl TTFlag {
+    pub const fn bounds_match(&self, score: i32, lower: i32, upper: i32) -> bool {
+        match self {
+            TTFlag::None => false,
+            TTFlag::Exact => true,
+            TTFlag::Lower => score >= upper,
+            TTFlag::Upper => score <= lower,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct Flags {
     data: u8,

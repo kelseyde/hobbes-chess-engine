@@ -6,21 +6,22 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod stack;
+pub mod score;
 
-use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
-use crate::board::piece::Piece;
 use crate::board::{movegen, Board};
+use crate::search::history::{*};
+use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::movepicker::{MovePicker, Stage};
+use crate::search::score::{format_score, Score};
 use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
-use std::ops::{Index, IndexMut};
-use crate::search::movepicker::Stage::BadNoisies;
 
 pub const MAX_PLY: usize = 256;
 
@@ -49,7 +50,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
     // depth is reached or the search is aborted.
-    while td.depth < MAX_DEPTH && !td.should_stop(Soft) {
+    while td.depth < MAX_PLY as i32 && !td.should_stop(Soft) {
 
         // Aspiration Windows
         // Use the score from the previous iteration to guess the score from the current iteration.
@@ -207,7 +208,7 @@ fn alpha_beta(board: &Board,
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
-                && bounds_match(entry.flag(), tt_score, alpha, beta) {
+                && entry.flag().bounds_match(tt_score, alpha, beta) {
                 return tt_score;
             }
         }
@@ -705,7 +706,7 @@ fn alpha_beta(board: &Board,
     if !in_check
         && !singular_search
         && !Score::is_mate(best_score)
-        && bounds_match(flag, best_score, static_eval, static_eval)
+        && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
     }
@@ -766,7 +767,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
         let score = entry.score(ply) as i32;
 
-        if bounds_match(entry.flag(), score, alpha, beta) {
+        if entry.flag().bounds_match(score, alpha, beta) {
             return score;
         }
     }
@@ -925,15 +926,6 @@ fn is_repetition(board: &Board, td: &ThreadData) -> bool {
     false
 }
 
-const fn bounds_match(flag: TTFlag, score: i32, lower: i32, upper: i32) -> bool {
-    match flag {
-        TTFlag::None => false,
-        TTFlag::Exact => true,
-        TTFlag::Lower => score >= upper,
-        TTFlag::Upper => score <= lower,
-    }
-}
-
 fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
     tt_move.exists() && board.is_pseudo_legal(tt_move) && board.is_legal(tt_move)
 }
@@ -952,77 +944,6 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     let base = if improving { lmp_improving_base() } else { lmp_base() };
     let scale = if improving { lmp_improving_scale() } else { lmp_scale() };
     (base + depth * scale) / 10
-}
-
-fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
-    if good {
-        let scale = lmr_cont_hist_bonus_scale() as i16;
-        let offset = lmr_cont_hist_bonus_offset() as i16;
-        let max = lmr_cont_hist_bonus_max() as i16;
-        history_bonus(depth, scale, offset, max)
-    } else {
-        let scale = lmr_cont_hist_malus_scale() as i16;
-        let offset = lmr_cont_hist_malus_offset() as i16;
-        let max = lmr_cont_hist_malus_max() as i16;
-        history_malus(depth, scale, offset, max)
-    }
-}
-
-fn quiet_history_bonus(depth: i32) -> i16 {
-    let scale = quiet_hist_bonus_scale() as i16;
-    let offset = quiet_hist_bonus_offset() as i16;
-    let max = quiet_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-fn quiet_history_malus(depth: i32) -> i16 {
-    let scale = quiet_hist_malus_scale() as i16;
-    let offset = quiet_hist_malus_offset() as i16;
-    let max = quiet_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-fn capture_history_bonus(depth: i32) -> i16 {
-    let scale = capt_hist_bonus_scale() as i16;
-    let offset = capt_hist_bonus_offset() as i16;
-    let max = capt_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-fn capture_history_malus(depth: i32) -> i16 {
-    let scale = capt_hist_malus_scale() as i16;
-    let offset = capt_hist_malus_offset() as i16;
-    let max = capt_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-fn cont_history_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_bonus_scale() as i16;
-    let offset = cont_hist_bonus_offset() as i16;
-    let max = cont_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-fn cont_history_malus(depth: i32) -> i16 {
-    let scale = cont_hist_malus_scale() as i16;
-    let offset = cont_hist_malus_offset() as i16;
-    let max = cont_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-fn prior_countermove_bonus(depth: i32) -> i16 {
-    let scale = pcm_bonus_scale() as i16;
-    let offset = pcm_bonus_offset() as i16;
-    let max = pcm_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    (scale * depth as i16 - offset).min(max)
-}
-
-fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    -(scale * depth as i16 - offset).min(max)
 }
 
 fn print_search_info(td: &mut ThreadData) {
@@ -1049,19 +970,6 @@ fn print_search_info(td: &mut ThreadData) {
 
 }
 
-fn format_score(score: i32) -> String {
-    if Score::is_mate(score) {
-        let moves = ((Score::MATE - score).max(1) / 2).max(1);
-        if score < 0 {
-            format!("mate {}", -moves)
-        } else {
-            format!("mate {}", moves)
-        }
-    } else {
-        format!("cp {}", score)
-    }
-}
-
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
     let static_eval = td.nnue.evaluate(board);
@@ -1079,85 +987,4 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_move = Move::NONE;
     td.best_score = score;
     (td.best_move, td.best_score)
-}
-
-pub struct SearchStack {
-    data: [StackEntry; MAX_PLY + 8],
-}
-
-#[derive(Copy, Clone)]
-pub struct StackEntry {
-    pub mv: Option<Move>,
-    pub pc: Option<Piece>,
-    pub captured: Option<Piece>,
-    pub killer: Option<Move>,
-    pub singular: Option<Move>,
-    pub threats: Bitboard,
-    pub static_eval: i32,
-    pub reduction: i32
-}
-
-impl Default for SearchStack {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SearchStack {
-    pub fn new() -> Self {
-        SearchStack {
-            data: [StackEntry {
-                mv: None,
-                pc: None,
-                captured: None,
-                killer: None,
-                singular: None,
-                threats: Bitboard::empty(),
-                static_eval: Score::MIN,
-                reduction: 0
-            }; MAX_PLY + 8],
-        }
-    }
-}
-
-impl Index<usize> for SearchStack {
-    type Output = StackEntry;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        unsafe { self.data.get_unchecked(index) }
-    }
-}
-
-impl IndexMut<usize> for SearchStack {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        unsafe { self.data.get_unchecked_mut(index) }
-    }
-}
-
-pub const MAX_DEPTH: i32 = 255;
-
-pub struct Score;
-
-impl Score {
-    pub const DRAW: i32 = 0;
-    pub const MAX: i32 = 32767;
-    pub const MIN: i32 = -32767;
-    pub const MATE: i32 = 32766;
-
-    pub const fn is_mate(score: i32) -> bool {
-        score.abs() >= Score::MATE - MAX_DEPTH
-    }
-
-    pub const fn is_defined(score: i32) -> bool {
-        score >= -Score::MATE && score <= Score::MATE
-    }
-
-    pub const fn mate_in(ply: usize) -> i32 {
-        Score::MATE - ply as i32
-    }
-
-    pub const fn mated_in(ply: usize) -> i32 {
-        -Score::MATE + ply as i32
-    }
-
 }

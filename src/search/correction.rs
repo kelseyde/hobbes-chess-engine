@@ -1,9 +1,9 @@
 use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::parameters::*;
-use crate::search::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
+use crate::search::stack::SearchStack;
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
