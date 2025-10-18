@@ -38,6 +38,7 @@ pub struct Board {
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
     pub frc: bool,         // whether the game is Fischer Random Chess
+    pub pinned: [Bitboard; 2],
 }
 
 impl Default for Board {
@@ -62,6 +63,7 @@ impl Board {
             rights: Rights::default(),
             keys: Keys::default(),
             frc: false,
+            pinned: [Bitboard::empty(); 2],
         }
     }
 
@@ -109,6 +111,7 @@ impl Board {
         };
         self.keys.hash ^= Zobrist::stm();
         self.stm = !self.stm;
+        self.pinned = self.calc_both_pinned();
     }
 
     #[inline]
@@ -226,6 +229,41 @@ impl Board {
             self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
         }
         ep_sq
+    }
+
+    #[inline]
+    pub fn calc_both_pinned(&self) -> [Bitboard; 2] {
+        return [self.calc_pinned(White), self.calc_pinned(Black)];
+    }
+
+    #[inline]
+    pub fn calc_pinned(&self, side: Side) -> Bitboard {
+        let mut res = Bitboard::empty();
+
+        let king_sq = self.king_sq(side);
+
+        // remove the pieces in direct line of sight from the king then look for pinners there
+        // and pieces checking the king are not pinners so remove those
+        let rook_ray_from_king = attacks::rook(king_sq, self.occ());
+        let rook_pinners =
+            attacks::rook(king_sq, self.occ() & !rook_ray_from_king) & !rook_ray_from_king;
+
+        let rook_likes = self.pieces(Piece::Rook) | self.pieces(Piece::Queen);
+        for sq in rook_pinners & rook_likes & self.side(!side) {
+            res |= attacks::rook(sq, self.occ()) & rook_ray_from_king;
+        }
+
+        let bishop_ray_from_king = attacks::bishop(king_sq, self.occ());
+        let bishop_pinners =
+            attacks::bishop(king_sq, self.occ() & !bishop_ray_from_king) & !bishop_ray_from_king;
+
+        let bishop_likes = self.pieces(Piece::Bishop) | self.pieces(Piece::Queen);
+        for sq in bishop_pinners & bishop_likes & self.side(!side) {
+            res |= attacks::bishop(sq, self.occ()) & bishop_ray_from_king;
+        }
+
+        res &= self.side(side);
+        res
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {

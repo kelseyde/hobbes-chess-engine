@@ -1,10 +1,10 @@
-use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
+use crate::board::{attacks, ray};
 use crate::search::parameters::{
     see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
 };
@@ -49,6 +49,12 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     let mut attackers = attackers_to(board, to, occ) & occ;
     let diagonal = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
     let orthogonal = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
+
+    let white_pinned = board.pinned[Side::White];
+    let black_pinned = board.pinned[Side::Black];
+    attackers &= !(white_pinned | black_pinned)
+        | (white_pinned & ray::extending(board.king_sq(Side::White), to))
+        | (black_pinned & ray::extending(board.king_sq(Side::Black), to));
 
     let mut stm = !board.stm;
 
