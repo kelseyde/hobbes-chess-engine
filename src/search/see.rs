@@ -151,7 +151,30 @@ mod tests {
     use super::*;
     use crate::board::movegen::MoveFilter;
     use crate::board::Board;
+    use crate::ray;
     use std::fs;
+
+    #[test]
+    fn pinned() {
+        ray::init();
+        for (fen, mv, thresh) in [
+            (
+                "3R1rk1/1N3n2/8/8/8/8/8/6K1 b - - 0 1",
+                "f7d8",
+                value(Piece::Rook),
+            ),
+            (
+                "6k1/6r1/3q2N1/4N3/8/8/6K1/8 b - - 0 1",
+                "d6e5",
+                value(Piece::Knight),
+            ),
+        ] {
+            let board = Board::from_fen(fen).unwrap();
+            let mv = Move::parse_uci(mv);
+            assert!(see(&board, &mv, thresh));
+            assert!(!see(&board, &mv, thresh + 1));
+        }
+    }
 
     // #[test]
     fn test_see_suite() {

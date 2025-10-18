@@ -431,8 +431,27 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
-    use crate::board::Board;
+    use crate::board::side::Side;
+    use crate::board::{ray, Board};
+
+    #[test]
+    fn computing_correct_pins() {
+        ray::init();
+        assert_eq!(
+            Board::from_fen("2k5/6r1/6N1/8/8/8/6K1/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+        assert_eq!(
+            Board::from_fen("2k5/7b/6N1/8/8/8/2K5/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+    }
 
     #[test]
     fn standard_move() {
