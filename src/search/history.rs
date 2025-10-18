@@ -39,6 +39,7 @@ pub struct Histories {
 }
 
 impl Histories {
+    #[allow(clippy::too_many_arguments)]
     pub fn history_score(
         &self,
         board: &Board,

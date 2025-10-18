@@ -476,7 +476,7 @@ fn alpha_beta(board: &Board,
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
-            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.ss[ply].singular = None;
 
             if score < s_beta {
@@ -826,7 +826,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !see::see(&board, &mv, qs_see_threshold()) {
+        if !in_check && !see::see(board, &mv, qs_see_threshold()) {
             continue;
         }
 

@@ -88,6 +88,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     stm != board.stm
 }
 
+#[allow(clippy::redundant_closure)]
 fn move_value(board: &Board, mv: &Move) -> i32 {
     let mut see_value = board
         .piece_at(mv.to())

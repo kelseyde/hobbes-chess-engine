@@ -25,7 +25,7 @@ pub struct CacheEntry {
 impl Default for CacheEntry {
     fn default() -> Self {
         CacheEntry {
-            features: NETWORK.feature_bias.clone(),
+            features: NETWORK.feature_bias,
             bitboards: [Bitboard::empty(); 8],
         }
     }
