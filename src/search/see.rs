@@ -5,7 +5,9 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook};
+use crate::search::parameters::{
+    see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
+};
 
 pub fn value(pc: Piece) -> i32 {
     match pc {
@@ -19,14 +21,12 @@ pub fn value(pc: Piece) -> i32 {
 }
 
 pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
-
     let from = mv.from();
     let to = mv.to();
 
-    let next_victim = mv.promo_piece().map_or_else(
-        || board.piece_at(from).unwrap(),
-        |promo| promo,
-    );
+    let next_victim = mv
+        .promo_piece()
+        .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
 
     let mut balance = move_value(board, mv) - threshold;
 
@@ -89,7 +89,8 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 }
 
 fn move_value(board: &Board, mv: &Move) -> i32 {
-    let mut see_value = board.piece_at(mv.to())
+    let mut see_value = board
+        .piece_at(mv.to())
         .map_or(0, |captured| value(captured));
 
     if let Some(promo) = mv.promo_piece() {
@@ -148,7 +149,6 @@ mod tests {
 
     // #[test]
     fn test_see_suite() {
-
         let see_suite = fs::read_to_string("../../resources/see.epd").unwrap();
 
         let mut tried = 0;
@@ -163,7 +163,8 @@ mod tests {
 
             let board = Board::from_fen(fen).unwrap();
             let mut moves = board.gen_moves(MoveFilter::All);
-            let mv = moves.iter()
+            let mv = moves
+                .iter()
                 .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
                 .expect("Move not found in generated moves");
@@ -174,12 +175,12 @@ mod tests {
             } else {
                 println!("Failed SEE test for FEN: {} and move: {}", fen, mv_uci);
             }
-
         }
 
-        assert_eq!(passed, tried, "Passed {} out of {} SEE tests", passed, tried);
-
-
+        assert_eq!(
+            passed, tried,
+            "Passed {} out of {} SEE tests",
+            passed, tried
+        );
     }
-
 }

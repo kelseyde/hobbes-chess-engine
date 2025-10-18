@@ -4,16 +4,14 @@ use std::ops::{Index, IndexMut, Not};
 pub enum Side {
     #[default]
     White,
-    Black
+    Black,
 }
 
 impl Side {
-
     #[inline(always)]
     pub const fn idx(&self) -> usize {
         *self as usize + 6
     }
-
 }
 
 impl Not for Side {
@@ -22,7 +20,7 @@ impl Not for Side {
     fn not(self) -> Self::Output {
         match self {
             Side::White => Side::Black,
-            Side::Black => Side::White
+            Side::Black => Side::White,
         }
     }
 }
