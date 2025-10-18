@@ -97,7 +97,7 @@ impl UCI {
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => return, // TODO set threads
+            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
             ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
             ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
             ["setoption", "name", "usesoftnodes", "value", bool_str] => self.set_use_soft_nodes(bool_str),
@@ -384,17 +384,17 @@ impl UCI {
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
 
-        let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or({
             println!("info error: count is not a valid number");
             0
         }) as usize;
 
-        let seed = self.parse_uint(&tokens, "seed").unwrap_or_else(|_| {
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or({
             println!("info error: seed is not a valid number");
             0
         });
 
-        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or_else(|_| {
+        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or({
             8
         }) as usize;
 

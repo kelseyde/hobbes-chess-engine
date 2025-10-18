@@ -28,6 +28,6 @@ fn main() {
 
     // Start up the UCI (Universal Chess Interface)
     let args: Vec<String> = std::env::args().collect();
-    UCI::new().run(&args);
+    UCI::default().run(&args);
 
 }
