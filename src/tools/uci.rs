@@ -21,6 +21,12 @@ pub struct UCI {
     pub frc: bool,
 }
 
+impl Default for UCI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UCI {
     pub fn new() -> UCI {
         UCI {
@@ -395,7 +401,6 @@ impl UCI {
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-
         let count = self.parse_uint(&tokens, "genfens").unwrap_or({
             println!("info error: count is not a valid number");
             0
@@ -406,9 +411,7 @@ impl UCI {
             0
         });
 
-        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or({
-            8
-        }) as usize;
+        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or(8) as usize;
 
         let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
             println!("info error: dfrc is not a valid boolean");

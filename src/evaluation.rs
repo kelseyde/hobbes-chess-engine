@@ -236,6 +236,7 @@ impl NNUE {
     /// Update the accumulator for a capture move. The old piece is removed from the starting
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
+    #[allow(clippy::too_many_arguments)]
     fn handle_capture(
         &mut self,
         mv: &Move,
@@ -306,15 +307,13 @@ impl NNUE {
 
 #[inline]
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
-    if side != board.stm || pc != Piece::King {
+    if side != board.stm || pc != King {
         board.king_sq(side)
+    } else if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        castling::king_to(board.stm, kingside)
     } else {
-        if mv.is_castle() && board.is_frc() {
-            let kingside = castling::is_kingside(mv.from(), mv.to());
-            castling::king_to(board.stm, kingside)
-        } else {
-            mv.to()
-        }
+        mv.to()
     }
 }
 

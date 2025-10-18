@@ -71,7 +71,9 @@ macro_rules! tunable_params {
 
 // Credit to Akimbo author - necessary for boxing large arrays
 // without exploding the stack on initialisation.
-/// SAFETY: The caller must ensure that `T` is valid for zero-initialization.
+/// # Safety
+///
+/// The caller must ensure that `T` is valid for zero-initialization.
 /// This function allocates memory for `T` and zeroes it, then returns a `Box<T>`.
 /// If `T` contains any non-zeroable types, using this function may cause undefined behavior.
 pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {

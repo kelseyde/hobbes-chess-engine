@@ -12,12 +12,9 @@ pub fn generate_random_openings(
     dfrc: bool,
 ) -> Vec<String> {
     let mut rng = StdRng::seed_from_u64(seed);
-
-    let openings = (0..count)
+    (0..count)
         .map(|_| generate_random_opening(td, &mut rng, random_moves, dfrc))
-        .collect::<Vec<String>>();
-
-    openings
+        .collect::<Vec<String>>()
 }
 
 fn generate_random_opening(
