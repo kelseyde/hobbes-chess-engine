@@ -23,7 +23,6 @@ impl Score {
     pub const fn mated_in(ply: usize) -> i32 {
         -Score::MATE + ply as i32
     }
-
 }
 
 pub fn format_score(score: i32) -> String {

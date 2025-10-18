@@ -24,11 +24,11 @@ struct Bucket {
 #[derive(Clone)]
 #[repr(C)]
 pub struct Entry {
-    key: u16,           // 2 bytes
-    best_move: u16,     // 2 bytes
-    score: i16,         // 2 bytes
-    depth: u8,          // 1 byte
-    flags: Flags,       // 1 byte
+    key: u16,       // 2 bytes
+    best_move: u16, // 2 bytes
+    score: i16,     // 2 bytes
+    depth: u8,      // 1 byte
+    flags: Flags,   // 1 byte
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -62,13 +62,12 @@ impl Default for Entry {
             depth: 0,
             best_move: 0,
             score: Score::MIN as i16,
-            flags: Flags::new(TTFlag::None, false, 0)
+            flags: Flags::new(TTFlag::None, false, 0),
         }
     }
 }
 
 impl Entry {
-
     pub const fn best_move(&self) -> Move {
         Move(self.best_move)
     }
@@ -96,7 +95,6 @@ impl Entry {
     pub const fn relative_age(&self, tt_age: u8) -> i32 {
         ((AGE_CYCLE + tt_age - self.flags.age()) & AGE_MASK) as i32
     }
-
 }
 
 impl Default for TranspositionTable {
@@ -106,12 +104,16 @@ impl Default for TranspositionTable {
 }
 
 impl TranspositionTable {
-
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
         let table = vec![Bucket::default(); size];
         let age = 0;
-        TranspositionTable { table, size_mb, size, age }
+        TranspositionTable {
+            table,
+            size_mb,
+            size,
+            age,
+        }
     }
 
     pub fn resize(&mut self, size_mb: usize) {
@@ -143,15 +145,16 @@ impl TranspositionTable {
         None
     }
 
-    pub fn insert(&mut self,
-                  hash: u64,
-                  best_move: Move,
-                  score: i32,
-                  depth: i32,
-                  ply: usize,
-                  flag: TTFlag,
-                  pv: bool) {
-
+    pub fn insert(
+        &mut self,
+        hash: u64,
+        best_move: Move,
+        score: i32,
+        depth: i32,
+        ply: usize,
+        flag: TTFlag,
+        pv: bool,
+    ) {
         let idx = self.idx(hash);
         let tt_age = self.age;
         let key_part = hash as u16;
@@ -176,12 +179,17 @@ impl TranspositionTable {
         let entry = &mut cluster.entries[index];
 
         let key_match = key_part == entry.key;
-        let mv = if !best_move.exists() && key_match { entry.best_move() } else { best_move };
+        let mv = if !best_move.exists() && key_match {
+            entry.best_move()
+        } else {
+            best_move
+        };
 
         if !(key_part != entry.key
             || flag == TTFlag::Exact
             || depth + 4 > entry.depth as i32
-            || entry.flags.age() != tt_age) {
+            || entry.flags.age() != tt_age)
+        {
             return;
         }
 
@@ -225,12 +233,13 @@ impl TranspositionTable {
         #[cfg(not(target_arch = "x86_64"))]
         let _ = hash;
     }
-
 }
 
 impl Flags {
     pub const fn new(flag: TTFlag, pv: bool, age: u8) -> Self {
-        Self { data: (flag as u8) | ((pv as u8) << 2) | (age << 3) }
+        Self {
+            data: (flag as u8) | ((pv as u8) << 2) | (age << 3),
+        }
     }
 
     pub const fn bound(self) -> TTFlag {
@@ -248,16 +257,24 @@ impl Flags {
 
 const fn to_tt(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
-        return score as i16 ;
+        return score as i16;
     }
-    if score > 0 { (score - ply as i32) as i16 } else { (score + ply as i32) as i16 }
+    if score > 0 {
+        (score - ply as i32) as i16
+    } else {
+        (score + ply as i32) as i16
+    }
 }
 
 const fn to_search(score: i32, ply: usize) -> i16 {
     if !Score::is_mate(score) {
-        return score as i16
+        return score as i16;
     }
-    if score > 0 { (score + ply as i32) as i16 } else { (score - ply as i32) as i16 }
+    if score > 0 {
+        (score + ply as i32) as i16
+    } else {
+        (score - ply as i32) as i16
+    }
 }
 
 #[cfg(test)]
@@ -286,5 +303,4 @@ mod tests {
         assert_eq!(entry.flag(), flag);
         assert!(entry.pv());
     }
-
 }

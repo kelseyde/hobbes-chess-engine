@@ -4,7 +4,15 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale};
+use crate::search::parameters::{
+    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
+    capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,
+    cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale,
+    lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale,
+    lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max,
+    pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
+    quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
+};
 use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -31,14 +39,16 @@ pub struct Histories {
 }
 
 impl Histories {
-
-    pub fn history_score(&self,
-                         board: &Board,
-                         ss: &SearchStack,
-                         mv: &Move, ply: usize,
-                         threats: Bitboard,
-                         pc: Piece,
-                         captured: Option<Piece>) -> i32 {
+    pub fn history_score(
+        &self,
+        board: &Board,
+        ss: &SearchStack,
+        mv: &Move,
+        ply: usize,
+        threats: Bitboard,
+        pc: Piece,
+        captured: Option<Piece>,
+    ) -> i32 {
         if let Some(captured) = captured {
             self.capture_history_score(board, mv, pc, captured)
         } else {
@@ -46,18 +56,22 @@ impl Histories {
         }
     }
 
-    pub fn quiet_history_score(&self,
-                               board: &Board,
-                               ss: &SearchStack,
-                               mv: &Move,
-                               ply: usize,
-                               threats: Bitboard) -> i32 {
+    pub fn quiet_history_score(
+        &self,
+        board: &Board,
+        ss: &SearchStack,
+        mv: &Move,
+        ply: usize,
+        threats: Bitboard,
+    ) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
         let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
         let mut cont_score = 0;
         for &prev_ply in &[1, 2] {
-            if ply >= prev_ply  {
-                if let (Some(prev_mv), Some(prev_pc)) = (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc) {
+            if ply >= prev_ply {
+                if let (Some(prev_mv), Some(prev_pc)) =
+                    (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
+                {
                     cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                 }
             }
@@ -65,14 +79,29 @@ impl Histories {
         quiet_score + cont_score
     }
 
-    pub fn capture_history_score(&self, board: &Board, mv: &Move, pc: Piece, captured: Piece) -> i32 {
+    pub fn capture_history_score(
+        &self,
+        board: &Board,
+        mv: &Move,
+        pc: Piece,
+        captured: Piece,
+    ) -> i32 {
         self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
     }
 
-    pub fn update_continuation_history(&mut self, ss: &SearchStack, ply: usize, mv: &Move, pc: Piece, bonus: i16) {
+    pub fn update_continuation_history(
+        &mut self,
+        ss: &SearchStack,
+        ply: usize,
+        mv: &Move,
+        pc: Piece,
+        bonus: i16,
+    ) {
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply {
-                if let (Some(prev_mv), Some(prev_pc)) = (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc) {
+                if let (Some(prev_mv), Some(prev_pc)) =
+                    (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
+                {
                     self.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
                 }
             }
@@ -84,13 +113,12 @@ impl Histories {
         self.capture_history.clear();
         self.cont_history.clear();
     }
-
 }
 
 impl Default for QuietHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() }
+            entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -98,7 +126,7 @@ impl Default for QuietHistory {
 impl Default for CaptureHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() }
+            entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -106,7 +134,7 @@ impl Default for CaptureHistory {
 impl Default for ContinuationHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() }
+            entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -121,7 +149,8 @@ impl QuietHistory {
 
     pub fn update(&mut self, stm: Side, mv: &Move, threats: Bitboard, bonus: i16) {
         let threat_index = ThreatIndex::new(*mv, threats);
-        let entry = &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
+        let entry =
+            &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
@@ -145,7 +174,6 @@ impl CaptureHistory {
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
     }
-
 }
 
 impl ContinuationHistory {
@@ -163,20 +191,21 @@ impl ContinuationHistory {
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
-
 }
 
 pub struct ThreatIndex {
     pub from_attacked: bool,
-    pub to_attacked: bool
+    pub to_attacked: bool,
 }
 
 impl ThreatIndex {
-
     pub fn new(mv: Move, threats: Bitboard) -> Self {
         let from_attacked = threats.contains(mv.from());
         let to_attacked = threats.contains(mv.to());
-        ThreatIndex { from_attacked, to_attacked }
+        ThreatIndex {
+            from_attacked,
+            to_attacked,
+        }
     }
 
     pub fn from(&self) -> usize {
@@ -186,7 +215,6 @@ impl ThreatIndex {
     pub fn to(&self) -> usize {
         self.to_attacked as usize
     }
-
 }
 
 pub fn quiet_history_bonus(depth: i32) -> i16 {

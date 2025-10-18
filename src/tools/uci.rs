@@ -31,7 +31,6 @@ impl UCI {
     }
 
     pub fn run(&mut self, args: &[String]) {
-
         if args.len() > 1 && args[1] == "bench" {
             println!("Running benchmark...");
             self.handle_bench();
@@ -78,8 +77,14 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
-        println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
-        println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
+        println!(
+            "option name Hash type spin default {} min 1 max 1024",
+            self.td.tt.size_mb()
+        );
+        println!(
+            "option name UCI_Chess960 type check default {}",
+            self.board.is_frc()
+        );
         println!("option name Minimal type check default false");
         println!("option name UseSoftNodes type check default false");
         #[cfg(feature = "tuning")]
@@ -98,12 +103,18 @@ impl UCI {
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
             ["setoption", "name", "threads", "value", _] => return, // TODO set threads
-            ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
+            ["setoption", "name", "uci_chess960", "value", bool_str] => {
+                self.set_chess_960(bool_str)
+            }
             ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
-            ["setoption", "name", "usesoftnodes", "value", bool_str] => self.set_use_soft_nodes(bool_str),
+            ["setoption", "name", "usesoftnodes", "value", bool_str] => {
+                self.set_use_soft_nodes(bool_str)
+            }
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
-            _ => { println!("info error unknown option"); }
+            _ => {
+                println!("info error unknown option");
+            }
         }
     }
 
@@ -225,7 +236,8 @@ impl UCI {
 
         moves.iter().for_each(|m| {
             let mut legal_moves = self.board.gen_moves(MoveFilter::All);
-            let legal_move = legal_moves.iter()
+            let legal_move = legal_moves
+                .iter()
                 .map(|entry| entry.mv)
                 .find(|lm| lm.matches(m));
             match legal_move {
@@ -383,7 +395,6 @@ impl UCI {
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-
         let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
             println!("info error: count is not a valid number");
             0
@@ -394,9 +405,9 @@ impl UCI {
             0
         });
 
-        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or_else(|_| {
-            8
-        }) as usize;
+        let random_moves = self
+            .parse_uint(&tokens, "random_moves")
+            .unwrap_or_else(|_| 8) as usize;
 
         let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
             println!("info error: dfrc is not a valid boolean");
@@ -405,7 +416,6 @@ impl UCI {
         for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
-
     }
 
     fn handle_stop(&mut self) {
@@ -458,9 +468,9 @@ impl UCI {
     }
 
     fn split_args(&self, args_str: String) -> Vec<String> {
-        args_str.split_whitespace()
+        args_str
+            .split_whitespace()
             .map(|v| v.trim().to_string())
             .collect()
     }
-
 }

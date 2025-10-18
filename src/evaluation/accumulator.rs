@@ -8,7 +8,7 @@ use crate::evaluation::network::{FeatureWeights, HIDDEN, NETWORK};
 pub struct Accumulator {
     pub white_features: [i16; HIDDEN],
     pub black_features: [i16; HIDDEN],
-    pub mirrored: [bool; 2]
+    pub mirrored: [bool; 2],
 }
 
 impl Default for Accumulator {
@@ -92,12 +92,13 @@ impl Accumulator {
     }
 
     #[inline]
-    pub fn add_sub(&mut self,
-                   add: Feature,
-                   sub: Feature,
-                   w_weights: &FeatureWeights,
-                   b_weights: &FeatureWeights) {
-
+    pub fn add_sub(
+        &mut self,
+        add: Feature,
+        sub: Feature,
+        w_weights: &FeatureWeights,
+        b_weights: &FeatureWeights,
+    ) {
         let w_mirror = self.mirrored[0];
         let b_mirror = self.mirrored[1];
 
@@ -124,13 +125,14 @@ impl Accumulator {
     }
 
     #[inline]
-    pub fn add_sub_sub(&mut self,
-                       add: Feature,
-                       sub1: Feature,
-                       sub2: Feature,
-                       w_weights: &FeatureWeights,
-                       b_weights: &FeatureWeights) {
-
+    pub fn add_sub_sub(
+        &mut self,
+        add: Feature,
+        sub1: Feature,
+        sub2: Feature,
+        w_weights: &FeatureWeights,
+        b_weights: &FeatureWeights,
+    ) {
         let w_mirror = self.mirrored[0];
         let b_mirror = self.mirrored[1];
 
@@ -161,14 +163,15 @@ impl Accumulator {
     }
 
     #[inline]
-    pub fn add_add_sub_sub(&mut self,
-                           add1: Feature,
-                           add2: Feature,
-                           sub1: Feature,
-                           sub2: Feature,
-                           w_weights: &FeatureWeights,
-                           b_weights: &FeatureWeights) {
-
+    pub fn add_add_sub_sub(
+        &mut self,
+        add1: Feature,
+        add2: Feature,
+        sub1: Feature,
+        sub2: Feature,
+        w_weights: &FeatureWeights,
+        b_weights: &FeatureWeights,
+    ) {
         let w_mirror = self.mirrored[0];
         let b_mirror = self.mirrored[1];
 
@@ -201,5 +204,4 @@ impl Accumulator {
             i += 1;
         }
     }
-
 }

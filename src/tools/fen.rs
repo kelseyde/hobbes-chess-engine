@@ -11,9 +11,7 @@ use crate::board::Board;
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 impl Board {
-
     pub fn from_fen(fen: &str) -> Result<Board, String> {
-
         if fen.is_empty() {
             return Err("FEN string cannot be empty".to_string());
         }
@@ -47,7 +45,6 @@ impl Board {
         }
 
         for (rank, row) in rows.iter().enumerate() {
-
             let mut file = 0;
             for ch in row.chars() {
                 if file >= 8 {
@@ -152,7 +149,6 @@ impl Board {
     }
 }
 
-
 fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
     let white_king_sq = board.king_sq(White);
     let black_king_sq = board.king_sq(Black);
@@ -164,17 +160,25 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
     for c in castle.chars() {
         match c {
             // Standard FEN notation
-            'K' => if let Some(file) = find_rook_file(board, White, true){
-                rights.set_kingside(White, file)
-            },
-            'Q' => if let Some(file) = find_rook_file(board, White, false) {
-                rights.set_queenside(White, file)
+            'K' => {
+                if let Some(file) = find_rook_file(board, White, true) {
+                    rights.set_kingside(White, file)
+                }
             }
-            'k' => if let Some(file) = find_rook_file(board, Black, true) {
-                rights.set_kingside(Black, file)
+            'Q' => {
+                if let Some(file) = find_rook_file(board, White, false) {
+                    rights.set_queenside(White, file)
+                }
             }
-            'q' => if let Some(file) = find_rook_file(board, Black, false) {
-                rights.set_queenside(Black, file)
+            'k' => {
+                if let Some(file) = find_rook_file(board, Black, true) {
+                    rights.set_kingside(Black, file)
+                }
+            }
+            'q' => {
+                if let Some(file) = find_rook_file(board, Black, false) {
+                    rights.set_queenside(Black, file)
+                }
             }
             '-' => (),
 
@@ -188,7 +192,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
                     // Rook is to the left of king = queenside
                     rights.set_queenside(White, rook_file);
                 }
-            },
+            }
 
             // Shredder FEN notation
             'a'..='h' => {
@@ -200,7 +204,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Rights {
                     // Rook is to the left of king = queenside
                     rights.set_queenside(Black, rook_file);
                 }
-            },
+            }
 
             _ => panic!("Invalid character in castle rights: {}", c),
         }
@@ -276,7 +280,6 @@ fn find_rook_file(board: &Board, side: Side, kingside: bool) -> Option<File> {
     None
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,7 +306,10 @@ mod tests {
 
     #[test]
     fn test_too_many_parts() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 extra").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 extra")
+                .is_err()
+        );
     }
 
     #[test]
@@ -313,72 +319,102 @@ mod tests {
 
     #[test]
     fn test_board_has_too_many_ranks() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/rnbqkbnr w KQkq - 0 1").is_err());
+        assert!(Board::from_fen(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/rnbqkbnr w KQkq - 0 1"
+        )
+        .is_err());
     }
 
     #[test]
     fn test_board_has_no_kings() {
-        assert!(Board::from_fen("rnbqbbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQNBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqbbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQNBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_board_has_one_king() {
-        assert!(Board::from_fen("rnbqkbkr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbkr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_board_has_too_many_kings() {
-        assert!(Board::from_fen("rnbqkbnr/ppppkppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/ppppkppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_board_has_two_white_kings() {
-        assert!(Board::from_fen("rnbqKbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqKbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_board_has_two_black_kings() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQkBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQkBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_rank_does_not_add_up_to_eight() {
-        assert!(Board::from_fen("rnbqkbnr/ppp2ppp/8/8/4p/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/ppp2ppp/8/8/4p/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_empty_rank() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp//8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp//8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_rank_with_too_many_pieces() {
-        assert!(Board::from_fen("rnbqkbnrr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnrr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_rank_with_too_few_pieces() {
-        assert!(Board::from_fen("rnbqkbn/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbn/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_err()
+        );
     }
 
     #[test]
     fn test_invalid_turn() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR white KQkq - 0 1").is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR white KQkq - 0 1")
+                .is_err()
+        );
     }
 
     #[test]
     fn test_valid() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_ok());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").is_ok()
+        );
     }
 
     #[test]
     fn test_valid_shredder_fen() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1").is_ok());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1").is_ok()
+        );
     }
 
     #[test]
     fn test_valid_with_en_passant() {
-        assert!(Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e3 0 1").is_ok());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e3 0 1").is_ok()
+        );
     }
 
     #[test]
@@ -393,42 +429,55 @@ mod tests {
 
     #[test]
     fn test_dfrc_fens() {
-
         let board1 =
             Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1").unwrap();
-        assert!(board1.has_kingside_rights(White)
-            && board1.has_queenside_rights(White)
-            && board1.has_kingside_rights(Black)
-            && board1.has_queenside_rights(Black));
+        assert!(
+            board1.has_kingside_rights(White)
+                && board1.has_queenside_rights(White)
+                && board1.has_kingside_rights(Black)
+                && board1.has_queenside_rights(Black)
+        );
         assert_eq!(Some(File::H), board1.rights.kingside(White));
         assert_eq!(Some(File::A), board1.rights.queenside(White));
         assert_eq!(Some(File::H), board1.rights.kingside(Black));
         assert_eq!(Some(File::A), board1.rights.queenside(Black));
-        assert_eq!("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1", board1.to_fen());
+        assert_eq!(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1",
+            board1.to_fen()
+        );
 
         let board2 =
             Board::from_fen("bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd -").unwrap();
-        assert!(board2.has_kingside_rights(White)
-            && board2.has_queenside_rights(White)
-            && board2.has_kingside_rights(Black)
-            && board2.has_queenside_rights(Black));
+        assert!(
+            board2.has_kingside_rights(White)
+                && board2.has_queenside_rights(White)
+                && board2.has_kingside_rights(Black)
+                && board2.has_queenside_rights(Black)
+        );
         assert_eq!(Some(File::H), board2.rights.kingside(White));
         assert_eq!(Some(File::D), board2.rights.queenside(White));
         assert_eq!(Some(File::H), board2.rights.kingside(Black));
         assert_eq!(Some(File::D), board2.rights.queenside(Black));
-        assert_eq!("bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd - 0 0", board2.to_fen());
+        assert_eq!(
+            "bnnrkbqr/pppppppp/8/8/8/8/PPPPPPPP/BNNRKBQR w HDhd - 0 0",
+            board2.to_fen()
+        );
 
         let board3 =
             Board::from_fen("nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb -").unwrap();
-        assert!(board3.has_kingside_rights(White)
-            && board3.has_queenside_rights(White)
-            && board3.has_kingside_rights(Black)
-            && board3.has_queenside_rights(Black));
+        assert!(
+            board3.has_kingside_rights(White)
+                && board3.has_queenside_rights(White)
+                && board3.has_kingside_rights(Black)
+                && board3.has_queenside_rights(Black)
+        );
         assert_eq!(Some(File::F), board3.rights.kingside(White));
         assert_eq!(Some(File::B), board3.rights.queenside(White));
         assert_eq!(Some(File::F), board3.rights.kingside(Black));
         assert_eq!(Some(File::B), board3.rights.queenside(Black));
-        assert_eq!("nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb - 0 0", board3.to_fen());
-
+        assert_eq!(
+            "nrkqbrnb/pppppppp/8/8/8/8/PPPPPPPP/NRKQBRNB w FBfb - 0 0",
+            board3.to_fen()
+        );
     }
 }

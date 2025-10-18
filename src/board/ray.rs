@@ -11,9 +11,7 @@ pub fn init() {
 }
 
 pub fn between(a: Square, b: Square) -> Bitboard {
-    unsafe {
-        BETWEEN[a][b]
-    }
+    unsafe { BETWEEN[a][b] }
 }
 
 unsafe fn init_between() {
@@ -23,13 +21,13 @@ unsafe fn init_between() {
             let b = Square(b);
 
             if attacks::rook(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] = attacks::rook(a, Bitboard::of_sq(b))
-                              & attacks::rook(b, Bitboard::of_sq(a));
+                BETWEEN[a][b] =
+                    attacks::rook(a, Bitboard::of_sq(b)) & attacks::rook(b, Bitboard::of_sq(a));
             }
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] = attacks::bishop(a, Bitboard::of_sq(b))
-                              & attacks::bishop(b, Bitboard::of_sq(a));
+                BETWEEN[a][b] =
+                    attacks::bishop(a, Bitboard::of_sq(b)) & attacks::bishop(b, Bitboard::of_sq(a));
             }
         }
     }

@@ -5,11 +5,17 @@ use std::ops::{Index, IndexMut};
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum File {
-    A, B, C, D, E, F, G, H
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
 }
 
 impl File {
-
     pub const COUNT: usize = 8;
 
     pub const CHARS: [char; File::COUNT] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -77,9 +83,19 @@ impl File {
     }
 
     pub fn iter() -> impl Iterator<Item = File> {
-        [File::A, File::B, File::C, File::D, File::E, File::F, File::G, File::H].iter().copied()
+        [
+            File::A,
+            File::B,
+            File::C,
+            File::D,
+            File::E,
+            File::F,
+            File::G,
+            File::H,
+        ]
+        .iter()
+        .copied()
     }
-
 }
 
 impl<T> Index<File> for [T] {

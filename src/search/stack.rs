@@ -17,7 +17,7 @@ pub struct StackEntry {
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub static_eval: i32,
-    pub reduction: i32
+    pub reduction: i32,
 }
 
 impl Default for SearchStack {
@@ -37,7 +37,7 @@ impl SearchStack {
                 singular: None,
                 threats: Bitboard::empty(),
                 static_eval: Score::MIN,
-                reduction: 0
+                reduction: 0,
             }; MAX_PLY + 8],
         }
     }

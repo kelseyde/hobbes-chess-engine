@@ -23,20 +23,16 @@ pub struct CacheEntry {
 }
 
 impl Default for CacheEntry {
-
     fn default() -> Self {
         CacheEntry {
             features: NETWORK.feature_bias.clone(),
             bitboards: [Bitboard::empty(); 8],
         }
     }
-
 }
 
 impl InputBucketCache {
-
     pub fn get(&mut self, perspective: Side, mirror: bool, bucket: usize) -> &mut CacheEntry {
         &mut self.entries[perspective][mirror as usize][bucket]
     }
-
 }
