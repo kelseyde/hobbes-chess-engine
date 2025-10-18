@@ -3,6 +3,7 @@ use crate::board::bitboard::Bitboard;
 use crate::board::square::Square;
 
 static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
+static mut EXTENDING: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
 
 pub fn init() {
     unsafe {
@@ -35,7 +36,7 @@ unsafe fn init_between() {
 }
 
 pub fn extending(a: Square, b: Square) -> Bitboard {
-    unsafe { BETWEEN[a][b] }
+    unsafe { EXTENDING[a][b] }
 }
 
 unsafe fn init_extending() {
@@ -45,12 +46,12 @@ unsafe fn init_extending() {
             let b = Square(b);
 
             if attacks::rook(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
+                EXTENDING[a][b] =
                     attacks::rook(a, Bitboard::empty()) & attacks::rook(b, Bitboard::empty());
             }
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
+                EXTENDING[a][b] =
                     attacks::bishop(a, Bitboard::empty()) & attacks::bishop(b, Bitboard::empty());
             }
         }
