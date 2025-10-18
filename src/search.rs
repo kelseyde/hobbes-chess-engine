@@ -641,13 +641,13 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(best_move.from()).unwrap();
 
         let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let quiet_malus = quiet_history_malus(depth) - (quiet_malus_move_mult() * quiet_count) as i16;
 
         let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let capt_malus = capture_history_malus(depth) - (capt_malus_move_mult() * capture_count) as i16;
 
         let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let cont_malus = cont_history_malus(depth) - (cont_malus_move_mult() * quiet_count) as i16;
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
