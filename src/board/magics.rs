@@ -19,7 +19,7 @@ impl MagicLookup {
 pub static BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
 pub static ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
 
-const fn gen_bishop_attacks_table() -> [Bitboard; 5248]  {
+const fn gen_bishop_attacks_table() -> [Bitboard; 5248] {
     let mut table = [Bitboard(0); 5248];
     let mut sq: usize = 0;
 
@@ -47,7 +47,6 @@ const fn gen_bishop_attacks_table() -> [Bitboard; 5248]  {
 
     table
 }
-
 
 const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
     let mut table = [Bitboard(0); 102400];
@@ -84,25 +83,33 @@ pub const fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
     while tgt % 8 > 0 && tgt / 8 < 7 {
         tgt += 7;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt % 8 < 7 && tgt / 8 < 7 {
         tgt += 9;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt % 8 > 0 && tgt / 8 >= 1 {
         tgt -= 9;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt % 8 < 7 && tgt / 8 >= 1 {
         tgt -= 7;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     bb
 }
@@ -113,29 +120,38 @@ pub const fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
     while tgt / 8 < 7 {
         tgt += 8;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt % 8 < 7 {
         tgt += 1;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt / 8 >= 1 {
         tgt -= 8;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     let mut tgt = square;
     while tgt % 8 > 0 {
         tgt -= 1;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 { break; }
+        if blockers & (1 << tgt) > 0 {
+            break;
+        }
     }
     bb
 }
 
+#[rustfmt::skip]
 pub const BISHOP_MAGICS: [MagicLookup; 64] = [
     MagicLookup { mask: 18049651735527936,   magic: 1143543703831040,     shift: 58, offset: 0 },
     MagicLookup { mask: 70506452091904,      magic: 4616207506731991056,  shift: 59, offset: 64 },
@@ -203,6 +219,7 @@ pub const BISHOP_MAGICS: [MagicLookup; 64] = [
     MagicLookup { mask: 18049651735527936,   magic: 333846923255742504,   shift: 58, offset: 5184 }
 ];
 
+#[rustfmt::skip]
 pub const ROOK_MAGICS: [MagicLookup; 64] = [
     MagicLookup { mask: 282578800148862,     magic: 396334507571101697,   shift: 52, offset: 0 },
     MagicLookup { mask: 565157600297596,     magic: 18014673924829184,    shift: 53, offset: 4096 },

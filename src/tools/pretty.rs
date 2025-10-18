@@ -7,7 +7,8 @@ pub fn print_uci_info() {
     let version_formatted = format!("{CYAN}{VERSION}{RESET}");
     let author_formatted = format!("{CYAN}{}{}", AUTHOR, RESET);
     let contributors_formatted = format!("{CYAN}{}{}", CONTRIBUTORS, RESET);
-    let calvinbench_formatted = format!("CalvinBench {CYAN}https://kelseyde.pythonanywhere.com/index/{RESET}");
+    let calvinbench_formatted =
+        format!("CalvinBench {CYAN}https://kelseyde.pythonanywhere.com/index/{RESET}");
     let mattbench_formatted = format!("MattBench {CYAN}https://chess.n9x.co/index/{RESET}");
     println!("┌───────────────────────────────────────────────────────────────────┐");
     println!("│ Hobbes                                                            │");

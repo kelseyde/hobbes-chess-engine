@@ -1,25 +1,28 @@
 use std::time::Duration;
 
 pub struct SearchLimits {
-    pub hard_time:  Option<Duration>,
-    pub soft_time:  Option<Duration>,
+    pub hard_time: Option<Duration>,
+    pub soft_time: Option<Duration>,
     pub soft_nodes: Option<u64>,
     pub hard_nodes: Option<u64>,
-    pub depth:      Option<u64>,
+    pub depth: Option<u64>,
 }
 
-pub enum LimitType { Soft, Hard }
+pub enum LimitType {
+    Soft,
+    Hard,
+}
 
 pub type FischerTime = (u64, u64);
 
 impl SearchLimits {
-
-    pub fn new(fischer:    Option<FischerTime>,
-               movetime:   Option<u64>,
-               soft_nodes: Option<u64>,
-               hard_nodes: Option<u64>,
-               depth:      Option<u64>) -> SearchLimits {
-
+    pub fn new(
+        fischer: Option<FischerTime>,
+        movetime: Option<u64>,
+        soft_nodes: Option<u64>,
+        hard_nodes: Option<u64>,
+        depth: Option<u64>,
+    ) -> SearchLimits {
         let (soft_time, hard_time) = match (fischer, movetime) {
             (Some(f), _) => {
                 let (soft, hard) = Self::calc_time_limits(f);
@@ -41,10 +44,15 @@ impl SearchLimits {
         }
     }
 
-    pub fn scaled_soft_limit(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> Option<Duration> {
+    pub fn scaled_soft_limit(
+        &self,
+        depth: i32,
+        nodes: u64,
+        best_move_nodes: u64,
+    ) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
-            let scaled = soft_time.as_secs_f32()
-                * self.node_tm_scale(depth, nodes, best_move_nodes);
+            let scaled =
+                soft_time.as_secs_f32() * self.node_tm_scale(depth, nodes, best_move_nodes);
             Duration::from_secs_f32(scaled)
         })
     }
@@ -64,7 +72,9 @@ impl SearchLimits {
         let hard_time = base * 2.0;
         let soft = soft_time.min(time - 50.0);
         let hard = hard_time.min(time - 50.0);
-        (Duration::from_millis(soft as u64), Duration::from_millis(hard as u64))
+        (
+            Duration::from_millis(soft as u64),
+            Duration::from_millis(hard as u64),
+        )
     }
-
 }

@@ -2,17 +2,17 @@ pub mod correction;
 pub mod history;
 pub mod movepicker;
 pub mod parameters;
+pub mod score;
 pub mod see;
+pub mod stack;
 pub mod thread;
 pub mod time;
 pub mod tt;
-pub mod stack;
-pub mod score;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
-use crate::search::history::{*};
+use crate::search::history::*;
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::movepicker::{MovePicker, Stage};
 use crate::search::score::{format_score, Score};
@@ -31,7 +31,6 @@ pub const MAX_PLY: usize = 256;
 /// so far, or that are guaranteed to be 'too good' and could only be reached by sup-optimal play
 /// by the opponent.
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
-
     td.pv.clear(0);
     td.nnue.activate(board);
 
@@ -51,7 +50,6 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
     // depth is reached or the search is aborted.
     while td.depth < MAX_PLY as i32 && !td.should_stop(Soft) {
-
         // Aspiration Windows
         // Use the score from the previous iteration to guess the score from the current iteration.
         // Based on this guess, we narrow the alpha-beta window around the previous score, causing
@@ -724,7 +722,6 @@ fn alpha_beta(board: &Board,
 /// more captures and therefore limited potential for winning tactics that drastically alter the
 /// evaluation. Used to mitigate the 'horizon effect'.
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
-
     let pv_node = beta - alpha > 1;
 
     // If search is aborted, exit immediately
@@ -805,7 +802,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(board, td) {
-
         if !board.is_legal(&mv) {
             continue;
         }
@@ -895,7 +891,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
+        td.tt
+            .insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
     }
 
     best_score
@@ -941,8 +938,16 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
 }
 
 fn late_move_threshold(depth: i32, improving: bool) -> i32 {
-    let base = if improving { lmp_improving_base() } else { lmp_base() };
-    let scale = if improving { lmp_improving_scale() } else { lmp_scale() };
+    let base = if improving {
+        lmp_improving_base()
+    } else {
+        lmp_base()
+    };
+    let scale = if improving {
+        lmp_improving_scale()
+    } else {
+        lmp_scale()
+    };
     (base + depth * scale) / 10
 }
 
@@ -952,10 +957,16 @@ fn print_search_info(td: &mut ThreadData) {
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
     let time = td.start_time.elapsed().as_millis();
-    let nps = if time > 0 && nodes > 0 { (nodes as u128 / time) * 1000 } else { 0 };
+    let nps = if time > 0 && nodes > 0 {
+        (nodes as u128 / time) * 1000
+    } else {
+        0
+    };
     let hashfull = td.tt.fill();
-    print!("info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
-             depth, seldepth, best_score, nodes, time, nps, hashfull);
+    print!(
+        "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
+        depth, seldepth, best_score, nodes, time, nps, hashfull
+    );
 
     // TODO fix illegal PV moves
     // for mv in td.pv.line() {
@@ -967,7 +978,6 @@ fn print_search_info(td: &mut ThreadData) {
     // }
     print!(" {}", td.best_move.to_uci());
     println!();
-
 }
 
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {

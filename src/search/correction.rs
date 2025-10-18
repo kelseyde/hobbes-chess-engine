@@ -1,9 +1,9 @@
 use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::parameters::*;
+use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
-use crate::search::stack::SearchStack;
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
@@ -27,15 +27,15 @@ pub struct CorrectionHistories {
 }
 
 impl CorrectionHistories {
-
-    pub fn update_correction_history(&mut self,
-                                     board: &Board,
-                                     ss: &SearchStack,
-                                     depth: i32,
-                                     ply: usize,
-                                     static_eval: i32,
-                                     best_score: i32) {
-
+    pub fn update_correction_history(
+        &mut self,
+        board: &Board,
+        ss: &SearchStack,
+        depth: i32,
+        ply: usize,
+        static_eval: i32,
+        best_score: i32,
+    ) {
         let us = board.stm;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[Side::White];
@@ -43,14 +43,28 @@ impl CorrectionHistories {
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
-        self.nonpawn_corrhist[Side::White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
-        self.nonpawn_corrhist[Side::Black].update(us, b_nonpawn_hash, depth, static_eval, best_score);
-        self.major_corrhist.update(us, major_hash, depth, static_eval, best_score);
-        self.minor_corrhist.update(us, minor_hash, depth, static_eval, best_score);
+        self.pawn_corrhist
+            .update(us, pawn_hash, depth, static_eval, best_score);
+        self.nonpawn_corrhist[Side::White].update(
+            us,
+            w_nonpawn_hash,
+            depth,
+            static_eval,
+            best_score,
+        );
+        self.nonpawn_corrhist[Side::Black].update(
+            us,
+            b_nonpawn_hash,
+            depth,
+            static_eval,
+            best_score,
+        );
+        self.major_corrhist
+            .update(us, major_hash, depth, static_eval, best_score);
+        self.minor_corrhist
+            .update(us, minor_hash, depth, static_eval, best_score);
         self.update_countermove_correction(board, ss, ply, depth, static_eval, best_score);
         self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
-
     }
 
     #[rustfmt::skip]
@@ -81,20 +95,48 @@ impl CorrectionHistories {
 
     }
 
-    fn update_countermove_correction(&mut self, board: &Board, ss: &SearchStack, ply: usize, depth: i32, static_eval: i32, best_score: i32) {
+    fn update_countermove_correction(
+        &mut self,
+        board: &Board,
+        ss: &SearchStack,
+        ply: usize,
+        depth: i32,
+        static_eval: i32,
+        best_score: i32,
+    ) {
         if ply >= 1 {
             if let Some(prev_mv) = ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.countermove_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+                self.countermove_corrhist.update(
+                    board.stm,
+                    encoded_mv,
+                    depth,
+                    static_eval,
+                    best_score,
+                );
             }
         }
     }
 
-    fn update_follow_up_move_correction(&mut self, board: &Board, ss: &SearchStack, ply: usize, depth: i32, static_eval: i32, best_score: i32) {
+    fn update_follow_up_move_correction(
+        &mut self,
+        board: &Board,
+        ss: &SearchStack,
+        ply: usize,
+        depth: i32,
+        static_eval: i32,
+        best_score: i32,
+    ) {
         if ply >= 2 {
             if let Some(prev_mv) = ss[ply - 2].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.follow_up_move_corrhist.update(board.stm, encoded_mv, depth, static_eval, best_score);
+                self.follow_up_move_corrhist.update(
+                    board.stm,
+                    encoded_mv,
+                    depth,
+                    static_eval,
+                    best_score,
+                );
             }
         }
     }
@@ -121,7 +163,9 @@ impl CorrectionHistories {
 
     pub fn clear(&mut self) {
         self.pawn_corrhist.clear();
-        self.nonpawn_corrhist.iter_mut().for_each(|hist| hist.clear());
+        self.nonpawn_corrhist
+            .iter_mut()
+            .for_each(|hist| hist.clear());
         self.countermove_corrhist.clear();
         self.follow_up_move_corrhist.clear();
         self.major_corrhist.clear();

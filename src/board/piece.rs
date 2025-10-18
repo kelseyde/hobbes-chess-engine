@@ -7,13 +7,19 @@ pub enum Piece {
     Bishop = 2,
     Rook = 3,
     Queen = 4,
-    King = 5
+    King = 5,
 }
 
-pub const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
+pub const PIECES: [Piece; 6] = [
+    Piece::Pawn,
+    Piece::Knight,
+    Piece::Bishop,
+    Piece::Rook,
+    Piece::Queen,
+    Piece::King,
+];
 
 impl Piece {
-
     pub const COUNT: usize = 6;
 
     #[inline(always)]
@@ -25,7 +31,6 @@ impl Piece {
     pub const fn is_minor(self) -> bool {
         matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
     }
-
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {

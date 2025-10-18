@@ -41,7 +41,6 @@ pub(crate) mod avx2 {
         let max = _mm256_set1_epi16(QA as i16);
         _mm256_min_epi16(_mm256_max_epi16(i, min), max)
     }
-
 }
 
 #[cfg(not(target_feature = "avx2"))]
@@ -49,7 +48,6 @@ pub(crate) mod scalar {
     use crate::evaluation::network::{HIDDEN, QA};
 
     pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
-
         let mut output = 0;
         for (&input, &weight) in features.iter().zip(weights.iter()) {
             let clipped = input.clamp(0, QA as i16);
@@ -57,7 +55,5 @@ pub(crate) mod scalar {
             output += result as i32 * clipped as i32;
         }
         output
-
     }
-
 }

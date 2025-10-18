@@ -7,7 +7,6 @@ use std::ops::{Index, IndexMut};
 pub struct Square(pub u8);
 
 impl Square {
-
     pub const COUNT: u8 = 64;
 
     #[inline(always)]
@@ -48,7 +47,6 @@ impl Square {
     pub fn iter() -> impl Iterator<Item = Square> {
         (0..Self::COUNT).map(Square)
     }
-
 }
 
 impl<T, const N: usize> Index<Square> for [T; N] {
