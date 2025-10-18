@@ -208,6 +208,7 @@ fn alpha_beta(board: &Board,
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
+                && cut_node == (tt_score >= beta)
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
                 return tt_score;
             }
