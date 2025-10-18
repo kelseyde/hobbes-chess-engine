@@ -242,12 +242,13 @@ impl Board {
 
         let king_sq = self.king_sq(side);
 
+        let us_occ_without_king = self.side(side) & !self.king(side);
         // remove the pieces in direct line of sight from the king then look for pinners there
         // and pieces checking the king are not pinners so remove those
         let rook_ray_from_king = attacks::rook(king_sq, Bitboard::empty());
         let rook_likes = self.pieces(Piece::Rook) | self.pieces(Piece::Queen);
         for sq in rook_ray_from_king & rook_likes & self.side(!side) {
-            let between = ray::between(king_sq, sq) & self.occ();
+            let between = ray::between(king_sq, sq) & us_occ_without_king;
 
             if between.count() == 1 {
                 res |= between;
@@ -257,7 +258,7 @@ impl Board {
         let bishop_ray_from_king = attacks::bishop(king_sq, Bitboard::empty());
         let bishop_likes = self.pieces(Piece::Bishop) | self.pieces(Piece::Queen);
         for sq in bishop_ray_from_king & bishop_likes & self.side(!side) {
-            let between = ray::between(king_sq, sq) & self.occ();
+            let between = ray::between(king_sq, sq) & us_occ_without_king;
 
             if between.count() == 1 {
                 res |= between;
