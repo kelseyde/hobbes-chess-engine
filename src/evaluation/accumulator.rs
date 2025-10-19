@@ -204,4 +204,70 @@ impl Accumulator {
             i += 1;
         }
     }
+
+    #[inline]
+    pub fn add_add_add_add(
+        &mut self,
+        add1: Feature,
+        add2: Feature,
+        add3: Feature,
+        add4: Feature,
+        weights: &FeatureWeights,
+        perspective: Side
+    ) {
+        let mirror = self.mirrored[perspective as usize];
+
+        let add1_offset = add1.index(perspective, mirror) * HIDDEN;
+        let add2_offset = add2.index(perspective, mirror) * HIDDEN;
+        let add3_offset = add3.index(perspective, mirror) * HIDDEN;
+        let add4_offset = add4.index(perspective, mirror) * HIDDEN;
+
+        let feats = self.features_mut(perspective);
+
+        let mut i = 0;
+        while i < HIDDEN {
+            unsafe {
+                let feat_ptr = feats.get_unchecked_mut(i);
+                *feat_ptr = feat_ptr
+                    .wrapping_add(*weights.get_unchecked(i + add1_offset))
+                    .wrapping_add(*weights.get_unchecked(i + add2_offset))
+                    .wrapping_add(*weights.get_unchecked(i + add3_offset))
+                    .wrapping_add(*weights.get_unchecked(i + add4_offset));
+            }
+            i += 1;
+        }
+    }
+
+    pub fn sub_sub_sub_sub(
+        &mut self,
+        sub1: Feature,
+        sub2: Feature,
+        sub3: Feature,
+        sub4: Feature,
+        weights: &FeatureWeights,
+        perspective: Side
+    ) {
+        let mirror = self.mirrored[perspective as usize];
+
+        let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
+        let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
+        let sub3_offset = sub3.index(perspective, mirror) * HIDDEN;
+        let sub4_offset = sub4.index(perspective, mirror) * HIDDEN;
+
+        let feats = self.features_mut(perspective);
+
+        let mut i = 0;
+        while i < HIDDEN {
+            unsafe {
+                let feat_ptr = feats.get_unchecked_mut(i);
+                *feat_ptr = feat_ptr
+                    .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub2_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub3_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub4_offset));
+            }
+            i += 1;
+        }
+    }
+
 }

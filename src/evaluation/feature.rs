@@ -7,6 +7,7 @@ use crate::board::square::Square;
 /// board, with a colour (white or black). The feature can either be activated - meaning the piece
 /// is present on that square - or not  activated - meaning the piece is not present on that square.
 /// The presence or absence of a feature is represented by a 1 or 0 respectively in the input layer.
+#[derive(Copy, Clone)]
 pub struct Feature {
     pc: Piece,
     sq: Square,
