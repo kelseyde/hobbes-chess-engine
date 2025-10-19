@@ -71,6 +71,7 @@ impl CorrectionHistories {
     pub fn correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
 
         let us = board.stm;
+        let phase = board.phase;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[Side::White];
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
@@ -85,13 +86,13 @@ impl CorrectionHistories {
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
-        (pawn * 100 / corr_pawn_weight())
-            + (white * 100 / corr_non_pawn_weight())
-            + (black * 100 / corr_non_pawn_weight())
-            + (major * 100 / corr_major_weight())
-            + (minor * 100 / corr_minor_weight())
-            + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight())
+        (pawn * 100 / corr_pawn_weight(phase))
+            + (white * 100 / corr_non_pawn_weight(phase))
+            + (black * 100 / corr_non_pawn_weight(phase))
+            + (major * 100 / corr_major_weight(phase))
+            + (minor * 100 / corr_minor_weight(phase))
+            + (counter * 100 / corr_counter_weight(phase))
+            + (follow_up * 100 / corr_follow_up_weight(phase))
 
     }
 

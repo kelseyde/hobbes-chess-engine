@@ -1,10 +1,10 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
+use crate::board::phase::Phase;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::board::phase::Phase;
 use crate::search::parameters::{
     capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
     capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,

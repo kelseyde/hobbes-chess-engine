@@ -1,6 +1,7 @@
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
+use crate::board::phase::Phase;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
@@ -9,13 +10,13 @@ use crate::search::parameters::{
     see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
 };
 
-pub fn value(pc: Piece) -> i32 {
+pub fn value(pc: Piece, phase: Phase) -> i32 {
     match pc {
-        Piece::Pawn => see_value_pawn(),
-        Piece::Knight => see_value_knight(),
-        Piece::Bishop => see_value_bishop(),
-        Piece::Rook => see_value_rook(),
-        Piece::Queen => see_value_queen(),
+        Piece::Pawn => see_value_pawn(phase),
+        Piece::Knight => see_value_knight(phase),
+        Piece::Bishop => see_value_bishop(phase),
+        Piece::Rook => see_value_rook(phase),
+        Piece::Queen => see_value_queen(phase),
         Piece::King => 0,
     }
 }
@@ -34,7 +35,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         return false;
     }
 
-    balance -= value(next_victim);
+    balance -= value(next_victim, board.phase);
 
     if balance >= 0 {
         return true;
@@ -70,7 +71,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         occ = occ.pop_bit(sq);
         stm = !stm;
 
-        balance = -balance - 1 - value(attacker);
+        balance = -balance - 1 - value(attacker, board.phase);
         if balance >= 0 {
             break;
         }
@@ -92,12 +93,12 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 fn move_value(board: &Board, mv: &Move) -> i32 {
     let mut see_value = board
         .piece_at(mv.to())
-        .map_or(0, |captured| value(captured));
+        .map_or(0, |captured| value(captured, board.phase));
 
     if let Some(promo) = mv.promo_piece() {
-        see_value += value(promo);
+        see_value += value(promo, board.phase);
     } else if mv.is_ep() {
-        see_value = value(Piece::Pawn);
+        see_value = value(Piece::Pawn, board.phase);
     }
     see_value
 }

@@ -1,6 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
+use crate::board::phase::Phase;
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
@@ -8,7 +9,6 @@ use crate::search::parameters::movepick_see_threshold;
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::board::phase::Phase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -155,12 +155,12 @@ impl MovePicker {
         board: &Board,
         td: &ThreadData,
         ply: usize,
-        threats: Bitboard,
+        threats: Bitboard
     ) {
         let mv = &entry.mv;
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
-            let victim_value = see::value(victim);
+            let victim_value = see::value(victim, board.phase);
             let history_score = td
                 .history
                 .capture_history_score(board, mv, attacker, victim);

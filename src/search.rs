@@ -11,6 +11,7 @@ pub mod tt;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::phase::Phase;
 use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::Stage::BadNoisies;
@@ -22,7 +23,6 @@ use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
-use crate::board::phase::Phase;
 
 pub const MAX_PLY: usize = 256;
 
@@ -34,7 +34,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
-    let phase = board.phase();
+    let phase = board.phase;
 
     let root_moves = board.gen_legal_moves();
     match root_moves.len {
@@ -133,7 +133,7 @@ fn alpha_beta(board: &Board,
     let root_node = ply == 0;
 
     // Retrieve the current game phase.
-    let phase = board.phase();
+    let phase = board.phase;
 
     // Determine if we are currently in check.
     let threats = movegen::calc_threats(board, board.stm);
@@ -510,7 +510,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
         td.tt.prefetch(board.hash());
-        let phase = board.phase();
+        let phase = board.phase;
 
         searched_moves += 1;
         td.nodes += 1;
@@ -538,7 +538,7 @@ fn alpha_beta(board: &Board,
             r -= lmr_killer(phase) * td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
             r -= extension * 1024 / lmr_extension_divisor(phase);
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset(phase)) / lmr_hist_divisor(phase)) * 1024;
-            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor(phase));
+            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, phase) / lmr_mvv_divisor(phase));
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -729,7 +729,7 @@ fn alpha_beta(board: &Board,
 /// evaluation. Used to mitigate the 'horizon effect'.
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     let pv_node = beta - alpha > 1;
-    let phase = board.phase();
+    let phase = board.phase;
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {

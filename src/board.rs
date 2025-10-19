@@ -15,6 +15,7 @@ pub mod zobrist;
 pub mod phase;
 
 use crate::board::castling::Rights;
+use crate::board::phase::Phase;
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -23,7 +24,6 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
-use crate::board::phase::Phase;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -39,6 +39,7 @@ pub struct Board {
     pub ep_sq: Option<Square>, // en passant square (0-63)
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
+    pub phase: Phase,     // game phase
     pub frc: bool,         // whether the game is Fischer Random Chess
 }
 
@@ -63,6 +64,7 @@ impl Board {
             ep_sq: None,
             rights: Rights::default(),
             keys: Keys::default(),
+            phase: Phase::P1,
             frc: false,
         }
     }
@@ -110,6 +112,7 @@ impl Board {
             self.hm + 1
         };
         self.keys.hash ^= Zobrist::stm();
+        self.phase = self.calc_phase();
         self.stm = !self.stm;
     }
 
@@ -324,7 +327,7 @@ impl Board {
         self.bb[pc]
     }
 
-    pub fn phase(&self) -> Phase {
+    pub fn calc_phase(&self) -> Phase {
         let occ_count = self.occ().count();
         let idx = ((occ_count.saturating_sub(1)) / 8).min(2) as usize;
         Phase::from_usize(idx)
