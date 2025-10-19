@@ -151,17 +151,25 @@ impl NNUE {
 
                 let removed = cached_pieces & !pieces;
                 for sub in removed {
-                    subs.push(Feature::new(pc, sub, side))
+                    subs.push(Feature::new(pc, sub, side));
                 }
             }
         }
 
         let weights = &NETWORK.feature_weights[bucket];
 
-        for add in adds {
+        // Fuse together updates to the accumulator for efficiency using iterators.
+        for chunk in adds.as_slice().chunks_exact(4) {
+            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+        }
+        for &add in adds.as_slice().chunks_exact(4).remainder() {
             acc.add(add, weights, perspective);
         }
-        for sub in subs {
+
+        for chunk in subs.as_slice().chunks_exact(4) {
+            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+        }
+        for &sub in subs.as_slice().chunks_exact(4).remainder() {
             acc.sub(sub, weights, perspective);
         }
 
