@@ -12,6 +12,7 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod phase;
 
 use crate::board::castling::Rights;
 use crate::board::zobrist::{Keys, Zobrist};
@@ -22,6 +23,7 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
+use crate::board::phase::Phase;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -320,6 +322,12 @@ impl Board {
 
     pub fn pieces(&self, pc: Piece) -> Bitboard {
         self.bb[pc]
+    }
+
+    pub fn phase(&self) -> Phase {
+        let occ_count = self.occ().count();
+        let idx = ((occ_count.saturating_sub(1)) / 8).min(2) as usize;
+        Phase::from_usize(idx)
     }
 
     pub fn captured(&self, mv: &Move) -> Option<Piece> {

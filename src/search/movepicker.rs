@@ -8,6 +8,7 @@ use crate::search::parameters::movepick_see_threshold;
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::board::phase::Phase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -34,7 +35,7 @@ pub struct MovePicker {
 }
 
 impl MovePicker {
-    pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
+    pub fn new(tt_move: Move, ply: usize, threats: Bitboard, phase: Phase) -> Self {
         let stage = if tt_move.exists() {
             TTMove
         } else {
@@ -49,7 +50,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(movepick_see_threshold()),
+            see_threshold: Some(movepick_see_threshold(phase)),
             bad_noisies: MoveList::new(),
         }
     }

@@ -4,6 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
+use crate::board::phase::Phase;
 use crate::search::parameters::{
     capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
     capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,
@@ -218,65 +219,65 @@ impl ThreatIndex {
     }
 }
 
-pub fn quiet_history_bonus(depth: i32) -> i16 {
-    let scale = quiet_hist_bonus_scale() as i16;
-    let offset = quiet_hist_bonus_offset() as i16;
-    let max = quiet_hist_bonus_max() as i16;
+pub fn quiet_history_bonus(depth: i32, phase: Phase) -> i16 {
+    let scale = quiet_hist_bonus_scale(phase) as i16;
+    let offset = quiet_hist_bonus_offset(phase) as i16;
+    let max = quiet_hist_bonus_max(phase) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn quiet_history_malus(depth: i32) -> i16 {
-    let scale = quiet_hist_malus_scale() as i16;
-    let offset = quiet_hist_malus_offset() as i16;
-    let max = quiet_hist_malus_max() as i16;
+pub fn quiet_history_malus(depth: i32, phase: Phase) -> i16 {
+    let scale = quiet_hist_malus_scale(phase) as i16;
+    let offset = quiet_hist_malus_offset(phase) as i16;
+    let max = quiet_hist_malus_max(phase) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn capture_history_bonus(depth: i32) -> i16 {
-    let scale = capt_hist_bonus_scale() as i16;
-    let offset = capt_hist_bonus_offset() as i16;
-    let max = capt_hist_bonus_max() as i16;
+pub fn capture_history_bonus(depth: i32, phase: Phase) -> i16 {
+    let scale = capt_hist_bonus_scale(phase) as i16;
+    let offset = capt_hist_bonus_offset(phase) as i16;
+    let max = capt_hist_bonus_max(phase) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn capture_history_malus(depth: i32) -> i16 {
-    let scale = capt_hist_malus_scale() as i16;
-    let offset = capt_hist_malus_offset() as i16;
-    let max = capt_hist_malus_max() as i16;
+pub fn capture_history_malus(depth: i32, phase: Phase) -> i16 {
+    let scale = capt_hist_malus_scale(phase) as i16;
+    let offset = capt_hist_malus_offset(phase) as i16;
+    let max = capt_hist_malus_max(phase) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn cont_history_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_bonus_scale() as i16;
-    let offset = cont_hist_bonus_offset() as i16;
-    let max = cont_hist_bonus_max() as i16;
+pub fn cont_history_bonus(depth: i32, phase: Phase) -> i16 {
+    let scale = cont_hist_bonus_scale(phase) as i16;
+    let offset = cont_hist_bonus_offset(phase) as i16;
+    let max = cont_hist_bonus_max(phase) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn cont_history_malus(depth: i32) -> i16 {
-    let scale = cont_hist_malus_scale() as i16;
-    let offset = cont_hist_malus_offset() as i16;
-    let max = cont_hist_malus_max() as i16;
+pub fn cont_history_malus(depth: i32, phase: Phase) -> i16 {
+    let scale = cont_hist_malus_scale(phase) as i16;
+    let offset = cont_hist_malus_offset(phase) as i16;
+    let max = cont_hist_malus_max(phase) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn prior_countermove_bonus(depth: i32) -> i16 {
-    let scale = pcm_bonus_scale() as i16;
-    let offset = pcm_bonus_offset() as i16;
-    let max = pcm_bonus_max() as i16;
+pub fn prior_countermove_bonus(depth: i32, phase: Phase) -> i16 {
+    let scale = pcm_bonus_scale(phase) as i16;
+    let offset = pcm_bonus_offset(phase) as i16;
+    let max = pcm_bonus_max(phase) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
+pub fn lmr_conthist_bonus(depth: i32, good: bool, phase: Phase) -> i16 {
     if good {
-        let scale = lmr_cont_hist_bonus_scale() as i16;
-        let offset = lmr_cont_hist_bonus_offset() as i16;
-        let max = lmr_cont_hist_bonus_max() as i16;
+        let scale = lmr_cont_hist_bonus_scale(phase) as i16;
+        let offset = lmr_cont_hist_bonus_offset(phase) as i16;
+        let max = lmr_cont_hist_bonus_max(phase) as i16;
         history_bonus(depth, scale, offset, max)
     } else {
-        let scale = lmr_cont_hist_malus_scale() as i16;
-        let offset = lmr_cont_hist_malus_offset() as i16;
-        let max = lmr_cont_hist_malus_max() as i16;
+        let scale = lmr_cont_hist_malus_scale(phase) as i16;
+        let offset = lmr_cont_hist_malus_offset(phase) as i16;
+        let max = lmr_cont_hist_malus_max(phase) as i16;
         history_malus(depth, scale, offset, max)
     }
 }

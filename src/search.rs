@@ -22,6 +22,7 @@ use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::board::phase::Phase;
 
 pub const MAX_PLY: usize = 256;
 
@@ -33,6 +34,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
+    let phase = board.phase();
 
     let root_moves = board.gen_legal_moves();
     match root_moves.len {
@@ -44,7 +46,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut delta = asp_delta();
+    let mut delta = asp_delta(phase);
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -55,7 +57,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         // Based on this guess, we narrow the alpha-beta window around the previous score, causing
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
-        if td.depth >= asp_min_depth() {
+        if td.depth >= asp_min_depth(phase) {
             alpha = (score - delta).max(Score::MIN);
             beta = (score + delta).min(Score::MAX);
         }
@@ -76,11 +78,11 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;
                     alpha = (score - delta).max(Score::MIN);
-                    delta += (delta * 100) / asp_alpha_widening_factor();
+                    delta += (delta * 100) / asp_alpha_widening_factor(phase);
                 }
                 s if s >= beta => {
                     beta = (score + delta).min(Score::MAX);
-                    delta += (delta * 100) / asp_beta_widening_factor();
+                    delta += (delta * 100) / asp_beta_widening_factor(phase);
                 }
                 _ => break,
             }
@@ -90,7 +92,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        delta = asp_delta();
+        delta = asp_delta(phase);
         td.depth += 1;
     }
 
@@ -129,6 +131,9 @@ fn alpha_beta(board: &Board,
 
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = ply == 0;
+
+    // Retrieve the current game phase.
+    let phase = board.phase();
 
     // Determine if we are currently in check.
     let threats = movegen::calc_threats(board, board.stm);
@@ -246,8 +251,8 @@ fn alpha_beta(board: &Board,
         let prev_mv = td.ss[ply - 1].mv.unwrap();
         let prev_threats = td.ss[ply - 1].threats;
 
-        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
-        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
+        let value = dynamic_policy_mult(phase) * -(static_eval + prev_eval);
+        let bonus = value.clamp(dynamic_policy_min(phase), dynamic_policy_max(phase)) as i16;
         td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, bonus);
     }
 
@@ -257,10 +262,10 @@ fn alpha_beta(board: &Board,
     if !root_node
         && !in_check
         && !singular_search
-        && depth >= hindsight_ext_min_depth()
-        && td.ss[ply - 1].reduction >= hindsight_ext_min_reduction()
+        && depth >= hindsight_ext_min_depth(phase)
+        && td.ss[ply - 1].reduction >= hindsight_ext_min_reduction(phase)
         && Score::is_defined(td.ss[ply - 1].static_eval)
-        && static_eval + td.ss[ply - 1].static_eval < hindsight_ext_eval_diff() {
+        && static_eval + td.ss[ply - 1].static_eval < hindsight_ext_eval_diff(phase) {
         depth += 1;
     }
 
@@ -271,10 +276,10 @@ fn alpha_beta(board: &Board,
         && !pv_node
         && !in_check
         && !singular_search
-        && depth >= hindsight_red_min_depth()
-        && td.ss[ply - 1].reduction >= hindsight_red_min_reduction()
+        && depth >= hindsight_red_min_depth(phase)
+        && td.ss[ply - 1].reduction >= hindsight_red_min_reduction(phase)
         && Score::is_defined(td.ss[ply - 1].static_eval)
-        && static_eval + td.ss[ply - 1].static_eval > hindsight_red_eval_diff() {
+        && static_eval + td.ss[ply - 1].static_eval > hindsight_red_eval_diff(phase) {
         depth -= 1;
     }
 
@@ -284,30 +289,30 @@ fn alpha_beta(board: &Board,
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
-        let futility_margin = rfp_base()
-            + rfp_scale() * depth
-            - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
+        let futility_margin = rfp_base(phase)
+            + rfp_scale(phase) * depth
+            - rfp_improving_scale(phase) * improving as i32
+            - rfp_tt_move_noisy_scale(phase) * tt_move_noisy as i32;
+        if depth <= rfp_max_depth(phase) && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node && static_eval < alpha - razor_base(phase) - razor_scale(phase) * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
-        if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+        if depth >= nmp_min_depth(phase)
+            && static_eval >= beta + nmp_margin(phase)
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns() {
 
-            let r = nmp_base_reduction()
-                + depth / nmp_depth_divisor()
-                + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
+            let r = nmp_base_reduction(phase)
+                + depth / nmp_depth_divisor(phase)
+                + ((static_eval - beta) / nmp_eval_divisor(phase)).min(nmp_eval_max_reduction(phase))
                 + tt_move_noisy as i32;
 
             let mut board = *board;
@@ -340,16 +345,16 @@ fn alpha_beta(board: &Board,
     // If the position has not been searched yet, the search will be potentially expensive. So we
     // search with a reduced depth expecting to record a move that we can later re-use.
     if !root_node
-        && depth >= iir_min_depth()
+        && depth >= iir_min_depth(phase)
         && (pv_node || cut_node)
-        && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset(phase)) {
         depth -= 1;
     }
 
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
-    let mut move_picker = MovePicker::new(tt_move, ply, threats);
+    let mut move_picker = MovePicker::new(tt_move, ply, threats, phase);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -392,15 +397,15 @@ fn alpha_beta(board: &Board,
 
         // Futility Pruning
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
-        let futility_margin = fp_base()
-            + fp_scale() * lmr_depth
-            - legal_moves * fp_movecount_mult()
-            + history_score / fp_history_divisor();
+        let futility_margin = fp_base(phase)
+            + fp_scale(phase) * lmr_depth
+            - legal_moves * fp_movecount_mult(phase)
+            + history_score / fp_history_divisor(phase);
         if !pv_node
             && !root_node
             && !in_check
             && is_quiet
-            && lmr_depth < fp_max_depth()
+            && lmr_depth < fp_max_depth(phase)
             && !is_mate_score
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
@@ -413,8 +418,8 @@ fn alpha_beta(board: &Board,
             && !root_node
             && !is_mate_score
             && is_quiet
-            && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && depth <= lmp_max_depth(phase)
+            && searched_moves > late_move_threshold(depth, improving, phase) {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -425,18 +430,18 @@ fn alpha_beta(board: &Board,
             && !root_node
             && !is_mate_score
             && is_quiet
-            && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth {
+            && depth <= hp_max_depth(phase)
+            && history_score < hp_scale(phase) * depth * depth {
             move_picker.skip_quiets = true;
             continue
         }
 
         // Bad Noisy Pruning
         // Skip bad noisies when the static evaluation + some margin is still below alpha.
-        let futility_margin = static_eval + bnp_scale() * lmr_depth;
+        let futility_margin = static_eval + bnp_scale(phase) * lmr_depth;
         if !pv_node
             && !in_check
-            && lmr_depth < bnp_max_depth()
+            && lmr_depth < bnp_max_depth(phase)
             && move_picker.stage == Stage::BadNoisies
             && futility_margin <= alpha {
             break;
@@ -445,15 +450,15 @@ fn alpha_beta(board: &Board,
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            depth * pvs_see_quiet_scale()
-                - history_score / pvs_see_quiet_history_div()
-                - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+            depth * pvs_see_quiet_scale(phase)
+                - history_score / pvs_see_quiet_history_div(phase)
+                - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale(phase)
         } else {
-            depth * depth * pvs_see_noisy_scale()
-                - history_score / pvs_see_noisy_history_div()
+            depth * depth * pvs_see_noisy_scale(phase)
+                - history_score / pvs_see_noisy_history_div(phase)
         };
         if !pv_node
-            && depth <= pvs_see_max_depth()
+            && depth <= pvs_see_max_depth(phase)
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
@@ -468,12 +473,12 @@ fn alpha_beta(board: &Board,
             && !singular_search
             && tt_hit
             && mv == tt_move
-            && depth >= se_min_depth()
+            && depth >= se_min_depth(phase)
             && tt_flag != TTFlag::Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && tt_depth >= depth - se_tt_depth_offset(phase) {
 
-            let s_beta = (tt_score - depth * se_beta_scale() / 16).max(-Score::MATE + 1);
-            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
+            let s_beta = (tt_score - depth * se_beta_scale(phase) / 16).max(-Score::MATE + 1);
+            let s_depth = (depth - se_depth_offset(phase)) / se_depth_divisor(phase);
 
             td.ss[ply].singular = Some(mv);
             let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
@@ -481,7 +486,7 @@ fn alpha_beta(board: &Board,
 
             if score < s_beta {
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
+                extension += (!pv_node && score < s_beta - se_double_ext_margin(phase)) as i32;
             } else if s_beta >= beta {
                 return s_beta;
             } else if tt_score >= beta {
@@ -505,6 +510,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
         td.tt.prefetch(board.hash());
+        let phase = board.phase();
 
         searched_moves += 1;
         td.nodes += 1;
@@ -517,22 +523,22 @@ fn alpha_beta(board: &Board,
         // Principal Variation Search
         // We assume that the first move will be best, and search all others with a null window and/or
         // reduced depth. If any of those moves beat alpha, we re-search with a full window and depth.
-        if depth >= lmr_min_depth() && searched_moves > lmr_min_moves() + root_node as i32 + 2 * pv_node as i32 {
+        if depth >= lmr_min_depth(phase) && searched_moves > lmr_min_moves(phase) + root_node as i32 + 2 * pv_node as i32 {
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
-            r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * cut_node as i32;
-            r -= lmr_capture() * captured.is_some() as i32;
-            r += lmr_improving() * !improving as i32;
-            r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
-            r -= lmr_killer() * td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
-            r -= extension * 1024 / lmr_extension_divisor();
-            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
+            r -= lmr_ttpv_base(phase) * tt_pv as i32;
+            r -= lmr_ttpv_tt_score(phase) * (tt_pv && has_tt_score && tt_score > alpha) as i32;
+            r -= lmr_ttpv_tt_depth(phase) * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r += lmr_cut_node(phase) * cut_node as i32;
+            r -= lmr_capture(phase) * captured.is_some() as i32;
+            r += lmr_improving(phase) * !improving as i32;
+            r -= lmr_shallow(phase) * (depth == lmr_min_depth(phase)) as i32;
+            r -= lmr_killer(phase) * td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
+            r -= extension * 1024 / lmr_extension_divisor(phase);
+            r -= is_quiet as i32 * ((history_score - lmr_hist_offset(phase)) / lmr_hist_divisor(phase)) * 1024;
+            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor(phase));
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -543,7 +549,7 @@ fn alpha_beta(board: &Board,
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
                 // Adjust the depth of the re-search based on the score from the reduced search.
-                let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
+                let do_deeper_margin = best_score + lmr_deeper_base(phase) + lmr_deeper_scale(phase) * depth / lmr_deeper_div(phase);
                 let do_shallower_margin = best_score + new_depth;
                 new_depth += (score > do_deeper_margin) as i32;
                 new_depth -= (score < do_shallower_margin) as i32;
@@ -552,7 +558,7 @@ fn alpha_beta(board: &Board,
                     score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                     if is_quiet && (score <= alpha || score >= beta) {
-                        let bonus = lmr_conthist_bonus(depth, score >= beta);
+                        let bonus = lmr_conthist_bonus(depth, score >= beta, phase);
                         td.history.update_continuation_history(&td.ss, ply, &mv, pc, bonus);
                     }
                 }
@@ -623,8 +629,8 @@ fn alpha_beta(board: &Board,
             // Alpha-raise reduction
             // It is unlikely that multiple moves raise alpha, therefore, if we have already raised
             // alpha, we can reduce the search depth for the remaining moves.
-            if depth > alpha_raise_min_depth()
-                && depth < alpha_raise_max_depth()
+            if depth > alpha_raise_min_depth(phase)
+                && depth < alpha_raise_max_depth(phase)
                 && !is_mate_score {
                 depth -= 1;
             }
@@ -638,14 +644,14 @@ fn alpha_beta(board: &Board,
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let quiet_bonus = quiet_history_bonus(depth, phase);
+        let quiet_malus = quiet_history_malus(depth, phase);
 
-        let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let capt_bonus = capture_history_bonus(depth, phase);
+        let capt_malus = capture_history_malus(depth, phase);
 
-        let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let cont_bonus = cont_history_bonus(depth, phase);
+        let cont_malus = cont_history_malus(depth, phase);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
@@ -684,7 +690,7 @@ fn alpha_beta(board: &Board,
         && td.ss[ply - 1].captured.is_none() {
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
-            let quiet_bonus = prior_countermove_bonus(depth);
+            let quiet_bonus = prior_countermove_bonus(depth, phase);
             td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, quiet_bonus);
         }
     }
@@ -723,6 +729,7 @@ fn alpha_beta(board: &Board,
 /// evaluation. Used to mitigate the 'horizon effect'.
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     let pv_node = beta - alpha > 1;
+    let phase = board.phase();
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -795,7 +802,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut move_count = 0;
 
-    let futility_margin = static_eval + qs_futility_threshold();
+    let futility_margin = static_eval + qs_futility_threshold(phase);
 
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
@@ -826,7 +833,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !see::see(board, &mv, qs_see_threshold()) {
+        if !in_check && !see::see(board, &mv, qs_see_threshold(phase)) {
             continue;
         }
 
@@ -937,16 +944,16 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     }
 }
 
-fn late_move_threshold(depth: i32, improving: bool) -> i32 {
+fn late_move_threshold(depth: i32, improving: bool, phase: Phase) -> i32 {
     let base = if improving {
-        lmp_improving_base()
+        lmp_improving_base(phase)
     } else {
-        lmp_base()
+        lmp_base(phase)
     };
     let scale = if improving {
-        lmp_improving_scale()
+        lmp_improving_scale(phase)
     } else {
-        lmp_scale()
+        lmp_scale(phase)
     };
     (base + depth * scale) / 10
 }

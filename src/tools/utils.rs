@@ -2,20 +2,17 @@
 #[macro_export]
 macro_rules! tunable_params {
 
-    ($($name:ident = $val:expr, $min:expr, $max:expr, $step:expr;)*) => {
+    ($($name:ident = ($val1:expr, $val2:expr, $val3:expr), $min:expr, $max:expr, $step:expr;)*) => {
         #[cfg(feature = "tuning")]
         use std::sync::atomic::Ordering;
+        use crate::board::phase::Phase;
 
         #[cfg(feature = "tuning")]
         pub fn list_params() {
             $(
-                println!(
-                    "option name {} type spin default {} min {} max {}",
-                    stringify!($name),
-                    $name(),
-                    $min,
-                    $max,
-                );
+                println!("option name {}_p1 type spin default {} min {} max {}", stringify!($name), $name(Phase::P1), $min, $max);
+                println!("option name {}_p2 type spin default {} min {} max {}", stringify!($name), $name(Phase::P2), $min, $max);
+                println!("option name {}_p3 type spin default {} min {} max {}", stringify!($name), $name(Phase::P3), $min, $max);
             )*
         }
 
@@ -23,7 +20,9 @@ macro_rules! tunable_params {
         pub fn set_param(name: &str, val: i32) {
             match name {
                 $(
-                    stringify!($name) => vals::$name.store(val, Ordering::Relaxed),
+                    concat!(stringify!($name), "_p1") => vals::$name[0].store(val, Ordering::Relaxed),
+                    concat!(stringify!($name), "_p2") => vals::$name[1].store(val, Ordering::Relaxed),
+                    concat!(stringify!($name), "_p3") => vals::$name[2].store(val, Ordering::Relaxed),
                 )*
                 _ => println!("info error unknown option"),
             }
@@ -32,14 +31,9 @@ macro_rules! tunable_params {
         #[cfg(feature = "tuning")]
         pub fn print_params_ob() {
             $(
-                println!(
-                    "{}, int, {}.0, {}.0, {}.0, {}, 0.002",
-                    stringify!($name),
-                    $name(),
-                    $min,
-                    $max,
-                    $step,
-                );
+                println!("{}", format!("{}_p1, int, {}.0, {}.0, {}.0, {}, 0.002", stringify!($name), $name(Phase::P1), $min, $max, $step));
+                println!("{}", format!("{}_p2, int, {}.0, {}.0, {}.0, {}, 0.002", stringify!($name), $name(Phase::P2), $min, $max, $step));
+                println!("{}", format!("{}_p3, int, {}.0, {}.0, {}.0, {}, 0.002", stringify!($name), $name(Phase::P3), $min, $max, $step));
             )*
         }
 
@@ -48,21 +42,29 @@ macro_rules! tunable_params {
             use std::sync::atomic::AtomicI32;
             $(
             #[allow(non_upper_case_globals)]
-            pub static $name: AtomicI32 = AtomicI32::new($val);
+            pub static $name: [AtomicI32; 3] = [
+                AtomicI32::new($val1),
+                AtomicI32::new($val2),
+                AtomicI32::new($val3),
+            ];
             )*
         }
 
         $(
         #[cfg(feature = "tuning")]
         #[inline]
-        pub fn $name() -> i32 {
-            vals::$name.load(Ordering::Relaxed)
+        pub fn $name(phase: Phase) -> i32 {
+            vals::$name[phase as usize].load(Ordering::Relaxed)
         }
 
         #[cfg(not(feature = "tuning"))]
         #[inline]
-        pub fn $name() -> i32 {
-            $val
+        pub fn $name(phase: Phase) -> i32 {
+            match phase {
+                Phase::P1 => $val1,
+                Phase::P2 => $val2,
+                Phase::P3 => $val3,
+            }
         }
         )*
     };
@@ -84,3 +86,4 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
     }
     Box::from_raw(ptr.cast())
 }
+
