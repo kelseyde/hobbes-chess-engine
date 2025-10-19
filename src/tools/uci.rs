@@ -14,10 +14,11 @@ use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
 use std::time::Instant;
+use crate::search::tt::TranspositionTable;
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
+    pub tt: TranspositionTable,
     pub frc: bool,
 }
 
@@ -31,7 +32,7 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            tt: TranspositionTable::new(64),
             frc: false,
         }
     }
@@ -85,7 +86,7 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            self.tt.size_mb()
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -132,7 +133,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        self.tt.resize(value);
         println!("info string Hash {}", value);
     }
 
@@ -262,7 +263,7 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
         self.td.start_time = Instant::now();
-        self.td.tt.birthday();
+        self.tt.birthday();
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {

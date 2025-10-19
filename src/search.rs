@@ -63,7 +63,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
 
-            if td.main && !td.minimal_output {
+            if td.is_main_thread() && !td.minimal_output {
                 print_search_info(td);
             }
 
@@ -95,7 +95,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    if td.main {
+    if td.is_main_thread() {
         print_search_info(td);
     }
 

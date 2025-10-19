@@ -1,5 +1,8 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::mpsc::{self, Sender, Receiver};
 use std::time::Instant;
-
+use crate::board::Board;
 use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
@@ -7,15 +10,101 @@ use crate::search::history::Histories;
 use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{Score, MAX_PLY};
+use crate::search::{search, Score, MAX_PLY};
 use crate::tools::utils::boxed_and_zeroed;
 
-pub struct ThreadData {
+pub struct ThreadPool {
+    workers: Vec<WorkerThread>,
+    job_sender: Sender<SearchJob>,
+    result_receiver: Receiver<SearchResult>,
+    global_stop: Arc<AtomicBool>,
+    global_nodes: Arc<AtomicU64>,
+}
+
+pub struct WorkerThread {
+    pub data: ThreadData<'static>,
+    handle: std::thread::JoinHandle<()>,
+}
+
+pub struct SearchJob {
+    pub board: Board,
+    // Add more fields as needed (limits, etc)
+}
+
+pub struct SearchResult {
     pub id: usize,
-    pub main: bool,
+    pub best_move: Move,
+    pub best_score: i32,
+}
+
+impl ThreadPool {
+
+    pub fn new(size: usize, tt: &TranspositionTable, global_stop: Arc<AtomicBool>) -> Self {
+        let global_nodes = Arc::new(AtomicU64::new(0));
+        let (job_sender, job_receiver) = mpsc::channel::<SearchJob>();
+        let (result_sender, result_receiver) = mpsc::channel::<SearchResult>();
+        let mut workers = Vec::with_capacity(size);
+        for id in 0..size {
+            let tt = tt.clone();
+            let global_stop = global_stop.clone();
+            let global_nodes = global_nodes.clone();
+            let job_receiver = job_receiver.clone();
+            let result_sender = result_sender.clone();
+            let data = ThreadData::new(id, global_stop.clone(), &tt);
+            let handle = std::thread::spawn(move || {
+                let mut thread_data = data;
+                loop {
+                    match job_receiver.recv() {
+                        Ok(job) => {
+                            // Run search
+                            thread_data.reset();
+                            // You may want to set up thread_data with job.board, limits, etc
+                            let (best_move, best_score) = search(&job.board, &mut thread_data);
+                            let _ = result_sender.send(SearchResult {
+                                id: thread_data.id,
+                                best_move,
+                                best_score,
+                            });
+                        },
+                        Err(_) => break, // Channel closed
+                    }
+                }
+            });
+            workers.push(WorkerThread { data, handle });
+        }
+        Self {
+            workers,
+            job_sender,
+            result_receiver,
+            global_stop,
+            global_nodes,
+        }
+    }
+
+    pub fn dispatch_search(&self, board: &Board) {
+        for _ in &self.workers {
+            let job = SearchJob { board: board.clone() };
+            let _ = self.job_sender.send(job);
+        }
+    }
+
+    pub fn collect_results(&self) -> Vec<SearchResult> {
+        let mut results = Vec::with_capacity(self.workers.len());
+        for _ in &self.workers {
+            if let Ok(res) = self.result_receiver.recv() {
+                results.push(res);
+            }
+        }
+        results
+    }
+}
+
+pub struct ThreadData<'a> {
+    pub id: usize,
+    pub global_stop: Arc<AtomicBool>,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
+    pub tt: &'a TranspositionTable,
     pub pv: PrincipalVariationTable,
     pub ss: SearchStack,
     pub nnue: NNUE,
@@ -35,14 +124,14 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl<'a> ThreadData<'a> {
+    pub fn new(id: usize, global_stop: Arc<AtomicBool>, tt: &'a TranspositionTable) -> Self {
         ThreadData {
-            id: 0,
-            main: true,
+            id,
+            tt,
+            global_stop,
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
@@ -62,9 +151,7 @@ impl Default for ThreadData {
             best_score: Score::MIN,
         }
     }
-}
 
-impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -81,6 +168,10 @@ impl ThreadData {
         self.root_ply = 0;
         self.history.clear();
         self.correction_history.clear();
+    }
+
+    pub fn is_main_thread(&self) -> bool {
+        self.id == 0
     }
 
     pub fn time(&self) -> u128 {
