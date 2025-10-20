@@ -283,7 +283,7 @@ impl Board {
         }
 
         if mv.is_castle() {
-            return !threats.contains(to) && !(self.frc && pinned.contains(to));
+            return !(threats.contains(to) || self.frc && pinned.contains(to));
         }
 
         if let Some(Piece::King) = self.piece_at(from) {
