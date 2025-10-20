@@ -769,7 +769,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
         let score = entry.score(ply) as i32;
 
-        if entry.flag().bounds_match(score, alpha, beta) {
+        if !pv_node && entry.flag().bounds_match(score, alpha, beta) {
             return score;
         }
     }
