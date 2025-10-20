@@ -102,12 +102,10 @@ impl Board {
                 } else {
                     CastleTravel::BKS
                 }
+            } else if self.stm == White {
+                CastleTravel::WQS
             } else {
-                if self.stm == White {
-                    CastleTravel::WQS
-                } else {
-                    CastleTravel::BQS
-                }
+                CastleTravel::BQS
             };
 
             // Cannot castle through occupied squares
@@ -121,12 +119,10 @@ impl Board {
                 } else {
                     CastleSafety::BKS
                 }
+            } else if self.stm == White {
+                CastleSafety::WQS
             } else {
-                if self.stm == White {
-                    CastleSafety::WQS
-                } else {
-                    CastleSafety::BQS
-                }
+                CastleSafety::BQS
             };
 
             // Cannot castle through check

@@ -151,17 +151,25 @@ impl NNUE {
 
                 let removed = cached_pieces & !pieces;
                 for sub in removed {
-                    subs.push(Feature::new(pc, sub, side))
+                    subs.push(Feature::new(pc, sub, side));
                 }
             }
         }
 
         let weights = &NETWORK.feature_weights[bucket];
 
-        for add in adds {
+        // Fuse together updates to the accumulator for efficiency using iterators.
+        for chunk in adds.as_slice().chunks_exact(4) {
+            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+        }
+        for &add in adds.as_slice().chunks_exact(4).remainder() {
             acc.add(add, weights, perspective);
         }
-        for sub in subs {
+
+        for chunk in subs.as_slice().chunks_exact(4) {
+            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+        }
+        for &sub in subs.as_slice().chunks_exact(4).remainder() {
             acc.sub(sub, weights, perspective);
         }
 
@@ -236,6 +244,7 @@ impl NNUE {
     /// Update the accumulator for a capture move. The old piece is removed from the starting
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
+    #[allow(clippy::too_many_arguments)]
     fn handle_capture(
         &mut self,
         mv: &Move,
@@ -306,15 +315,13 @@ impl NNUE {
 
 #[inline]
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
-    if side != board.stm || pc != Piece::King {
+    if side != board.stm || pc != King {
         board.king_sq(side)
+    } else if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        castling::king_to(board.stm, kingside)
     } else {
-        if mv.is_castle() && board.is_frc() {
-            let kingside = castling::is_kingside(mv.from(), mv.to());
-            castling::king_to(board.stm, kingside)
-        } else {
-            mv.to()
-        }
+        mv.to()
     }
 }
 

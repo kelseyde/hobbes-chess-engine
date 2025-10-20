@@ -92,7 +92,7 @@ impl MovePicker {
                     entry
                         .mv
                         .promo_piece()
-                        .map_or(false, |p| p == Piece::Queen || p == Piece::Knight)
+                        .is_some_and(|p| p == Piece::Queen || p == Piece::Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
                     self.see_threshold
@@ -132,13 +132,11 @@ impl MovePicker {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
+            } else if let Some(best_move) = self.pick(false) {
+                return Some(best_move);
             } else {
-                if let Some(best_move) = self.pick(false) {
-                    return Some(best_move);
-                } else {
-                    self.idx = 0;
-                    self.stage = BadNoisies;
-                }
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
         }
         if self.stage == BadNoisies {

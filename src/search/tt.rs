@@ -137,14 +137,13 @@ impl TranspositionTable {
     pub fn probe(&self, hash: u64) -> Option<&Entry> {
         let idx = self.idx(hash);
         let bucket = &self.table[idx];
-        for entry in &bucket.entries {
-            if entry.validate_key(hash) {
-                return Some(entry);
-            }
-        }
-        None
+        bucket
+            .entries
+            .iter()
+            .find(|&entry| entry.validate_key(hash))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn insert(
         &mut self,
         hash: u64,

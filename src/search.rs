@@ -45,6 +45,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut beta = Score::MAX;
     let mut score = 0;
     let mut delta = asp_delta();
+    let mut reduction = 0;
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -61,7 +62,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         loop {
-            score = alpha_beta(board, td, td.depth, 0, alpha, beta, false);
+            let search_depth = td.depth - reduction;
+            score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
 
             if td.main && !td.minimal_output {
                 print_search_info(td);
@@ -77,10 +79,12 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                     beta = (alpha + beta) / 2;
                     alpha = (score - delta).max(Score::MIN);
                     delta += (delta * 100) / asp_alpha_widening_factor();
+                    reduction = 0;
                 }
                 s if s >= beta => {
                     beta = (score + delta).min(Score::MAX);
                     delta += (delta * 100) / asp_beta_widening_factor();
+                    reduction = (reduction + 1).min(3);
                 }
                 _ => break,
             }
@@ -91,6 +95,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         delta = asp_delta();
+        reduction = 0;
         td.depth += 1;
     }
 
@@ -476,7 +481,7 @@ fn alpha_beta(board: &Board,
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
-            let score = alpha_beta(&board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.ss[ply].singular = None;
 
             if score < s_beta {
@@ -826,7 +831,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !see::see(&board, &mv, qs_see_threshold()) {
+        if !in_check && !see::see(board, &mv, qs_see_threshold()) {
             continue;
         }
 

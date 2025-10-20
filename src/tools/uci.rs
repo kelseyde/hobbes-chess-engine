@@ -21,6 +21,12 @@ pub struct UCI {
     pub frc: bool,
 }
 
+impl Default for UCI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UCI {
     pub fn new() -> UCI {
         UCI {
@@ -102,7 +108,7 @@ impl UCI {
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => return, // TODO set threads
+            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
             ["setoption", "name", "uci_chess960", "value", bool_str] => {
                 self.set_chess_960(bool_str)
             }
@@ -395,19 +401,17 @@ impl UCI {
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-        let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or({
             println!("info error: count is not a valid number");
             0
         }) as usize;
 
-        let seed = self.parse_uint(&tokens, "seed").unwrap_or_else(|_| {
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or({
             println!("info error: seed is not a valid number");
             0
         });
 
-        let random_moves = self
-            .parse_uint(&tokens, "random_moves")
-            .unwrap_or_else(|_| 8) as usize;
+        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or(8) as usize;
 
         let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
             println!("info error: dfrc is not a valid boolean");

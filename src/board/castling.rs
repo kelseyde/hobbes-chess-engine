@@ -49,6 +49,7 @@ pub struct Rights {
     data: u16,
 }
 
+#[allow(clippy::unusual_byte_groupings)]
 impl Rights {
     // Bits representing the presence/absence of castling rights for colour/side
     const WKCA: u16 = 0b0001;
