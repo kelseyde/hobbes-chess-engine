@@ -1,10 +1,10 @@
-use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
+use crate::board::{attacks, ray};
 use crate::search::parameters::{
     see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
 };
@@ -49,6 +49,12 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     let mut attackers = attackers_to(board, to, occ) & occ;
     let diagonal = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
     let orthogonal = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
+
+    let white_pinned = board.pinned[Side::White];
+    let black_pinned = board.pinned[Side::Black];
+    attackers &= !(white_pinned | black_pinned)
+        | (white_pinned & ray::extending(board.king_sq(Side::White), to))
+        | (black_pinned & ray::extending(board.king_sq(Side::Black), to));
 
     let mut stm = !board.stm;
 
@@ -146,7 +152,30 @@ mod tests {
     use super::*;
     use crate::board::movegen::MoveFilter;
     use crate::board::Board;
+    use crate::ray;
     use std::fs;
+
+    #[test]
+    fn pinned() {
+        ray::init();
+        for (fen, mv, thresh) in [
+            (
+                "3R1rk1/1N3n2/8/8/8/8/8/6K1 b - - 0 1",
+                "f7d8",
+                value(Piece::Rook),
+            ),
+            (
+                "6k1/6r1/3q2N1/4N3/8/8/6K1/8 b - - 0 1",
+                "d6e5",
+                value(Piece::Knight),
+            ),
+        ] {
+            let board = Board::from_fen(fen).unwrap();
+            let mv = Move::parse_uci(mv);
+            assert!(see(&board, &mv, thresh));
+            assert!(!see(&board, &mv, thresh + 1));
+        }
+    }
 
     // #[test]
     fn test_see_suite() {
