@@ -213,7 +213,7 @@ impl Accumulator {
         add3: Feature,
         add4: Feature,
         weights: &FeatureWeights,
-        perspective: Side
+        perspective: Side,
     ) {
         let mirror = self.mirrored[perspective as usize];
 
@@ -245,7 +245,7 @@ impl Accumulator {
         sub3: Feature,
         sub4: Feature,
         weights: &FeatureWeights,
-        perspective: Side
+        perspective: Side,
     ) {
         let mirror = self.mirrored[perspective as usize];
 
@@ -269,5 +269,4 @@ impl Accumulator {
             i += 1;
         }
     }
-
 }

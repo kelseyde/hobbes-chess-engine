@@ -117,17 +117,15 @@ impl Board {
         let knight_attacks = attacks::knight(king_sq) & self.knights(!side);
         checkers |= knight_attacks;
 
-        let ortho_attacks = attacks::rook(king_sq, occ)
-            & (self.rooks(!side) | self.queens(!side));
+        let ortho_attacks = attacks::rook(king_sq, occ) & (self.rooks(!side) | self.queens(!side));
         checkers |= ortho_attacks;
 
-        let diag_attacks = attacks::bishop(king_sq, occ)
-            & (self.bishops(!side) | self.queens(!side));
+        let diag_attacks =
+            attacks::bishop(king_sq, occ) & (self.bishops(!side) | self.queens(!side));
         checkers |= diag_attacks;
 
         checkers
     }
-
 }
 
 #[inline(always)]

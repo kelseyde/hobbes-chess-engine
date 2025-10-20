@@ -291,8 +291,8 @@ impl Board {
         }
 
         if pinned.contains(from) {
-            let moving_along_pin_ray =
-                ray::between(king_sq, from).contains(to) || ray::between(king_sq, to).contains(from);
+            let moving_along_pin_ray = ray::between(king_sq, from).contains(to)
+                || ray::between(king_sq, to).contains(from);
             return self.checkers.is_empty() && moving_along_pin_ray;
         }
 
