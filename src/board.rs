@@ -14,6 +14,7 @@ pub mod square;
 pub mod zobrist;
 
 use crate::board::castling::Rights;
+use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -38,6 +39,9 @@ pub struct Board {
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
     pub frc: bool,         // whether the game is Fischer Random Chess
+    pub threats: Bitboard, // squares attacked by the opponent
+    pub checkers: Bitboard, // opponent pieces checking the king
+    pub pinned: [Bitboard; 2], // pinned pieces for both sides
 }
 
 impl Default for Board {
@@ -62,6 +66,9 @@ impl Board {
             rights: Rights::default(),
             keys: Keys::default(),
             frc: false,
+            threats: Bitboard::empty(),
+            checkers: Bitboard::empty(),
+            pinned: [Bitboard::empty(); 2],
         }
     }
 
@@ -109,6 +116,9 @@ impl Board {
         };
         self.keys.hash ^= Zobrist::stm();
         self.stm = !self.stm;
+        self.threats = self.calc_threats(self.stm);
+        self.checkers = self.calc_checkers(self.stm);
+        self.pinned = self.calc_both_pinned();
     }
 
     #[inline]
@@ -228,6 +238,36 @@ impl Board {
         ep_sq
     }
 
+    #[inline]
+    pub fn calc_both_pinned(&self) -> [Bitboard; 2] {
+        [self.calc_pinned(White), self.calc_pinned(Black)]
+    }
+
+    #[inline]
+    pub fn calc_pinned(&self, side: Side) -> Bitboard {
+        let mut pinned = Bitboard::empty();
+
+        let king = self.king_sq(side);
+
+        let us = self.side(side);
+        let them = self.side(!side);
+
+        let their_diags = (self.pcs(Queen) | self.pcs(Bishop)) & them;
+        let their_orthos = (self.pcs(Queen) | self.pcs(Piece::Rook)) & them;
+
+        let potential_attackers =
+            attacks::bishop(king, them) & their_diags | attacks::rook(king, them) & their_orthos;
+
+        for potential_attacker in potential_attackers {
+            let maybe_pinned = us & ray::between(king, potential_attacker);
+            if maybe_pinned.count() == 1 {
+                pinned |= maybe_pinned;
+            }
+        }
+
+        pinned
+    }
+
     pub fn has_kingside_rights(&self, side: Side) -> bool {
         self.rights.kingside(side).is_some()
     }
@@ -244,6 +284,8 @@ impl Board {
             self.keys.hash ^= Zobrist::ep(ep_sq);
             self.ep_sq = None;
         }
+        self.threats = self.calc_threats(self.stm);
+        self.checkers = self.calc_checkers(self.stm);
     }
 
     pub const fn hash(&self) -> u64 {
@@ -390,8 +432,27 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
-    use crate::board::Board;
+    use crate::board::side::Side;
+    use crate::board::{ray, Board};
+
+    #[test]
+    fn computing_correct_pins() {
+        ray::init();
+        assert_eq!(
+            Board::from_fen("2k5/6r1/6N1/8/8/8/6K1/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+        assert_eq!(
+            Board::from_fen("2k5/7b/6N1/8/8/8/2K5/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+    }
 
     #[test]
     fn standard_move() {

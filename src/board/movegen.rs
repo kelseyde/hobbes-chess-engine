@@ -74,6 +74,58 @@ impl Board {
 
         moves
     }
+
+    #[inline(always)]
+    pub fn calc_threats(&self, side: Side) -> Bitboard {
+        // The king is excluded from the occupancy bitboard to include slider threats 'through' the
+        // king, allowing us to detect illegal moves where the king steps along the checking ray.
+        let king = self.king(side);
+        let occ = self.occ() ^ king;
+        let mut threats = Bitboard::empty();
+
+        for sq in self.knights(!side) {
+            threats |= attacks::knight(sq);
+        }
+
+        for sq in self.bishops(!side) {
+            threats |= attacks::bishop(sq, occ);
+        }
+
+        for sq in self.rooks(!side) {
+            threats |= attacks::rook(sq, occ);
+        }
+
+        for sq in self.queens(!side) {
+            threats |= attacks::queen(sq, occ);
+        }
+
+        threats |= attacks::pawn_attacks(self.pawns(!side), !side);
+        threats |= attacks::king(self.king_sq(!side));
+
+        threats
+    }
+
+    #[inline(always)]
+    pub fn calc_checkers(&self, side: Side) -> Bitboard {
+        let occ = self.occ();
+        let king_sq = self.king_sq(side);
+        let mut checkers = Bitboard::empty();
+
+        let pawn_attacks = attacks::pawn(king_sq, side) & self.pawns(!side);
+        checkers |= pawn_attacks;
+
+        let knight_attacks = attacks::knight(king_sq) & self.knights(!side);
+        checkers |= knight_attacks;
+
+        let ortho_attacks = attacks::rook(king_sq, occ) & (self.rooks(!side) | self.queens(!side));
+        checkers |= ortho_attacks;
+
+        let diag_attacks =
+            attacks::bishop(king_sq, occ) & (self.bishops(!side) | self.queens(!side));
+        checkers |= diag_attacks;
+
+        checkers
+    }
 }
 
 #[inline(always)]
@@ -375,33 +427,6 @@ pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> b
     }
 
     false
-}
-
-#[inline(always)]
-pub fn calc_threats(board: &Board, side: Side) -> Bitboard {
-    let occ = board.occ();
-    let mut threats = Bitboard::empty();
-
-    for sq in board.knights(!side) {
-        threats |= attacks::knight(sq);
-    }
-
-    for sq in board.bishops(!side) {
-        threats |= attacks::bishop(sq, occ);
-    }
-
-    for sq in board.rooks(!side) {
-        threats |= attacks::rook(sq, occ);
-    }
-
-    for sq in board.queens(!side) {
-        threats |= attacks::queen(sq, occ);
-    }
-
-    threats |= attacks::pawn_attacks(board.pawns(!side), !side);
-    threats |= attacks::king(board.king_sq(!side));
-
-    threats
 }
 
 #[inline(always)]
