@@ -1,12 +1,14 @@
+use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::movegen::{is_attacked, is_check};
+use crate::board::movegen::is_attacked;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
+use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::rank::Rank;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::board::{attacks, Board};
+use crate::board::{attacks, ray, Board};
 
 impl Board {
     pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
@@ -256,9 +258,53 @@ impl Board {
         }
     }
 
+    /// This function assumes that the move is pseudo-legal
     pub fn is_legal(&self, mv: &Move) -> bool {
-        let mut new_board = *self;
-        new_board.make(mv);
-        !is_check(&new_board, self.stm)
+        let from = mv.from();
+        let to = mv.to();
+
+        let king_sq = self.king_sq(self.stm);
+        let threats = self.threats;
+        let pinned = self.pinned[self.stm];
+
+        if mv.is_ep() {
+            let from_bb = Bitboard::of_sq(from);
+            let to_bb = Bitboard::of_sq(to);
+            let ep_bb = Bitboard::of_sq(self.ep_capture_sq(to));
+            let occ = self.occ() ^ from_bb ^ to_bb ^ ep_bb;
+
+            let diagonals = self.their(Bishop) | self.their(Queen);
+            let orthogonals = self.their(Piece::Rook) | self.their(Queen);
+
+            let diagonal_attacks = attacks::bishop(king_sq, occ) & diagonals;
+            let orthogonal_attacks = attacks::rook(king_sq, occ) & orthogonals;
+
+            return (diagonal_attacks | orthogonal_attacks).is_empty();
+        }
+
+        if mv.is_castle() {
+            return !threats.contains(to) && !(self.frc && pinned.contains(to));
+        }
+
+        if let Some(Piece::King) = self.piece_at(from) {
+            return !threats.contains(to);
+        }
+
+        if pinned.contains(from) {
+            let moving_along_pin_ray =
+                ray::between(king_sq, from).contains(to) || ray::between(king_sq, to).contains(from);
+            return self.checkers.is_empty() && moving_along_pin_ray;
+        }
+
+        if self.checkers.count() > 1 {
+            return false;
+        }
+
+        if self.checkers.is_empty() {
+            return true;
+        }
+
+        let checker = self.checkers.lsb();
+        (self.checkers | ray::between(king_sq, checker)).contains(to)
     }
 }

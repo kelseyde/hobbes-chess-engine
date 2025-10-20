@@ -136,7 +136,7 @@ fn alpha_beta(board: &Board,
     let root_node = ply == 0;
 
     // Determine if we are currently in check.
-    let threats = movegen::calc_threats(board, board.stm);
+    let threats = board.threats;
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
@@ -755,7 +755,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     // Determine if we are currently in check.
-    let threats = movegen::calc_threats(board, board.stm);
+    let threats = board.threats;
     let in_check = threats.contains(board.king_sq(board.stm));
     td.ss[ply].threats = threats;
 
