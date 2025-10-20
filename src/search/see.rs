@@ -52,7 +52,8 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 
     let white_pinned = board.pinned[Side::White];
     let black_pinned = board.pinned[Side::Black];
-    attackers &= !(white_pinned | black_pinned)
+    let pinned = white_pinned | black_pinned;
+    attackers &= !pinned
         | (white_pinned & ray::extending(board.king_sq(Side::White), to))
         | (black_pinned & ray::extending(board.king_sq(Side::Black), to));
 
