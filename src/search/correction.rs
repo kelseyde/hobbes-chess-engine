@@ -5,6 +5,8 @@ use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 
+const CORRECTION_SCALE: i32 = 256;
+
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
 /// the static eval and the search score of previously searched positions.
@@ -86,13 +88,14 @@ impl CorrectionHistories {
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
-        (pawn * 100 / corr_pawn_weight(phase))
+        ((pawn * 100 / corr_pawn_weight(phase))
             + (white * 100 / corr_non_pawn_weight(phase))
             + (black * 100 / corr_non_pawn_weight(phase))
             + (major * 100 / corr_major_weight(phase))
             + (minor * 100 / corr_minor_weight(phase))
             + (counter * 100 / corr_counter_weight(phase))
-            + (follow_up * 100 / corr_follow_up_weight(phase))
+            + (follow_up * 100 / corr_follow_up_weight(phase)))
+            / CORRECTION_SCALE
 
     }
 
@@ -185,25 +188,24 @@ impl<const N: usize> Default for CorrectionHistory<N> {
 
 impl<const N: usize> CorrectionHistory<N> {
     const MASK: usize = N - 1;
-    const SCALE: i32 = 256;
     const GRAIN: i32 = 256;
     const MAX: i32 = Self::GRAIN * 32;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
-        self.entries[stm][idx] / Self::SCALE
+        self.entries[stm][idx]
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) * Self::SCALE;
+        let new_value = (score - static_eval) * CORRECTION_SCALE;
 
         let new_weight = (depth + 1).min(16);
-        let old_weight = Self::SCALE - new_weight;
+        let old_weight = CORRECTION_SCALE - new_weight;
 
         let update = *entry * old_weight + new_value * new_weight;
-        *entry = i32::clamp(update / Self::SCALE, -Self::MAX, Self::MAX);
+        *entry = i32::clamp(update / CORRECTION_SCALE, -Self::MAX, Self::MAX);
     }
 
     pub fn clear(&mut self) {
