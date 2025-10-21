@@ -12,6 +12,7 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+mod cuckoo;
 
 use crate::board::castling::Rights;
 use crate::board::piece::Piece::{Bishop, Queen};
