@@ -26,6 +26,7 @@ pub struct CorrectionHistories {
     follow_up_move_corrhist: FromToCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
+    threats_corrhist: HashCorrectionHistory,
 }
 
 impl CorrectionHistories {
@@ -44,6 +45,7 @@ impl CorrectionHistories {
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
+        let threats_hash = murmur3_hash(board.threats.0);
 
         self.pawn_corrhist
             .update(us, pawn_hash, depth, static_eval, best_score);
@@ -65,6 +67,8 @@ impl CorrectionHistories {
             .update(us, major_hash, depth, static_eval, best_score);
         self.minor_corrhist
             .update(us, minor_hash, depth, static_eval, best_score);
+        self.threats_corrhist
+            .update(us, threats_hash, depth, static_eval, best_score);
         self.update_countermove_correction(board, ss, ply, depth, static_eval, best_score);
         self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
     }
@@ -78,12 +82,14 @@ impl CorrectionHistories {
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
+        let threats_hash = murmur3_hash(board.threats.0);
 
         let pawn       = self.pawn_corrhist.get(us, pawn_hash);
         let white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
         let black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
         let major      = self.major_corrhist.get(us, major_hash);
         let minor      = self.minor_corrhist.get(us, minor_hash);
+        let threats    = self.threats_corrhist.get(us, threats_hash as u64);
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
@@ -92,6 +98,7 @@ impl CorrectionHistories {
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
             + (minor * 100 / corr_minor_weight())
+            + (threats * 100 / corr_threats_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
             / CORRECTION_SCALE
@@ -173,6 +180,7 @@ impl CorrectionHistories {
         self.follow_up_move_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
+        self.threats_corrhist.clear();
     }
 }
 
@@ -214,4 +222,14 @@ impl<const N: usize> CorrectionHistory<N> {
     fn index(&self, key: u64) -> usize {
         key as usize & Self::MASK
     }
+}
+
+fn murmur3_hash(key: u64) -> u64 {
+    let mut k = key;
+    k ^= k >> 33;
+    k = k.wrapping_mul(0xff51afd7ed558ccd);
+    k ^= k >> 33;
+    k = k.wrapping_mul(0xc4ceb9fe1a85ec53);
+    k ^= k >> 33;
+    k
 }
