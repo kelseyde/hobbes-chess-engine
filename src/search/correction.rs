@@ -26,6 +26,7 @@ pub struct CorrectionHistories {
     follow_up_move_corrhist: FromToCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
+    kings_corrhist: HashCorrectionHistory,
 }
 
 impl CorrectionHistories {
@@ -44,6 +45,7 @@ impl CorrectionHistories {
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
+        let kings_hash = board.keys.kings_hash;
 
         self.pawn_corrhist
             .update(us, pawn_hash, depth, static_eval, best_score);
@@ -65,6 +67,8 @@ impl CorrectionHistories {
             .update(us, major_hash, depth, static_eval, best_score);
         self.minor_corrhist
             .update(us, minor_hash, depth, static_eval, best_score);
+        self.kings_corrhist
+            .update(us, kings_hash, depth, static_eval, best_score);
         self.update_countermove_correction(board, ss, ply, depth, static_eval, best_score);
         self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
     }
@@ -78,12 +82,14 @@ impl CorrectionHistories {
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Side::Black];
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
+        let kings_hash = board.keys.kings_hash;
 
         let pawn       = self.pawn_corrhist.get(us, pawn_hash);
         let white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
         let black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
         let major      = self.major_corrhist.get(us, major_hash);
         let minor      = self.minor_corrhist.get(us, minor_hash);
+        let kings      = self.kings_corrhist.get(us, kings_hash);
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
@@ -92,6 +98,7 @@ impl CorrectionHistories {
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
             + (minor * 100 / corr_minor_weight())
+            + (kings * 100 / corr_kings_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
             / CORRECTION_SCALE
@@ -173,6 +180,7 @@ impl CorrectionHistories {
         self.follow_up_move_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
+        self.kings_corrhist.clear();
     }
 }
 

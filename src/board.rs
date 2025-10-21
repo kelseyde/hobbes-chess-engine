@@ -136,6 +136,9 @@ impl Board {
             self.keys.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
         } else {
             self.keys.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
+            if pc == Piece::King {
+                self.keys.kings_hash ^= Zobrist::sq(Piece::King, side, sq);
+            }
             if pc.is_major() {
                 self.keys.major_hash ^= Zobrist::sq(pc, side, sq);
             }

@@ -32,6 +32,7 @@ pub struct Keys {
     pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
     pub major_hash: u64,           // Zobrist hash for major pieces
     pub minor_hash: u64,           // Zobrist hash for minor pieces
+    pub kings_hash: u64,           // Zobrist hash for kings
 }
 
 pub struct Zobrist;
@@ -111,6 +112,21 @@ impl Zobrist {
         for sq in Square::iter() {
             if let Some(pc) = board.piece_at(sq) {
                 if pc.is_minor() {
+                    let side = board.side_at(sq).unwrap();
+                    hash ^= Self::sq(pc, side, sq);
+                }
+            }
+        }
+
+        hash
+    }
+
+    pub fn get_kings_hash(board: &Board) -> u64 {
+        let mut hash = 0;
+
+        for sq in Square::iter() {
+            if let Some(pc) = board.piece_at(sq) {
+                if pc == Piece::King {
                     let side = board.side_at(sq).unwrap();
                     hash ^= Self::sq(pc, side, sq);
                 }
