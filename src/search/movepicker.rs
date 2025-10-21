@@ -28,6 +28,7 @@ pub struct MovePicker {
     tt_move: Move,
     ply: usize,
     threats: Bitboard,
+    pub remaining_noisies: usize,
     pub skip_quiets: bool,
     see_threshold: Option<i32>,
     bad_noisies: MoveList,
@@ -48,6 +49,7 @@ impl MovePicker {
             tt_move,
             ply,
             threats,
+            remaining_noisies: 0,
             skip_quiets: false,
             see_threshold: Some(movepick_see_threshold()),
             bad_noisies: MoveList::new(),
@@ -68,6 +70,7 @@ impl MovePicker {
             tt_move,
             ply,
             threats,
+            remaining_noisies: 0,
             skip_quiets: true,
             see_threshold: None,
             bad_noisies: MoveList::new(),
@@ -84,6 +87,7 @@ impl MovePicker {
         if self.stage == GenerateNoisies {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
+            self.remaining_noisies = moves.len();
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
 
@@ -110,6 +114,7 @@ impl MovePicker {
         }
         if self.stage == GoodNoisies {
             if let Some(best_move) = self.pick(false) {
+                self.remaining_noisies = self.remaining_noisies.saturating_sub(1);
                 return Some(best_move);
             } else {
                 self.idx = 0;
@@ -141,6 +146,7 @@ impl MovePicker {
         }
         if self.stage == BadNoisies {
             if let Some(best_move) = self.pick(true) {
+                self.remaining_noisies = self.remaining_noisies.saturating_sub(1);
                 return Some(best_move);
             } else {
                 self.stage = Done;
