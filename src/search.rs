@@ -157,7 +157,7 @@ fn alpha_beta(board: &Board,
 
     // If drawn by repetition, insufficient material or fifty move rule, return a draw score.
     if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
+        return Score::draw(td.nodes);
     }
 
     // If the maximum depth is reached, return the static evaluation of the position
@@ -701,7 +701,7 @@ fn alpha_beta(board: &Board,
         } else if in_check {
             -Score::MATE + ply as i32
         } else {
-            Score::DRAW
+            Score::draw(td.nodes)
         };
     }
 
@@ -741,7 +741,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // If drawn by repetition, insufficient material or fifty move rule, return zero.
     if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
+        return Score::draw(td.nodes);
     }
 
     // Clear the principal variation for this ply.
@@ -998,7 +998,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
 fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     println!("info error no legal moves");
     let in_check = movegen::is_check(board, board.stm);
-    let score = if in_check { -Score::MATE } else { Score::DRAW };
+    let score = if in_check { -Score::MATE } else { 0 };
     td.best_move = Move::NONE;
     td.best_score = score;
     (td.best_move, td.best_score)
