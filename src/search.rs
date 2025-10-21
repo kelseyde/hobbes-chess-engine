@@ -453,6 +453,7 @@ fn alpha_beta(board: &Board,
             depth * pvs_see_quiet_scale()
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+                + (static_eval < alpha) as i32 * depth * pvs_see_quiet_eval_scale()
         } else {
             depth * depth * pvs_see_noisy_scale()
                 - history_score / pvs_see_noisy_history_div()
