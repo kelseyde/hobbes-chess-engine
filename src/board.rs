@@ -428,6 +428,70 @@ impl Board {
     pub const fn set_frc(&mut self, frc: bool) {
         self.frc = frc;
     }
+
+    pub fn has_upcoming_repetition(&self, history: &[u64], ply: usize) -> bool {
+        // Half-move clock less than 3 cannot have sufficient history pattern.
+        if self.hm < 3 { return false; }
+        // Need at least hm + 1 entries (current + previous) in history.
+        if history.is_empty() { return false; }
+
+        // previousKey(0) is current hash
+        let curr_key = *history.last().unwrap();
+        // previousKey(1) if exists else early return false
+        if history.len() < 2 { return false; }
+        let side_key = crate::board::zobrist::Zobrist::stm();
+        let mut other = curr_key ^ history[history.len() - 2] ^ side_key;
+
+        let last_move = ply.saturating_sub(1);
+
+        // Iterate i = 3; i < hm && i < last_move; i += 2
+        // Ensure we have history for previousKey(i) meaning at least i+1 elements.
+        let max_i = self.hm.min(last_move as u8) as usize;
+        let occ = self.occ();
+
+        let mut i = 3usize;
+        while i < max_i && i < history.len() { // ensure index exists
+            // previousKey(i) corresponds to history[len - 1 - i]
+            if i >= history.len() { break; }
+            let prev_key = history[history.len() - 1 - i];
+            // previousKey(i-1)
+            if i - 1 >= history.len() { break; }
+            let prev_key_minus_1 = history[history.len() - i];
+            other ^= prev_key ^ prev_key_minus_1 ^ side_key;
+            if other == 0 {
+                let diff = curr_key ^ prev_key;
+                // Lookup in cuckoo table
+                let mut slot = crate::board::cuckoo::Cuckoo::h1(diff);
+                let keys = crate::board::cuckoo::Cuckoo::keys();
+                if diff != keys[slot] { slot = crate::board::cuckoo::Cuckoo::h2(diff); }
+                if diff == keys[slot] {
+                    let mv = crate::board::cuckoo::Cuckoo::moves()[slot];
+                    if mv.exists() {
+                        let from = mv.from();
+                        let to = mv.to();
+                        // Ensure clear ray between from and to
+                        if !(occ & crate::board::ray::between(from, to)).is_empty() { i += 2; continue; }
+                        // If search ply already beyond i, repetition imminent.
+                        if ply > i { return true; }
+                        // Determine target square piece currently occupies (could have swapped in between)
+                        let mut target_sq = from;
+                        let mut piece = self.piece_at(target_sq);
+                        if piece.is_none() {
+                            target_sq = to;
+                            piece = self.piece_at(target_sq);
+                        }
+                        if let Some(_) = piece {
+                            // In original logic checks if white occupies square; mimic using white bitboard
+                            let us_white = self.white();
+                            return us_white.contains(target_sq);
+                        }
+                    }
+                }
+            }
+            i += 2;
+        }
+        false
+    }
 }
 
 #[cfg(test)]

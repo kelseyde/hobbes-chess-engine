@@ -225,7 +225,12 @@ fn alpha_beta(board: &Board,
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        let mut correction = td.correction_history.correction(board, &td.ss, ply);
+        td.ss[ply].correction = correction;
+        if ply > 0 && td.ss[ply - 1].captured.is_none() {
+            let parent_correction = td.ss[ply - 1].correction;
+            correction = (correction * 80 + parent_correction * 20) / 100;
+        }
         static_eval = raw_eval + correction;
     };
 
@@ -778,7 +783,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if !in_check {
         let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        let mut correction = td.correction_history.correction(board, &td.ss, ply);
+        td.ss[ply].correction = correction;
+        if ply > 0 && td.ss[ply - 1].captured.is_none() {
+            let parent_correction = td.ss[ply - 1].correction;
+            correction = (correction * 80 + parent_correction * 20) / 100;
+        }
         static_eval = raw_eval + correction;
 
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue
