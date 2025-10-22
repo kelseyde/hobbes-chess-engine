@@ -9,9 +9,11 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use crate::board::cuckoo::Cuckoo;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
-use crate::board::{movegen, Board};
+use crate::board::zobrist::Zobrist;
+use crate::board::{movegen, ray, Board};
 use crate::search::history::*;
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::movepicker::{MovePicker, Stage};
@@ -148,6 +150,13 @@ fn alpha_beta(board: &Board,
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
         return qs(board, td, alpha, beta, ply);
+    }
+
+    if !pv_node && alpha < 0 && has_upcoming_repetition(board, td, ply) {
+        alpha = 0;
+        if alpha >= beta {
+            return alpha;
+        }
     }
 
     // Ensure depth is not negative
@@ -736,6 +745,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         return alpha;
     }
 
+    if !pv_node && alpha < 0 && has_upcoming_repetition(board, td, ply) {
+        alpha = 0;
+        if alpha >= beta {
+            return alpha;
+        }
+    }
+
     // Update the selective search depth
     if ply + 1 > td.seldepth {
         td.seldepth = ply + 1;
@@ -927,6 +943,62 @@ fn is_repetition(board: &Board, td: &ThreadData) -> bool {
             return true;
         }
     }
+    false
+}
+
+/// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
+fn has_upcoming_repetition(board: &Board, td: &ThreadData, ply: usize) -> bool {
+    // TODO plies from null?
+    let hm = board.hm as usize;
+    if hm < 3 {
+        return false;
+    }
+
+    let occ = board.occ();
+    let get_prev_key = |plies: usize| td.keys[td.keys.len().saturating_sub(plies)];
+    let curr_key = board.keys.hash;
+
+    let mut other = curr_key ^ get_prev_key(1) ^ Zobrist::stm();
+
+    for i in (3..=hm).step_by(2) {
+        other ^= get_prev_key(i - 1) ^ get_prev_key(i) ^ Zobrist::stm();
+
+        if other != 0 {
+            continue;
+        }
+
+        let diff = curr_key ^ get_prev_key(i);
+        let mut slot = Cuckoo::h1(diff);
+
+        if Cuckoo::keys(slot) != diff {
+            slot = Cuckoo::h2(diff);
+
+            if Cuckoo::keys(slot) != diff {
+                continue;
+            }
+        }
+
+        let mv = Cuckoo::moves(slot);
+        let ray = ray::between(mv.from(), mv.to());
+
+        if !(ray & occ).is_empty() {
+            continue;
+        }
+
+        if ply > i {
+            return true;
+        }
+
+        let from = mv.from();
+        let to = mv.to();
+        let mut target_sq = from;
+        if board.piece_at(from).is_none() {
+            target_sq = to;
+        }
+        let us = board.us();
+        return us.contains(target_sq);
+    }
+
     false
 }
 

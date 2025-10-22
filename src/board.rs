@@ -1,6 +1,7 @@
 pub mod attacks;
 pub mod bitboard;
 pub mod castling;
+pub mod cuckoo;
 pub mod file;
 pub mod legal;
 pub mod magics;
@@ -12,7 +13,6 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
-mod cuckoo;
 
 use crate::board::castling::Rights;
 use crate::board::piece::Piece::{Bishop, Queen};
