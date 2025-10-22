@@ -33,19 +33,6 @@ impl Cuckoo {
         unsafe { CUCKOO_MOVES[idx] }
     }
 
-    pub fn lookup(key_diff: u64) -> Option<Move> {
-        unsafe {
-            let slot1 = Self::h1(key_diff);
-            if CUCKOO_KEYS[slot1] == key_diff {
-                return Some(CUCKOO_MOVES[slot1]);
-            }
-            let slot2 = Self::h2(key_diff);
-            if CUCKOO_KEYS[slot2] == key_diff {
-                return Some(CUCKOO_MOVES[slot2]);
-            }
-            None
-        }
-    }
 }
 
 pub fn init() {
