@@ -22,6 +22,7 @@ use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::board::piece::Piece::King;
 
 pub const MAX_PLY: usize = 256;
 
@@ -438,7 +439,10 @@ fn alpha_beta(board: &Board,
 
         // Bad Noisy Pruning
         // Skip bad noisies when the static evaluation + some margin is still below alpha.
-        let futility_margin = static_eval + bnp_scale() * lmr_depth;
+        let futility_margin = static_eval
+            + bnp_base()
+            + (bnp_scale() * lmr_depth) / 1024
+            + see::value(captured.unwrap_or(King));
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
