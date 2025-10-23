@@ -386,6 +386,7 @@ fn alpha_beta(board: &Board,
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
+        let loses_material = !see::see(&board, &mv, 0);
 
         let mut extension = 0;
 
@@ -400,6 +401,7 @@ fn alpha_beta(board: &Board,
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
             - legal_moves * fp_movecount_mult()
+            - loses_material as i32 * fp_loses_material()
             + history_score / fp_history_divisor();
         if !pv_node
             && !root_node
@@ -501,7 +503,6 @@ fn alpha_beta(board: &Board,
 
         // We have decided that the current move should not be pruned and is worth searching further.
         // Therefore, we make the move on the board and search the resulting position.
-        let original_board = board;
         let mut board = *board;
         td.nnue.update(&mv, pc, captured, &board);
         board.make(&mv);
@@ -539,7 +540,7 @@ fn alpha_beta(board: &Board,
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
-            r += (is_quiet && !see::see(&original_board, &mv, 0)) as i32 * lmr_quiet_see();
+            r += (is_quiet && loses_material) as i32 * lmr_quiet_see();
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
