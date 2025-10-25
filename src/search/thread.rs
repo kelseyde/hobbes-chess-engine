@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -13,6 +15,7 @@ use crate::tools::utils::boxed_and_zeroed;
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
+    pub abort: Arc<AtomicBool>,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
     pub tt: TranspositionTable,
@@ -35,18 +38,20 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl ThreadData {
+
+    pub fn new(id: usize, tt_size_mb: usize, abort: Arc<AtomicBool>) -> Self {
         ThreadData {
-            id: 0,
-            main: true,
-            minimal_output: false,
-            use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
+            id,
+            main: id == 0,
+            abort,
+            tt: TranspositionTable::new(tt_size_mb),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
             keys: Vec::new(),
+            minimal_output: false,
+            use_soft_nodes: false,
             root_ply: 0,
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
@@ -62,9 +67,7 @@ impl Default for ThreadData {
             best_score: Score::MIN,
         }
     }
-}
 
-impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -91,6 +94,10 @@ impl ThreadData {
         if self.depth <= 1 {
             // Always clear the first depth, to ensure at least one legal move
             return false;
+        }
+        if self.nodes % 4096 == 0 && self.abort.load(Ordering::Relaxed) {
+            // Abort signal received
+            return true;
         }
         match limit_type {
             LimitType::Soft => self.soft_limit_reached(),
