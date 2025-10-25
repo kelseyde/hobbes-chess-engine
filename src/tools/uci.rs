@@ -51,31 +51,34 @@ impl UCI {
         pretty::print_uci_info();
 
         loop {
-            let mut command = String::new();
+            let mut line = String::new();
             io::stdin()
-                .read_line(&mut command)
+                .read_line(&mut line)
                 .expect("info error failed to parse command");
+            let tokens = self.split_args(line.clone());
 
-            let tokens = self.split_args(command.clone());
-
-            match command.split_ascii_whitespace().next().unwrap() {
-                "uci" => self.handle_uci(),
-                "isready" => self.handle_isready(),
-                "setoption" => self.handle_setoption(tokens),
-                "ucinewgame" => self.handle_ucinewgame(),
-                "bench" => self.handle_bench(),
-                "position" => self.handle_position(tokens),
-                "go" => self.handle_go(tokens),
-                "stop" => self.handle_stop(),
-                "fen" => self.handle_fen(),
-                "eval" => self.handle_eval(),
-                "perft" => self.handle_perft(tokens),
-                "genfens" => self.handle_genfens(tokens),
-                "help" => self.handle_help(),
-                #[cfg(feature = "tuning")]
-                "params" => print_params_ob(),
-                "quit" => self.handle_quit(),
-                _ => println!("info error: unknown command"),
+            if let Some(command) = line.split_ascii_whitespace().next() {
+                match command {
+                    "uci" => self.handle_uci(),
+                    "isready" => self.handle_isready(),
+                    "setoption" => self.handle_setoption(tokens),
+                    "ucinewgame" => self.handle_ucinewgame(),
+                    "bench" => self.handle_bench(),
+                    "position" => self.handle_position(tokens),
+                    "go" => self.handle_go(tokens),
+                    "stop" => self.handle_stop(),
+                    "fen" => self.handle_fen(),
+                    "eval" => self.handle_eval(),
+                    "perft" => self.handle_perft(tokens),
+                    "genfens" => self.handle_genfens(tokens),
+                    "help" => self.handle_help(),
+                    #[cfg(feature = "tuning")]
+                    "params" => print_params_ob(),
+                    "quit" => self.handle_quit(),
+                    _ => println!("info error: unknown command"),
+                }
+            } else {
+                continue;
             }
         }
     }
