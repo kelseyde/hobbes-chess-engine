@@ -121,5 +121,6 @@ tunable_params! {
     material_scaling_base       = 26670, 10000, 40000, 150;
     qs_futility_threshold       = 148, 80, 250, 10;
     qs_see_threshold            = -69, -200, 100, 25;
+    movepick_recapture_bonus    = 10000, 0, 20000, 2500;
     movepick_see_threshold      = -86, -100, 100, 50;
 }

@@ -4,10 +4,11 @@ use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::movepick_see_threshold;
+use crate::search::parameters::{movepick_recapture_bonus, movepick_see_threshold};
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::search::stack::SearchStack;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -74,7 +75,7 @@ impl MovePicker {
         }
     }
 
-    pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
+    pub fn next(&mut self, board: &Board, td: &ThreadData, ss: &SearchStack) -> Option<Move> {
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
             if self.tt_move.exists() && board.is_pseudo_legal(&self.tt_move) {
@@ -85,7 +86,7 @@ impl MovePicker {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
-                MovePicker::score(entry, board, td, self.ply, self.threats);
+                MovePicker::score(entry, board, td, ss, self.ply, self.threats);
 
                 let good_noisy = if entry.mv.is_promo() {
                     // Queen and knight promos are treated as good noisies
@@ -124,7 +125,7 @@ impl MovePicker {
                 self.moves = board.gen_moves(MoveFilter::Quiets);
                 self.moves
                     .iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
+                    .for_each(|entry| MovePicker::score(entry, board, td, ss, self.ply, self.threats));
                 self.stage = Quiets;
             }
         }
@@ -153,6 +154,7 @@ impl MovePicker {
         entry: &mut MoveListEntry,
         board: &Board,
         td: &ThreadData,
+        ss: &SearchStack,
         ply: usize,
         threats: Bitboard,
     ) {
@@ -163,7 +165,11 @@ impl MovePicker {
             let history_score = td
                 .history
                 .capture_history_score(board, mv, attacker, victim);
-            entry.score = victim_value + history_score;
+            let is_recapture = ply > 0 && ss[ply - 1].mv.is_some_and(|prev_mv| {
+                prev_mv.to() == mv.to()
+            });
+            let recapture_bonus = if is_recapture { movepick_recapture_bonus() } else { 0 };
+            entry.score = victim_value + history_score + recapture_bonus;
         } else {
             // Score quiet
             let quiet_score = td

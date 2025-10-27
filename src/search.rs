@@ -367,7 +367,7 @@ fn alpha_beta(board: &Board,
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
 
-    while let Some(mv) = move_picker.next(board, td) {
+    while let Some(mv) = move_picker.next(board, td, &td.ss) {
 
         if !board.is_legal(&mv) {
             continue;
@@ -808,7 +808,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
 
-    while let Some(mv) = move_picker.next(board, td) {
+    while let Some(mv) = move_picker.next(board, td, &td.ss) {
         if !board.is_legal(&mv) {
             continue;
         }
