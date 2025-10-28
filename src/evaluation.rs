@@ -7,7 +7,7 @@ pub mod simd;
 use crate::board::file::File;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
-use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
+use crate::board::piece::Piece::{Bishop, King, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
@@ -23,6 +23,7 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
+
 
 #[rustfmt::skip]
 pub const BUCKETS: [usize; 64] = [
@@ -62,6 +63,7 @@ impl NNUE {
     /// Evaluates the current position. Gets the 'us-perspective' and 'them-perspective' feature
     /// sets, based on the side to move. Then, passes the features through the network to get the
     /// static evaluation.
+    #[inline(always)]
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         let acc = &self.stack[self.current];
         let us = match board.stm {
@@ -85,6 +87,7 @@ impl NNUE {
 
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
+    #[inline(always)]
     pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
         #[cfg(target_feature = "avx2")]
         {
@@ -105,6 +108,7 @@ impl NNUE {
     /// Activate the entire board from scratch. This initializes the accumulators based on the
     /// current board state, iterating over all pieces and their squares. Should be called only
     /// at the top of search, and then efficiently updated with each move.
+    #[inline(always)]
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
         self.stack[self.current] = Accumulator::default();
@@ -139,20 +143,16 @@ impl NNUE {
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
 
-        for side in [White, Black] {
-            for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
+        for &side in Side::iter() {
+            for &pc in Piece::iter() {
                 let pieces = board.pcs(pc) & board.side(side);
                 let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
 
                 let added = pieces & !cached_pieces;
-                for add in added {
-                    adds.push(Feature::new(pc, add, side));
-                }
+                for add in added { adds.push(Feature::new(pc, add, side)); }
 
                 let removed = cached_pieces & !pieces;
-                for sub in removed {
-                    subs.push(Feature::new(pc, sub, side));
-                }
+                for sub in removed { subs.push(Feature::new(pc, sub, side)); }
             }
         }
 
@@ -180,6 +180,7 @@ impl NNUE {
     /// Efficiently update the accumulators for the current move. Depending on the nature of
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated.
+    #[inline(always)]
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
         // TODO: This can be optimized. No need to have an extra copy
@@ -226,6 +227,7 @@ impl NNUE {
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
+    #[inline(always)]
     fn handle_standard(
         &mut self,
         mv: &Move,
@@ -245,6 +247,7 @@ impl NNUE {
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
     #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
     fn handle_capture(
         &mut self,
         mv: &Move,
@@ -270,6 +273,7 @@ impl NNUE {
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
+    #[inline(always)]
     fn handle_castle(
         &mut self,
         board: &Board,
@@ -308,12 +312,13 @@ impl NNUE {
     }
 
     /// Undo the last move by decrementing the current accumulator index.
+    #[inline(always)]
     pub fn undo(&mut self) {
         self.current = self.current.saturating_sub(1);
     }
 }
 
-#[inline]
+#[inline(always)]
 fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != King {
         board.king_sq(side)
@@ -325,7 +330,7 @@ fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
     }
 }
 
-#[inline]
+#[inline(always)]
 fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
@@ -339,7 +344,7 @@ fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     king_bucket(prev_king_sq, side) != king_bucket(new_king_sq, side)
 }
 
-#[inline]
+#[inline(always)]
 fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     if pc != King {
         return false;
@@ -364,11 +369,13 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
+#[inline(always)]
 fn scale_evaluation(board: &Board, eval: i32) -> i32 {
     let phase = material_phase(board);
     eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
 }
 
+#[inline(always)]
 fn material_phase(board: &Board) -> i32 {
     let knights = board.pcs(Knight).count();
     let bishops = board.pcs(Bishop).count();
@@ -381,6 +388,7 @@ fn material_phase(board: &Board) -> i32 {
         + scale_value_queen() * queens as i32
 }
 
+#[inline(always)]
 pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     let mut max = 0;
     let mut i = 0;

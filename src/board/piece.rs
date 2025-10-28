@@ -31,6 +31,12 @@ impl Piece {
     pub const fn is_minor(self) -> bool {
         matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
     }
+
+    #[inline(always)]
+    pub const fn all() -> &'static [Piece] { &PIECES }
+
+    #[inline(always)]
+    pub fn iter() -> core::slice::Iter<'static, Piece> { PIECES.iter() }
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {
