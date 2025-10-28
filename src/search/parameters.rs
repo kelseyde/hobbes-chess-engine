@@ -15,10 +15,12 @@ tunable_params! {
     razor_scale                 = 273, 100, 400, 25;
     nmp_min_depth               = 3, 0, 8, 1;
     nmp_margin                  = 30, 0, 80, 10;
-    nmp_base_reduction          = 4, 2, 5, 1;
-    nmp_depth_divisor           = 3, 1, 4, 1;
+    nmp_base_reduction          = 4096, 2048, 6144, 512;
+    nmp_depth_mult              = 348, 128, 512, 64;
     nmp_eval_divisor            = 213, 100, 300, 25;
-    nmp_eval_max_reduction      = 4, 2, 6, 1;
+    nmp_eval_max_reduction      = 4096, 2048, 6144, 512;
+    nmp_improving_scale         = 1024, 500, 2000, 256;
+    nmp_tt_move_noisy_scale     = 1024, 0, 2048, 256;
     iir_min_depth               = 4, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;
     hindsight_ext_min_depth     = 1, 1, 5, 1;

@@ -311,26 +311,28 @@ fn alpha_beta(board: &Board,
             && board.has_non_pawns() {
 
             let r = nmp_base_reduction()
-                + depth / nmp_depth_divisor()
-                + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
-                + tt_move_noisy as i32;
+                + depth * nmp_depth_mult()
+                + ((static_eval - beta).max(0) * 1024 / nmp_eval_divisor()).min(nmp_eval_max_reduction())
+                + improving as i32 * nmp_improving_scale()
+                + tt_move_noisy as i32 * nmp_tt_move_noisy_scale();
+            let nmp_depth = depth - (r / 1024);
 
             let mut board = *board;
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
-            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            let score = -alpha_beta(&board, td, nmp_depth, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if Score::is_mate(score) { beta } else {score };
+                    return if Score::is_mate(score) { beta } else { score };
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
-                td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
-                let verif_score = alpha_beta(&board, td, depth - r, ply, beta - 1, beta, true);
+                td.nmp_min_ply = (3 * (depth - nmp_depth) / 4) + ply as i32;
+                let verif_score = alpha_beta(&board, td, depth - nmp_depth, ply, beta - 1, beta, true);
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
