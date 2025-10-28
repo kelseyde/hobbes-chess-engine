@@ -126,10 +126,4 @@ tunable_params! {
     qs_futility_threshold       = 148, 80, 250, 10;
     qs_see_threshold            = -69, -200, 100, 25;
     movepick_see_threshold      = -86, -100, 100, 50;
-    time_base_mult              = 5, 2, 16, 2;
-    time_inc_mult               = 8, 2, 16, 2;
-    time_soft_mult              = 66, 20, 100, 10;
-    time_hard_mult              = 200, 120, 300, 10;
-    node_tm_base                = 150, 100, 200, 10;
-    node_tm_scale               = 135, 100, 200, 10;
 }

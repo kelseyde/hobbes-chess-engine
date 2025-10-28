@@ -1,5 +1,4 @@
 use std::time::Duration;
-use crate::search::parameters::{node_tm_base, node_tm_scale, time_base_mult, time_hard_mult, time_inc_mult, time_soft_mult};
 
 pub struct SearchLimits {
     pub hard_time: Option<Duration>,
@@ -58,28 +57,19 @@ impl SearchLimits {
         })
     }
 
-    fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+    const fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
-        let base = node_tm_base() as f32 / 100.0;
-        let scale = node_tm_scale() as f32 / 100.0;
-        (base - fraction) * scale
+        (1.5 - fraction) * 1.35
     }
 
     fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
         let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
-
-        let base_mult = time_base_mult() as f64 / 100.0;
-        let inc_mult = time_inc_mult() as f64 / 100.0;
-        let base = time * base_mult + inc * inc_mult;
-
-        let soft_mult = time_soft_mult() as f64 / 100.0;
-        let hard_mult = time_hard_mult() as f64 / 100.0;
-        let soft_time = base * soft_mult;
-        let hard_time = base * hard_mult;
-
+        let base = time * 0.05 + inc * 0.08;
+        let soft_time = base * 0.66;
+        let hard_time = base * 2.0;
         let soft = soft_time.min(time - 50.0);
         let hard = hard_time.min(time - 50.0);
         (
