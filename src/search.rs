@@ -414,12 +414,13 @@ fn alpha_beta(board: &Board,
 
         // Late Move Pruning
         // Skip quiet moves ordered very late in the list.
+        let lmp_threshold = 5 + depth * depth / (3 - (improving || static_eval >= beta) as i32);
         if !pv_node
             && !root_node
             && !is_mate_score
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves >= lmp_threshold {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -942,20 +943,6 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     } else {
         0
     }
-}
-
-fn late_move_threshold(depth: i32, improving: bool) -> i32 {
-    let base = if improving {
-        lmp_improving_base()
-    } else {
-        lmp_base()
-    };
-    let scale = if improving {
-        lmp_improving_scale()
-    } else {
-        lmp_scale()
-    };
-    (base + depth * scale) / 10
 }
 
 fn print_search_info(td: &mut ThreadData) {
