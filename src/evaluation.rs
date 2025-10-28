@@ -141,7 +141,7 @@ impl NNUE {
 
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
-                let pieces = board.pieces(pc) & board.side(side);
+                let pieces = board.pcs(pc) & board.side(side);
                 let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
 
                 let added = pieces & !cached_pieces;
@@ -370,10 +370,10 @@ fn scale_evaluation(board: &Board, eval: i32) -> i32 {
 }
 
 fn material_phase(board: &Board) -> i32 {
-    let knights = board.pieces(Knight).count();
-    let bishops = board.pieces(Bishop).count();
-    let rooks = board.pieces(Rook).count();
-    let queens = board.pieces(Queen).count();
+    let knights = board.pcs(Knight).count();
+    let bishops = board.pcs(Bishop).count();
+    let rooks = board.pcs(Rook).count();
+    let queens = board.pcs(Queen).count();
 
     scale_value_knight() * knights as i32
         + scale_value_bishop() * bishops as i32

@@ -224,16 +224,16 @@ impl Board {
 
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
-        if self.ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(self.ep_sq.unwrap());
+        if let Some(prev_ep) = self.ep_sq {
+            self.keys.hash ^= Zobrist::ep(prev_ep);
         }
         let ep_sq = if flag == MoveFlag::DoublePush {
             Some(self.ep_capture_sq(sq))
         } else {
             None
         };
-        if ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
+        if let Some(ep) = ep_sq {
+            self.keys.hash ^= Zobrist::ep(ep);
         }
         ep_sq
     }
@@ -356,14 +356,12 @@ impl Board {
         self.bb[piece] & self.bb[(!self.stm).idx()]
     }
 
+    #[inline(always)]
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
         self.pcs[sq]
     }
 
-    pub fn pieces(&self, pc: Piece) -> Bitboard {
-        self.bb[pc]
-    }
-
+    #[inline(always)]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() {
             return None;
@@ -374,6 +372,7 @@ impl Board {
         self.piece_at(mv.to())
     }
 
+    #[inline(always)]
     pub fn is_noisy(&self, mv: &Move) -> bool {
         mv.is_promo() || self.captured(mv).is_some()
     }
@@ -396,27 +395,29 @@ impl Board {
         self.hm >= 100
     }
 
+    #[inline(always)]
     pub fn is_insufficient_material(&self) -> bool {
         let pawns = self.bb[Piece::Pawn];
-        let knights = self.bb[Piece::Knight];
-        let bishops = self.bb[Piece::Bishop];
         let rooks = self.bb[Piece::Rook];
         let queens = self.bb[Piece::Queen];
-
         if !(pawns | rooks | queens).is_empty() {
             return false;
         }
 
+        let knights = self.bb[Piece::Knight];
+        let bishops = self.bb[Piece::Bishop];
         let minor_pieces = knights | bishops;
         let piece_count = minor_pieces.count();
         if piece_count <= 1 {
             return true;
         }
 
-        if knights.is_empty() && !bishops.is_empty() && (bishops & self.white()).count() == 2
-            || (bishops & self.black()).count() == 2
-        {
-            return false;
+        if knights.is_empty() && !bishops.is_empty() {
+            let white_bishops = (bishops & self.white()).count();
+            let black_bishops = (bishops & self.black()).count();
+            if white_bishops == 2 || black_bishops == 2 {
+                return false;
+            }
         }
         piece_count <= 3
     }

@@ -80,7 +80,7 @@ const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
 pub const fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
     let mut bb: u64 = 0;
     let mut tgt = square;
-    while tgt % 8 > 0 && tgt / 8 < 7 {
+    while !tgt.is_multiple_of(8) && tgt / 8 < 7 {
         tgt += 7;
         bb |= 1 << tgt;
         if blockers & (1 << tgt) > 0 {
@@ -96,7 +96,7 @@ pub const fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
         }
     }
     let mut tgt = square;
-    while tgt % 8 > 0 && tgt / 8 >= 1 {
+    while !tgt.is_multiple_of(8) && tgt / 8 >= 1 {
         tgt -= 9;
         bb |= 1 << tgt;
         if blockers & (1 << tgt) > 0 {
@@ -141,7 +141,7 @@ pub const fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
         }
     }
     let mut tgt = square;
-    while tgt % 8 > 0 {
+    while !tgt.is_multiple_of(8) {
         tgt -= 1;
         bb |= 1 << tgt;
         if blockers & (1 << tgt) > 0 {
