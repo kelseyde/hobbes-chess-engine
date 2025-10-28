@@ -384,7 +384,7 @@ fn alpha_beta(board: &Board,
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
-        let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let base_reduction = td.lmr.reduction(is_quiet, depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
         let mut extension = 0;

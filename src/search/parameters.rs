@@ -58,6 +58,10 @@ tunable_params! {
     se_double_ext_margin        = 12, 10, 30, 5;
     lmr_min_depth               = 2, 1, 5, 1;
     lmr_min_moves               = 2, 1, 4, 1;
+    lmr_quiet_base              = 92, 50, 150, 10;
+    lmr_quiet_divisor           = 311, 200, 500, 25;
+    lmr_noisy_base              = 92, 50, 150, 10;
+    lmr_noisy_divisor           = 311, 200, 500, 25;
     lmr_ttpv_base               = 567, 0, 2048, 256;
     lmr_ttpv_tt_score           = 785, 0, 2048, 256;
     lmr_ttpv_tt_depth           = 944, 0, 2048, 256;
@@ -122,4 +126,10 @@ tunable_params! {
     qs_futility_threshold       = 148, 80, 250, 10;
     qs_see_threshold            = -69, -200, 100, 25;
     movepick_see_threshold      = -86, -100, 100, 50;
+    time_base_mult              = 5, 2, 16, 2;
+    time_inc_mult               = 8, 2, 16, 2;
+    time_soft_mult              = 66, 20, 100, 10;
+    time_hard_mult              = 200, 120, 300, 10;
+    node_tm_base                = 150, 100, 200, 10;
+    node_tm_scale               = 135, 100, 200, 10;
 }
