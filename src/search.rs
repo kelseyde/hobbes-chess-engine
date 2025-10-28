@@ -766,7 +766,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_move = Move::NONE;
     if let Some(entry) = td.tt.probe(board.hash()) {
         tt_pv = tt_pv || entry.pv();
-        if can_use_tt_move(board, &entry.best_move()) {
+        if can_use_tt_move(board, &entry.best_move())
+            && (in_check || board.is_noisy(&entry.best_move())) {
             tt_move = entry.best_move();
         }
         let score = entry.score(ply) as i32;
