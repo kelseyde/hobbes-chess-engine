@@ -53,7 +53,7 @@ tunable_params! {
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 17, 16, 48, 6;
-    se_depth_offset             = 1, 0, 3, 1;
+    se_depth_offset             = 2, 0, 3, 1;
     se_depth_divisor            = 2, 1, 4, 1;
     se_double_ext_margin        = 12, 10, 30, 5;
     lmr_min_depth               = 2, 1, 5, 1;
