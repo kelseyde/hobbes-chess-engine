@@ -312,8 +312,7 @@ fn alpha_beta(board: &Board,
 
             let r = nmp_base_reduction()
                 + depth * nmp_depth_mult()
-                + ((static_eval - beta).max(0) * 1024 / nmp_eval_divisor()).min(nmp_eval_max_reduction())
-                + improving as i32 * nmp_improving_scale()
+                + ((static_eval - beta) / nmp_eval_divisor() * 1024).min(nmp_eval_max_reduction())
                 + tt_move_noisy as i32 * nmp_tt_move_noisy_scale();
             let nmp_depth = depth - (r / 1024);
 

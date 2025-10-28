@@ -16,7 +16,7 @@ tunable_params! {
     nmp_min_depth               = 3, 0, 8, 1;
     nmp_margin                  = 30, 0, 80, 10;
     nmp_base_reduction          = 4096, 2048, 6144, 512;
-    nmp_depth_mult              = 348, 128, 512, 64;
+    nmp_depth_mult              = 341, 128, 512, 64;
     nmp_eval_divisor            = 213, 100, 300, 25;
     nmp_eval_max_reduction      = 4096, 2048, 6144, 512;
     nmp_improving_scale         = 1024, 500, 2000, 256;
