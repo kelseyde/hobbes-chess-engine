@@ -289,10 +289,13 @@ fn alpha_beta(board: &Board,
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
+        let prev_mv_quiet = td.ss[ply - 1].captured.is_none();
+        let prev_mv_history_score = td.ss[ply - 1].history_score;
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            + prev_mv_quiet as i32 * prev_mv_history_score / rfp_prev_move_history_div();
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
@@ -509,6 +512,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].mv = Some(mv);
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
+        td.ss[ply].history_score = history_score;
         td.keys.push(board.hash());
         td.tt.prefetch(board.hash());
 
