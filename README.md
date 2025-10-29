@@ -29,7 +29,7 @@ Hobbes features a classical alpha-beta negamax search with iterative deepening. 
 
 ## Evaluation
 
-Hobbes uses an efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x10hm->1280)x2->1`. Other NNUE optimisations that Hobbes employs are fused refreshes, Finny tables, and lazy updates.
+Hobbes uses an efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x16hm->1280)x2->1`. Other NNUE optimisations that Hobbes employs are fused refreshes, Finny tables, and lazy updates.
 
 The network is trained entirely on data generated from self-play. The network was initialised from random values and trained up over many iterations; the full history of past nets is documented [here](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network_history.txt). 
 
