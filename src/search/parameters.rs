@@ -11,7 +11,7 @@ tunable_params! {
     rfp_scale                   = 47, 40, 100, 10;
     rfp_improving_scale         = 54, 40, 100, 10;
     rfp_tt_move_noisy_scale     = 18, 0, 70, 10;
-    rfp_prev_move_history_div   = 400, 300, 400, 50;
+    rfp_prev_move_history_div   = 300, 300, 400, 50;
     razor_base                  = 301, 200, 500, 25;
     razor_scale                 = 273, 100, 400, 25;
     nmp_min_depth               = 3, 0, 8, 1;
