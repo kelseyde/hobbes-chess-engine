@@ -453,12 +453,13 @@ fn alpha_beta(board: &Board,
             depth * pvs_see_quiet_scale()
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+                - pv_node as i32 * pvs_see_quiet_pv_offset()
         } else {
             depth * depth * pvs_see_noisy_scale()
                 - history_score / pvs_see_noisy_history_div()
+                - pv_node as i32 * pvs_see_noisy_pv_offset()
         };
-        if !pv_node
-            && depth <= pvs_see_max_depth()
+        if depth <= pvs_see_max_depth()
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
