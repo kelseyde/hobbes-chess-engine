@@ -450,7 +450,7 @@ fn alpha_beta(board: &Board,
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            depth * pvs_see_quiet_scale()
+            lmr_depth * pvs_see_quiet_scale()
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
         } else {
