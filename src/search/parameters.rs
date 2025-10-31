@@ -58,6 +58,10 @@ tunable_params! {
     se_double_ext_margin        = 12, 10, 30, 5;
     lmr_min_depth               = 2, 1, 5, 1;
     lmr_min_moves               = 2, 1, 4, 1;
+    lmr_quiet_base              = 92, 50, 130, 10;
+    lmr_noisy_base              = 92, 50, 130, 10;
+    lmr_quiet_div               = 311, 250, 400, 25;
+    lmr_noisy_div               = 311, 250, 400, 25;
     lmr_ttpv_base               = 567, 0, 2048, 256;
     lmr_ttpv_tt_score           = 785, 0, 2048, 256;
     lmr_ttpv_tt_depth           = 944, 0, 2048, 256;

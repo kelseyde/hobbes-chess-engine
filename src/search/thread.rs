@@ -8,6 +8,7 @@ use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
+use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
@@ -212,28 +213,32 @@ impl Default for PrincipalVariationTable {
 }
 
 pub struct LmrTable {
-    table: Box<[[i32; 64]; 256]>,
+    table: Box<[[[i32; 2]; 64]; 256]>,
 }
 
 impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(255) as usize][move_count.min(63) as usize]
+    pub fn reduction(&self, depth: i32, move_count: i32, is_quiet: bool) -> i32 {
+        self.table[depth.min(255) as usize][move_count.min(63) as usize][is_quiet as usize]
     }
 }
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let base = 0.92;
-        let divisor = 3.11;
+        let quiet_base = lmr_quiet_base() as f32 / 100.0;
+        let quiet_div = lmr_quiet_div() as f32 / 100.0;
+        let noisy_base = lmr_noisy_base() as f32 / 100.0;
+        let noisy_div = lmr_noisy_div() as f32 / 100.0;
 
-        let mut table: Box<[[i32; 64]; 256]> = unsafe { boxed_and_zeroed() };
+        let mut table: Box<[[[i32; 2]; 64]; 256]> = unsafe { boxed_and_zeroed() };
 
         for depth in 1..256 {
             for move_count in 1..64 {
                 let ln_depth = (depth as f32).ln();
                 let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
-                table[depth as usize][move_count as usize] = reduction;
+                let quiet_reduction = (quiet_base + (ln_depth * ln_move_count / quiet_div)) as i32;
+                let noisy_reduction = (noisy_base + (ln_depth * ln_move_count / noisy_div)) as i32;
+                table[depth as usize][move_count as usize][0] = noisy_reduction;
+                table[depth as usize][move_count as usize][1] = quiet_reduction;
             }
         }
 
