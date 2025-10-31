@@ -31,8 +31,10 @@ pub struct ThreadData {
     pub depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
+    pub prev_best_move: Move,
     pub best_move: Move,
     pub best_score: i32,
+    pub best_move_stability: usize,
 }
 
 impl Default for ThreadData {
@@ -58,13 +60,17 @@ impl Default for ThreadData {
             depth: 0,
             seldepth: 0,
             nmp_min_ply: 0,
+            prev_best_move: Move::NONE,
             best_move: Move::NONE,
             best_score: Score::MIN,
+            best_move_stability: 0,
         }
     }
 }
 
 impl ThreadData {
+
+    /// Reset variables from the previous search; called on 'go' command
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -73,14 +79,30 @@ impl ThreadData {
         self.seldepth = 0;
         self.best_move = Move::NONE;
         self.best_score = 0;
+        self.best_move_stability = 0;
     }
 
+    /// Reset variables from the previous game; called on 'ucinewgame' command
     pub fn clear(&mut self) {
         self.tt.clear();
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
         self.correction_history.clear();
+    }
+
+    pub fn update_best_move(&mut self, mv: Move, score: i32) {
+        self.best_move = mv;
+        self.best_score = score;
+    }
+
+    pub fn update_best_move_stability(&mut self) {
+        if self.best_move == self.prev_best_move {
+            self.best_move_stability += 1;
+        } else {
+            self.best_move_stability = 0;
+        }
+        self.prev_best_move = self.best_move;
     }
 
     pub fn time(&self) -> u128 {
@@ -103,7 +125,7 @@ impl ThreadData {
 
         if let Some(soft_time) =
             self.limits
-                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes)
+                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes, self.best_move_stability)
         {
             if self.start_time.elapsed() >= soft_time {
                 return true;

@@ -68,6 +68,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             if td.main && !td.minimal_output {
                 print_search_info(td);
             }
+            td.update_best_move_stability();
 
             if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
