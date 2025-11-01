@@ -660,16 +660,20 @@ fn alpha_beta(board: &Board,
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
-            td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
-            td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
 
-            // Penalise all the other quiets which failed to cause a beta cut-off.
-            for mv in quiets.iter() {
-                if mv != &best_move {
-                    td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
-                    td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
+            if depth >= 3 || quiet_count >= 2 {
+                td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
+                td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
+
+                // Penalise all the other quiets which failed to cause a beta cut-off.
+                for mv in quiets.iter() {
+                    if mv != &best_move {
+                        td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
+                        td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
+                    }
                 }
             }
+
         }
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
