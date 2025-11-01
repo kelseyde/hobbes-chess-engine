@@ -1,6 +1,6 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::side::Side;
-use crate::evaluation::network::{HIDDEN, NETWORK};
+use crate::evaluation::network::{Align64, Block, HIDDEN, NETWORK};
 use crate::evaluation::NUM_BUCKETS;
 
 /// Whenever the king changes bucket, a costly full refresh of the accumulator is required. This
@@ -18,7 +18,7 @@ pub struct InputBucketCache {
 
 #[derive(Clone)]
 pub struct CacheEntry {
-    pub features: [i16; HIDDEN],
+    pub features: Align64<Block>,
     pub bitboards: [Bitboard; 8],
 }
 

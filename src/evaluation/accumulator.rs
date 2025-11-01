@@ -1,13 +1,13 @@
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{Block, FeatureWeights, HIDDEN, NETWORK};
+use crate::evaluation::network::{Align64, Block, FeatureWeights, HIDDEN, NETWORK};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct Accumulator {
-    pub white_features: Block,
-    pub black_features: Block,
+    pub white_features: Align64<Block>,
+    pub black_features: Align64<Block>,
     pub mirrored: [bool; 2],
 }
 
@@ -23,7 +23,7 @@ impl Default for Accumulator {
 
 impl Accumulator {
     #[inline(always)]
-    pub fn features(&self, perspective: Side) -> &[i16; HIDDEN] {
+    pub fn features(&self, perspective: Side) -> &Align64<Block> {
         match perspective {
             White => &self.white_features,
             Black => &self.black_features,
@@ -40,7 +40,7 @@ impl Accumulator {
     }
 
     #[inline]
-    pub fn copy_from(&mut self, side: Side, features: &[i16; HIDDEN]) {
+    pub fn copy_from(&mut self, side: Side, features: &Align64<Block>) {
         match side {
             White => self.white_features = *features,
             Black => self.black_features = *features,
@@ -48,7 +48,7 @@ impl Accumulator {
     }
 
     #[inline(always)]
-    fn features_mut(&mut self, perspective: Side) -> &mut [i16; HIDDEN] {
+    fn features_mut(&mut self, perspective: Side) -> &mut Align64<Block> {
         match perspective {
             White => &mut self.white_features,
             Black => &mut self.black_features,

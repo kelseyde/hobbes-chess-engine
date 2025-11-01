@@ -17,8 +17,8 @@ pub type Block = [i16; HIDDEN];
 #[repr(C, align(64))]
 pub struct Network {
     pub feature_weights: [FeatureWeights; NUM_BUCKETS],
-    pub feature_bias: Block,
-    pub output_weights: [Block; 2],
+    pub feature_bias: Align64<Block>,
+    pub output_weights: [Align64<Block>; 2],
     pub output_bias: i16,
 }
 
