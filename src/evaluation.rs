@@ -86,14 +86,21 @@ impl NNUE {
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
     pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(target_feature = "avx512f")]
+        {
+            use crate::evaluation::network::NETWORK;
+            use crate::evaluation::simd::avx512;
+            let weights = &NETWORK.output_weights;
+            unsafe { avx512::forward(us, &weights[0]) + avx512::forward(them, &weights[1]) }
+        }
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
             use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::avx2;
             let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
-        #[cfg(not(target_feature = "avx2"))]
+        #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
         {
             use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::scalar;
