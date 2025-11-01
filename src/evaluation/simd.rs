@@ -33,6 +33,7 @@ pub(crate) mod avx512 {
 
     #[inline]
     unsafe fn horizontal_add(v: __m512i) -> i32 {
+        // Reduce 16 lanes of i32 in the 512-bit vector by splitting into 2x256, then 2x128, etc.
         let lo256 = _mm512_castsi512_si256(v);
         let hi256 = _mm512_extracti64x4_epi64::<1>(v);
         let sum256 = _mm256_add_epi32(lo256, hi256);
