@@ -168,14 +168,32 @@ impl NNUE {
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            accumulator::add_add_add_add(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
+            accumulator::add_add_add_add(
+                features,
+                chunk[0],
+                chunk[1],
+                chunk[2],
+                chunk[3],
+                weights,
+                perspective,
+                mirror,
+            );
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
             accumulator::add(features, add, weights, perspective, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            accumulator::sub_sub_sub_sub(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
+            accumulator::sub_sub_sub_sub(
+                features,
+                chunk[0],
+                chunk[1],
+                chunk[2],
+                chunk[3],
+                weights,
+                perspective,
+                mirror,
+            );
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
             accumulator::sub(features, sub, weights, perspective, mirror);
@@ -232,14 +250,13 @@ impl NNUE {
 
         self.update_perspective(&update, w_weights, White);
         self.update_perspective(&update, b_weights, Black);
-
     }
 
     fn update_perspective(
         &mut self,
         update: &AccumulatorUpdate,
         weights: &FeatureWeights,
-        perspective: Side
+        perspective: Side,
     ) {
         let mirror = self.stack[self.current].mirrored[perspective];
         let features = &mut self.stack[self.current].features_mut(perspective);
@@ -254,7 +271,7 @@ impl NNUE {
         mv: &Move,
         pc: Piece,
         new_pc: Piece,
-        side: Side
+        side: Side,
     ) -> AccumulatorUpdate {
         let pc_ft = Feature::new(pc, mv.from(), side);
         let new_pc_ft = Feature::new(new_pc, mv.to(), side);
@@ -275,7 +292,7 @@ impl NNUE {
         pc: Piece,
         new_pc: Piece,
         captured: Piece,
-        side: Side
+        side: Side,
     ) -> AccumulatorUpdate {
         let capture_sq = if mv.is_ep() {
             Square(mv.to().0 ^ 8)
@@ -296,12 +313,7 @@ impl NNUE {
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
-    fn handle_castle(
-        &mut self,
-        board: &Board,
-        mv: &Move,
-        us: Side
-    ) -> AccumulatorUpdate {
+    fn handle_castle(&mut self, board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
         let king_to = if board.is_frc() {

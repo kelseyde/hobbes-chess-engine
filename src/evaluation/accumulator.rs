@@ -11,7 +11,7 @@ pub struct Accumulator {
     pub mirrored: [bool; 2],
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct AccumulatorUpdate {
     pub add_count: usize,
     pub sub_count: usize,
@@ -26,7 +26,7 @@ pub enum AccumulatorUpdateType {
     Sub,
     AddSub,
     AddSubSub,
-    AddAddSubSub
+    AddAddSubSub,
 }
 
 impl Default for Accumulator {
@@ -39,19 +39,7 @@ impl Default for Accumulator {
     }
 }
 
-impl Default for AccumulatorUpdate {
-    fn default() -> Self {
-        AccumulatorUpdate {
-            add_count: 0,
-            sub_count: 0,
-            adds: [None, None],
-            subs: [None, None],
-        }
-    }
-}
-
 impl AccumulatorUpdate {
-
     pub fn push_add(&mut self, feature: Feature) {
         if self.add_count < 2 {
             self.adds[self.add_count] = Some(feature);
@@ -112,7 +100,6 @@ impl Accumulator {
             Black => &mut self.black_features,
         }
     }
-
 }
 
 pub fn apply_update(
@@ -123,34 +110,48 @@ pub fn apply_update(
     mirror: bool,
 ) {
     match update.update_type() {
-        AccumulatorUpdateType::None => {},
+        AccumulatorUpdateType::None => {}
         AccumulatorUpdateType::Add => {
             if let Some(add1) = update.adds[0] {
                 add(features, add1, weights, perspective, mirror);
             }
-        },
+        }
         AccumulatorUpdateType::Sub => {
             if let Some(sub1) = update.subs[0] {
                 sub(features, sub1, weights, perspective, mirror);
             }
-        },
+        }
         AccumulatorUpdateType::AddSub => {
             if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
                 add_sub(features, add1, sub1, weights, perspective, mirror);
             }
-        },
+        }
         AccumulatorUpdateType::AddSubSub => {
             if let (Some(add1), Some(sub1), Some(sub2)) =
-                (update.adds[0], update.subs[0], update.subs[1]) {
+                (update.adds[0], update.subs[0], update.subs[1])
+            {
                 add_sub_sub(features, add1, sub1, sub2, weights, perspective, mirror);
             }
-        },
+        }
         AccumulatorUpdateType::AddAddSubSub => {
-            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
-                (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
-                add_add_sub_sub(features, add1, add2, sub1, sub2, weights, perspective, mirror);
+            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) = (
+                update.adds[0],
+                update.adds[1],
+                update.subs[0],
+                update.subs[1],
+            ) {
+                add_add_sub_sub(
+                    features,
+                    add1,
+                    add2,
+                    sub1,
+                    sub2,
+                    weights,
+                    perspective,
+                    mirror,
+                );
             }
-        },
+        }
     }
 }
 
@@ -217,7 +218,6 @@ pub fn add_sub(
             *feat_ptr = feat_ptr
                 .wrapping_add(*weights.get_unchecked(i + add_offset))
                 .wrapping_sub(*weights.get_unchecked(i + sub_offset));
-
         }
         i += 1;
     }
@@ -251,6 +251,7 @@ pub fn add_sub_sub(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn add_add_sub_sub(
     features: &mut Align64<Block>,
     add1: Feature,
@@ -281,6 +282,7 @@ pub fn add_add_sub_sub(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn add_add_add_add(
     features: &mut Align64<Block>,
     add1: Feature,
@@ -310,6 +312,8 @@ pub fn add_add_add_add(
     }
 }
 
+#[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn sub_sub_sub_sub(
     features: &mut Align64<Block>,
     sub1: Feature,
