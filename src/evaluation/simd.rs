@@ -1,13 +1,13 @@
 #[cfg(target_feature = "avx512f")]
 pub(crate) mod avx512 {
-    use crate::evaluation::network::{HIDDEN, QA};
+    use crate::evaluation::network::{Align64, Block, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 32; // 32 i16 elements per 512-bit vector
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
 
     #[inline]
-    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+    pub unsafe fn forward(features: &Align64<Block>, weights: &Align64<Block>) -> i32 {
         debug_assert_eq!(HIDDEN % CHUNK_SIZE, 0);
         let mut sum = _mm512_setzero_si512();
         let mut i = 0;
@@ -54,13 +54,13 @@ pub(crate) mod avx512 {
 // AVX2 path is compiled only if AVX512F not enabled (so AVX512 takes precedence)
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 pub(crate) mod avx2 {
-    use crate::evaluation::network::{HIDDEN, QA};
+    use crate::evaluation::network::{Align64, Block, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 16;
     const LOOP_LENGTH: usize = HIDDEN / CHUNK_SIZE;
 
-    pub unsafe fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+    pub unsafe fn forward(features: &Align64<Block>, weights: &Align64<Block>) -> i32 {
         let mut sum = _mm256_setzero_si256();
         let mut i = 0;
         while i < LOOP_LENGTH {
@@ -98,9 +98,9 @@ pub(crate) mod avx2 {
 // Scalar fallback if neither AVX512F nor AVX2 is enabled
 #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
 pub(crate) mod scalar {
-    use crate::evaluation::network::{HIDDEN, QA};
+    use crate::evaluation::network::{Align64, Block, QA};
 
-    pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+    pub fn forward(features: &Align64<Block>, weights: &Align64<Block>) -> i32 {
         let mut output = 0;
         for (&input, &weight) in features.iter().zip(weights.iter()) {
             let clipped = input.clamp(0, QA as i16);

@@ -15,7 +15,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{FeatureWeights, HIDDEN, NETWORK, QA, QAB, SCALE};
+use crate::evaluation::network::{Align64, Block, FeatureWeights, HIDDEN, NETWORK, QA, QAB, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -85,7 +85,7 @@ impl NNUE {
 
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
-    pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+    pub(crate) fn forward(us: &Align64<Block>, them: &Align64<Block>) -> i32 {
         #[cfg(target_feature = "avx512f")]
         {
             use crate::evaluation::network::NETWORK;
