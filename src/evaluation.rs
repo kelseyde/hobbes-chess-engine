@@ -235,31 +235,31 @@ impl NNUE {
         self.stack[self.current].computed[Black] = false;
     }
 
-    fn apply_lazy_updates(&mut self, board: &Board) {
-
-        for perspective in [White, Black] {
-            if self.stack[self.current].computed[perspective] {
-                continue; // already up-to-date for this perspective
-            }
-
-            // Scan backwards to find the nearest parent accumulator that is computed
-            // for this perspective.
-            let mut curr = self.current;
-            while !self.stack[curr].computed[perspective] {
-                if curr == 0 { break; }
-                curr -= 1;
-            }
-
-            // Apply all updates from that accumulator up to the current one
-            while curr < self.current {
-                let curr_acc = &self.stack[curr];
-                let next_acc = &mut self.stack[curr + 1];
-                next_acc.apply_update(weights, perspective);
-                next_acc.computed[perspective] = true;
-                curr += 1;
-            }
-        }
-    }
+    // fn apply_lazy_updates(&mut self, board: &Board) {
+    //
+    //     for perspective in [White, Black] {
+    //         if self.stack[self.current].computed[perspective] {
+    //             continue; // already up-to-date for this perspective
+    //         }
+    //
+    //         // Scan backwards to find the nearest parent accumulator that is computed
+    //         // for this perspective.
+    //         let mut curr = self.current;
+    //         while !self.stack[curr].computed[perspective] {
+    //             if curr == 0 { break; }
+    //             curr -= 1;
+    //         }
+    //
+    //         // Apply all updates from that accumulator up to the current one
+    //         while curr < self.current {
+    //             let curr_acc = &self.stack[curr];
+    //             let next_acc = &mut self.stack[curr + 1];
+    //             next_acc.apply_update(weights, perspective);
+    //             next_acc.computed[perspective] = true;
+    //             curr += 1;
+    //         }
+    //     }
+    // }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
