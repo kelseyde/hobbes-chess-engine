@@ -20,3 +20,4 @@ panic = "abort"
 [features]
 tuning = []
 avx2 = []
+avx512 = []
