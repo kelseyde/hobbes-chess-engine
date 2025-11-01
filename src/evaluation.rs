@@ -15,7 +15,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{Align64, Block, FeatureWeights, HIDDEN, NETWORK, QA, QAB, SCALE};
+use crate::evaluation::network::{Align64, Block, FeatureWeights, NETWORK, QA, QAB, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
