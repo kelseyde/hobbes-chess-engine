@@ -15,7 +15,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{Align64, Block, FeatureWeights, NETWORK, QA, QAB, SCALE};
+use crate::evaluation::network::{Align64, Block, NETWORK, QA, QAB, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -167,17 +167,17 @@ impl NNUE {
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            accumulator::add_add_add_add(acc, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            acc.add(add, weights, perspective);
+            accumulator::add(acc, add, weights, perspective);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            accumulator::sub_sub_sub_sub(acc, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            acc.sub(sub, weights, perspective);
+            accumulator::sub(acc, sub, weights, perspective);
         }
 
         cache_entry.bitboards = board.bb;

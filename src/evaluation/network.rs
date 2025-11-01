@@ -1,5 +1,5 @@
-use std::ops::{Deref, DerefMut};
 use crate::evaluation::NUM_BUCKETS;
+use std::ops::{Deref, DerefMut};
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1280;

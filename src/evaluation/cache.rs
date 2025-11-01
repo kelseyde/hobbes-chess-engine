@@ -1,6 +1,6 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::side::Side;
-use crate::evaluation::network::{Align64, Block, HIDDEN, NETWORK};
+use crate::evaluation::network::{Align64, Block, NETWORK};
 use crate::evaluation::NUM_BUCKETS;
 
 /// Whenever the king changes bucket, a costly full refresh of the accumulator is required. This
