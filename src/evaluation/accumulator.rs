@@ -115,49 +115,44 @@ impl Accumulator {
 
     pub fn apply_update(
         &mut self,
-        input_features: &[i16; HIDDEN],
-        output_features: &mut [i16; HIDDEN],
-        weights: &FeatureWeights,
         update: &AccumulatorUpdate,
-        perspective: Side,
-        mirror: bool
-    ) {
+        weights: &FeatureWeights,
+        perspective: Side) {
         match update.update_type() {
             AccumulatorUpdateType::None => {},
             AccumulatorUpdateType::Add => {
-                if let Some(add1) = update.adds[0] {
-                    self.add(input_features, output_features, add1, weights, perspective, mirror);
+                if let Some(add) = update.adds[0] {
+                    self.add(add, weights, perspective);
                 }
             },
             AccumulatorUpdateType::Sub => {
-                if let Some(sub1) = update.subs[0] {
-                    self.sub(input_features, output_features, sub1, weights, perspective, mirror);
+                if let Some(sub) = update.subs[0] {
+                    self.sub(sub, weights, perspective);
                 }
             },
             AccumulatorUpdateType::AddSub => {
-                if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
-                    self.add_sub(input_features, output_features, add1, sub1, weights, perspective, mirror);
+                if let (Some(add), Some(sub)) = (update.adds[0], update.subs[0]) {
+                    self.add_sub(add, sub, weights, perspective);
                 }
             },
             AccumulatorUpdateType::AddSubSub => {
                 if let (Some(add), Some(sub1), Some(sub2)) =
                     (update.adds[0], update.subs[0], update.subs[1]) {
-                    self.add_sub_sub(input_features, output_features, add, sub1, sub2, weights, perspective, mirror);
+                    self.add_sub_sub(add, sub1, sub2, weights, perspective);
                 }
             },
             AccumulatorUpdateType::AddAddSubSub => {
                 if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
                     (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
-                    self.add_add_sub_sub(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
+                    self.add_add_sub_sub(add1, add2, sub1, sub2, weights, perspective);
                 }
             },
         }
     }
 
-
     #[inline]
     pub fn add(&mut self, add: Feature, weights: &FeatureWeights, perspective: Side) {
-        let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
+        let mirror = self.mirrored[perspective];
         let idx = add.index(perspective, mirror);
         let feats = self.features_mut(perspective);
         let weight_offset = idx * HIDDEN;
@@ -175,7 +170,7 @@ impl Accumulator {
 
     #[inline]
     pub fn sub(&mut self, sub: Feature, weights: &FeatureWeights, perspective: Side) {
-        let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
+        let mirror = self.mirrored[perspective];
         let idx = sub.index(perspective, mirror);
         let feats = self.features_mut(perspective);
         let weight_offset = idx * HIDDEN;
@@ -196,29 +191,24 @@ impl Accumulator {
         &mut self,
         add: Feature,
         sub: Feature,
-        w_weights: &FeatureWeights,
-        b_weights: &FeatureWeights,
+        weights: &FeatureWeights,
+        perspective: Side,
     ) {
-        let w_mirror = self.mirrored[0];
-        let b_mirror = self.mirrored[1];
+        let mirror = self.mirrored[perspective];
 
-        let w_add_offset = add.index(White, w_mirror) * HIDDEN;
-        let b_add_offset = add.index(Black, b_mirror) * HIDDEN;
-        let w_sub_offset = sub.index(White, w_mirror) * HIDDEN;
-        let b_sub_offset = sub.index(Black, b_mirror) * HIDDEN;
+        let add_offset = add.index(perspective, mirror) * HIDDEN;
+        let sub_offset = sub.index(perspective, mirror) * HIDDEN;
+
+        let features = self.features_mut(perspective);
 
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                let w_feat_ptr = self.white_features.get_unchecked_mut(i);
-                *w_feat_ptr = w_feat_ptr
-                    .wrapping_add(*w_weights.get_unchecked(i + w_add_offset))
-                    .wrapping_sub(*w_weights.get_unchecked(i + w_sub_offset));
+                let feat_ptr = features.get_unchecked_mut(i);
+                *feat_ptr = feat_ptr
+                    .wrapping_add(*weights.get_unchecked(i + add_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub_offset));
 
-                let b_feat_ptr = self.black_features.get_unchecked_mut(i);
-                *b_feat_ptr = b_feat_ptr
-                    .wrapping_add(*b_weights.get_unchecked(i + b_add_offset))
-                    .wrapping_sub(*b_weights.get_unchecked(i + b_sub_offset));
             }
             i += 1;
         }
@@ -230,33 +220,25 @@ impl Accumulator {
         add: Feature,
         sub1: Feature,
         sub2: Feature,
-        w_weights: &FeatureWeights,
-        b_weights: &FeatureWeights,
+        weights: &FeatureWeights,
+        perspective: Side,
     ) {
-        let w_mirror = self.mirrored[0];
-        let b_mirror = self.mirrored[1];
+        let mirror = self.mirrored[perspective];
 
-        let w_add_offset = add.index(White, w_mirror) * HIDDEN;
-        let b_add_offset = add.index(Black, b_mirror) * HIDDEN;
-        let w_sub1_offset = sub1.index(White, w_mirror) * HIDDEN;
-        let b_sub1_offset = sub1.index(Black, b_mirror) * HIDDEN;
-        let w_sub2_offset = sub2.index(White, w_mirror) * HIDDEN;
-        let b_sub2_offset = sub2.index(Black, b_mirror) * HIDDEN;
+        let add_offset = add.index(perspective, mirror) * HIDDEN;
+        let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
+        let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
+
+        let features = self.features_mut(perspective);
 
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                let w_feat_ptr = self.white_features.get_unchecked_mut(i);
-                *w_feat_ptr = w_feat_ptr
-                    .wrapping_add(*w_weights.get_unchecked(i + w_add_offset))
-                    .wrapping_sub(*w_weights.get_unchecked(i + w_sub1_offset))
-                    .wrapping_sub(*w_weights.get_unchecked(i + w_sub2_offset));
-
-                let b_feat_ptr = self.black_features.get_unchecked_mut(i);
-                *b_feat_ptr = b_feat_ptr
-                    .wrapping_add(*b_weights.get_unchecked(i + b_add_offset))
-                    .wrapping_sub(*b_weights.get_unchecked(i + b_sub1_offset))
-                    .wrapping_sub(*b_weights.get_unchecked(i + b_sub2_offset));
+                let feat_ptr = features.get_unchecked_mut(i);
+                *feat_ptr = feat_ptr
+                    .wrapping_add(*weights.get_unchecked(i + add_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub2_offset));
             }
             i += 1;
         }
@@ -269,37 +251,27 @@ impl Accumulator {
         add2: Feature,
         sub1: Feature,
         sub2: Feature,
-        w_weights: &FeatureWeights,
-        b_weights: &FeatureWeights,
+        weights: &FeatureWeights,
+        perspective: Side,
     ) {
-        let w_mirror = self.mirrored[0];
-        let b_mirror = self.mirrored[1];
+        let mirror = self.mirrored[perspective];
 
-        let w_add1_offset = add1.index(White, w_mirror) * HIDDEN;
-        let b_add1_offset = add1.index(Black, b_mirror) * HIDDEN;
-        let w_add2_offset = add2.index(White, w_mirror) * HIDDEN;
-        let b_add2_offset = add2.index(Black, b_mirror) * HIDDEN;
-        let w_sub1_offset = sub1.index(White, w_mirror) * HIDDEN;
-        let b_sub1_offset = sub1.index(Black, b_mirror) * HIDDEN;
-        let w_sub2_offset = sub2.index(White, w_mirror) * HIDDEN;
-        let b_sub2_offset = sub2.index(Black, b_mirror) * HIDDEN;
+        let add1_offset = add1.index(perspective, mirror) * HIDDEN;
+        let add2_offset = add2.index(perspective, mirror) * HIDDEN;
+        let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
+        let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
+
+        let features = self.features_mut(perspective);
 
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                let w_feat_ptr = self.white_features.get_unchecked_mut(i);
-                *w_feat_ptr = w_feat_ptr
-                    .wrapping_add(*w_weights.get_unchecked(i + w_add1_offset))
-                    .wrapping_add(*w_weights.get_unchecked(i + w_add2_offset))
-                    .wrapping_sub(*w_weights.get_unchecked(i + w_sub1_offset))
-                    .wrapping_sub(*w_weights.get_unchecked(i + w_sub2_offset));
-
-                let b_feat_ptr = self.black_features.get_unchecked_mut(i);
-                *b_feat_ptr = b_feat_ptr
-                    .wrapping_add(*b_weights.get_unchecked(i + b_add1_offset))
-                    .wrapping_add(*b_weights.get_unchecked(i + b_add2_offset))
-                    .wrapping_sub(*b_weights.get_unchecked(i + b_sub1_offset))
-                    .wrapping_sub(*b_weights.get_unchecked(i + b_sub2_offset));
+                let feat_ptr = features.get_unchecked_mut(i);
+                *feat_ptr = feat_ptr
+                    .wrapping_add(*weights.get_unchecked(i + add1_offset))
+                    .wrapping_add(*weights.get_unchecked(i + add2_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
+                    .wrapping_sub(*weights.get_unchecked(i + sub2_offset));
             }
             i += 1;
         }
@@ -315,19 +287,19 @@ impl Accumulator {
         weights: &FeatureWeights,
         perspective: Side,
     ) {
-        let mirror = self.mirrored[perspective as usize];
+        let mirror = self.mirrored[perspective];
 
         let add1_offset = add1.index(perspective, mirror) * HIDDEN;
         let add2_offset = add2.index(perspective, mirror) * HIDDEN;
         let add3_offset = add3.index(perspective, mirror) * HIDDEN;
         let add4_offset = add4.index(perspective, mirror) * HIDDEN;
 
-        let feats = self.features_mut(perspective);
+        let features = self.features_mut(perspective);
 
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
+                let feat_ptr = features.get_unchecked_mut(i);
                 *feat_ptr = feat_ptr
                     .wrapping_add(*weights.get_unchecked(i + add1_offset))
                     .wrapping_add(*weights.get_unchecked(i + add2_offset))
@@ -347,19 +319,19 @@ impl Accumulator {
         weights: &FeatureWeights,
         perspective: Side,
     ) {
-        let mirror = self.mirrored[perspective as usize];
+        let mirror = self.mirrored[perspective];
 
         let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
         let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
         let sub3_offset = sub3.index(perspective, mirror) * HIDDEN;
         let sub4_offset = sub4.index(perspective, mirror) * HIDDEN;
 
-        let feats = self.features_mut(perspective);
+        let features = self.features_mut(perspective);
 
         let mut i = 0;
         while i < HIDDEN {
             unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
+                let feat_ptr = features.get_unchecked_mut(i);
                 *feat_ptr = feat_ptr
                     .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
                     .wrapping_sub(*weights.get_unchecked(i + sub2_offset))

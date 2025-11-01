@@ -222,12 +222,14 @@ impl NNUE {
         }
 
         let update = if mv.is_castle() {
-            self.handle_castle(board, mv, us);
+            self.handle_castle(board, mv, us)
         } else if let Some(captured) = captured {
-            self.handle_capture(mv, pc, new_pc, captured, us);
+            self.handle_capture(mv, pc, new_pc, captured, us)
         } else {
-            self.handle_standard(mv, pc, new_pc, us);
+            self.handle_standard(mv, pc, new_pc, us)
         };
+        self.stack[self.current].apply_update(&update, w_weights, White);
+        self.stack[self.current].apply_update(&update, b_weights, Black);
     }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
