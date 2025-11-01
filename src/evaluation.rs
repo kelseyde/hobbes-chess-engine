@@ -228,8 +228,11 @@ impl NNUE {
         } else {
             self.handle_standard(mv, pc, new_pc, us)
         };
-        self.stack[self.current].apply_update(&update, w_weights, White);
-        self.stack[self.current].apply_update(&update, b_weights, Black);
+
+        let w_mirror = self.stack[self.current].mirrored[White];
+        let b_mirror = self.stack[self.current].mirrored[Black];
+        accumulator::apply_update(&mut self.stack[self.current], &update, w_weights, White);
+        accumulator::apply_update(&mut self.stack[self.current], &update, b_weights, Black);
     }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed

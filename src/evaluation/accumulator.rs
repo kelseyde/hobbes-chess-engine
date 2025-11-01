@@ -113,43 +113,43 @@ impl Accumulator {
         }
     }
 
-    pub fn apply_update(
-        &mut self,
-        update: &AccumulatorUpdate,
-        weights: &FeatureWeights,
-        perspective: Side) {
-        match update.update_type() {
-            AccumulatorUpdateType::None => {},
-            AccumulatorUpdateType::Add => {
-                if let Some(add1) = update.adds[0] {
-                    add(self, add1, weights, perspective);
-                }
-            },
-            AccumulatorUpdateType::Sub => {
-                if let Some(sub1) = update.subs[0] {
-                    sub(self, sub1, weights, perspective);
-                }
-            },
-            AccumulatorUpdateType::AddSub => {
-                if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
-                    add_sub(self, add1, sub1, weights, perspective);
-                }
-            },
-            AccumulatorUpdateType::AddSubSub => {
-                if let (Some(add1), Some(sub1), Some(sub2)) =
-                    (update.adds[0], update.subs[0], update.subs[1]) {
-                    add_sub_sub(self, add1, sub1, sub2, weights, perspective);
-                }
-            },
-            AccumulatorUpdateType::AddAddSubSub => {
-                if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
-                    (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
-                    add_add_sub_sub(self, add1, add2, sub1, sub2, weights, perspective);
-                }
-            },
-        }
-    }
+}
 
+pub fn apply_update(
+    acc: &mut Accumulator,
+    update: &AccumulatorUpdate,
+    weights: &FeatureWeights,
+    perspective: Side) {
+    match update.update_type() {
+        AccumulatorUpdateType::None => {},
+        AccumulatorUpdateType::Add => {
+            if let Some(add1) = update.adds[0] {
+                add(acc, add1, weights, perspective);
+            }
+        },
+        AccumulatorUpdateType::Sub => {
+            if let Some(sub1) = update.subs[0] {
+                sub(acc, sub1, weights, perspective);
+            }
+        },
+        AccumulatorUpdateType::AddSub => {
+            if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
+                add_sub(acc, add1, sub1, weights, perspective);
+            }
+        },
+        AccumulatorUpdateType::AddSubSub => {
+            if let (Some(add1), Some(sub1), Some(sub2)) =
+                (update.adds[0], update.subs[0], update.subs[1]) {
+                add_sub_sub(acc, add1, sub1, sub2, weights, perspective);
+            }
+        },
+        AccumulatorUpdateType::AddAddSubSub => {
+            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
+                (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
+                add_add_sub_sub(acc, add1, add2, sub1, sub2, weights, perspective);
+            }
+        },
+    }
 }
 
 #[inline]
