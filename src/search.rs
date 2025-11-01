@@ -489,6 +489,16 @@ fn alpha_beta(board: &Board,
             if score < s_beta {
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
+
+                if score < s_beta - se_hist_update_margin() {
+                    if let Some(cap) = captured {
+                        let bonus = se_noisy_bonus(depth);
+                        td.history.capture_history.update(board.stm, pc, mv.to(), cap, bonus);
+                    } else {
+                        let bonus = se_quiet_bonus(depth);
+                        td.history.quiet_history.update(board.stm, &mv, threats, bonus);
+                    }
+                }
             } else if s_beta >= beta {
                 return s_beta;
             } else if tt_score >= beta {

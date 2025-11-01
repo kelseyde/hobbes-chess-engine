@@ -4,15 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
-    capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,
-    cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale,
-    lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale,
-    lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max,
-    pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
-    quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, se_noisy_bonus_max, se_noisy_bonus_offset, se_noisy_bonus_scale, se_quiet_bonus_max, se_quiet_bonus_offset, se_quiet_bonus_scale};
 use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -279,6 +271,20 @@ pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
         let max = lmr_cont_hist_malus_max() as i16;
         history_malus(depth, scale, offset, max)
     }
+}
+
+pub fn se_quiet_bonus(depth: i32) -> i16 {
+    let scale = se_quiet_bonus_scale() as i16;
+    let offset = se_quiet_bonus_offset() as i16;
+    let max = se_quiet_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn se_noisy_bonus(depth: i32) -> i16 {
+    let scale = se_noisy_bonus_scale() as i16;
+    let offset = se_noisy_bonus_offset() as i16;
+    let max = se_noisy_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
 }
 
 fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {

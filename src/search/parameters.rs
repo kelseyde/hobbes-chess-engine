@@ -57,6 +57,7 @@ tunable_params! {
     se_depth_offset             = 1, 0, 3, 1;
     se_depth_divisor            = 2, 1, 4, 1;
     se_double_ext_margin        = 12, 10, 30, 5;
+    se_hist_update_margin       = 20, 10, 50, 5;
     lmr_min_depth               = 2, 1, 5, 1;
     lmr_min_moves               = 2, 1, 4, 1;
     lmr_ttpv_base               = 567, 0, 2048, 256;
@@ -104,6 +105,12 @@ tunable_params! {
     pcm_bonus_scale             = 186, 80, 280, 40;
     pcm_bonus_offset            = 59, 0, 200, 25;
     pcm_bonus_max               = 1394, 1000, 1600, 100;
+    se_quiet_bonus_scale        = 200, 80, 280, 40;
+    se_quiet_bonus_offset       = 100, 0, 200, 25;
+    se_quiet_bonus_max          = 1200, 1000, 1600, 100;
+    se_noisy_bonus_scale        = 200, 80, 280, 40;
+    se_noisy_bonus_offset       = 100, 0, 200, 25;
+    se_noisy_bonus_max          = 1200, 1000, 1600, 100;
     corr_pawn_weight            = 118, 0, 200, 10;
     corr_non_pawn_weight        = 99, 0, 200, 10;
     corr_major_weight           = 83, 0, 200, 10;
