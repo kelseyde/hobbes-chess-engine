@@ -22,7 +22,7 @@ use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 
 pub const MAX_PLY: usize = 256;
 
@@ -302,7 +302,9 @@ fn alpha_beta(board: &Board,
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node
+            && tt_flag != Lower
+            && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
