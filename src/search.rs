@@ -300,12 +300,6 @@ fn alpha_beta(board: &Board,
             return beta + (static_eval - beta) / 3;
         }
 
-        // Razoring
-        // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
-            return qs(board, td, alpha, beta, ply);
-        }
-
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
