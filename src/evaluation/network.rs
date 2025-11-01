@@ -10,12 +10,18 @@ pub const QAB: i32 = QA * QB;
 pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../../hobbes.nnue")) };
 
-pub type FeatureWeights = [i16; FEATURES * HIDDEN];
+#[repr(align(64))]
+pub struct Align64<T>(pub T);
+
+pub type FeatureWeights = Align64<[i16; FEATURES * HIDDEN]>;
+pub type FeatureBiases = Align64<[i16; HIDDEN]>;
+pub type InputFeatures = Align64<[i16; HIDDEN]>;
+pub type OutputWeights = Align64<[[i16; HIDDEN]; 2]>;
 
 #[repr(C, align(64))]
 pub struct Network {
     pub feature_weights: [FeatureWeights; NUM_BUCKETS],
-    pub feature_bias: [i16; HIDDEN],
-    pub output_weights: [[i16; HIDDEN]; 2],
+    pub feature_bias: FeatureBiases,
+    pub output_weights: OutputWeights,
     pub output_bias: i16,
 }
