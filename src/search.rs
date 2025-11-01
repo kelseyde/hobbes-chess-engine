@@ -669,7 +669,6 @@ fn alpha_beta(board: &Board,
             for mv in quiets.iter() {
                 if mv != &best_move {
                     td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
-                    td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
                 }
             }
         }
@@ -679,7 +678,13 @@ fn alpha_beta(board: &Board,
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
                     td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
                 }
+            }
+        }
+        for mv in quiets.iter() {
+            if mv != &best_move {
+                td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
             }
         }
     }

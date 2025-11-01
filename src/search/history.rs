@@ -51,7 +51,7 @@ impl Histories {
         captured: Option<Piece>,
     ) -> i32 {
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, ss, mv, pc, captured, ply)
         } else {
             self.quiet_history_score(board, ss, mv, ply, threats)
         }
@@ -83,11 +83,24 @@ impl Histories {
     pub fn capture_history_score(
         &self,
         board: &Board,
+        ss: &SearchStack,
         mv: &Move,
         pc: Piece,
         captured: Piece,
+        ply: usize,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+        let capture_score = self.capture_history.get(board.stm, pc, mv.to(), captured) as i32;
+        let mut cont_score = 0;
+        for &prev_ply in &[1, 2] {
+            if ply >= prev_ply {
+                if let (Some(prev_mv), Some(prev_pc)) =
+                    (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
+                {
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
+                }
+            }
+        }
+        capture_score + cont_score
     }
 
     pub fn update_continuation_history(
