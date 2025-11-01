@@ -22,6 +22,7 @@ use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::search::tt::TTFlag::Upper;
 
 pub const MAX_PLY: usize = 256;
 
@@ -295,7 +296,7 @@ fn alpha_beta(board: &Board,
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
-            && tt_flag != TTFlag::Upper {
+            && tt_flag != Upper {
             return beta + (static_eval - beta) / 3;
         }
 
@@ -310,7 +311,8 @@ fn alpha_beta(board: &Board,
         if depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
-            && board.has_non_pawns() {
+            && board.has_non_pawns()
+            && tt_flag != Upper {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
