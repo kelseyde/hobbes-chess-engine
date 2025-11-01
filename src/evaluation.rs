@@ -142,7 +142,7 @@ impl NNUE {
         acc.mirrored[perspective] = mirror;
         acc.computed[perspective] = true;
         let cache_entry = self.cache.get(perspective, mirror, bucket);
-        acc.copy_from(perspective, &cache_entry.features);
+        let features = &cache_entry.features;
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
@@ -168,17 +168,17 @@ impl NNUE {
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            acc.add_add_add_add(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            acc.add(add, weights, perspective);
+            acc.add(features, add, weights, perspective);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            acc.sub_sub_sub_sub(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            acc.sub(sub, weights, perspective);
+            acc.sub(features, sub, weights, perspective);
         }
 
         cache_entry.bitboards = board.bb;
@@ -189,9 +189,13 @@ impl NNUE {
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
+        let prev = self.stack[self.current];
         self.current += 1;
-        // TODO: This can be optimized. No need to have an extra copy
-        self.stack[self.current] = self.stack[self.current - 1];
+        let curr = &mut self.stack[self.current];
+
+        let w_features = prev.features(White);
+        let b_features = prev.features(Black);
+        self.current += 1;
         let us = board.stm;
 
         let new_pc = if let Some(promo_pc) = mv.promo_piece() {
@@ -229,8 +233,8 @@ impl NNUE {
         } else {
             self.handle_standard(mv, pc, new_pc, us)
         };
-        self.stack[self.current].apply_update(w_weights, White);
-        self.stack[self.current].apply_update(b_weights, Black);
+        self.stack[self.current].apply_update(w_features, w_weights, White);
+        self.stack[self.current].apply_update(b_features, b_weights, Black);
         self.stack[self.current].computed[White] = false;
         self.stack[self.current].computed[Black] = false;
     }
