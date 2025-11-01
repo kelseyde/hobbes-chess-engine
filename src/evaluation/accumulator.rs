@@ -106,7 +106,7 @@ impl Accumulator {
     }
 
     #[inline(always)]
-    fn features_mut(&mut self, perspective: Side) -> &mut Align64<Block> {
+    pub fn features_mut(&mut self, perspective: Side) -> &mut Align64<Block> {
         match perspective {
             White => &mut self.white_features,
             Black => &mut self.black_features,
@@ -116,37 +116,39 @@ impl Accumulator {
 }
 
 pub fn apply_update(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     update: &AccumulatorUpdate,
     weights: &FeatureWeights,
-    perspective: Side) {
+    perspective: Side,
+    mirror: bool,
+) {
     match update.update_type() {
         AccumulatorUpdateType::None => {},
         AccumulatorUpdateType::Add => {
             if let Some(add1) = update.adds[0] {
-                add(acc, add1, weights, perspective);
+                add(features, add1, weights, perspective, mirror);
             }
         },
         AccumulatorUpdateType::Sub => {
             if let Some(sub1) = update.subs[0] {
-                sub(acc, sub1, weights, perspective);
+                sub(features, sub1, weights, perspective, mirror);
             }
         },
         AccumulatorUpdateType::AddSub => {
             if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
-                add_sub(acc, add1, sub1, weights, perspective);
+                add_sub(features, add1, sub1, weights, perspective, mirror);
             }
         },
         AccumulatorUpdateType::AddSubSub => {
             if let (Some(add1), Some(sub1), Some(sub2)) =
                 (update.adds[0], update.subs[0], update.subs[1]) {
-                add_sub_sub(acc, add1, sub1, sub2, weights, perspective);
+                add_sub_sub(features, add1, sub1, sub2, weights, perspective, mirror);
             }
         },
         AccumulatorUpdateType::AddAddSubSub => {
             if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
                 (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
-                add_add_sub_sub(acc, add1, add2, sub1, sub2, weights, perspective);
+                add_add_sub_sub(features, add1, add2, sub1, sub2, weights, perspective, mirror);
             }
         },
     }
@@ -154,20 +156,19 @@ pub fn apply_update(
 
 #[inline]
 pub fn add(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     add: Feature,
     weights: &FeatureWeights,
-    perspective: Side
+    perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
     let idx = add.index(perspective, mirror);
-    let feats = acc.features_mut(perspective);
     let weight_offset = idx * HIDDEN;
 
     let mut i = 0;
     while i < HIDDEN {
         unsafe {
-            let feat_ptr = feats.get_unchecked_mut(i);
+            let feat_ptr = features.get_unchecked_mut(i);
             let weight = *weights.get_unchecked(i + weight_offset);
             *feat_ptr = feat_ptr.wrapping_add(weight);
         }
@@ -177,20 +178,19 @@ pub fn add(
 
 #[inline]
 pub fn sub(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     sub: Feature,
     weights: &FeatureWeights,
-    perspective: Side
+    perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
     let idx = sub.index(perspective, mirror);
-    let feats = acc.features_mut(perspective);
     let weight_offset = idx * HIDDEN;
 
     let mut i = 0;
     while i < HIDDEN {
         unsafe {
-            let feat_ptr = feats.get_unchecked_mut(i);
+            let feat_ptr = features.get_unchecked_mut(i);
             let weight = *weights.get_unchecked(i + weight_offset);
             *feat_ptr = feat_ptr.wrapping_sub(weight);
         }
@@ -200,18 +200,15 @@ pub fn sub(
 
 #[inline]
 pub fn add_sub(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     add: Feature,
     sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
-
     let add_offset = add.index(perspective, mirror) * HIDDEN;
     let sub_offset = sub.index(perspective, mirror) * HIDDEN;
-
-    let features = acc.features_mut(perspective);
 
     let mut i = 0;
     while i < HIDDEN {
@@ -228,20 +225,17 @@ pub fn add_sub(
 
 #[inline]
 pub fn add_sub_sub(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     add: Feature,
     sub1: Feature,
     sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
-
     let add_offset = add.index(perspective, mirror) * HIDDEN;
     let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
     let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
-
-    let features = acc.features_mut(perspective);
 
     let mut i = 0;
     while i < HIDDEN {
@@ -258,22 +252,19 @@ pub fn add_sub_sub(
 
 #[inline]
 pub fn add_add_sub_sub(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     add1: Feature,
     add2: Feature,
     sub1: Feature,
     sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
-
     let add1_offset = add1.index(perspective, mirror) * HIDDEN;
     let add2_offset = add2.index(perspective, mirror) * HIDDEN;
     let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
     let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
-
-    let features = acc.features_mut(perspective);
 
     let mut i = 0;
     while i < HIDDEN {
@@ -291,22 +282,19 @@ pub fn add_add_sub_sub(
 
 #[inline]
 pub fn add_add_add_add(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     add1: Feature,
     add2: Feature,
     add3: Feature,
     add4: Feature,
     weights: &FeatureWeights,
     perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
-
     let add1_offset = add1.index(perspective, mirror) * HIDDEN;
     let add2_offset = add2.index(perspective, mirror) * HIDDEN;
     let add3_offset = add3.index(perspective, mirror) * HIDDEN;
     let add4_offset = add4.index(perspective, mirror) * HIDDEN;
-
-    let features = acc.features_mut(perspective);
 
     let mut i = 0;
     while i < HIDDEN {
@@ -323,22 +311,19 @@ pub fn add_add_add_add(
 }
 
 pub fn sub_sub_sub_sub(
-    acc: &mut Accumulator,
+    features: &mut Align64<Block>,
     sub1: Feature,
     sub2: Feature,
     sub3: Feature,
     sub4: Feature,
     weights: &FeatureWeights,
     perspective: Side,
+    mirror: bool,
 ) {
-    let mirror = acc.mirrored[perspective];
-
     let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
     let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
     let sub3_offset = sub3.index(perspective, mirror) * HIDDEN;
     let sub4_offset = sub4.index(perspective, mirror) * HIDDEN;
-
-    let features = acc.features_mut(perspective);
 
     let mut i = 0;
     while i < HIDDEN {

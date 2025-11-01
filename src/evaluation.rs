@@ -15,7 +15,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{Align64, Block, NETWORK, QA, QAB, SCALE};
+use crate::evaluation::network::{Align64, Block, FeatureWeights, NETWORK, QA, QAB, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -164,20 +164,21 @@ impl NNUE {
         }
 
         let weights = &NETWORK.feature_weights[bucket];
+        let features = acc.features_mut(perspective);
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            accumulator::add_add_add_add(acc, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            accumulator::add_add_add_add(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            accumulator::add(acc, add, weights, perspective);
+            accumulator::add(features, add, weights, perspective, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            accumulator::sub_sub_sub_sub(acc, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            accumulator::sub_sub_sub_sub(features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            accumulator::sub(acc, sub, weights, perspective);
+            accumulator::sub(features, sub, weights, perspective, mirror);
         }
 
         cache_entry.bitboards = board.bb;
@@ -229,10 +230,20 @@ impl NNUE {
             self.handle_standard(mv, pc, new_pc, us)
         };
 
-        let w_mirror = self.stack[self.current].mirrored[White];
-        let b_mirror = self.stack[self.current].mirrored[Black];
-        accumulator::apply_update(&mut self.stack[self.current], &update, w_weights, White);
-        accumulator::apply_update(&mut self.stack[self.current], &update, b_weights, Black);
+        self.update_perspective(&update, w_weights, White);
+        self.update_perspective(&update, b_weights, Black);
+
+    }
+
+    fn update_perspective(
+        &mut self, update:
+        &AccumulatorUpdate, weights:
+        &FeatureWeights,
+        perspective: Side
+    ) {
+        let mirror = self.stack[self.current].mirrored[perspective];
+        let features = &mut self.stack[self.current].features_mut(perspective);
+        accumulator::apply_update(features, update, weights, perspective, mirror);
     }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
