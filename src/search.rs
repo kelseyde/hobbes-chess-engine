@@ -345,6 +345,7 @@ fn alpha_beta(board: &Board,
     // If the position has not been searched yet, the search will be potentially expensive. So we
     // search with a reduced depth expecting to record a move that we can later re-use.
     if !root_node
+        && !singular_search
         && depth >= iir_min_depth()
         && (pv_node || cut_node)
         && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
