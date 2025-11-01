@@ -3,6 +3,7 @@ pub mod cache;
 pub mod feature;
 pub mod network;
 pub mod simd;
+mod update;
 
 use crate::board::file::File;
 use crate::board::moves::Move;
@@ -170,33 +171,37 @@ impl NNUE {
         for chunk in adds.as_slice().chunks_exact(4) {
             accumulator::add_add_add_add(
                 features,
-                chunk[0],
-                chunk[1],
-                chunk[2],
-                chunk[3],
                 weights,
-                perspective,
-                mirror,
+                chunk[0].index(perspective, mirror),
+                chunk[1].index(perspective, mirror),
+                chunk[2].index(perspective, mirror),
+                chunk[3].index(perspective, mirror)
             );
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            accumulator::add(features, add, weights, perspective, mirror);
+            accumulator::add(
+                features,
+                weights,
+                add.index(perspective, mirror),
+            );
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
             accumulator::sub_sub_sub_sub(
                 features,
-                chunk[0],
-                chunk[1],
-                chunk[2],
-                chunk[3],
                 weights,
-                perspective,
-                mirror,
+                chunk[0].index(perspective, mirror),
+                chunk[1].index(perspective, mirror),
+                chunk[2].index(perspective, mirror),
+                chunk[3].index(perspective, mirror)
             );
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            accumulator::sub(features, sub, weights, perspective, mirror);
+            accumulator::sub(
+                features,
+                weights,
+                sub.index(perspective, mirror),
+            );
         }
 
         cache_entry.bitboards = board.bb;
@@ -210,34 +215,31 @@ impl NNUE {
         self.current += 1;
         // TODO: This can be optimized. No need to have an extra copy
         self.stack[self.current] = self.stack[self.current - 1];
+
+        let new_pc = mv.promo_piece().unwrap_or(pc);
         let us = board.stm;
 
-        let new_pc = if let Some(promo_pc) = mv.promo_piece() {
-            promo_pc
-        } else {
-            pc
-        };
+        let our_king_sq = board.king_sq(us);
+        let their_king_sq = board.king_sq(!us);
+        let new_king_sq = king_square(board, mv, new_pc, us);
 
-        let w_king_sq = king_square(board, *mv, new_pc, White);
-        let b_king_sq = king_square(board, *mv, new_pc, Black);
+        let our_mirror = should_mirror(our_king_sq);
+        let their_mirror = should_mirror(their_king_sq);
+        let new_mirror = should_mirror(new_king_sq);
 
-        let w_bucket = king_bucket(w_king_sq, White);
-        let b_bucket = king_bucket(b_king_sq, Black);
+        let our_bucket = king_bucket(our_king_sq, us);
+        let their_bucket = king_bucket(their_king_sq, !us);
+        let new_bucket = king_bucket(new_king_sq, us);
 
-        let w_weights = &NETWORK.feature_weights[w_bucket];
-        let b_weights = &NETWORK.feature_weights[b_bucket];
+        let our_weights = &NETWORK.feature_weights[new_bucket];
+        let their_weights = &NETWORK.feature_weights[their_bucket];
 
-        let mirror_changed = mirror_changed(board, *mv, new_pc);
-        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
+        let mirror_changed = our_mirror != new_mirror;
+        let bucket_changed = our_bucket != new_bucket;
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
-            let bucket = if us == White { w_bucket } else { b_bucket };
-            let mut mirror = should_mirror(board.king_sq(us));
-            if mirror_changed {
-                mirror = !mirror
-            }
-            self.full_refresh(board, self.current, us, mirror, bucket);
+            self.full_refresh(board, self.current, us, mirror, new_bucket);
         }
 
         let update = if mv.is_castle() {
@@ -258,9 +260,8 @@ impl NNUE {
         weights: &FeatureWeights,
         perspective: Side,
     ) {
-        let mirror = self.stack[self.current].mirrored[perspective];
         let features = &mut self.stack[self.current].features_mut(perspective);
-        accumulator::apply_update(features, update, weights, perspective, mirror);
+        accumulator::apply_update(features, update, weights);
     }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
@@ -348,7 +349,7 @@ impl NNUE {
 }
 
 #[inline]
-fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
+fn king_square(board: &Board, mv: &Move, pc: Piece, side: Side) -> Square {
     if side != board.stm || pc != King {
         board.king_sq(side)
     } else if mv.is_castle() && board.is_frc() {
@@ -360,7 +361,7 @@ fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
 }
 
 #[inline]
-fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
+fn bucket_changed(board: &Board, mv: &Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
     }
