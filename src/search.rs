@@ -94,7 +94,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
-        delta = asp_delta();
+        delta = asp_delta() + score * score / asp_prev_score_div();
         reduction = 0;
         td.depth += 1;
     }
