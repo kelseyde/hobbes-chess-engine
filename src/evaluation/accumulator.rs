@@ -1,13 +1,13 @@
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{FeatureWeights, HIDDEN, NETWORK};
+use crate::evaluation::network::{Block, FeatureWeights, HIDDEN, NETWORK};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct Accumulator {
-    pub white_features: [i16; HIDDEN],
-    pub black_features: [i16; HIDDEN],
+    pub white_features: Block,
+    pub black_features: Block,
     pub mirrored: [bool; 2],
 }
 

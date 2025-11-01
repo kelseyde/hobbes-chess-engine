@@ -22,7 +22,6 @@ pub struct Network {
     pub output_bias: i16,
 }
 
-
 #[repr(C, align(64))]
 #[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
 pub struct Align64<T>(pub T);
