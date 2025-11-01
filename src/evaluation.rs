@@ -236,9 +236,9 @@ impl NNUE {
     }
 
     fn update_perspective(
-        &mut self, update:
-        &AccumulatorUpdate, weights:
-        &FeatureWeights,
+        &mut self,
+        update: &AccumulatorUpdate,
+        weights: &FeatureWeights,
         perspective: Side
     ) {
         let mirror = self.stack[self.current].mirrored[perspective];
