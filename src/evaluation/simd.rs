@@ -1,6 +1,6 @@
 #[cfg(target_feature = "avx512f")]
 pub(crate) mod avx512 {
-    use crate::evaluation::network::{Align64, Block, QA};
+    use crate::evaluation::network::{Align64, Block, HIDDEN, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 32; // 32 i16 elements per 512-bit vector
@@ -54,7 +54,7 @@ pub(crate) mod avx512 {
 // AVX2 path is compiled only if AVX512F not enabled (so AVX512 takes precedence)
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 pub(crate) mod avx2 {
-    use crate::evaluation::network::{Align64, Block, QA};
+    use crate::evaluation::network::{Align64, Block, HIDDEN, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 16;
