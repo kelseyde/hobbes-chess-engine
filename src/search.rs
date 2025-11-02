@@ -649,13 +649,13 @@ fn alpha_beta(board: &Board,
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
 
-        let quiet_bonus = quiet_history_bonus(depth);
+        let quiet_bonus = quiet_history_bonus(depth) - quiet_hist_cutnode_offset() as i16 * cut_node as i16;
         let quiet_malus = quiet_history_malus(depth);
 
         let capt_bonus = capture_history_bonus(depth);
         let capt_malus = capture_history_malus(depth);
 
-        let cont_bonus = cont_history_bonus(depth);
+        let cont_bonus = cont_history_bonus(depth) - cont_hist_cutnode_offset() as i16 * cut_node as i16;
         let cont_malus = cont_history_malus(depth);
 
         if let Some(captured) = board.captured(&best_move) {

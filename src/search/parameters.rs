@@ -85,6 +85,7 @@ tunable_params! {
     alpha_raise_max_depth       = 12, 8, 16, 1;
     quiet_hist_bonus_scale      = 238, 80, 280, 40;
     quiet_hist_bonus_offset     = 62, 0, 200, 25;
+    quiet_hist_cutnode_offset   = 64, 0, 200, 25;
     quiet_hist_bonus_max        = 1050, 1000, 1600, 100;
     quiet_hist_malus_scale      = 84, 80, 280, 40;
     quiet_hist_malus_offset     = 28, 0, 200, 25;
@@ -97,6 +98,7 @@ tunable_params! {
     capt_hist_malus_max         = 1231, 1000, 1600, 100;
     cont_hist_bonus_scale       = 83, 80, 280, 40;
     cont_hist_bonus_offset      = 200, 0, 200, 25;
+    cont_hist_cutnode_offset    = 64, 0, 200, 25;
     cont_hist_bonus_max         = 1041, 1000, 1600, 100;
     cont_hist_malus_scale       = 80, 80, 280, 40;
     cont_hist_malus_offset      = 79, 0, 200, 25;
