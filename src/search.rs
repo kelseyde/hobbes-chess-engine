@@ -648,6 +648,7 @@ fn alpha_beta(board: &Board,
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
+        let new_tt_move = tt_move.exists() && best_move != tt_move;
 
         let quiet_bonus = quiet_history_bonus(depth) - quiet_hist_cutnode_offset() as i16 * cut_node as i16;
         let quiet_malus = quiet_history_malus(depth);
@@ -660,18 +661,31 @@ fn alpha_beta(board: &Board,
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            let best_move_capt_bonus = capt_bonus
+                + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, best_move_capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
-            td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
-            td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
+
+            let best_move_quiet_bonus = quiet_bonus
+                + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16;
+            td.history.quiet_history.update(board.stm, &best_move, threats, best_move_quiet_bonus);
+
+            let best_move_cont_bonus = cont_bonus
+                + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16;
+            td.history.update_continuation_history(&td.ss, ply, &best_move, pc, best_move_cont_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
-                    td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
+                    let other_move_quiet_malus = quiet_malus
+                        + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
+                    td.history.quiet_history.update(board.stm, mv, threats, other_move_quiet_malus);
+
+                    let other_move_cont_malus = cont_malus
+                        + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
+                    td.history.update_continuation_history(&td.ss, ply, mv, pc, other_move_cont_malus);
                 }
             }
         }
@@ -680,7 +694,9 @@ fn alpha_beta(board: &Board,
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    let other_move_capt_malus = capt_malus
+                        + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, other_move_capt_malus);
                 }
             }
         }
