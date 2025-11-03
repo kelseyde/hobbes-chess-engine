@@ -20,9 +20,9 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
+use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
-use crate::search::tt::TTFlag::Upper;
 
 pub const MAX_PLY: usize = 256;
 
