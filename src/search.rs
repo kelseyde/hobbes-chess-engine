@@ -568,6 +568,8 @@ fn alpha_beta(board: &Board,
                         td.history.update_continuation_history(&td.ss, ply, &mv, pc, bonus);
                     }
                 }
+            } else if score > alpha && score < best_score + 16 {
+                new_depth -= 1;
             }
         }
         // If we're skipping late move reductions - either due to being in a PV node, or searching
