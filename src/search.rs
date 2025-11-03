@@ -538,7 +538,7 @@ fn alpha_beta(board: &Board,
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
-            r += lmr_improving() * !improving as i32;
+            r += lmr_improving() * !improving as i32 + improvement.abs() * 12;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
             r -= extension * 1024 / lmr_extension_divisor();
