@@ -284,6 +284,16 @@ fn alpha_beta(board: &Board,
         depth -= 1;
     }
 
+    // Hindsight late TT cut
+    // If we reduced depth in hindsight, this node may now be eligible for a TT cut.
+    if tt_hit
+        && !root_node
+        && !pv_node
+        && tt_depth >= depth
+        && tt_flag.bounds_match(tt_score, alpha, beta) {
+        return tt_score;
+    }
+
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search{
