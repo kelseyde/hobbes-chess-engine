@@ -430,12 +430,21 @@ fn alpha_beta(board: &Board,
 
         // History Pruning
         // Skip quiet moves that have a bad history score.
+        let hp_max_depth = if is_quiet {
+            hp_max_depth()
+        } else {
+            noisy_hp_max_depth()
+        };
+        let hp_margin = if is_quiet {
+            hp_scale() * depth * depth
+        } else {
+            noisy_hp_scale() * depth * depth
+        };
         if !pv_node
             && !root_node
             && !is_mate_score
-            && is_quiet
-            && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth {
+            && depth <= hp_max_depth
+            && history_score < hp_margin {
             move_picker.skip_quiets = true;
             continue
         }
