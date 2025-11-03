@@ -21,6 +21,7 @@ pub struct ThreadData {
     pub nnue: NNUE,
     pub keys: Vec<u64>,
     pub root_ply: usize,
+    pub root_delta: i32,
     pub history: Histories,
     pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
@@ -48,6 +49,7 @@ impl Default for ThreadData {
             nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
+            root_delta: 0,
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
@@ -71,6 +73,7 @@ impl ThreadData {
         self.nodes = 0;
         self.depth = 1;
         self.seldepth = 0;
+        self.root_delta = 0;
         self.best_move = Move::NONE;
         self.best_score = 0;
     }

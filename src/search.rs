@@ -63,6 +63,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         }
 
         loop {
+            td.root_delta = beta - alpha;
             let search_depth = td.depth - reduction;
             score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
 
@@ -533,7 +534,7 @@ fn alpha_beta(board: &Board,
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= lmr_ttpv_base() * tt_pv as i32;
+            r -= (lmr_ttpv_base() + 600 * (beta - alpha) / td.root_delta) * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
