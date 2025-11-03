@@ -445,7 +445,9 @@ fn alpha_beta(board: &Board,
             && !is_mate_score
             && depth <= hp_max_depth
             && history_score < hp_margin {
-            move_picker.skip_quiets = true;
+            if is_quiet {
+                move_picker.skip_quiets = true;
+            }
             continue
         }
 
