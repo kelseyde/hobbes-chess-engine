@@ -20,9 +20,9 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
+use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
-use crate::search::tt::TTFlag::Upper;
 
 pub const MAX_PLY: usize = 256;
 
@@ -653,7 +653,8 @@ fn alpha_beta(board: &Board,
 
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
-            + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16;
+            + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
+            + capture_count as i16 * quiet_hist_capture_mult() as i16;
 
         let quiet_malus = quiet_history_malus(depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
@@ -666,7 +667,8 @@ fn alpha_beta(board: &Board,
 
         let cont_bonus = cont_history_bonus(depth)
             - cut_node as i16 * cont_hist_cutnode_offset() as i16
-            + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16;
+            + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_capture_mult() as i16;
 
         let cont_malus = cont_history_malus(depth)
             + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
