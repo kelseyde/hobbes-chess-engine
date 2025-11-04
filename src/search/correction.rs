@@ -69,9 +69,7 @@ impl CorrectionHistories {
         self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
     }
 
-    #[rustfmt::skip]
     pub fn correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
-
         let us = board.stm;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[Side::White];
@@ -79,13 +77,13 @@ impl CorrectionHistories {
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        let pawn       = self.pawn_corrhist.get(us, pawn_hash);
-        let white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
-        let black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
-        let major      = self.major_corrhist.get(us, major_hash);
-        let minor      = self.minor_corrhist.get(us, minor_hash);
-        let counter    = self.countermove_correction(board, ss, ply);
-        let follow_up  = self.follow_up_move_correction(board, ss, ply);
+        let pawn = self.pawn_corrhist.get(us, pawn_hash);
+        let white = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
+        let black = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
+        let major = self.major_corrhist.get(us, major_hash);
+        let minor = self.minor_corrhist.get(us, minor_hash);
+        let counter = self.countermove_correction(board, ss, ply);
+        let follow_up = self.follow_up_move_correction(board, ss, ply);
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -95,12 +93,9 @@ impl CorrectionHistories {
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
             / CORRECTION_SCALE
-
     }
 
-    #[rustfmt::skip]
     pub fn squared_correction_terms(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
-
         let us = board.stm;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[Side::White];
@@ -108,13 +103,13 @@ impl CorrectionHistories {
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        let mut pawn       = self.pawn_corrhist.get(us, pawn_hash);
-        let mut white      = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
-        let mut black      = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
-        let mut major      = self.major_corrhist.get(us, major_hash);
-        let mut minor      = self.minor_corrhist.get(us, minor_hash);
-        let mut counter    = self.countermove_correction(board, ss, ply);
-        let mut follow_up  = self.follow_up_move_correction(board, ss, ply);
+        let mut pawn = self.pawn_corrhist.get(us, pawn_hash);
+        let mut white = self.nonpawn_corrhist[Side::White].get(us, w_nonpawn_hash);
+        let mut black = self.nonpawn_corrhist[Side::Black].get(us, b_nonpawn_hash);
+        let mut major = self.major_corrhist.get(us, major_hash);
+        let mut minor = self.minor_corrhist.get(us, minor_hash);
+        let mut counter = self.countermove_correction(board, ss, ply);
+        let mut follow_up = self.follow_up_move_correction(board, ss, ply);
 
         pawn = pawn * 100 / corr_pawn_weight();
         white = white * 100 / corr_non_pawn_weight();
@@ -131,7 +126,6 @@ impl CorrectionHistories {
             + minor * minor
             + counter * counter
             + follow_up * follow_up
-
     }
 
     fn update_countermove_correction(
