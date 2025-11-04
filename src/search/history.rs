@@ -282,11 +282,11 @@ pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
 }
 
 fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    (scale * depth as i16 - offset).min(max)
+    (scale as i32 * (depth * depth + depth) / 2 - offset as i32).min(max as i32) as i16
 }
 
 fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    -(scale * depth as i16 - offset).min(max)
+    -(scale as i32 * (depth * depth + depth) / 2 - offset as i32).min(max as i32) as i16
 }
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {
