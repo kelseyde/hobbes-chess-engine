@@ -7,17 +7,17 @@ use crate::board::square::Square;
 /// board, with a colour (white or black). The feature can either be activated - meaning the piece
 /// is present on that square - or not  activated - meaning the piece is not present on that square.
 /// The presence or absence of a feature is represented by a 1 or 0 respectively in the input layer.
+#[derive(Copy, Clone)]
 pub struct Feature {
     pc: Piece,
     sq: Square,
-    side: Side
+    side: Side,
 }
 
 const PIECE_OFFSET: usize = 64;
 const SIDE_OFFSET: usize = 64 * 6;
 
 impl Feature {
-
     pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
         Feature { pc, sq, side }
     }
@@ -25,7 +25,11 @@ impl Feature {
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
         let sq_index = self.square_index(perspective, mirror);
         let pc_offset = self.pc as usize * PIECE_OFFSET;
-        let side_offset = if self.side == perspective { 0 } else { SIDE_OFFSET };
+        let side_offset = if self.side == perspective {
+            0
+        } else {
+            SIDE_OFFSET
+        };
         side_offset + pc_offset + sq_index
     }
 
@@ -39,5 +43,4 @@ impl Feature {
         }
         sq_index.0 as usize
     }
-
 }

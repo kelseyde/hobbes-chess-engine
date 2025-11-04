@@ -4,9 +4,10 @@ use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
+use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{Score, SearchStack, MAX_PLY};
+use crate::search::{Score, MAX_PLY};
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
@@ -76,7 +77,6 @@ impl Default for ThreadData {
 }
 
 impl ThreadData {
-
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -113,7 +113,10 @@ impl ThreadData {
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
 
-        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+        if let Some(soft_time) =
+            self.limits
+                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes)
+        {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
@@ -163,12 +166,13 @@ pub struct NodeTable {
 
 impl Default for NodeTable {
     fn default() -> Self {
-        NodeTable { table: unsafe { boxed_and_zeroed() } }
+        NodeTable {
+            table: unsafe { boxed_and_zeroed() },
+        }
     }
 }
 
 impl NodeTable {
-
     pub fn add(&mut self, mv: &Move, nodes: u64) {
         self.table[mv.from()][mv.to()] += nodes;
     }

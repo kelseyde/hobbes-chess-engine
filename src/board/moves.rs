@@ -31,7 +31,7 @@ pub enum MoveFlag {
     PromoQ = 5,
     PromoR = 6,
     PromoB = 7,
-    PromoN = 8
+    PromoN = 8,
 }
 
 const FROM_MASK: u16 = 0x3F;
@@ -39,7 +39,6 @@ const TO_MASK: u16 = 0xFC0;
 const FLAG_MASK: u16 = 0xF000;
 
 impl Move {
-
     pub const NONE: Move = Move(0);
 
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Move {
@@ -65,7 +64,7 @@ impl Move {
             6 => MoveFlag::PromoR,
             7 => MoveFlag::PromoB,
             8 => MoveFlag::PromoN,
-            _ => panic!("Invalid move flag")
+            _ => panic!("Invalid move flag"),
         }
     }
 
@@ -82,10 +81,10 @@ impl Move {
     }
 
     pub fn is_promo(self) -> bool {
-        self.flag() == MoveFlag::PromoQ ||
-        self.flag() == MoveFlag::PromoR ||
-        self.flag() == MoveFlag::PromoB ||
-        self.flag() == MoveFlag::PromoN
+        self.flag() == MoveFlag::PromoQ
+            || self.flag() == MoveFlag::PromoR
+            || self.flag() == MoveFlag::PromoB
+            || self.flag() == MoveFlag::PromoN
     }
 
     pub const fn promo_piece(self) -> Option<Piece> {
@@ -94,7 +93,7 @@ impl Move {
             MoveFlag::PromoR => Some(Piece::Rook),
             MoveFlag::PromoB => Some(Piece::Bishop),
             MoveFlag::PromoN => Some(Piece::Knight),
-            _ => None
+            _ => None,
         }
     }
 
@@ -130,7 +129,7 @@ impl Move {
             'r' => MoveFlag::PromoR,
             'b' => MoveFlag::PromoB,
             'n' => MoveFlag::PromoN,
-            _ => panic!("Invalid promotion flag")
+            _ => panic!("Invalid promotion flag"),
         }
     }
 
@@ -143,7 +142,7 @@ impl Move {
                 Piece::Rook => "r",
                 Piece::Bishop => "b",
                 Piece::Knight => "n",
-                _ => panic!("Invalid promo piece")
+                _ => panic!("Invalid promo piece"),
             }
         } else {
             ""
@@ -182,17 +181,32 @@ impl Move {
     pub fn rook_to(kingside: bool, white: bool) -> Square {
         // Castling target for rooks
         if kingside {
-            if white { Square(5) } else { Square(61) }
-        } else if white { Square(3) } else { Square(59) }
+            if white {
+                Square(5)
+            } else {
+                Square(61)
+            }
+        } else if white {
+            Square(3)
+        } else {
+            Square(59)
+        }
     }
 
     pub fn rook_from(kingside: bool, white: bool) -> Square {
         // Castling starting squares for rooks
         if kingside {
-            if white { Square(7) } else { Square(63) }
-        } else if white { Square(0) } else { Square(56) }
+            if white {
+                Square(7)
+            } else {
+                Square(63)
+            }
+        } else if white {
+            Square(0)
+        } else {
+            Square(56)
+        }
     }
-
 }
 
 impl fmt::Display for Move {
@@ -208,13 +222,18 @@ impl Default for MoveList {
 }
 
 impl MoveList {
-
     pub fn new() -> Self {
-        MoveList { list: ArrayVec::new(), len: 0 }
+        MoveList {
+            list: ArrayVec::new(),
+            len: 0,
+        }
     }
 
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
-        self.list.push(MoveListEntry { mv: Move::new(from, to, flag), score: 0 });
+        self.list.push(MoveListEntry {
+            mv: Move::new(from, to, flag),
+            score: 0,
+        });
         self.len += 1;
     }
 
@@ -232,7 +251,10 @@ impl MoveList {
     }
 
     pub fn contains(&self, m: &Move) -> bool {
-        self.list.iter().take(self.len).any(|entry| entry.mv.matches(m))
+        self.list
+            .iter()
+            .take(self.len)
+            .any(|entry| entry.mv.matches(m))
     }
 
     pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
@@ -246,5 +268,4 @@ impl MoveList {
     pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
         self.list.iter_mut().take(self.len)
     }
-
 }

@@ -4,11 +4,17 @@ use crate::board::square::Square;
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum Rank {
-    One, Two, Three, Four, Five, Six, Seven, Eight
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
 }
 
 impl Rank {
-
     pub const COUNT: usize = 8;
 
     pub const CHARS: [char; Rank::COUNT] = ['1', '2', '3', '4', '5', '6', '7', '8'];
@@ -74,5 +80,4 @@ impl Rank {
             _ => None,
         }
     }
-
 }

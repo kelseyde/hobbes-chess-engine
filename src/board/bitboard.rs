@@ -7,7 +7,6 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
-
     pub const ALL: Self = Self(0xFFFFFFFFFFFFFFFF);
 
     pub const NONE: Self = Self(0);
@@ -108,7 +107,6 @@ impl Bitboard {
             println!();
         }
     }
-
 }
 
 impl Iterator for Bitboard {

@@ -61,6 +61,7 @@ pub fn king(sq: Square) -> Bitboard {
     KING[sq]
 }
 
+#[rustfmt::skip]
 pub const KING: [Bitboard; 64] = [
     Bitboard(0x0000000000000302), Bitboard(0x0000000000000705), Bitboard(0x0000000000000e0a), Bitboard(0x0000000000001c14),
     Bitboard(0x0000000000003828), Bitboard(0x0000000000007050), Bitboard(0x000000000000e0a0), Bitboard(0x000000000000c040),
@@ -80,6 +81,7 @@ pub const KING: [Bitboard; 64] = [
     Bitboard(0x2838000000000000), Bitboard(0x5070000000000000), Bitboard(0xa0e0000000000000), Bitboard(0x40c0000000000000)
 ];
 
+#[rustfmt::skip]
 pub const KNIGHT: [Bitboard; 64] = [
     Bitboard(0x0000000000020400), Bitboard(0x0000000000050800), Bitboard(0x00000000000a1100), Bitboard(0x0000000000142200),
     Bitboard(0x0000000000284400), Bitboard(0x0000000000508800), Bitboard(0x0000000000a01000), Bitboard(0x0000000000402000),

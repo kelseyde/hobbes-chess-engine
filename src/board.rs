@@ -1,19 +1,20 @@
 pub mod attacks;
-pub mod magics;
-pub mod zobrist;
 pub mod bitboard;
-pub mod square;
-pub mod file;
-pub mod rank;
-pub mod piece;
-pub mod side;
 pub mod castling;
-pub mod ray;
+pub mod file;
+pub mod legal;
+pub mod magics;
 pub mod movegen;
 pub mod moves;
-mod legal;
+pub mod piece;
+pub mod rank;
+pub mod ray;
+pub mod side;
+pub mod square;
+pub mod zobrist;
 
 use crate::board::castling::Rights;
+use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -29,15 +30,18 @@ use square::Square;
 /// to set and unset pieces.
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8],         // bitboards for each piece type (0-5) and for both colours (6-7)
-    pub pcs: [Option<Piece>; 64],  // piece type on each square
-    pub stm: Side,                 // side to move (White or Black)
-    pub hm: u8,                    // number of half moves since last capture or pawn move
-    pub fm: u8,                    // number of full moves
-    pub ep_sq: Option<Square>,     // en passant square (0-63)
-    pub rights: Rights,            // encoded castle rights
-    pub keys: Keys,                // zobrist hashes
-    pub frc: bool                  // whether the game is Fischer Random Chess
+    pub bb: [Bitboard; 8], // bitboards for each piece type (0-5) and for both colours (6-7)
+    pub pcs: [Option<Piece>; 64], // piece type on each square
+    pub stm: Side,         // side to move (White or Black)
+    pub hm: u8,            // number of half moves since last capture or pawn move
+    pub fm: u8,            // number of full moves
+    pub ep_sq: Option<Square>, // en passant square (0-63)
+    pub rights: Rights,    // encoded castle rights
+    pub keys: Keys,        // zobrist hashes
+    pub frc: bool,         // whether the game is Fischer Random Chess
+    pub threats: Bitboard, // squares attacked by the opponent
+    pub checkers: Bitboard, // opponent pieces checking the king
+    pub pinned: [Bitboard; 2], // pinned pieces for both sides
 }
 
 impl Default for Board {
@@ -47,7 +51,6 @@ impl Default for Board {
 }
 
 impl Board {
-
     pub fn new() -> Board {
         Board::from_fen(fen::STARTPOS).unwrap()
     }
@@ -63,11 +66,13 @@ impl Board {
             rights: Rights::default(),
             keys: Keys::default(),
             frc: false,
+            threats: Bitboard::empty(),
+            checkers: Bitboard::empty(),
+            pinned: [Bitboard::empty(); 2],
         }
     }
 
     pub fn make(&mut self, m: &Move) {
-
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).unwrap();
@@ -77,7 +82,11 @@ impl Board {
 
         self.toggle_sq(from, pc, side);
         if let Some(captured) = captured {
-            let capture_sq = if flag == MoveFlag::EnPassant { self.ep_capture_sq(to) } else { to };
+            let capture_sq = if flag == MoveFlag::EnPassant {
+                self.ep_capture_sq(to)
+            } else {
+                to
+            };
             self.toggle_sq(capture_sq, captured, !side);
         }
         if self.is_frc() && m.is_castle() {
@@ -100,10 +109,16 @@ impl Board {
         self.ep_sq = self.calc_ep(flag, to);
         self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
-        self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
+        self.hm = if captured.is_some() || pc == Piece::Pawn {
+            0
+        } else {
+            self.hm + 1
+        };
         self.keys.hash ^= Zobrist::stm();
         self.stm = !self.stm;
-
+        self.threats = self.calc_threats(self.stm);
+        self.checkers = self.calc_checkers(self.stm);
+        self.pinned = self.calc_both_pinned();
     }
 
     #[inline]
@@ -111,7 +126,11 @@ impl Board {
         let bb: Bitboard = Bitboard::of_sq(sq);
         self.bb[pc] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq] = if self.pcs[sq] == Some(pc) { None } else { Some(pc) };
+        self.pcs[sq] = if self.pcs[sq] == Some(pc) {
+            None
+        } else {
+            Some(pc)
+        };
         self.keys.hash ^= Zobrist::sq(pc, side, sq);
         if pc == Piece::Pawn {
             self.keys.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
@@ -146,7 +165,11 @@ impl Board {
 
     #[inline]
     fn ep_capture_sq(&self, to: Square) -> Square {
-        if self.stm == White { Square(to.0 - 8) } else { Square(to.0 + 8) }
+        if self.stm == White {
+            Square(to.0 - 8)
+        } else {
+            Square(to.0 + 8)
+        }
     }
 
     #[inline]
@@ -174,7 +197,7 @@ impl Board {
         let mut new_rights = self.rights;
         // Both sides already lost castling rights, so nothing to calculate.
         if new_rights.is_empty() {
-            return new_rights
+            return new_rights;
         }
         // Any move by the king removes castling rights.
         if piece_type == Piece::King {
@@ -194,20 +217,55 @@ impl Board {
             new_rights.clear_side(Black, false);
         }
 
-        self.keys.hash ^= Zobrist::castle(original_rights.hash()) ^ Zobrist::castle(new_rights.hash());
+        self.keys.hash ^=
+            Zobrist::castle(original_rights.hash()) ^ Zobrist::castle(new_rights.hash());
         new_rights
     }
 
     #[inline]
-    fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square>{
+    fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
         if self.ep_sq.is_some() {
             self.keys.hash ^= Zobrist::ep(self.ep_sq.unwrap());
         }
-        let ep_sq = if flag == MoveFlag::DoublePush { Some(self.ep_capture_sq(sq)) } else { None };
+        let ep_sq = if flag == MoveFlag::DoublePush {
+            Some(self.ep_capture_sq(sq))
+        } else {
+            None
+        };
         if ep_sq.is_some() {
             self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
         }
         ep_sq
+    }
+
+    #[inline]
+    pub fn calc_both_pinned(&self) -> [Bitboard; 2] {
+        [self.calc_pinned(White), self.calc_pinned(Black)]
+    }
+
+    #[inline]
+    pub fn calc_pinned(&self, side: Side) -> Bitboard {
+        let mut pinned = Bitboard::empty();
+
+        let king = self.king_sq(side);
+
+        let us = self.side(side);
+        let them = self.side(!side);
+
+        let their_diags = (self.pcs(Queen) | self.pcs(Bishop)) & them;
+        let their_orthos = (self.pcs(Queen) | self.pcs(Piece::Rook)) & them;
+
+        let potential_attackers =
+            attacks::bishop(king, them) & their_diags | attacks::rook(king, them) & their_orthos;
+
+        for potential_attacker in potential_attackers {
+            let maybe_pinned = us & ray::between(king, potential_attacker);
+            if maybe_pinned.count() == 1 {
+                pinned |= maybe_pinned;
+            }
+        }
+
+        pinned
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {
@@ -226,6 +284,8 @@ impl Board {
             self.keys.hash ^= Zobrist::ep(ep_sq);
             self.ep_sq = None;
         }
+        self.threats = self.calc_threats(self.stm);
+        self.checkers = self.calc_checkers(self.stm);
     }
 
     pub const fn hash(&self) -> u64 {
@@ -305,8 +365,12 @@ impl Board {
     }
 
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
-        if mv.is_castle() { return None; }
-        if mv.is_ep() { return Some(Piece::Pawn); }
+        if mv.is_castle() {
+            return None;
+        }
+        if mv.is_ep() {
+            return Some(Piece::Pawn);
+        }
         self.piece_at(mv.to())
     }
 
@@ -315,9 +379,13 @@ impl Board {
     }
 
     pub fn side_at(&self, sq: Square) -> Option<Side> {
-        if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(White) }
-        else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() { Some(Black) }
-        else { None }
+        if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() {
+            Some(White)
+        } else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() {
+            Some(Black)
+        } else {
+            None
+        }
     }
 
     pub fn has_non_pawns(&self) -> bool {
@@ -329,11 +397,11 @@ impl Board {
     }
 
     pub fn is_insufficient_material(&self) -> bool {
-        let pawns    = self.bb[Piece::Pawn];
-        let knights  = self.bb[Piece::Knight];
-        let bishops  = self.bb[Piece::Bishop];
-        let rooks    = self.bb[Piece::Rook];
-        let queens   = self.bb[Piece::Queen];
+        let pawns = self.bb[Piece::Pawn];
+        let knights = self.bb[Piece::Knight];
+        let bishops = self.bb[Piece::Bishop];
+        let rooks = self.bb[Piece::Rook];
+        let queens = self.bb[Piece::Queen];
 
         if !(pawns | rooks | queens).is_empty() {
             return false;
@@ -345,8 +413,9 @@ impl Board {
             return true;
         }
 
-        if knights.is_empty() && !bishops.is_empty()
-            && (bishops & self.white()).count() == 2 || (bishops & self.black()).count() == 2 {
+        if knights.is_empty() && !bishops.is_empty() && (bishops & self.white()).count() == 2
+            || (bishops & self.black()).count() == 2
+        {
             return false;
         }
         piece_count <= 3
@@ -359,91 +428,140 @@ impl Board {
     pub const fn set_frc(&mut self, frc: bool) {
         self.frc = frc;
     }
-
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
-    use crate::board::Board;
+    use crate::board::side::Side;
+    use crate::board::{ray, Board};
+
+    #[test]
+    fn computing_correct_pins() {
+        ray::init();
+        assert_eq!(
+            Board::from_fen("2k5/6r1/6N1/8/8/8/6K1/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+        assert_eq!(
+            Board::from_fen("2k5/7b/6N1/8/8/8/2K5/8 b - - 0 1")
+                .unwrap()
+                .calc_pinned(Side::White),
+            Bitboard(70368744177664),
+        );
+    }
 
     #[test]
     fn standard_move() {
-        assert_make_move("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-                         "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
-                         Move::parse_uci("g1f3"));
+        assert_make_move(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+            Move::parse_uci("g1f3"),
+        );
     }
 
     #[test]
     fn capture_move() {
-        assert_make_move("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-                         "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2",
-                         Move::parse_uci("e4d5"));
+        assert_make_move(
+            "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+            "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2",
+            Move::parse_uci("e4d5"),
+        );
     }
 
     #[test]
     fn double_push() {
-        assert_make_move("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
-                         "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
-                         Move::parse_uci_with_flag("c7c5", MoveFlag::DoublePush));
+        assert_make_move(
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+            Move::parse_uci_with_flag("c7c5", MoveFlag::DoublePush),
+        );
     }
 
     #[test]
     fn en_passant() {
-        assert_make_move("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
-                         "rnbqkbnr/ppp1p1pp/5P2/3p4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 3",
-                         Move::parse_uci_with_flag("e5f6", MoveFlag::EnPassant));
+        assert_make_move(
+            "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
+            "rnbqkbnr/ppp1p1pp/5P2/3p4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 3",
+            Move::parse_uci_with_flag("e5f6", MoveFlag::EnPassant),
+        );
     }
 
     #[test]
     fn castle_kingside_white() {
-        assert_make_move("r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
-                         "r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 5 4",
-                         Move::parse_uci_with_flag("e1g1", MoveFlag::CastleK));
+        assert_make_move(
+            "r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+            "r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 5 4",
+            Move::parse_uci_with_flag("e1g1", MoveFlag::CastleK),
+        );
     }
 
     #[test]
     fn castle_kingside_black() {
-        assert_make_move("rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4",
-                         "rnbq1rk1/pppp1ppp/5n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R w KQ - 1 5",
-                         Move::parse_uci_with_flag("e8g8", MoveFlag::CastleQ));
+        assert_make_move(
+            "rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4",
+            "rnbq1rk1/pppp1ppp/5n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R w KQ - 1 5",
+            Move::parse_uci_with_flag("e8g8", MoveFlag::CastleQ),
+        );
     }
 
     #[test]
     fn castle_queenside_white() {
-        assert_make_move("r3kbnr/pppqpppp/2n5/3p1b2/3P1B2/2N5/PPPQPPPP/R3KBNR w KQkq - 6 5",
-                         "r3kbnr/pppqpppp/2n5/3p1b2/3P1B2/2N5/PPPQPPPP/2KR1BNR b kq - 7 5",
-                         Move::parse_uci_with_flag("e1c1", MoveFlag::CastleQ));
+        assert_make_move(
+            "r3kbnr/pppqpppp/2n5/3p1b2/3P1B2/2N5/PPPQPPPP/R3KBNR w KQkq - 6 5",
+            "r3kbnr/pppqpppp/2n5/3p1b2/3P1B2/2N5/PPPQPPPP/2KR1BNR b kq - 7 5",
+            Move::parse_uci_with_flag("e1c1", MoveFlag::CastleQ),
+        );
     }
 
     #[test]
     fn castle_queenside_black() {
-        assert_make_move("r3kbnr/pppqpppp/2n5/3p1b2/8/2N2NP1/PPPPPPBP/R1BQ1K1R b kq - 6 5",
-                         "2kr1bnr/pppqpppp/2n5/3p1b2/8/2N2NP1/PPPPPPBP/R1BQ1K1R w - - 7 6",
-                         Move::parse_uci_with_flag("e8c8", MoveFlag::CastleQ));
+        assert_make_move(
+            "r3kbnr/pppqpppp/2n5/3p1b2/8/2N2NP1/PPPPPPBP/R1BQ1K1R b kq - 6 5",
+            "2kr1bnr/pppqpppp/2n5/3p1b2/8/2N2NP1/PPPPPPBP/R1BQ1K1R w - - 7 6",
+            Move::parse_uci_with_flag("e8c8", MoveFlag::CastleQ),
+        );
     }
 
     #[test]
     fn queen_promotion() {
-        assert_make_move("rn1q1bnr/pppbkPpp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQ - 1 5",
-                         "rn1q1bQr/pppbk1pp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQ - 0 5",
-                         Move::parse_uci("f7g8q"));
+        assert_make_move(
+            "rn1q1bnr/pppbkPpp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQ - 1 5",
+            "rn1q1bQr/pppbk1pp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQ - 0 5",
+            Move::parse_uci("f7g8q"),
+        );
     }
 
     #[test]
     fn pseudo_legal_pawn_capture() {
-        let board = Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
+        let board =
+            Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
         assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
     }
 
     #[test]
     fn insufficient_material() {
-        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1").unwrap().is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
@@ -451,5 +569,4 @@ mod tests {
         board.make(&m);
         assert_eq!(board.to_fen(), end_fen);
     }
-
 }

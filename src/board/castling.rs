@@ -13,9 +13,9 @@ pub fn is_kingside(from: Square, to: Square) -> bool {
 // Starting square (in classical chess) for the rook
 pub fn rook_from(side: Side, kingside: bool) -> Square {
     match (side, kingside) {
-        (Side::White, true)  => Square(7),
+        (Side::White, true) => Square(7),
         (Side::White, false) => Square(0),
-        (Side::Black, true)  => Square(63),
+        (Side::Black, true) => Square(63),
         (Side::Black, false) => Square(56),
     }
 }
@@ -23,18 +23,18 @@ pub fn rook_from(side: Side, kingside: bool) -> Square {
 // Target square for the rook
 pub fn rook_to(side: Side, kingside: bool) -> Square {
     match (side, kingside) {
-        (Side::White, true)  => Square(5),
+        (Side::White, true) => Square(5),
         (Side::White, false) => Square(3),
-        (Side::Black, true)  => Square(61),
+        (Side::Black, true) => Square(61),
         (Side::Black, false) => Square(59),
     }
 }
 
 pub fn king_to(side: Side, kingside: bool) -> Square {
     match (side, kingside) {
-        (Side::White, true)  => Square(6),
+        (Side::White, true) => Square(6),
         (Side::White, false) => Square(2),
-        (Side::Black, true)  => Square(62),
+        (Side::Black, true) => Square(62),
         (Side::Black, false) => Square(58),
     }
 }
@@ -46,11 +46,11 @@ pub fn king_to(side: Side, kingside: bool) -> Square {
 // [ 3 (wk) ][ 3 (wq) ][ 3 (bk) ][ 3 (bq) ][ 4 (flags) ]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct Rights {
-    data: u16
+    data: u16,
 }
 
+#[allow(clippy::unusual_byte_groupings)]
 impl Rights {
-
     // Bits representing the presence/absence of castling rights for colour/side
     const WKCA: u16 = 0b0001;
     const WQCA: u16 = 0b0010;
@@ -72,10 +72,12 @@ impl Rights {
     // Mask for the rights part of the encoding, used in zobrist updates
     pub const KEY_MASK: u16 = 0b1111;
 
-    pub const fn new(wk: Option<File>,
-                     wq: Option<File>,
-                     bk: Option<File>,
-                     bq: Option<File>) -> Self {
+    pub const fn new(
+        wk: Option<File>,
+        wq: Option<File>,
+        bk: Option<File>,
+        bq: Option<File>,
+    ) -> Self {
         let mut data = 0;
 
         if let Some(file) = wk {
@@ -130,15 +132,15 @@ impl Rights {
     pub fn clear(&mut self, side: Side) {
         self.data &= match side {
             Side::White => !(Self::WK_MASK | Self::WQ_MASK | Self::WKCA | Self::WQCA),
-            Side::Black => !(Self::BK_MASK | Self::BQ_MASK | Self::BKCA | Self::BQCA)
+            Side::Black => !(Self::BK_MASK | Self::BQ_MASK | Self::BKCA | Self::BQCA),
         };
     }
 
     pub fn clear_side(&mut self, side: Side, kingside: bool) {
         self.data &= !match (side, kingside) {
-            (Side::White, true)  => Self::WK_MASK | Self::WKCA,
+            (Side::White, true) => Self::WK_MASK | Self::WKCA,
             (Side::White, false) => Self::WQ_MASK | Self::WQCA,
-            (Side::Black, true)  => Self::BK_MASK | Self::BKCA,
+            (Side::Black, true) => Self::BK_MASK | Self::BKCA,
             (Side::Black, false) => Self::BQ_MASK | Self::BQCA,
         };
     }
@@ -154,7 +156,7 @@ impl Rights {
     pub fn kingside(self, side: Side) -> Option<File> {
         let presence = [Self::WKCA, Self::BKCA][side];
         if self.data & presence == 0 {
-          return None;
+            return None;
         }
         let shift = [Self::WK_SHIFT, Self::BK_SHIFT][side];
         let mask = [Self::WK_MASK, Self::BK_MASK][side];
@@ -165,7 +167,7 @@ impl Rights {
     pub fn queenside(self, side: Side) -> Option<File> {
         let presence = [Self::WQCA, Self::BQCA][side];
         if self.data & presence == 0 {
-          return None;
+            return None;
         }
         let shift = [Self::WQ_SHIFT, Self::BQ_SHIFT][side];
         let mask = [Self::WQ_MASK, Self::BQ_MASK][side];
@@ -197,19 +199,35 @@ impl Rights {
             rights.push('-');
         } else {
             if self.kingside(White).is_some() {
-                let file_char = if !frc { 'K' } else { self.dfrc_file_char(White, true) };
+                let file_char = if !frc {
+                    'K'
+                } else {
+                    self.dfrc_file_char(White, true)
+                };
                 rights.push(file_char);
             }
             if self.queenside(White).is_some() {
-                let file_char = if !frc { 'Q' } else { self.dfrc_file_char(White, false) };
+                let file_char = if !frc {
+                    'Q'
+                } else {
+                    self.dfrc_file_char(White, false)
+                };
                 rights.push(file_char);
             }
             if self.kingside(Black).is_some() {
-                let file_char = if !frc { 'k' } else { self.dfrc_file_char(Black, true) };
+                let file_char = if !frc {
+                    'k'
+                } else {
+                    self.dfrc_file_char(Black, true)
+                };
                 rights.push(file_char);
             }
             if self.queenside(Black).is_some() {
-                let file_char = if !frc { 'q' } else { self.dfrc_file_char(Black, false) };
+                let file_char = if !frc {
+                    'q'
+                } else {
+                    self.dfrc_file_char(Black, false)
+                };
                 rights.push(file_char);
             }
         }
@@ -222,13 +240,16 @@ impl Rights {
     }
 
     fn dfrc_file_char(self, side: Side, kingside: bool) -> char {
-        let file = if kingside { self.kingside(side).unwrap() } else { self.queenside(side).unwrap() };
+        let file = if kingside {
+            self.kingside(side).unwrap()
+        } else {
+            self.queenside(side).unwrap()
+        };
         match side {
             White => file.to_char().to_ascii_uppercase(),
-            Black => file.to_char().to_ascii_lowercase()
+            Black => file.to_char().to_ascii_lowercase(),
         }
     }
-
 }
 
 // Squares that must not be attacked when the king castles
@@ -313,8 +334,7 @@ mod tests {
 
     #[test]
     fn test_remove_rights() {
-        let mut rights =
-            Rights::new(Some(File::H), Some(File::A), Some(File::H), Some(File::A));
+        let mut rights = Rights::new(Some(File::H), Some(File::A), Some(File::H), Some(File::A));
 
         rights.remove(Side::White, File::H);
         assert_eq!(rights.kingside(Side::White), None);
@@ -330,7 +350,6 @@ mod tests {
 
     #[test]
     fn test_debug() {
-
         let mut board =
             Board::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
                 .unwrap();
@@ -350,7 +369,6 @@ mod tests {
         assert!(!board.has_queenside_rights(Side::White));
         assert!(!board.has_kingside_rights(Side::Black));
         assert!(board.has_queenside_rights(Side::Black));
-
     }
 
     #[test]
@@ -361,5 +379,4 @@ mod tests {
         let rights = Rights::new(Some(File::G), Some(File::B), Some(File::F), Some(File::C));
         assert_eq!(rights.to_string(true), "GBfc".to_string());
     }
-
 }
