@@ -20,7 +20,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -353,6 +353,19 @@ fn alpha_beta(board: &Board,
         && (pv_node || cut_node)
         && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
         depth -= 1;
+    }
+
+    // Small Probcut
+    let probcut_beta = beta - 418;
+    if !pv_node
+        && !singular_search
+        && tt_flag == Lower
+        && tt_depth >= depth - 4
+        && tt_score >= probcut_beta
+        && Score::is_defined(tt_score)
+        && !Score::is_mate(tt_score)
+        && !Score::is_mate(beta) {
+        return probcut_beta;
     }
 
     // We have decided that the current node should not be pruned and is worth examining further.
