@@ -351,7 +351,7 @@ fn alpha_beta(board: &Board,
     if !root_node
         && depth >= iir_min_depth()
         && (pv_node || cut_node)
-        && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
+        && tt_depth < depth - iir_tt_depth_offset() + 2 * tt_move.is_null() as i32 {
         depth -= 1;
     }
 
