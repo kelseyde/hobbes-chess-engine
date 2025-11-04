@@ -356,8 +356,9 @@ fn alpha_beta(board: &Board,
     }
 
     // Small Probcut
-    let probcut_beta = beta - 418;
+    let probcut_beta = beta + 418;
     if !pv_node
+        && !in_check
         && !singular_search
         && tt_flag == Lower
         && tt_depth >= depth - 4
