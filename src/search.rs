@@ -123,7 +123,7 @@ fn alpha_beta(board: &Board,
               ply: usize,
               mut alpha: i32,
               mut beta: i32,
-              cut_node: bool) -> i32 {
+              mut cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -496,6 +496,7 @@ fn alpha_beta(board: &Board,
                 return s_beta;
             } else if tt_score >= beta {
                 extension = -3;
+                cut_node = true;
             } else if cut_node {
                 extension = -2;
             } else if tt_score <= alpha {
