@@ -33,12 +33,6 @@ pub struct ThreadData {
     pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
-
-    pub count: i32,
-    pub total: i64,
-    pub min: i32,
-    pub max: i32,
-    pub avg: i32,
 }
 
 impl Default for ThreadData {
@@ -66,12 +60,6 @@ impl Default for ThreadData {
             nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: Score::MIN,
-
-            count: 0,
-            total: 0,
-            min: i32::MAX,
-            max: i32::MIN,
-            avg: 0,
         }
     }
 }

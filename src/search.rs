@@ -547,20 +547,7 @@ fn alpha_beta(board: &Board,
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
             r += (is_quiet && !see::see(&original_board, &mv, 0)) as i32 * lmr_quiet_see();
-            let complexity_r = complexity / 8192;
-            td.count += 1;
-            if complexity_r > td.max {
-                td.max = complexity_r;
-            }
-            if complexity_r < td.min {
-                td.min = complexity_r;
-            }
-            td.total += complexity_r;
-            td.avg = td.total / td.count;
-            if td.nodes % 2000 == 0 {
-                println!("complexity_r: {} min: {} max: {} avg: {}", complexity_r, td.min, td.max, td.avg);
-            }
-            r -= complexity / 3;
+            r -= complexity / 120000;
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
