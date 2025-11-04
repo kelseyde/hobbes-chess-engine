@@ -84,8 +84,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 }
                 s if s >= beta => {
                     beta = (score + delta).min(Score::MAX);
-                    delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
+                    delta += ((delta * 100) / asp_beta_widening_factor()) * (50 + 10 * reduction) / 128;
                 }
                 _ => break,
             }
