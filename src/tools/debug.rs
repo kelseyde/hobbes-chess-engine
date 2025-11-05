@@ -1,6 +1,3 @@
-// Stats and percentile estimation utilities.
-// Ported from provided Zig DebugStats implementation.
-
 use rand::prelude::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
