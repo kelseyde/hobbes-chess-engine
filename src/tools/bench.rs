@@ -74,6 +74,7 @@ pub fn bench(td: &mut ThreadData) {
         time += td.start_time.elapsed().as_millis() as u64;
     }
 
+    td.debug_stats.print();
     td.clear();
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
