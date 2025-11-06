@@ -36,6 +36,7 @@ pub struct Board {
     pub hm: u8,            // number of half moves since last capture or pawn move
     pub fm: u8,            // number of full moves
     pub ep_sq: Option<Square>, // en passant square (0-63)
+    pub recapture_sq: Option<Square>, // square where a recapture can occur
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
     pub frc: bool,         // whether the game is Fischer Random Chess
@@ -63,6 +64,7 @@ impl Board {
             hm: 0,
             fm: 0,
             ep_sq: None,
+            recapture_sq: None,
             rights: Rights::default(),
             keys: Keys::default(),
             frc: false,
@@ -107,6 +109,11 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
+        self.recapture_sq = if captured.is_some() {
+            Some(m.to())
+        } else {
+            None
+        };
         self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured.is_some() || pc == Piece::Pawn {
