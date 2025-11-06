@@ -386,9 +386,7 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_recapture = !root_node && captured.is_some() && td.ss[ply - 1].mv.map_or(false, |prev_mv| {
-            prev_mv.to() == mv.to()
-        });
+        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
