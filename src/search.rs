@@ -841,6 +841,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
 
+        // Late Move Pruning
+        if !in_check && !is_mate_score && move_count >= 2 {
+            break;
+        }
+
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
         if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
