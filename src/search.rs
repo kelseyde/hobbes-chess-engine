@@ -34,6 +34,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
+    td.root_board = *board;
 
     let root_moves = board.gen_legal_moves();
     match root_moves.len {
@@ -386,7 +387,6 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
@@ -503,8 +503,6 @@ fn alpha_beta(board: &Board,
                 extension = -1;
             }
 
-        } else if pv_node && mv == tt_move && is_recapture {
-            extension = 1;
         }
 
         // We have decided that the current move should not be pruned and is worth searching further.

@@ -1,4 +1,6 @@
 use std::time::Duration;
+use crate::board::Board;
+use crate::board::moves::Move;
 
 pub struct SearchLimits {
     pub hard_time: Option<Duration>,
@@ -46,23 +48,36 @@ impl SearchLimits {
 
     pub fn scaled_soft_limit(
         &self,
+        board: &Board,
+        best_mv: Move,
         depth: i32,
         nodes: u64,
         best_move_nodes: u64,
     ) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
             let scaled =
-                soft_time.as_secs_f32() * self.node_tm_scale(depth, nodes, best_move_nodes);
+                soft_time.as_secs_f32()
+                    * self.node_tm_scale(depth, nodes, best_move_nodes)
+                    * self.recapture_scale(board, best_mv);
             Duration::from_secs_f32(scaled)
         })
     }
 
-    const fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+    fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
         (1.5 - fraction) * 1.35
+    }
+
+    fn recapture_scale(&self, board: &Board, best_mv: Move) -> f32 {
+        let best_mv_is_recapture = board.recapture_sq.is_some_and(|sq| sq == best_mv.to());
+        if best_mv_is_recapture {
+            0.9
+        } else {
+            1.0
+        }
     }
 
     fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {

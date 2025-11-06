@@ -1,5 +1,5 @@
 use std::time::Instant;
-
+use crate::board::Board;
 use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
@@ -22,6 +22,7 @@ pub struct ThreadData {
     pub ss: SearchStack,
     pub nnue: NNUE,
     pub keys: Vec<u64>,
+    pub root_board: Board,
     pub root_ply: usize,
     pub history: Histories,
     pub correction_history: CorrectionHistories,
@@ -51,6 +52,7 @@ impl Default for ThreadData {
             ss: SearchStack::new(),
             nnue: NNUE::default(),
             keys: Vec::new(),
+            root_board: Board::default(),
             root_ply: 0,
             history: Histories::default(),
             correction_history: CorrectionHistories::default(),
@@ -84,6 +86,7 @@ impl ThreadData {
     pub fn clear(&mut self) {
         self.tt.clear();
         self.keys.clear();
+        self.root_board = Board::default();
         self.root_ply = 0;
         self.history.clear();
         self.correction_history.clear();
@@ -105,11 +108,13 @@ impl ThreadData {
     }
 
     pub fn soft_limit_reached(&self) -> bool {
+        let board = &self.root_board;
+        let best_move = self.best_move;
         let best_move_nodes = self.node_table.get(&self.best_move);
 
         if let Some(soft_time) =
             self.limits
-                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes)
+                .scaled_soft_limit(board, best_move, self.depth, self.nodes, best_move_nodes)
         {
             if self.start_time.elapsed() >= soft_time {
                 return true;
