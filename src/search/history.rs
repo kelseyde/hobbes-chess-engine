@@ -39,6 +39,9 @@ pub struct Histories {
 }
 
 impl Histories {
+
+    const CONTHIST_PLIES: [usize; 3] = [1, 2, 3];
+
     #[allow(clippy::too_many_arguments)]
     pub fn history_score(
         &self,
@@ -68,7 +71,7 @@ impl Histories {
         let pc = board.piece_at(mv.from()).unwrap();
         let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
         let mut cont_score = 0;
-        for &prev_ply in &[1, 2] {
+        for &prev_ply in &Self::CONTHIST_PLIES {
             if ply >= prev_ply {
                 if let (Some(prev_mv), Some(prev_pc)) =
                     (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
@@ -98,7 +101,7 @@ impl Histories {
         pc: Piece,
         bonus: i16,
     ) {
-        for &prev_ply in &[1, 2] {
+        for &prev_ply in &Self::CONTHIST_PLIES {
             if ply >= prev_ply {
                 if let (Some(prev_mv), Some(prev_pc)) =
                     (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
