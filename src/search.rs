@@ -839,10 +839,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
 
         // Late Move Pruning
-        if !in_check && !is_mate_score && move_count >= 2 {
+        if !in_check && !is_recapture && !is_mate_score && move_count >= 2 {
             break;
         }
 
