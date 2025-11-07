@@ -200,7 +200,7 @@ impl<const N: usize> CorrectionHistory<N> {
         let entry = &mut self.entries[stm][idx];
         let new_value = (score - static_eval) * CORRECTION_SCALE;
 
-        let new_weight = (depth + 1).min(16);
+        let new_weight = (depth + 1).min(32);
         let old_weight = CORRECTION_SCALE - new_weight;
 
         let update = *entry * old_weight + new_value * new_weight;
