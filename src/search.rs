@@ -401,7 +401,7 @@ fn alpha_beta(board: &Board,
 
         // Futility Pruning
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
-        let futility_margin = fp_base()
+        let futility_value = static_eval + fp_base()
             + fp_scale() * lmr_depth
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor();
@@ -411,7 +411,10 @@ fn alpha_beta(board: &Board,
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mate_score
-            && static_eval + futility_margin <= alpha {
+            && futility_value <= alpha {
+            if !Score::is_mate(best_score) && best_score <= futility_value {
+                best_score = futility_value;
+            }
             move_picker.skip_quiets = true;
             continue;
         }
