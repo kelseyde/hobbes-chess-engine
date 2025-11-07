@@ -849,7 +849,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
-        if !in_check && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
+        if !in_check && !is_recapture && !is_mate_score && futility_margin <= alpha && !see::see(board, &mv, 1) {
             if best_score < futility_margin {
                 best_score = futility_margin;
             }
@@ -858,13 +858,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !see::see(board, &mv, qs_see_threshold()) {
+        if !in_check && !is_recapture && !see::see(board, &mv, qs_see_threshold()) {
             continue;
         }
 
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+        if in_check && !is_recapture && move_count > 1 && is_quiet && !is_mate_score {
             break;
         }
 
