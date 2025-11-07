@@ -181,6 +181,7 @@ fn alpha_beta(board: &Board,
 
     let singular = td.ss[ply].singular;
     let singular_search = singular.is_some();
+    let null_move_search = !root_node && td.ss[ply - 1].mv.is_none();
 
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
@@ -729,6 +730,7 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
+        && !null_move_search
         && !Score::is_mate(best_score)
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
