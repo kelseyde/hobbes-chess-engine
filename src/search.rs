@@ -296,7 +296,7 @@ fn alpha_beta(board: &Board,
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
@@ -348,6 +348,63 @@ fn alpha_beta(board: &Board,
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
+                    return score;
+                }
+            }
+        }
+
+        // ProbCut
+        let pc_beta = beta + pc_base();
+        if cut_node
+            && depth >= pc_min_depth()
+            && !Score::is_mate(beta)
+            && (!Score::is_defined(tt_score) || (tt_score >= pc_beta && !Score::is_mate(tt_score)))
+            && (tt_move.is_null() || tt_move_noisy) {
+
+            let see_threshold = pc_beta - static_eval;
+            let mut move_picker = MovePicker::new_probcut(tt_move, MoveFilter::Noisies, ply, threats, see_threshold);
+
+            let pc_depth = (depth - pc_depth_offset()).max(0);
+
+            while let Some(mv) = move_picker.next(board, td) {
+                if move_picker.stage == BadNoisies {
+                    break;
+                }
+
+                if singular.is_some_and(|s| s == mv) || !board.is_legal(&mv) {
+                    continue;
+                }
+
+                let pc = board.piece_at(mv.from()).unwrap();
+                let captured = board.captured(&mv);
+
+                let mut board = *board;
+                td.nnue.update(&mv, pc, captured, &board);
+                board.make(&mv);
+
+                td.ss[ply].mv = Some(mv);
+                td.ss[ply].pc = Some(pc);
+                td.ss[ply].captured = captured;
+                td.keys.push(board.hash());
+                td.tt.prefetch(board.hash());
+
+                let mut score = -qs(&board, td, -pc_beta, -pc_beta + 1, ply + 1);
+
+                if score >= pc_beta && pc_depth > 0 {
+                    score = -alpha_beta(&board, td, pc_depth, ply + 1, -pc_beta, -pc_beta + 1, false);
+                }
+
+                td.ss[ply].mv = None;
+                td.ss[ply].pc = None;
+                td.ss[ply].captured = None;
+                td.keys.pop();
+                td.nnue.undo();
+
+                if td.should_stop(Hard) {
+                    return 0;
+                }
+
+                if score >= pc_beta && !Score::is_mate(score) {
                     return score;
                 }
             }
@@ -944,8 +1001,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt
-            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
+        td.tt.insert(
+            board.hash(),
+            best_move,
+            best_score,
+            raw_eval,
+            0,
+            ply,
+            flag,
+            tt_pv,
+        );
     }
 
     best_score

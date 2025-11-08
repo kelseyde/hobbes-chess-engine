@@ -74,6 +74,32 @@ impl MovePicker {
         }
     }
 
+    pub fn new_probcut(
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        see_threshold: i32,
+    ) -> Self {
+        let stage = if tt_move.exists() {
+            TTMove
+        } else {
+            GenerateNoisies
+        };
+        Self {
+            moves: MoveList::new(),
+            filter,
+            idx: 0,
+            stage,
+            tt_move,
+            ply,
+            threats,
+            skip_quiets: true,
+            see_threshold: Some(see_threshold),
+            bad_noisies: MoveList::new(),
+        }
+    }
+
     pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
