@@ -224,12 +224,14 @@ fn alpha_beta(board: &Board,
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
-    let mut static_eval = Score::MIN;
-
-    if !in_check {
+    let static_eval = if singular_search {
+        td.ss[ply].static_eval
+    } else if !in_check {
         let raw_eval = td.nnue.evaluate(board);
         let correction = td.correction_history.correction(board, &td.ss, ply);
-        static_eval = raw_eval + correction;
+        raw_eval + correction
+    } else {
+        Score::MIN
     };
 
     td.ss[ply].static_eval = static_eval;
