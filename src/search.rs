@@ -224,18 +224,22 @@ fn alpha_beta(board: &Board,
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
-    let static_eval = if tt_hit && Score::is_defined(tt_eval) {
-        tt_eval
-    } else if singular_search {
-        td.ss[ply].static_eval
-    } else if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
-        raw_eval + correction
-    } else {
-        Score::MIN
-    };
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
 
+    if !in_check {
+        raw_eval = if singular_search {
+            td.ss[ply].raw_eval
+        } else if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
+        let correction = td.correction_history.correction(board, &td.ss, ply);
+        static_eval = raw_eval + correction;
+    }
+
+    td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
@@ -743,7 +747,7 @@ fn alpha_beta(board: &Board,
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, static_eval, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -805,15 +809,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let static_eval = if tt_hit && Score::is_defined(tt_eval) {
-        tt_eval
-    } else if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
+
+    if !in_check {
+        raw_eval = if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
         let correction = td.correction_history.correction(board, &td.ss, ply);
-        raw_eval + correction
-    } else {
-        Score::MIN
-    };
+        static_eval = raw_eval + correction;
+    }
 
     if !in_check {
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue
@@ -938,7 +945,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     // Write to transposition table
     if !td.hard_limit_reached() {
         td.tt
-            .insert(board.hash(), best_move, best_score, static_eval, 0, ply, flag, tt_pv);
+            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
     }
 
     best_score
