@@ -186,6 +186,7 @@ fn alpha_beta(board: &Board,
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
@@ -200,6 +201,7 @@ fn alpha_beta(board: &Board,
         if let Some(entry) = td.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            tt_eval = entry.static_eval() as i32;
             has_tt_score = Score::is_defined(tt_score);
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
@@ -222,16 +224,22 @@ fn alpha_beta(board: &Board,
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
-    let static_eval = if singular_search {
-        td.ss[ply].static_eval
-    } else if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
-        let correction = td.correction_history.correction(board, &td.ss, ply);
-        raw_eval + correction
-    } else {
-        Score::MIN
-    };
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
 
+    if !in_check {
+        raw_eval = if singular_search {
+            td.ss[ply].raw_eval
+        } else if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
+        let correction = td.correction_history.correction(board, &td.ss, ply);
+        static_eval = raw_eval + correction;
+    }
+
+    td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
@@ -739,7 +747,7 @@ fn alpha_beta(board: &Board,
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -783,10 +791,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     td.ss[ply].threats = threats;
 
     // Transposition Table Lookup
+    let mut tt_hit = false;
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
+    let mut tt_eval = Score::MIN;
     if let Some(entry) = td.tt.probe(board.hash()) {
+        tt_hit = true;
         tt_pv = tt_pv || entry.pv();
+        tt_eval = entry.static_eval() as i32;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -797,13 +809,20 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let mut static_eval = -Score::MATE + ply as i32;
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
 
     if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+        raw_eval = if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+    }
 
+    if !in_check {
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue
         // the capture chain, if the static evaluation of the position is good enough.
         if static_eval > alpha {
@@ -926,7 +945,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     // Write to transposition table
     if !td.hard_limit_reached() {
         td.tt
-            .insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
+            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
     }
 
     best_score
