@@ -27,6 +27,7 @@ pub struct Entry {
     key: u16,       // 2 bytes
     best_move: u16, // 2 bytes
     score: i16,     // 2 bytes
+    eval: i16,      // 2 bytes
     depth: u8,      // 1 byte
     flags: Flags,   // 1 byte
 }
@@ -74,6 +75,10 @@ impl Entry {
 
     pub fn score(&self, ply: usize) -> i16 {
         to_search(self.score as i32, ply)
+    }
+
+    pub fn static_eval(&self) -> i16 {
+        self.eval
     }
 
     pub const fn depth(&self) -> u8 {
@@ -149,6 +154,7 @@ impl TranspositionTable {
         hash: u64,
         best_move: Move,
         score: i32,
+        static_eval: i32,
         depth: i32,
         ply: usize,
         flag: TTFlag,
@@ -195,6 +201,7 @@ impl TranspositionTable {
         entry.key = key_part;
         entry.best_move = mv.0;
         entry.score = to_tt(score, ply);
+        entry.eval = static_eval as i16;
         entry.depth = depth as u8;
         entry.flags = Flags::new(flag, pv, tt_age);
     }

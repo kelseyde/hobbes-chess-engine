@@ -186,6 +186,7 @@ fn alpha_beta(board: &Board,
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
@@ -200,6 +201,7 @@ fn alpha_beta(board: &Board,
         if let Some(entry) = td.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            tt_eval = entry.eval(ply) as i32;
             has_tt_score = Score::is_defined(tt_score);
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
