@@ -356,6 +356,7 @@ fn alpha_beta(board: &Board,
         // ProbCut
         let pc_beta = beta + pc_base();
         let pc_depth = (depth - pc_depth_offset()).max(0);
+
         if depth >= pc_min_depth()
             && !Score::is_mate(beta)
             && !(tt_hit && tt_depth >= pc_depth && (!Score::is_defined(tt_score) || tt_score < pc_beta))
