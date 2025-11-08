@@ -355,15 +355,14 @@ fn alpha_beta(board: &Board,
 
         // ProbCut
         let pc_beta = beta + pc_base();
+        let pc_depth = (depth - pc_depth_offset()).max(0);
         if depth >= pc_min_depth()
             && !Score::is_mate(beta)
-            && (!Score::is_defined(tt_score) || (tt_score >= pc_beta && !Score::is_mate(tt_score)))
+            && !(tt_hit && tt_depth >= pc_depth && (!Score::is_defined(tt_score) || tt_score < pc_beta))
             && (tt_move.is_null() || tt_move_noisy) {
 
             let see_threshold = pc_beta - static_eval;
             let mut move_picker = MovePicker::new_probcut(tt_move, MoveFilter::Captures, ply, threats, see_threshold);
-
-            let pc_depth = (depth - pc_depth_offset()).max(0);
 
             while let Some(mv) = move_picker.next(board, td) {
                 if move_picker.stage == BadNoisies {
