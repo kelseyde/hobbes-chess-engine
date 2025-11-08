@@ -21,7 +21,7 @@ tunable_params! {
     nmp_eval_divisor            = 213, 100, 300, 25;
     nmp_eval_max_reduction      = 4, 2, 6, 1;
     pc_min_depth                = 4, 1, 8, 1;
-    pc_base                     = 250, 100, 400, 25;
+    pc_base                     = 300, 100, 400, 25;
     pc_depth_offset             = 3, 1, 6, 1;
     iir_min_depth               = 4, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;

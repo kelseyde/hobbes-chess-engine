@@ -355,14 +355,13 @@ fn alpha_beta(board: &Board,
 
         // ProbCut
         let pc_beta = beta + pc_base();
-        if cut_node
-            && depth >= pc_min_depth()
+        if depth >= pc_min_depth()
             && !Score::is_mate(beta)
             && (!Score::is_defined(tt_score) || (tt_score >= pc_beta && !Score::is_mate(tt_score)))
             && (tt_move.is_null() || tt_move_noisy) {
 
             let see_threshold = pc_beta - static_eval;
-            let mut move_picker = MovePicker::new_probcut(tt_move, MoveFilter::Noisies, ply, threats, see_threshold);
+            let mut move_picker = MovePicker::new_probcut(tt_move, MoveFilter::Captures, ply, threats, see_threshold);
 
             let pc_depth = (depth - pc_depth_offset()).max(0);
 
