@@ -1,3 +1,5 @@
+use std::sync::{Arc};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -37,13 +39,15 @@ pub struct ThreadData {
     pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
+    pub cancelled: Arc<AtomicBool>,
 }
 
 impl Default for ThreadData {
     fn default() -> Self {
-        ThreadData {
+        Self {
             id: 0,
             main: true,
+            cancelled: Arc::new(AtomicBool::new(false)),
             minimal_output: false,
             use_soft_nodes: false,
             tt: TranspositionTable::new(64),
@@ -97,6 +101,9 @@ impl ThreadData {
         if self.depth <= 1 {
             // Always clear the first depth, to ensure at least one legal move
             return false;
+        }
+        if self.is_cancelled() {
+            return true;
         }
         match limit_type {
             LimitType::Soft => self.soft_limit_reached(),
@@ -152,6 +159,19 @@ impl ThreadData {
 
         false
     }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    pub fn reset_cancel(&self) {
+        self.cancelled.store(false, Ordering::Relaxed);
+    }
+
 }
 
 pub struct NodeTable {

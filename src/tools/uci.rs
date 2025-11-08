@@ -13,12 +13,17 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::sync::{Arc};
+use std::sync::atomic::AtomicBool;
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
     pub frc: bool,
+    pub search_thread: Option<JoinHandle<()>>,
+    pub search_cancel: Option<Arc<AtomicBool>>,
 }
 
 impl Default for UCI {
@@ -33,6 +38,8 @@ impl UCI {
             board: Board::new(),
             td: Box::new(ThreadData::default()),
             frc: false,
+            search_thread: None,
+            search_cancel: None,
         }
     }
 
@@ -263,9 +270,18 @@ impl UCI {
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
+        // Cancel any previous search
+        if let Some(cancel) = &self.search_cancel {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        if let Some(handle) = self.search_thread.take() {
+            let _ = handle.join();
+        }
+
         self.td.reset();
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
+        self.td.reset_cancel();
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
@@ -363,11 +379,29 @@ impl UCI {
 
         self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
-        // Perform the search
-        search(&self.board, &mut self.td);
+        // Prepare for threaded search
+        let board = self.board.clone();
+        let mut td = ThreadData::default();
+        td.limits = self.td.limits.clone();
+        td.minimal_output = self.td.minimal_output;
+        td.use_soft_nodes = self.td.use_soft_nodes;
+        let cancel_flag = td.cancelled.clone();
+        self.search_cancel = Some(cancel_flag.clone());
 
-        // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+        let handle = std::thread::spawn(move || {
+            search(&board, &mut td);
+            println!("bestmove {}", td.best_move.to_uci());
+        });
+        self.search_thread = Some(handle);
+    }
+
+    fn handle_stop(&mut self) {
+        if let Some(cancel) = &self.search_cancel {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        if let Some(handle) = self.search_thread.take() {
+            let _ = handle.join();
+        }
     }
 
     fn handle_eval(&mut self) {
@@ -423,10 +457,6 @@ impl UCI {
         for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
-    }
-
-    fn handle_stop(&mut self) {
-        //self.td.cancelled = true;
     }
 
     fn handle_help(&self) {
