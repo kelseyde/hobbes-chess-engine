@@ -61,7 +61,7 @@ impl Default for ThreadData {
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
-            depth: 0,
+            depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
