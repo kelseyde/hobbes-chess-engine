@@ -13,11 +13,14 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
+    pub stop: Arc<AtomicBool>,
     pub frc: bool,
 }
 
@@ -29,8 +32,10 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let stop = Arc::new(AtomicBool::new(false));
         UCI {
             board: Board::new(),
+            stop,
             td: Box::new(ThreadData::default()),
             frc: false,
         }

@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -12,12 +13,13 @@ use crate::search::{Score, MAX_PLY};
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
-pub struct ThreadData {
+pub struct ThreadData<'a> {
     pub id: usize,
     pub main: bool,
+    pub stop: &'a AtomicBool,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
+    pub tt: &'a TranspositionTable,
     pub pv: PrincipalVariationTable,
     pub ss: SearchStack,
     pub nnue: NNUE,
@@ -39,14 +41,16 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl<'a> ThreadData<'a> {
+
+    pub fn new(id: usize, tt: &'a TranspositionTable, stop: &'a AtomicBool) -> ThreadData {
         ThreadData {
-            id: 0,
-            main: true,
+            id,
+            main: id == 0,
+            stop,
+            tt,
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
@@ -68,9 +72,7 @@ impl Default for ThreadData {
             best_score: Score::MIN,
         }
     }
-}
 
-impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
