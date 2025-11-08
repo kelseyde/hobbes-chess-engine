@@ -63,6 +63,7 @@ impl Default for Entry {
             depth: 0,
             best_move: 0,
             score: Score::MIN as i16,
+            eval: Score::MIN as i16,
             flags: Flags::new(TTFlag::None, false, 0),
         }
     }
