@@ -233,6 +233,7 @@ fn alpha_beta(board: &Board,
     };
 
     td.ss[ply].static_eval = static_eval;
+    td.ss[ply].tt_pv = tt_pv;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
@@ -736,6 +737,8 @@ fn alpha_beta(board: &Board,
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
     }
+
+    tt_pv |= !root_node && tt_flag == Upper && legal_moves > 2 && td.ss[ply - 1].tt_pv;
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){

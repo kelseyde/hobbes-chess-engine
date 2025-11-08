@@ -18,6 +18,7 @@ pub struct StackEntry {
     pub threats: Bitboard,
     pub static_eval: i32,
     pub reduction: i32,
+    pub tt_pv: bool,
 }
 
 impl Default for SearchStack {
@@ -38,6 +39,7 @@ impl SearchStack {
                 threats: Bitboard::empty(),
                 static_eval: Score::MIN,
                 reduction: 0,
+                tt_pv: false,
             }; MAX_PLY + 8],
         }
     }
