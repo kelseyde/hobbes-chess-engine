@@ -1,4 +1,4 @@
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
@@ -19,7 +19,7 @@ pub struct ThreadData {
     pub main: bool,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
+    pub tt: Arc<Mutex<TranspositionTable>>,
     pub pv: PrincipalVariationTable,
     pub ss: SearchStack,
     pub nnue: NNUE,
@@ -42,15 +42,14 @@ pub struct ThreadData {
     pub cancelled: Arc<AtomicBool>,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl ThreadData {
+    pub fn new(tt: Arc<Mutex<TranspositionTable>>) -> Self {
         Self {
             id: 0,
             main: true,
-            cancelled: Arc::new(AtomicBool::new(false)),
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
+            tt,
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
@@ -70,11 +69,10 @@ impl Default for ThreadData {
             nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: Score::MIN,
+            cancelled: Arc::new(AtomicBool::new(false)),
         }
     }
-}
 
-impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -86,7 +84,6 @@ impl ThreadData {
     }
 
     pub fn clear(&mut self) {
-        self.tt.clear();
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();

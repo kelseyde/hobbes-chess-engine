@@ -198,7 +198,7 @@ fn alpha_beta(board: &Board,
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash()) {
+        if let Some(entry) = td.tt.lock().unwrap().probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -525,7 +525,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.tt.lock().unwrap().prefetch(board.hash());
 
         searched_moves += 1;
         td.nodes += 1;
@@ -747,7 +747,7 @@ fn alpha_beta(board: &Board,
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt.lock().unwrap().insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -897,7 +897,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.tt.lock().unwrap().prefetch(board.hash());
 
         move_count += 1;
         td.nodes += 1;
@@ -1015,7 +1015,7 @@ fn print_search_info(td: &mut ThreadData) {
     } else {
         0
     };
-    let hashfull = td.tt.fill();
+    let hashfull = td.tt.lock().unwrap().fill();
     print!(
         "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
         depth, seldepth, best_score, nodes, time, nps, hashfull

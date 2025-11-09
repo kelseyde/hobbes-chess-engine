@@ -13,17 +13,18 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 use std::time::Instant;
+use crate::search::tt::TranspositionTable;
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
+    pub tt: Arc<TranspositionTable>,
+    pub td: Arc<Mutex<ThreadData>>,
     pub frc: bool,
     pub search_thread: Option<JoinHandle<()>>,
-    pub search_cancel: Option<Arc<AtomicBool>>,
 }
 
 impl Default for UCI {
@@ -34,12 +35,15 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let tt = Arc::new(TranspositionTable::new(64));
+        let td = Arc::new(Mutex::new(ThreadData::new(tt.clone())));
+
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            tt,
+            td,
             frc: false,
             search_thread: None,
-            search_cancel: None,
         }
     }
 
@@ -95,7 +99,7 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            self.tt.lock().unwrap().size_mb()
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -142,7 +146,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        self.tt.lock().unwrap().resize(value);
         println!("info string Hash {}", value);
     }
 
@@ -169,7 +173,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.minimal_output = value;
+        self.td.lock().unwrap().minimal_output = value;
         println!("info string Minimal {}", value);
     }
 
@@ -182,7 +186,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.use_soft_nodes = value;
+        self.td.lock().unwrap().use_soft_nodes = value;
         println!("info string UseSoftNodes {}", value);
     }
 
@@ -199,11 +203,13 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.clear();
+        self.tt.lock().unwrap().clear();
+        self.td.lock().unwrap().clear();
     }
 
     fn handle_bench(&mut self) {
-        bench(&mut self.td);
+        let mut td = self.td.lock().unwrap();
+        bench(&mut *td);
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -220,7 +226,7 @@ impl UCI {
                 .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
-                .join(" "), // Returns owned String
+                .join(" "),
             _ => {
                 println!("info error: invalid position command");
                 return;
@@ -246,9 +252,10 @@ impl UCI {
             Vec::new()
         };
 
-        self.td.keys.clear();
-        self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash());
+        let mut td = self.td.lock().unwrap();
+        td.keys.clear();
+        td.root_ply = 0;
+        td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
             let mut legal_moves = self.board.gen_moves(MoveFilter::All);
@@ -259,8 +266,8 @@ impl UCI {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash());
-                    self.td.root_ply += 1;
+                    td.keys.push(self.board.hash());
+                    td.root_ply += 1;
                 }
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
@@ -271,19 +278,21 @@ impl UCI {
 
     fn handle_go(&mut self, tokens: Vec<String>) {
         // Cancel any previous search
-        if let Some(cancel) = &self.search_cancel {
-            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        {
+            let td = self.td.lock().unwrap();
+            td.cancel();
         }
         if let Some(handle) = self.search_thread.take() {
             let _ = handle.join();
         }
 
-        self.td.reset();
-        self.td.start_time = Instant::now();
-        self.td.tt.birthday();
-        self.td.reset_cancel();
+        let mut td = self.td.lock().unwrap();
+        td.reset();
+        td.start_time = Instant::now();
+        td.reset_cancel();
+        self.tt.lock().unwrap().birthday();
 
-        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -346,7 +355,7 @@ impl UCI {
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+        } else if tokens.contains(&String::from("nodes")) && td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -372,32 +381,33 @@ impl UCI {
 
         if let Some(soft_nodes) = softnodes {
             if nodes.is_none() {
-                // When doing a soft-nodes search, always ensure a hard node limit is set.
                 nodes = Some(soft_nodes * 10);
             }
         }
 
-        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
+        td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
-        // Prepare for threaded search
+        // Drop the lock before spawning thread
+        drop(td);
+
+        // Spawn search thread
         let board = self.board.clone();
-        let mut td = ThreadData::default();
-        td.limits = self.td.limits.clone();
-        td.minimal_output = self.td.minimal_output;
-        td.use_soft_nodes = self.td.use_soft_nodes;
-        let cancel_flag = td.cancelled.clone();
-        self.search_cancel = Some(cancel_flag.clone());
+        let td_arc = Arc::clone(&self.td);
 
         let handle = std::thread::spawn(move || {
-            search(&board, &mut td);
-            println!("bestmove {}", td.best_move.to_uci());
+            let mut td = td_arc.lock().unwrap();
+            search(&board, &mut *td);
+            if !td.is_cancelled() {
+                println!("bestmove {}", td.best_move.to_uci());
+            }
         });
         self.search_thread = Some(handle);
     }
 
     fn handle_stop(&mut self) {
-        if let Some(cancel) = &self.search_cancel {
-            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        {
+            let td = self.td.lock().unwrap();
+            td.cancel();
         }
         if let Some(handle) = self.search_thread.take() {
             let _ = handle.join();
@@ -405,8 +415,9 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        self.td.nnue.activate(&self.board);
-        let eval: i32 = self.td.nnue.evaluate(&self.board);
+        let mut td = self.td.lock().unwrap();
+        td.nnue.activate(&self.board);
+        let eval: i32 = td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 
@@ -454,7 +465,8 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
+        let mut td = self.td.lock().unwrap();
+        for opening in generate_random_openings(&mut *td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
     }
