@@ -226,6 +226,7 @@ fn alpha_beta(board: &Board,
     // extensions, reductions and pruning.
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut eval = Score::MIN;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -237,6 +238,16 @@ fn alpha_beta(board: &Board,
         };
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+        eval = static_eval;
+        if tt_hit
+            && Score::is_defined(tt_score)
+            && match tt_flag {
+                TTFlag::Upper => tt_score < eval,
+                TTFlag::Lower => tt_score > eval,
+                _ => true,
+            } {
+            eval = tt_score;
+        }
     }
 
     td.ss[ply].raw_eval = raw_eval;
@@ -305,7 +316,7 @@ fn alpha_beta(board: &Board,
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
+            && eval - futility_margin >= beta
             && tt_flag != Upper {
             return beta + (static_eval - beta) / 3;
         }
