@@ -5,7 +5,7 @@ use crate::board::Board;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::search;
-use crate::search::thread::ThreadData;
+use crate::search::thread::{SharedContext, ThreadData};
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
@@ -13,10 +13,12 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::sync::Arc;
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
+    pub shared: Arc<SharedContext>,
     pub td: Box<ThreadData>,
     pub frc: bool,
 }
@@ -29,9 +31,12 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let shared = Arc::new(SharedContext::new(64));
+        let td = Box::new(ThreadData::new(0, shared.clone()));
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            shared,
+            td,
             frc: false,
         }
     }
@@ -88,7 +93,7 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            self.td.shared.tt.size_mb()
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -135,7 +140,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        self.td.shared.tt.resize(value);
         println!("info string Hash {}", value);
     }
 
@@ -265,7 +270,7 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
         self.td.start_time = Instant::now();
-        self.td.tt.birthday();
+        self.td.shared.tt.birthday();
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
