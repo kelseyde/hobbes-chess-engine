@@ -943,8 +943,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt
-            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
+        td.tt.insert(
+            board.hash(),
+            best_move,
+            best_score,
+            raw_eval,
+            0,
+            ply,
+            flag,
+            tt_pv,
+        );
     }
 
     best_score
