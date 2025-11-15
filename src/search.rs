@@ -739,7 +739,6 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
-        && !Score::is_mate(best_score)
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
@@ -944,8 +943,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt
-            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
+        td.tt.insert(
+            board.hash(),
+            best_move,
+            best_score,
+            raw_eval,
+            0,
+            ply,
+            flag,
+            tt_pv,
+        );
     }
 
     best_score
