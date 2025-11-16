@@ -178,10 +178,9 @@ impl NNUE {
 
         for chunk in subs.as_slice().chunks_exact(4) {
             accumulator::sub_sub_sub_sub(cached_features, acc_features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
-            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            acc.sub(sub, weights, perspective);
+            accumulator::sub(cached_features, acc_features, sub, weights, perspective, mirror);
         }
 
         acc.computed[perspective] = true;
@@ -253,14 +252,16 @@ impl NNUE {
             if self.stack[curr].needs_refresh[perspective] {
                 self.full_refresh(board, self.current, perspective, mirror, bucket);
             } else {
-                let weights = NETWORK.feature_weights[bucket];
+                let weights = &NETWORK.feature_weights[bucket];
                 // Apply all updates from that accumulator up to the current one
                 while curr < self.current {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
                     let prev_acc = front.last().unwrap();
                     let next_acc = back.first_mut().unwrap();
-                    next_acc.copy_from(perspective, prev_acc.features(perspective));
-                    next_acc.apply_update(&weights, perspective);
+                    let update = next_acc.update;
+                    let prev_features = prev_acc.features(perspective);
+                    let next_features = next_acc.features_mut(perspective);
+                    accumulator::apply_update(prev_features, next_features, weights, &update, perspective, mirror);
                     next_acc.computed[perspective] = true;
                     curr += 1;
                 }
