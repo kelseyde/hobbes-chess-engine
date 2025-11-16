@@ -67,6 +67,11 @@ impl Histories {
     ) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
         let quiet_score = self.quiet_history.get(board.stm, *mv, threats) as i32;
+        let cont_score = self.cont_hist_score(ss, ply, mv, pc);
+        quiet_score + cont_score
+    }
+
+    fn cont_hist_score(&self, ss: &SearchStack, ply: usize, mv: &Move, pc: Piece) -> i32 {
         let mut cont_score = 0;
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply {
@@ -77,7 +82,7 @@ impl Histories {
                 }
             }
         }
-        quiet_score + cont_score
+        cont_score
     }
 
     pub fn capture_history_score(
@@ -98,12 +103,20 @@ impl Histories {
         pc: Piece,
         bonus: i16,
     ) {
+        let total_conthist_score = self.cont_hist_score(ss, ply, mv, pc);
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply {
                 if let (Some(prev_mv), Some(prev_pc)) =
                     (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
                 {
-                    self.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
+                    self.cont_history.update_with_base(
+                        &prev_mv,
+                        prev_pc,
+                        mv,
+                        pc,
+                        total_conthist_score,
+                        bonus,
+                    );
                 }
             }
         }
@@ -187,6 +200,19 @@ impl ContinuationHistory {
     pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
+    }
+
+    pub fn update_with_base(
+        &mut self,
+        prev_mv: &Move,
+        prev_pc: Piece,
+        mv: &Move,
+        pc: Piece,
+        base: i32,
+        bonus: i16,
+    ) {
+        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
+        *entry = gravity(base, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
