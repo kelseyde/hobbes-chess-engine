@@ -205,9 +205,6 @@ impl NNUE {
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
-            if mirror_changed {
-                self.stack[self.current].mirrored[us] = !self.stack[self.current - 1].mirrored[us];
-            }
             self.stack[self.current].needs_refresh[us] = true;
         }
 
