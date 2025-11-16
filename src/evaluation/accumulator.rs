@@ -39,7 +39,7 @@ impl Default for Accumulator {
             black_features: NETWORK.feature_bias,
             update: AccumulatorUpdate::default(),
             computed: [false, false],
-            needs_refresh: [true, true],
+            needs_refresh: [false, false],
             mirrored: [false, false],
         }
     }

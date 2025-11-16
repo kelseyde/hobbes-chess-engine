@@ -63,6 +63,7 @@ impl NNUE {
     /// sets, based on the side to move. Then, passes the features through the network to get the
     /// static evaluation.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
+        self.apply_lazy_updates(board);
         let acc = &self.stack[self.current];
         let us = match board.stm {
             White => &acc.white_features,
@@ -140,7 +141,6 @@ impl NNUE {
     ) {
         let acc = &mut self.stack[idx];
         acc.mirrored[perspective] = mirror;
-        acc.computed[perspective] = true;
         let cache_entry = self.cache.get(perspective, mirror, bucket);
         acc.copy_from(perspective, &cache_entry.features);
 
@@ -181,6 +181,9 @@ impl NNUE {
             acc.sub(sub, weights, perspective);
         }
 
+        acc.computed[perspective] = true;
+        acc.needs_refresh[perspective] = false;
+
         cache_entry.bitboards = board.bb;
         cache_entry.features = *acc.features(perspective);
     }
@@ -190,36 +193,22 @@ impl NNUE {
     /// updated.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
-        // TODO: This can be optimized. No need to have an extra copy
-        self.stack[self.current] = self.stack[self.current - 1];
+        self.stack[self.current].needs_refresh = self.stack[self.current - 1].needs_refresh;
+        self.stack[self.current].mirrored = self.stack[self.current - 1].mirrored;
+        self.stack[self.current].computed[White] = false;
+        self.stack[self.current].computed[Black] = false;
         let us = board.stm;
 
-        let new_pc = if let Some(promo_pc) = mv.promo_piece() {
-            promo_pc
-        } else {
-            pc
-        };
-
-        let w_king_sq = king_square(board, *mv, new_pc, White);
-        let b_king_sq = king_square(board, *mv, new_pc, Black);
-
-        let w_bucket = king_bucket(w_king_sq, White);
-        let b_bucket = king_bucket(b_king_sq, Black);
-
-        let w_weights = &NETWORK.feature_weights[w_bucket];
-        let b_weights = &NETWORK.feature_weights[b_bucket];
-
+        let new_pc = mv.promo_piece().unwrap_or(pc);
         let mirror_changed = mirror_changed(board, *mv, new_pc);
         let bucket_changed = bucket_changed(board, *mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
-            let bucket = if us == White { w_bucket } else { b_bucket };
-            let mut mirror = should_mirror(board.king_sq(us));
             if mirror_changed {
-                mirror = !mirror
+                self.stack[self.current].mirrored[us] = !self.stack[self.current - 1].mirrored[us];
             }
-            self.full_refresh(board, self.current, us, mirror, bucket);
+            self.stack[self.current].needs_refresh[us] = true;
         }
 
         self.stack[self.current].update = if mv.is_castle() {
@@ -229,10 +218,6 @@ impl NNUE {
         } else {
             self.handle_standard(mv, pc, new_pc, us)
         };
-        self.stack[self.current].apply_update(w_weights, White);
-        self.stack[self.current].apply_update(b_weights, Black);
-        self.stack[self.current].computed[White] = false;
-        self.stack[self.current].computed[Black] = false;
     }
 
     fn apply_lazy_updates(&mut self, board: &Board) {
@@ -242,22 +227,42 @@ impl NNUE {
                 continue; // already up-to-date for this perspective
             }
 
+            let king_sq = board.king_sq(perspective);
+            let mirror = should_mirror(king_sq);
+            let bucket = king_bucket(king_sq, perspective);
+
+            if self.stack[self.current].needs_refresh[perspective] {
+                self.full_refresh(board, self.current, perspective, mirror, bucket);
+                continue;
+            }
+
+            let weights = NETWORK.feature_weights[perspective];
+
             // Scan backwards to find the nearest parent accumulator that is computed
             // for this perspective.
-            let mut curr = self.current;
-            while !self.stack[curr].computed[perspective] {
-                if curr == 0 { break; }
+            let mut curr = self.current - 1;
+            while !self.stack[curr].computed[perspective] && !self.stack[curr].needs_refresh[perspective] {
+                if curr == 0 {
+                    break;
+                }
                 curr -= 1;
             }
 
-            // Apply all updates from that accumulator up to the current one
-            while curr < self.current {
-                let curr_acc = &self.stack[curr];
-                let next_acc = &mut self.stack[curr + 1];
-                next_acc.apply_update(weights, perspective);
-                next_acc.computed[perspective] = true;
-                curr += 1;
+            if self.stack[curr].needs_refresh[perspective] {
+                self.full_refresh(board, self.current, perspective, mirror, bucket);
+            } else {
+                // Apply all updates from that accumulator up to the current one
+                while curr < self.current {
+                    let (front, back) = self.stack.split_at_mut(curr + 1);
+                    let prev_acc = front.last().unwrap();
+                    let next_acc = back.first_mut().unwrap();
+                    next_acc.copy_from(perspective, prev_acc.features(perspective));
+                    next_acc.apply_update(&weights, perspective);
+                    next_acc.computed[perspective] = true;
+                    curr += 1;
+                }
             }
+
         }
     }
 
@@ -429,4 +434,36 @@ pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
         i += 1;
     }
     max + 1
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tools::fen;
+    use super::*;
+
+    #[test]
+    fn test_lazy_updates() {
+        let mut nnue1 = NNUE::default();
+        let mut nnue2 = NNUE::default();
+
+        let mut board = Board::from_fen(fen::STARTPOS).unwrap();
+        nnue1.activate(&board);
+        nnue2.activate(&board);
+
+        let eval1 = nnue1.evaluate(&board);
+        let eval2 = nnue2.evaluate(&board);
+        assert_eq!(eval1, eval2);
+
+        let mv = Move::parse_uci("e2e4");
+        let pc = Pawn;
+        nnue1.update(&mv, pc, None, &board);
+        board.make(&mv);
+
+        nnue2.activate(&board);
+
+        let eval1 = nnue1.evaluate(&board);
+        let eval2 = nnue2.evaluate(&board);
+        assert_eq!(eval1, eval2);
+    }
 }
