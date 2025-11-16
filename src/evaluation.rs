@@ -141,8 +141,10 @@ impl NNUE {
     ) {
         let acc = &mut self.stack[idx];
         acc.mirrored[perspective] = mirror;
+        let acc_features = acc.features_mut(perspective);
+
         let cache_entry = self.cache.get(perspective, mirror, bucket);
-        acc.copy_from(perspective, &cache_entry.features);
+        let cached_features = &cache_entry.features;
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
@@ -168,13 +170,14 @@ impl NNUE {
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            accumulator::add_add_add_add(cached_features, acc_features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            acc.add(add, weights, perspective);
+            accumulator::add(cached_features, acc_features, add, weights, perspective, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
+            accumulator::sub_sub_sub_sub(cached_features, acc_features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
             acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
