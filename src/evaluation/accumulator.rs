@@ -29,7 +29,7 @@ pub enum AccumulatorUpdateType {
     Sub,
     AddSub,
     AddSubSub,
-    AddAddSubSub
+    AddAddSubSub,
 }
 
 impl Default for Accumulator {
@@ -57,7 +57,6 @@ impl Default for AccumulatorUpdate {
 }
 
 impl AccumulatorUpdate {
-
     pub fn push_add(&mut self, feature: Feature) {
         if self.add_count < 2 {
             self.adds[self.add_count] = Some(feature);
@@ -119,39 +118,43 @@ impl Accumulator {
         }
     }
 
-    pub fn apply_update(
-        &mut self,
-        weights: &FeatureWeights,
-        perspective: Side) {
+    pub fn apply_update(&mut self, weights: &FeatureWeights, perspective: Side) {
         match self.update.update_type() {
-            AccumulatorUpdateType::None => {},
+            AccumulatorUpdateType::None => {}
             AccumulatorUpdateType::Add => {
                 if let Some(add) = self.update.adds[0] {
                     self.add(add, weights, perspective);
                 }
-            },
+            }
             AccumulatorUpdateType::Sub => {
                 if let Some(sub) = self.update.subs[0] {
                     self.sub(sub, weights, perspective);
                 }
-            },
+            }
             AccumulatorUpdateType::AddSub => {
                 if let (Some(add), Some(sub)) = (self.update.adds[0], self.update.subs[0]) {
                     self.add_sub(add, sub, weights, perspective);
                 }
-            },
+            }
             AccumulatorUpdateType::AddSubSub => {
-                if let (Some(add), Some(sub1), Some(sub2)) =
-                    (self.update.adds[0], self.update.subs[0], self.update.subs[1]) {
+                if let (Some(add), Some(sub1), Some(sub2)) = (
+                    self.update.adds[0],
+                    self.update.subs[0],
+                    self.update.subs[1],
+                ) {
                     self.add_sub_sub(add, sub1, sub2, weights, perspective);
                 }
-            },
+            }
             AccumulatorUpdateType::AddAddSubSub => {
-                if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
-                    (self.update.adds[0], self.update.adds[1], self.update.subs[0], self.update.subs[1]) {
+                if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) = (
+                    self.update.adds[0],
+                    self.update.adds[1],
+                    self.update.subs[0],
+                    self.update.subs[1],
+                ) {
                     self.add_add_sub_sub(add1, add2, sub1, sub2, weights, perspective);
                 }
-            },
+            }
         }
     }
 
@@ -213,7 +216,6 @@ impl Accumulator {
                 *feat_ptr = feat_ptr
                     .wrapping_add(*weights.get_unchecked(i + add_offset))
                     .wrapping_sub(*weights.get_unchecked(i + sub_offset));
-
             }
             i += 1;
         }

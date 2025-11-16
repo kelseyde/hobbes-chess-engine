@@ -221,7 +221,6 @@ impl NNUE {
     }
 
     fn apply_lazy_updates(&mut self, board: &Board) {
-
         for perspective in [White, Black] {
             if self.stack[self.current].computed[perspective] {
                 continue; // already up-to-date for this perspective
@@ -239,7 +238,9 @@ impl NNUE {
             // Scan backwards to find the nearest parent accumulator that is computed
             // for this perspective.
             let mut curr = self.current - 1;
-            while !self.stack[curr].computed[perspective] && !self.stack[curr].needs_refresh[perspective] {
+            while !self.stack[curr].computed[perspective]
+                && !self.stack[curr].needs_refresh[perspective]
+            {
                 if curr == 0 {
                     break;
                 }
@@ -261,7 +262,6 @@ impl NNUE {
                     curr += 1;
                 }
             }
-
         }
     }
 
@@ -273,7 +273,7 @@ impl NNUE {
         mv: &Move,
         pc: Piece,
         new_pc: Piece,
-        side: Side
+        side: Side,
     ) -> AccumulatorUpdate {
         let pc_ft = Feature::new(pc, mv.from(), side);
         let new_pc_ft = Feature::new(new_pc, mv.to(), side);
@@ -294,7 +294,7 @@ impl NNUE {
         pc: Piece,
         new_pc: Piece,
         captured: Piece,
-        side: Side
+        side: Side,
     ) -> AccumulatorUpdate {
         let capture_sq = if mv.is_ep() {
             Square(mv.to().0 ^ 8)
@@ -315,12 +315,7 @@ impl NNUE {
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
-    fn handle_castle(
-        &mut self,
-        board: &Board,
-        mv: &Move,
-        us: Side
-    ) -> AccumulatorUpdate {
+    fn handle_castle(&mut self, board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
         let king_to = if board.is_frc() {
@@ -435,11 +430,10 @@ pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     max + 1
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::tools::fen;
     use super::*;
+    use crate::tools::fen;
 
     #[test]
     fn test_lazy_updates() {
