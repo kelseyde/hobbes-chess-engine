@@ -109,7 +109,7 @@ impl Histories {
                 if let (Some(prev_mv), Some(prev_pc)) =
                     (ss[ply - prev_ply].mv, ss[ply - prev_ply].pc)
                 {
-                    self.cont_history.update_with_base(
+                    self.cont_history.yoshie_update(
                         &prev_mv,
                         prev_pc,
                         mv,
@@ -202,17 +202,17 @@ impl ContinuationHistory {
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
     }
 
-    pub fn update_with_base(
+    pub fn yoshie_update(
         &mut self,
         prev_mv: &Move,
         prev_pc: Piece,
         mv: &Move,
         pc: Piece,
-        base: i32,
+        yoshie: i32,
         bonus: i16,
     ) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry = gravity(base, bonus as i32, Self::MAX as i32) as i16;
+        *entry = yoshie_gravity(*entry as i32, yoshie, bonus as i32, Self::MAX as i32) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -317,4 +317,8 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {
     current + update - current * update.abs() / max
+}
+
+fn yoshie_gravity(current: i32, yoshie: i32, update: i32, max: i32) -> i32 {
+    current + update - yoshie * update.abs() / max
 }
