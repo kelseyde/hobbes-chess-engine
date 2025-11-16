@@ -20,6 +20,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
+use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -185,6 +186,7 @@ fn alpha_beta(board: &Board,
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
     let mut tt_score = Score::MIN;
+    let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
     let mut tt_flag = TTFlag::Lower;
     let mut tt_depth = 0;
@@ -199,6 +201,7 @@ fn alpha_beta(board: &Board,
         if let Some(entry) = td.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
+            tt_eval = entry.static_eval() as i32;
             has_tt_score = Score::is_defined(tt_score);
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
@@ -221,14 +224,22 @@ fn alpha_beta(board: &Board,
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
+    let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
 
     if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+        raw_eval = if singular_search {
+            td.ss[ply].raw_eval
+        } else if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
-    };
+    }
 
+    td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
@@ -293,7 +304,9 @@ fn alpha_beta(board: &Board,
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
+        if depth <= rfp_max_depth()
+            && static_eval - futility_margin >= beta
+            && tt_flag != Upper {
             return beta + (static_eval - beta) / 3;
         }
 
@@ -308,7 +321,8 @@ fn alpha_beta(board: &Board,
         if depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
-            && board.has_non_pawns() {
+            && board.has_non_pawns()
+            && tt_flag != Upper {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
@@ -450,7 +464,7 @@ fn alpha_beta(board: &Board,
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            depth * pvs_see_quiet_scale()
+            lmr_depth * pvs_see_quiet_scale()
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
         } else {
@@ -477,7 +491,8 @@ fn alpha_beta(board: &Board,
             && tt_flag != TTFlag::Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
-            let s_beta = (tt_score - depth * se_beta_scale() / 16).max(-Score::MATE + 1);
+            let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
+            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
@@ -644,15 +659,29 @@ fn alpha_beta(board: &Board,
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
+        let new_tt_move = tt_move.exists() && best_move != tt_move;
 
-        let quiet_bonus = quiet_history_bonus(depth);
-        let quiet_malus = quiet_history_malus(depth);
+        let quiet_bonus = quiet_history_bonus(depth)
+            - cut_node as i16 * quiet_hist_cutnode_offset() as i16
+            + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
+            + capture_count as i16 * quiet_hist_capture_mult() as i16;
 
-        let capt_bonus = capture_history_bonus(depth);
-        let capt_malus = capture_history_malus(depth);
+        let quiet_malus = quiet_history_malus(depth)
+            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
 
-        let cont_bonus = cont_history_bonus(depth);
-        let cont_malus = cont_history_malus(depth);
+        let capt_bonus = capture_history_bonus(depth)
+            + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
+
+        let capt_malus = capture_history_malus(depth)
+            + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
+
+        let cont_bonus = cont_history_bonus(depth)
+            - cut_node as i16 * cont_hist_cutnode_offset() as i16
+            + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_capture_mult() as i16;
+
+        let cont_malus = cont_history_malus(depth)
+            + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
@@ -710,7 +739,6 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
-        && !Score::is_mate(best_score)
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
@@ -718,7 +746,7 @@ fn alpha_beta(board: &Board,
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -762,10 +790,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     td.ss[ply].threats = threats;
 
     // Transposition Table Lookup
+    let mut tt_hit = false;
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
+    let mut tt_eval = Score::MIN;
     if let Some(entry) = td.tt.probe(board.hash()) {
+        tt_hit = true;
         tt_pv = tt_pv || entry.pv();
+        tt_eval = entry.static_eval() as i32;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -776,13 +808,20 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let mut static_eval = -Score::MATE + ply as i32;
+    let mut raw_eval = Score::MIN;
+    let mut static_eval = Score::MIN;
 
     if !in_check {
-        let raw_eval = td.nnue.evaluate(board);
+        raw_eval = if tt_hit && Score::is_defined(tt_eval) {
+            tt_eval
+        } else {
+            td.nnue.evaluate(board)
+        };
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
+    }
 
+    if !in_check {
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue
         // the capture chain, if the static evaluation of the position is good enough.
         if static_eval > alpha {
@@ -820,7 +859,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
+
+        // Late Move Pruning
+        if !in_check && !is_recapture && !is_mate_score && move_count >= 2 {
+            break;
+        }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
@@ -898,8 +943,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt
-            .insert(board.hash(), best_move, best_score, 0, ply, flag, tt_pv);
+        td.tt.insert(
+            board.hash(),
+            best_move,
+            best_score,
+            raw_eval,
+            0,
+            ply,
+            flag,
+            tt_pv,
+        );
     }
 
     best_score

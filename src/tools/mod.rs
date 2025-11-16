@@ -1,5 +1,6 @@
 pub mod bench;
 pub mod datagen;
+pub mod debug;
 pub mod fen;
 pub mod perft;
 pub mod pretty;
