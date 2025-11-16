@@ -141,10 +141,8 @@ impl NNUE {
     ) {
         let acc = &mut self.stack[idx];
         acc.mirrored[perspective] = mirror;
-        let acc_features = acc.features_mut(perspective);
-
         let cache_entry = self.cache.get(perspective, mirror, bucket);
-        let cached_features = &cache_entry.features;
+        acc.copy_from(perspective, &cache_entry.features);
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
@@ -170,17 +168,17 @@ impl NNUE {
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            accumulator::add_add_add_add(cached_features, acc_features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
+            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            accumulator::add(cached_features, acc_features, add, weights, perspective, mirror);
+            acc.add(add, weights, perspective);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            accumulator::sub_sub_sub_sub(cached_features, acc_features, chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective, mirror);
+            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            accumulator::sub(cached_features, acc_features, sub, weights, perspective, mirror);
+            acc.sub(sub, weights, perspective);
         }
 
         acc.computed[perspective] = true;
@@ -261,7 +259,14 @@ impl NNUE {
                     let update = next_acc.update;
                     let prev_features = prev_acc.features(perspective);
                     let next_features = next_acc.features_mut(perspective);
-                    accumulator::apply_update(prev_features, next_features, weights, &update, perspective, mirror);
+                    accumulator::apply_update(
+                        prev_features,
+                        next_features,
+                        weights,
+                        &update,
+                        perspective,
+                        mirror,
+                    );
                     next_acc.computed[perspective] = true;
                     curr += 1;
                 }
@@ -350,18 +355,6 @@ impl NNUE {
     /// Undo the last move by decrementing the current accumulator index.
     pub fn undo(&mut self) {
         self.current = self.current.saturating_sub(1);
-    }
-}
-
-#[inline]
-fn king_square(board: &Board, mv: Move, pc: Piece, side: Side) -> Square {
-    if side != board.stm || pc != King {
-        board.king_sq(side)
-    } else if mv.is_castle() && board.is_frc() {
-        let kingside = castling::is_kingside(mv.from(), mv.to());
-        castling::king_to(board.stm, kingside)
-    } else {
-        mv.to()
     }
 }
 

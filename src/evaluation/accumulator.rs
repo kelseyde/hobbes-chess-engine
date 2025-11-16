@@ -14,7 +14,7 @@ pub struct Accumulator {
     pub mirrored: [bool; 2],
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct AccumulatorUpdate {
     pub add_count: usize,
     pub sub_count: usize,
@@ -41,17 +41,6 @@ impl Default for Accumulator {
             computed: [false, false],
             needs_refresh: [false, false],
             mirrored: [false, false],
-        }
-    }
-}
-
-impl Default for AccumulatorUpdate {
-    fn default() -> Self {
-        AccumulatorUpdate {
-            add_count: 0,
-            sub_count: 0,
-            adds: [None, None],
-            subs: [None, None],
         }
     }
 }
@@ -92,7 +81,6 @@ impl Accumulator {
             Black => &self.black_features,
         }
     }
-
 
     #[inline(always)]
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; HIDDEN] {
@@ -153,71 +141,6 @@ impl Accumulator {
             }
             i += 1;
         }
-    }
-
-}
-
-pub fn apply_update(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
-    weights: &FeatureWeights,
-    update: &AccumulatorUpdate,
-    perspective: Side,
-    mirror: bool
-) {
-    match update.update_type() {
-        AccumulatorUpdateType::None => {},
-        AccumulatorUpdateType::Add => {
-            if let Some(add1) = update.adds[0] {
-                add(input_features, output_features, add1, weights, perspective, mirror);
-            }
-        },
-        AccumulatorUpdateType::Sub => {
-            if let Some(sub1) = update.subs[0] {
-                sub(input_features, output_features, sub1, weights, perspective, mirror);
-            }
-        },
-        AccumulatorUpdateType::AddSub => {
-            if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
-                add_sub(input_features, output_features, add1, sub1, weights, perspective, mirror);
-            }
-        },
-        AccumulatorUpdateType::AddSubSub => {
-            if let (Some(add), Some(sub1), Some(sub2)) =
-                (update.adds[0], update.subs[0], update.subs[1]) {
-                add_sub_sub(input_features, output_features, add, sub1, sub2, weights, perspective, mirror);
-            }
-        },
-        AccumulatorUpdateType::AddAddSubSub => {
-            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) =
-                (update.adds[0], update.adds[1], update.subs[0], update.subs[1]) {
-                add_add_sub_sub(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
-            }
-        },
-    }
-}
-
-#[inline]
-pub fn add(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
-    add: Feature,
-    weights: &FeatureWeights,
-    perspective: Side,
-    mirror: bool
-) {
-    let idx = add.index(perspective, mirror);
-    let weight_offset = idx * HIDDEN;
-
-    let mut i = 0;
-    while i < HIDDEN {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            let weight = *weights.get_unchecked(i + weight_offset);
-            *out_feat_ptr = in_feat_ptr.wrapping_add(weight);
-        }
-        i += 1;
     }
 
     #[inline]
@@ -286,6 +209,116 @@ pub fn add(
     }
 }
 
+pub fn apply_update(
+    input_features: &[i16; HIDDEN],
+    output_features: &mut [i16; HIDDEN],
+    weights: &FeatureWeights,
+    update: &AccumulatorUpdate,
+    perspective: Side,
+    mirror: bool,
+) {
+    match update.update_type() {
+        AccumulatorUpdateType::None => {}
+        AccumulatorUpdateType::Add => {
+            if let Some(add1) = update.adds[0] {
+                add(
+                    input_features,
+                    output_features,
+                    add1,
+                    weights,
+                    perspective,
+                    mirror,
+                );
+            }
+        }
+        AccumulatorUpdateType::Sub => {
+            if let Some(sub1) = update.subs[0] {
+                sub(
+                    input_features,
+                    output_features,
+                    sub1,
+                    weights,
+                    perspective,
+                    mirror,
+                );
+            }
+        }
+        AccumulatorUpdateType::AddSub => {
+            if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
+                add_sub(
+                    input_features,
+                    output_features,
+                    add1,
+                    sub1,
+                    weights,
+                    perspective,
+                    mirror,
+                );
+            }
+        }
+        AccumulatorUpdateType::AddSubSub => {
+            if let (Some(add), Some(sub1), Some(sub2)) =
+                (update.adds[0], update.subs[0], update.subs[1])
+            {
+                add_sub_sub(
+                    input_features,
+                    output_features,
+                    add,
+                    sub1,
+                    sub2,
+                    weights,
+                    perspective,
+                    mirror,
+                );
+            }
+        }
+        AccumulatorUpdateType::AddAddSubSub => {
+            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) = (
+                update.adds[0],
+                update.adds[1],
+                update.subs[0],
+                update.subs[1],
+            ) {
+                add_add_sub_sub(
+                    input_features,
+                    output_features,
+                    add1,
+                    add2,
+                    sub1,
+                    sub2,
+                    weights,
+                    perspective,
+                    mirror,
+                );
+            }
+        }
+    }
+}
+
+#[inline]
+pub fn add(
+    input_features: &[i16; HIDDEN],
+    output_features: &mut [i16; HIDDEN],
+    add: Feature,
+    weights: &FeatureWeights,
+    perspective: Side,
+    mirror: bool,
+) {
+    let idx = add.index(perspective, mirror);
+    let weight_offset = idx * HIDDEN;
+
+    let mut i = 0;
+    while i < HIDDEN {
+        unsafe {
+            let in_feat_ptr = input_features.get_unchecked(i);
+            let out_feat_ptr = output_features.get_unchecked_mut(i);
+            let weight = *weights.get_unchecked(i + weight_offset);
+            *out_feat_ptr = in_feat_ptr.wrapping_add(weight);
+        }
+        i += 1;
+    }
+}
+
 #[inline]
 pub fn sub(
     input_features: &[i16; HIDDEN],
@@ -293,7 +326,7 @@ pub fn sub(
     sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let idx = sub.index(perspective, mirror);
     let weight_offset = idx * HIDDEN;
@@ -318,7 +351,7 @@ pub fn add_sub(
     sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let add_offset = add.index(perspective, mirror) * HIDDEN;
     let sub_offset = sub.index(perspective, mirror) * HIDDEN;
@@ -337,6 +370,7 @@ pub fn add_sub(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn add_sub_sub(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -345,7 +379,7 @@ pub fn add_sub_sub(
     sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let add_offset = add.index(perspective, mirror) * HIDDEN;
     let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
@@ -366,6 +400,7 @@ pub fn add_sub_sub(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn add_add_sub_sub(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -375,7 +410,7 @@ pub fn add_add_sub_sub(
     sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let add1_offset = add1.index(perspective, mirror) * HIDDEN;
     let add2_offset = add2.index(perspective, mirror) * HIDDEN;
@@ -398,6 +433,7 @@ pub fn add_add_sub_sub(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn add_add_add_add(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -407,7 +443,7 @@ pub fn add_add_add_add(
     add4: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let add1_offset = add1.index(perspective, mirror) * HIDDEN;
     let add2_offset = add2.index(perspective, mirror) * HIDDEN;
@@ -429,6 +465,8 @@ pub fn add_add_add_add(
     }
 }
 
+#[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn sub_sub_sub_sub(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -438,7 +476,7 @@ pub fn sub_sub_sub_sub(
     sub4: Feature,
     weights: &FeatureWeights,
     perspective: Side,
-    mirror: bool
+    mirror: bool,
 ) {
     let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
     let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
@@ -459,4 +497,3 @@ pub fn sub_sub_sub_sub(
         i += 1;
     }
 }
-
