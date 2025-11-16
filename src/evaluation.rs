@@ -236,8 +236,6 @@ impl NNUE {
                 continue;
             }
 
-            let weights = NETWORK.feature_weights[perspective];
-
             // Scan backwards to find the nearest parent accumulator that is computed
             // for this perspective.
             let mut curr = self.current - 1;
@@ -251,6 +249,7 @@ impl NNUE {
             if self.stack[curr].needs_refresh[perspective] {
                 self.full_refresh(board, self.current, perspective, mirror, bucket);
             } else {
+                let weights = NETWORK.feature_weights[bucket];
                 // Apply all updates from that accumulator up to the current one
                 while curr < self.current {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
