@@ -64,6 +64,7 @@ impl NNUE {
     /// static evaluation.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         self.apply_lazy_updates(board);
+
         let acc = &self.stack[self.current];
         let us = match board.stm {
             White => &acc.white_features,
@@ -190,7 +191,7 @@ impl NNUE {
 
     /// Efficiently update the accumulators for the current move. Depending on the nature of
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
-    /// updated.
+    /// updated. The update is then stored on the accumulator to later be applied lazily.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
         self.stack[self.current].needs_refresh = self.stack[self.current - 1].needs_refresh;
@@ -217,23 +218,30 @@ impl NNUE {
         };
     }
 
+    /// Apply any pending lazy updates to the current accumulator. For each perspective, scan
+    /// backwards to find the nearest computed accumulator, and move forward applying all updates
+    /// one by one. If at any point we encounter an accumulator that requires a refresh - due to
+    /// bucket or mirror change - we bail out and perform a full refresh instead.
     fn apply_lazy_updates(&mut self, board: &Board) {
         for perspective in [White, Black] {
+
+            // If already up-to-date for this perspective, then there is nothing to do.
             if self.stack[self.current].computed[perspective] {
-                continue; // already up-to-date for this perspective
+                continue;
             }
 
             let king_sq = board.king_sq(perspective);
             let mirror = should_mirror(king_sq);
             let bucket = king_bucket(king_sq, perspective);
 
+            // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
             if self.stack[self.current].needs_refresh[perspective] {
                 self.full_refresh(board, self.current, perspective, mirror, bucket);
                 continue;
             }
 
-            // Scan backwards to find the nearest parent accumulator that is computed
-            // for this perspective.
+            // Scan backwards to find the nearest parent accumulator that is computed for this
+            // perspective, or requires a refresh.
             let mut curr = self.current - 1;
             while !self.stack[curr].computed[perspective]
                 && !self.stack[curr].needs_refresh[perspective]
@@ -245,10 +253,11 @@ impl NNUE {
             }
 
             if self.stack[curr].needs_refresh[perspective] {
+                // If we found an accumulator that requires a full refresh, do that instead.
                 self.full_refresh(board, self.current, perspective, mirror, bucket);
             } else {
+                // Otherwise, move forward through the stack applying all updates one by one.
                 let weights = &NETWORK.feature_weights[bucket];
-                // Apply all updates from that accumulator up to the current one
                 while curr < self.current {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
                     let prev_acc = front.last().unwrap();
