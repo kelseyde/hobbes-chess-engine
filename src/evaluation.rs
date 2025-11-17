@@ -35,7 +35,8 @@ pub const BUCKETS: [usize; 64] = [
         14, 14, 15, 15, 15, 15, 14, 14,
         14, 14, 15, 15, 15, 15, 14, 14,
 ];
-pub const NUM_BUCKETS: usize = get_num_buckets(&BUCKETS);
+pub const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKETS);
+pub const NUM_OUTPUT_BUCKETS: usize = 8;
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
 pub struct NNUE {
@@ -75,10 +76,14 @@ impl NNUE {
             Black => &acc.white_features,
         };
 
-        let mut output = Self::forward(us, them);
+        let output_bucket = get_output_bucket(board);
+        let output_weights = &NETWORK.output_weights[output_bucket];
+        let output_bias = NETWORK.output_bias[output_bucket];
+
+        let mut output = Self::forward(us, them, output_weights);
 
         output /= QA;
-        output += NETWORK.output_bias as i32;
+        output += output_bias as i32;
         output *= SCALE;
         output /= QAB;
         output = scale_evaluation(board, output);
@@ -87,26 +92,20 @@ impl NNUE {
 
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
-    pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+    pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN], weights: &[[i16; HIDDEN]; 2]) -> i32 {
         #[cfg(target_feature = "avx512f")]
         {
-            use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::avx512;
-            let weights = &NETWORK.output_weights;
             unsafe { avx512::forward(us, &weights[0]) + avx512::forward(them, &weights[1]) }
         }
         #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
-            use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::avx2;
-            let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
         }
         #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
         {
-            use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::scalar;
-            let weights = &NETWORK.output_weights;
             scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
         }
     }
@@ -418,6 +417,12 @@ fn material_phase(board: &Board) -> i32 {
         + scale_value_bishop() * bishops as i32
         + scale_value_rook() * rooks as i32
         + scale_value_queen() * queens as i32
+}
+
+fn get_output_bucket(board: &Board) -> usize {
+    const DIVISOR: usize = 32 / NUM_OUTPUT_BUCKETS;
+    let occ_count = board.occ().count() as usize;
+    (occ_count - 2) / DIVISOR
 }
 
 pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
