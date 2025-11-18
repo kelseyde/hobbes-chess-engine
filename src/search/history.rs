@@ -290,5 +290,6 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 }
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {
-    current + update - current * update.abs() / max
+    let clamped = update.clamp(-max, max);
+    current + clamped - current * update.abs() / max
 }
