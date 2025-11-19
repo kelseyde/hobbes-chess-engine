@@ -339,7 +339,11 @@ fn alpha_beta(board: &Board,
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if Score::is_mate(score) { beta } else {score };
+                    return if Score::is_mate(score) {
+                        beta
+                    } else {
+                        (score + beta) / 2
+                    };
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
