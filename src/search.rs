@@ -433,7 +433,7 @@ fn alpha_beta(board: &Board,
             && !is_mate_score
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves > late_move_threshold(depth, improving, history_score) {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -997,7 +997,7 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     }
 }
 
-fn late_move_threshold(depth: i32, improving: bool) -> i32 {
+fn late_move_threshold(depth: i32, improving: bool, history_score: i32) -> i32 {
     let base = if improving {
         lmp_improving_base()
     } else {
@@ -1008,7 +1008,7 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     } else {
         lmp_scale()
     };
-    (base + depth * scale) / 10
+    ((base + depth * scale) / 10) - (history_score < -8000) as i32
 }
 
 fn print_search_info(td: &mut ThreadData) {
