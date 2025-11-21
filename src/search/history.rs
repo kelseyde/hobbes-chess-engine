@@ -159,7 +159,7 @@ impl Default for ContinuationHistory {
 }
 
 impl QuietHistory {
-    const MAX: i16 = 16384;
+    const MAX: i32 = 16384;
 
     pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
@@ -170,7 +170,7 @@ impl QuietHistory {
         let threat_index = ThreatIndex::new(*mv, threats);
         let entry =
             &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -179,7 +179,7 @@ impl QuietHistory {
 }
 
 impl CaptureHistory {
-    const MAX: i16 = 16384;
+    const MAX: i32 = 16384;
 
     pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
         self.entries[stm][pc][sq][captured]
@@ -187,7 +187,7 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
         let entry = &mut self.entries[stm][pc][sq][captured];
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX as i32) as i16;
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -196,7 +196,7 @@ impl CaptureHistory {
 }
 
 impl ContinuationHistory {
-    const MAX: i16 = 16384;
+    const MAX: i32 = 16384;
 
     pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
@@ -204,7 +204,7 @@ impl ContinuationHistory {
 
     pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, base: i32, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry = gravity_with_base(*entry as i32, base, bonus as i32, Self::MAX as i32) as i16;
+        *entry = gravity_with_base(*entry as i32, base, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
