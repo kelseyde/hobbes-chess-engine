@@ -235,6 +235,9 @@ fn alpha_beta(board: &Board,
         } else {
             td.nnue.evaluate(board)
         };
+        if !tt_hit {
+            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+        }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
@@ -817,6 +820,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         } else {
             td.nnue.evaluate(board)
         };
+        if !tt_hit {
+            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, 0, ply, TTFlag::None, tt_pv);
+        }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
