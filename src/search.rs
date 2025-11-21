@@ -238,7 +238,6 @@ fn alpha_beta(board: &Board,
         if !tt_hit {
             td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
