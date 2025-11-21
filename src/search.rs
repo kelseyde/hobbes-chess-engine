@@ -380,6 +380,7 @@ fn alpha_beta(board: &Board,
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
+    let mut best_move_reduction = 0;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
@@ -405,6 +406,7 @@ fn alpha_beta(board: &Board,
         let lmr_depth = depth.saturating_sub(base_reduction);
 
         let mut extension = 0;
+        let mut reduction = 0;
 
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
@@ -558,7 +560,8 @@ fn alpha_beta(board: &Board,
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
             r += (is_quiet && !see::see(&original_board, &mv, 0)) as i32 * lmr_quiet_see();
-            let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
+            reduction = (r / 1024).clamp(0, new_depth - 1);
+            let reduced_depth = new_depth - reduction;
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.ss[ply].reduction = r;
@@ -627,6 +630,7 @@ fn alpha_beta(board: &Board,
         if score > alpha {
             alpha = score;
             best_move = mv;
+            best_move_reduction = reduction;
             flag = TTFlag::Exact;
 
             if pv_node {
@@ -667,7 +671,8 @@ fn alpha_beta(board: &Board,
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+            + capture_count as i16 * quiet_hist_capture_mult() as i16
+            + best_move_reduction as i16 * 64;
 
         let quiet_malus = quiet_history_malus(depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
@@ -681,7 +686,8 @@ fn alpha_beta(board: &Board,
         let cont_bonus = cont_history_bonus(depth)
             - cut_node as i16 * cont_hist_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_capture_mult() as i16
+            + best_move_reduction as i16 * 64;
 
         let cont_malus = cont_history_malus(depth)
             + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
