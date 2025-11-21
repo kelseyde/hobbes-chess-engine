@@ -54,7 +54,7 @@ impl Histories {
             self.capture_history_score(board, mv, pc, captured)
         } else {
             let quiet_score = self.quiet_history_score(board, mv, threats);
-            let cont_score = self.cont_history_score(board, ss, mv, ply, quiet_score);
+            let cont_score = self.cont_history_score(board, ss, mv, ply);
             quiet_score + cont_score
         }
     }
@@ -73,8 +73,7 @@ impl Histories {
         board: &Board,
         ss: &SearchStack,
         mv: &Move,
-        ply: usize,
-        quiet_score: i32,
+        ply: usize
     ) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
         let mut cont_score = 0;
@@ -83,11 +82,7 @@ impl Histories {
                 let prev_mv = ss[ply - prev_ply].mv;
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    let mut score = self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
-                    if ply == 1 {
-                        score = (score + quiet_score) / 2;
-                    }
-                    cont_score += score;
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                 }
             }
         }
@@ -106,22 +101,18 @@ impl Histories {
 
     pub fn update_continuation_history(
         &mut self,
-        board: &Board,
         ss: &SearchStack,
         ply: usize,
         mv: &Move,
         pc: Piece,
-        bonus: i16,
-        threats: Bitboard
+        bonus: i16
     ) {
-        let quiet_score = self.quiet_history_score(board, mv, threats);
-        let total_score = self.cont_history_score(board, ss, mv, ply, quiet_score);
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply {
                 let prev_mv = ss[ply - prev_ply].mv;
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    self.cont_history.update(&prev_mv, prev_pc, mv, pc, total_score, bonus);
+                    self.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus);
                 }
             }
         }
@@ -202,9 +193,9 @@ impl ContinuationHistory {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
-    pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, base: i32, bonus: i16) {
+    pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
-        *entry = gravity_with_base(*entry as i32, base, bonus as i32, Self::MAX) as i16;
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
@@ -309,8 +300,4 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {
     current + update - current * update.abs() / max
-}
-
-fn gravity_with_base(current: i32, base: i32, update: i32, max: i32) -> i32 {
-    current + update - base * update.abs() / max
 }

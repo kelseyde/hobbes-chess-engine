@@ -167,7 +167,7 @@ impl MovePicker {
         } else {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, threats);
-            let cont_score = td.history.cont_history_score(board, &td.ss, mv, ply, quiet_score);
+            let cont_score = td.history.cont_history_score(board, &td.ss, mv, ply);
             let is_killer = td.ss[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };
             entry.score = base + quiet_score + cont_score;
