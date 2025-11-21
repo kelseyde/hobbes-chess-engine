@@ -330,6 +330,7 @@ fn alpha_beta(board: &Board,
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
                 + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
+                + improving as i32
                 + tt_move_noisy as i32;
 
             let mut board = *board;
