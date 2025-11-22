@@ -111,9 +111,12 @@ tunable_params! {
     cont_hist_malus_offset      = 73, 0, 200, 25;
     cont_hist_ttmove_malus      = 67, 0, 200, 25;
     cont_hist_malus_max         = 1000, 1000, 1600, 100;
-    pcm_bonus_scale             = 227, 80, 280, 40;
-    pcm_bonus_offset            = 63, 0, 200, 25;
-    pcm_bonus_max               = 1425, 1000, 1600, 100;
+    pcm_quiet_bonus_scale       = 227, 80, 280, 40;
+    pcm_quiet_bonus_offset      = 63, 0, 200, 25;
+    pcm_quiet_bonus_max         = 1425, 1000, 1600, 100;
+    pcm_cont_bonus_scale        = 227, 80, 280, 40;
+    pcm_cont_bonus_offset       = 63, 0, 200, 25;
+    pcm_cont_bonus_max          = 1425, 1000, 1600, 100;
     corr_pawn_weight            = 121, 0, 200, 10;
     corr_non_pawn_weight        = 97, 0, 200, 10;
     corr_major_weight           = 82, 0, 200, 10;

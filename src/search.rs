@@ -721,10 +721,16 @@ fn alpha_beta(board: &Board,
     if !root_node
         && flag == TTFlag::Upper
         && td.ss[ply - 1].captured.is_none() {
-        if let Some(prev_mv) = td.ss[ply - 1].mv {
+        let prev_mv = td.ss[ply - 1].mv;
+        let prev_pc = td.ss[ply - 1].pc;
+        if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
             let prev_threats = td.ss[ply - 1].threats;
-            let quiet_bonus = prior_countermove_bonus(depth);
+
+            let quiet_bonus = prior_countermove_quiet_bonus(depth);
             td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, quiet_bonus);
+
+            let cont_bonus = prior_countermove_cont_bonus(depth);
+            td.history.update_continuation_history(&td.ss, ply, &prev_mv, prev_pc, cont_bonus);
         }
     }
 
