@@ -24,12 +24,6 @@ pub struct DebugStats {
 
 impl Default for DebugStats {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DebugStats {
-    pub fn new() -> Self {
         Self {
             sum: 0,
             sum_sqr: 0,
@@ -40,10 +34,13 @@ impl DebugStats {
             rng: StdRng::seed_from_u64(0),
         }
     }
+}
+
+impl DebugStats {
 
     pub fn add(&mut self, data_point: i64) {
         self.sum += data_point;
-        self.sum_sqr += data_point.abs() as u128 * data_point.abs() as u128;
+        self.sum_sqr += data_point.unsigned_abs() as u128 * data_point.unsigned_abs() as u128;
         self.count += 1;
         if data_point < self.min {
             self.min = data_point;
@@ -121,7 +118,7 @@ impl DebugStats {
 
 impl DebugStatsMap {
     pub fn insert(&mut self, key: String, data_point: i64) {
-        let stats = self.map.entry(key).or_insert_with(DebugStats::new);
+        let stats = self.map.entry(key).or_default();
         stats.add(data_point);
     }
 
