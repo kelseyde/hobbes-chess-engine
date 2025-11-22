@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -12,12 +14,64 @@ use crate::search::{Score, MAX_PLY};
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
+pub struct ThreadPool {
+    workers: Vec<WorkerThread>,
+    shared: Arc<SharedContext>,
+}
+
+pub struct WorkerThread {
+    data: Box<ThreadData>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+pub struct SharedContext {
+    pub tt: TranspositionTable,
+    pub stop: AtomicBool,
+}
+
+impl ThreadPool {
+
+    pub fn new(tt_size_mb: usize) -> ThreadPool {
+        let shared = Arc::new(SharedContext::new(tt_size_mb));
+        ThreadPool {
+            workers: Vec::new(),
+            shared,
+        }
+    }
+
+    pub fn resize(&mut self, num_threads: usize) {
+        // Clear existing threads
+        self.workers.clear();
+
+        // Create new threads
+        for id in 0..num_threads {
+            self.workers.push(WorkerThread::new(id, Arc::clone(&self.shared)));
+        }
+    }
+
+    pub fn main_thread(&mut self) -> &mut ThreadData {
+        &mut self.workers[0].data
+    }
+
+    pub fn shared(&self) -> &Arc<SharedContext> {
+        &self.shared
+    }
+}
+
+impl WorkerThread {
+    pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
+        WorkerThread {
+            data: Box::new(ThreadData::new(id, shared)),
+            handle: None,
+        }
+    }
+}
+
 pub struct ThreadData {
     pub id: usize,
-    pub main: bool,
+    pub shared: Arc<SharedContext>,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
     pub pv: PrincipalVariationTable,
     pub ss: SearchStack,
     pub nnue: NNUE,
@@ -39,14 +93,14 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl ThreadData {
+
+    pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
         ThreadData {
-            id: 0,
-            main: true,
+            id,
+            shared,
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
             pv: PrincipalVariationTable::default(),
             ss: SearchStack::new(),
             nnue: NNUE::default(),
@@ -68,9 +122,7 @@ impl Default for ThreadData {
             best_score: Score::MIN,
         }
     }
-}
 
-impl ThreadData {
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -82,11 +134,15 @@ impl ThreadData {
     }
 
     pub fn clear(&mut self) {
-        self.tt.clear();
+        self.shared.tt.clear();
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
         self.correction_history.clear();
+    }
+
+    pub fn is_main_thread(&self) -> bool {
+        self.id == 0
     }
 
     pub fn time(&self) -> u128 {
@@ -151,6 +207,15 @@ impl ThreadData {
         }
 
         false
+    }
+}
+
+impl SharedContext {
+    pub fn new(tt_size_mb: usize) -> Self {
+        SharedContext {
+            tt: TranspositionTable::new(tt_size_mb),
+            stop: AtomicBool::new(false),
+        }
     }
 }
 
