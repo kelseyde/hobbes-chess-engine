@@ -56,6 +56,16 @@ impl ThreadPool {
     pub fn shared(&self) -> &Arc<SharedContext> {
         &self.shared
     }
+
+    pub fn reset_all_threads(&mut self) {
+        for worker in &mut self.workers {
+            worker.data.reset();
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.workers.len()
+    }
 }
 
 impl WorkerThread {

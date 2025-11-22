@@ -138,8 +138,9 @@ impl UCI {
                 return;
             }
         };
+        let pool_size = self.thread_pool.size();
         self.thread_pool = ThreadPool::new(value);
-        self.thread_pool.resize(1);
+        self.thread_pool.resize(pool_size);
         println!("info string Hash {}", value);
     }
 
@@ -287,11 +288,9 @@ impl UCI {
 
     fn handle_go(&mut self, tokens: Vec<String>) {
         // Reset thread data and start timer
-        self.thread_pool.main_thread().reset();
+        self.thread_pool.reset_all_threads();
         self.thread_pool.main_thread().start_time = Instant::now();
         self.thread_pool.main_thread().shared.tt.birthday();
-
-        // Check use_soft_nodes flag before we start borrowing
         let use_soft_nodes = self.thread_pool.main_thread().use_soft_nodes;
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
