@@ -167,7 +167,11 @@ impl UCI {
                 return;
             }
         };
-        self.thread_pool.main_thread().minimal_output = value;
+        self.thread_pool.main_thread()
+            .main_thread_data
+            .as_mut()
+            .expect("Main thread should have MainThreadData")
+            .minimal_output = value;
         println!("info string Minimal {}", value);
     }
 
@@ -180,7 +184,11 @@ impl UCI {
                 return;
             }
         };
-        self.thread_pool.main_thread().use_soft_nodes = value;
+        self.thread_pool.main_thread()
+            .main_thread_data
+            .as_mut()
+            .expect("Main thread should have MainThreadData")
+            .use_soft_nodes = value;
         println!("info string UseSoftNodes {}", value);
     }
 
@@ -289,9 +297,23 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
         // Reset thread data and start timer
         self.thread_pool.reset_all_threads();
-        self.thread_pool.main_thread().start_time = Instant::now();
-        self.thread_pool.main_thread().shared.tt.birthday();
-        let use_soft_nodes = self.thread_pool.main_thread().use_soft_nodes;
+
+        // Set start time and birthday the TT
+        {
+            let main_thread = self.thread_pool.main_thread();
+            let main_data = main_thread.main_thread_data
+                .as_mut()
+                .expect("Main thread should have MainThreadData");
+            main_data.start_time = Instant::now();
+            main_thread.shared.tt.birthday();
+        }
+
+        // Extract use_soft_nodes before we start borrowing again
+        let use_soft_nodes = self.thread_pool.main_thread()
+            .main_thread_data
+            .as_ref()
+            .expect("Main thread should have MainThreadData")
+            .use_soft_nodes;
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
@@ -387,11 +409,20 @@ impl UCI {
             }
         }
 
-        // Set limits and perform search
-        self.thread_pool.main_thread().limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
-        search(&self.board, self.thread_pool.main_thread());
+        // Set limits on main thread
+        self.thread_pool.main_thread()
+            .main_thread_data
+            .as_mut()
+            .expect("Main thread should have MainThreadData")
+            .limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
-        // Print the best move
+        // Start all threads searching
+        self.thread_pool.start_search(&self.board, search);
+
+        // // Stop all threads (waits for helpers to finish)
+        // self.thread_pool.stop_search();
+
+        // Print the best move from main thread
         println!("bestmove {}", self.thread_pool.main_thread().best_move.to_uci());
     }
 

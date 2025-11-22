@@ -66,7 +66,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             let search_depth = td.depth - reduction;
             score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
 
-            if td.is_main_thread() && !td.minimal_output {
+            if td.is_main_thread() && !td.minimal_output() {
                 print_search_info(td);
             }
 
@@ -1022,7 +1022,7 @@ fn print_search_info(td: &mut ThreadData) {
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
-    let time = td.start_time.elapsed().as_millis();
+    let time = td.start_time().elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
         (nodes as u128 / time) * 1000
     } else {

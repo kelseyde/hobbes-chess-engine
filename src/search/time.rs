@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+#[derive(Clone, Copy)]
 pub struct SearchLimits {
     pub hard_time: Option<Duration>,
     pub soft_time: Option<Duration>,
