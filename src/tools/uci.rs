@@ -4,7 +4,6 @@ use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
-use crate::search::search;
 use crate::search::thread::ThreadPool;
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
@@ -30,7 +29,7 @@ impl Default for UCI {
 impl UCI {
     pub fn new() -> UCI {
         let mut thread_pool = ThreadPool::new(64);
-        thread_pool.resize(1); // Start with 1 thread
+        thread_pool.resize(1);
         UCI {
             board: Board::new(),
             thread_pool,
@@ -416,14 +415,16 @@ impl UCI {
             .expect("Main thread should have MainThreadData")
             .limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
 
+        println!("soft time: {:?}, hard time: {:?}, soft nodes: {:?}, hard nodes: {:?}, depth: {:?}",
+                 self.thread_pool.main_thread().limits().and_then(|l| l.soft_time),
+                 self.thread_pool.main_thread().limits().and_then(|l| l.hard_time),
+                 self.thread_pool.main_thread().limits().and_then(|l| l.soft_nodes),
+                 self.thread_pool.main_thread().limits().and_then(|l| l.hard_nodes),
+                 self.thread_pool.main_thread().limits().and_then(|l| l.depth),
+        );
+
         // Start all threads searching
-        self.thread_pool.start_search(&self.board, search);
-
-        // // Stop all threads (waits for helpers to finish)
-        // self.thread_pool.stop_search();
-
-        // Print the best move from main thread
-        println!("bestmove {}", self.thread_pool.main_thread().best_move.to_uci());
+        self.thread_pool.start_search(&self.board);
     }
 
     fn handle_eval(&mut self) {

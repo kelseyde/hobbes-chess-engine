@@ -6,6 +6,7 @@ use std::time::Instant;
 use crate::board::Board;
 use crate::board::moves::Move;
 use crate::evaluation::NNUE;
+use crate::search;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
 use crate::search::stack::SearchStack;
@@ -35,6 +36,36 @@ enum WorkerMessage {
 pub struct SharedContext {
     pub tt: TranspositionTable,
     pub stop: AtomicBool,
+}
+
+pub struct MainThreadData {
+    pub limits: SearchLimits,
+    pub start_time: Instant,
+    pub minimal_output: bool,
+    pub use_soft_nodes: bool,
+}
+
+pub struct ThreadData {
+    pub id: usize,
+    pub shared: Arc<SharedContext>,
+    pub main_thread_data: Option<MainThreadData>,
+    pub pv: PrincipalVariationTable,
+    pub ss: SearchStack,
+    pub nnue: NNUE,
+    pub keys: Vec<u64>,
+    pub root_ply: usize,
+    pub history: Histories,
+    pub correction_history: CorrectionHistories,
+    pub lmr: LmrTable,
+    pub node_table: NodeTable,
+    #[cfg(debug_assertions)]
+    pub debug_stats: DebugStatsMap,
+    pub nodes: u64,
+    pub depth: i32,
+    pub seldepth: usize,
+    pub nmp_min_ply: i32,
+    pub best_move: Move,
+    pub best_score: i32,
 }
 
 impl ThreadPool {
@@ -93,7 +124,7 @@ impl ThreadPool {
     }
 
     /// Start all worker threads searching the given position
-    pub fn start_search(&mut self, board: &Board, search_fn: fn(&Board, &mut ThreadData) -> (Move, i32)) {
+    pub fn start_search(&mut self, board: &Board) {
         // Reset stop flag
         self.shared.stop.store(false, Ordering::Relaxed);
 
@@ -107,20 +138,27 @@ impl ThreadPool {
             worker.data.keys = keys.clone();
             worker.data.root_ply = root_ply;
             worker.data.reset();
+            println!("Thread {} starting search with limits present? {}", worker.data.id, worker.data.limits().is_some());
+            println!("soft time: {:?}, hard time: {:?}, soft nodes: {:?}, hard nodes: {:?}, depth: {:?}",
+                     worker.data.limits().and_then(|l| l.soft_time),
+                     worker.data.limits().and_then(|l| l.hard_time),
+                     worker.data.limits().and_then(|l| l.soft_nodes),
+                     worker.data.limits().and_then(|l| l.hard_nodes),
+                     worker.data.limits().and_then(|l| l.depth),
+            );
+
+            let search_fn = search::search;
 
             worker.sender.send(WorkerMessage::Search(*board, search_fn)).ok();
         }
 
     }
 
-    /// Stop all threads and wait for them to complete
+    /// Signal all threads to stop searching.
     pub fn stop_search(&mut self) {
-        // Signal all threads to stop
         self.shared.stop.store(true, Ordering::Relaxed);
-
-        // Helper threads will finish their current iteration and stop
-        // No need to wait here - they'll be waiting for the next message
     }
+
 }
 
 impl Drop for ThreadPool {
@@ -149,7 +187,7 @@ impl WorkerThread {
         });
 
         WorkerThread {
-            data: Box::new(ThreadData::new(id, shared)),
+            data,
             sender,
             handle: Some(handle),
         }
@@ -158,36 +196,6 @@ impl WorkerThread {
     pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
         Self::spawn(id, shared)
     }
-}
-
-pub struct ThreadData {
-    pub id: usize,
-    pub shared: Arc<SharedContext>,
-    pub main_thread_data: Option<MainThreadData>,
-    pub pv: PrincipalVariationTable,
-    pub ss: SearchStack,
-    pub nnue: NNUE,
-    pub keys: Vec<u64>,
-    pub root_ply: usize,
-    pub history: Histories,
-    pub correction_history: CorrectionHistories,
-    pub lmr: LmrTable,
-    pub node_table: NodeTable,
-    #[cfg(debug_assertions)]
-    pub debug_stats: DebugStatsMap,
-    pub nodes: u64,
-    pub depth: i32,
-    pub seldepth: usize,
-    pub nmp_min_ply: i32,
-    pub best_move: Move,
-    pub best_score: i32,
-}
-
-pub struct MainThreadData {
-    pub limits: SearchLimits,
-    pub start_time: Instant,
-    pub minimal_output: bool,
-    pub use_soft_nodes: bool,
 }
 
 impl Default for MainThreadData {
@@ -279,6 +287,7 @@ impl ThreadData {
     }
 
     pub fn should_stop(&self, limit_type: LimitType) -> bool {
+
         // Check the global stop flag first
         if self.shared.stop.load(Ordering::Relaxed) {
             return true;
@@ -291,6 +300,7 @@ impl ThreadData {
 
         // Only main thread checks time/node limits for stopping
         if !self.is_main_thread() {
+            println!("skipping limit check on thread {}", self.id);
             return false;
         }
 
@@ -307,9 +317,24 @@ impl ThreadData {
 
     pub fn soft_limit_reached(&self) -> bool {
 
+        println!("Checking soft limit");
+        println!("{}", self.limits().and_then(|l| l.soft_time).is_some());
+        println!("{}", self.limits().and_then(|l| l.hard_time).is_some());
+
+        println!("soft time: {:?}, hard time: {:?}, soft nodes: {:?}, hard nodes: {:?}, depth: {:?}",
+                 self.limits().and_then(|l| l.soft_time),
+                 self.limits().and_then(|l| l.hard_time),
+                 self.limits().and_then(|l| l.soft_nodes),
+                 self.limits().and_then(|l| l.hard_nodes),
+                 self.limits().and_then(|l| l.depth),
+        );
+
         let main_data = match &self.main_thread_data {
             Some(data) => data,
-            None => return false,
+            None => {
+                println!("no main thread data in soft limit check");
+                return false
+            },
         };
 
         let best_move_nodes = self.node_table.get(&self.best_move);
@@ -317,6 +342,7 @@ impl ThreadData {
         if let Some(soft_time) = main_data.limits
                 .scaled_soft_limit(self.depth, self.nodes, best_move_nodes)
         {
+            println!("comparing elapsed {:?} to soft time {:?}", main_data.start_time.elapsed(), soft_time);
             if main_data.start_time.elapsed() >= soft_time {
                 return true;
             }
@@ -345,10 +371,14 @@ impl ThreadData {
 
         let main_data = match &self.main_thread_data {
             Some(data) => data,
-            None => return false,
+            None => {
+                println!("no main thread data in hard limit check");
+                return false
+            },
         };
 
         if let Some(hard_time) = main_data.limits.hard_time {
+            println!("comparing elapsed {:?} to hard time {:?}", main_data.start_time.elapsed(), hard_time);
             if main_data.start_time.elapsed() >= hard_time {
                 return true;
             }
