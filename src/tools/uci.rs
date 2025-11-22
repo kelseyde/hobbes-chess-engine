@@ -13,29 +13,25 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
-use std::sync::Arc;
 use std::time::Instant;
 
-pub struct UCI {
+pub struct UCI<'a> {
     pub board: Board,
-    pub shared: Arc<SharedContext>,
-    pub td: Box<ThreadData>,
+    pub td: Box<ThreadData<'a>>,
     pub frc: bool,
 }
 
-impl Default for UCI {
+impl<'a> Default for UCI<'a> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl UCI {
-    pub fn new() -> UCI {
-        let shared = Arc::new(SharedContext::new(64));
-        let td = Box::new(ThreadData::new(0, shared.clone()));
+impl<'a> UCI<'a> {
+    pub fn new() -> UCI<'a> {
+        let td = Box::new(ThreadData::new(0, &mut SharedContext::new(64)));
         UCI {
             board: Board::new(),
-            shared,
             td,
             frc: false,
         }

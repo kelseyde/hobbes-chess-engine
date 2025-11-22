@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
@@ -14,12 +13,12 @@ use crate::search::{Score, MAX_PLY};
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
-pub struct ThreadPool {
-    workers: Vec<WorkerThread>
+pub struct ThreadPool<'a> {
+    workers: Vec<WorkerThread<'a>>
 }
 
-pub struct WorkerThread {
-    data: Box<ThreadData>,
+pub struct WorkerThread<'a> {
+    data: Box<ThreadData<'a>>,
     handle: std::thread::JoinHandle<()>,
 }
 
@@ -28,7 +27,7 @@ pub struct SharedContext {
     pub stop: AtomicBool,
 }
 
-impl ThreadPool {
+impl<'a> ThreadPool<'a> {
 
     // pub fn new(shared: Arc<SharedContext>) -> ThreadPool{
     //     let workers = make_worker_threads(1, shared);
@@ -47,9 +46,9 @@ impl ThreadPool {
 //
 // }
 
-pub struct ThreadData {
+pub struct ThreadData<'a> {
     pub id: usize,
-    pub shared: Arc<SharedContext>,
+    pub shared: &'a mut SharedContext,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
     pub pv: PrincipalVariationTable,
@@ -73,9 +72,9 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl ThreadData {
+impl<'a> ThreadData<'a> {
 
-    pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
+    pub fn new(id: usize, shared: &'a mut SharedContext) -> Self {
         ThreadData {
             id,
             shared,
@@ -102,7 +101,6 @@ impl ThreadData {
             best_score: Score::MIN,
         }
     }
-
 
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();

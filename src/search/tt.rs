@@ -299,7 +299,7 @@ mod tests {
         let depth = 5;
         let flag = TTFlag::Exact;
 
-        tt.insert(hash, best_move, score, depth, 0, flag, true);
+        tt.insert(hash, best_move, score, depth, 0, 0, flag, true);
 
         assert!(tt.probe(0x987654321FEDCBA).is_none());
 

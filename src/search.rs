@@ -235,6 +235,9 @@ fn alpha_beta(board: &Board,
         } else {
             td.nnue.evaluate(board)
         };
+        if !tt_hit {
+            td.shared.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+        }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
@@ -503,7 +506,7 @@ fn alpha_beta(board: &Board,
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
             } else if s_beta >= beta {
-                return s_beta;
+                return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
                 extension = -3;
             } else if cut_node {
@@ -554,7 +557,7 @@ fn alpha_beta(board: &Board,
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
-            r += (is_quiet && !see::see(&original_board, &mv, 0)) as i32 * lmr_quiet_see();
+            r += (is_quiet && !see::see(original_board, &mv, 0)) as i32 * lmr_quiet_see();
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -739,7 +742,6 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
-        && !Score::is_mate(best_score)
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
@@ -818,6 +820,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         } else {
             td.nnue.evaluate(board)
         };
+        if !tt_hit {
+            td.shared.tt.insert(board.hash(), Move::NONE, 0, raw_eval, 0, ply, TTFlag::None, tt_pv);
+        }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
@@ -944,8 +949,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.shared.tt
-            .insert(board.hash(), best_move, best_score, raw_eval, 0, ply, flag, tt_pv);
+        td.shared.tt.insert(
+            board.hash(),
+            best_move,
+            best_score,
+            raw_eval,
+            0,
+            ply,
+            flag,
+            tt_pv,
+        );
     }
 
     best_score
