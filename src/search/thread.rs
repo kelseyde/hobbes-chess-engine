@@ -1,4 +1,5 @@
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -13,13 +14,14 @@ use crate::search::{Score, MAX_PLY};
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
-pub struct ThreadPool<'a> {
-    workers: Vec<WorkerThread<'a>>
+pub struct ThreadPool {
+    workers: Vec<WorkerThread>,
+    shared: Arc<SharedContext>,
 }
 
-pub struct WorkerThread<'a> {
-    data: Box<ThreadData<'a>>,
-    handle: std::thread::JoinHandle<()>,
+pub struct WorkerThread {
+    data: Box<ThreadData>,
+    handle: Option<std::thread::JoinHandle<()>>,
 }
 
 pub struct SharedContext {
@@ -27,28 +29,47 @@ pub struct SharedContext {
     pub stop: AtomicBool,
 }
 
-impl<'a> ThreadPool<'a> {
+impl ThreadPool {
 
-    // pub fn new(shared: Arc<SharedContext>) -> ThreadPool{
-    //     let workers = make_worker_threads(1, shared);
-    //     ThreadPool { workers }
-    // }
-    //
-    // pub fn resize
+    pub fn new(tt_size_mb: usize) -> ThreadPool {
+        let shared = Arc::new(SharedContext::new(tt_size_mb));
+        ThreadPool {
+            workers: Vec::new(),
+            shared,
+        }
+    }
 
+    pub fn resize(&mut self, num_threads: usize) {
+        // Clear existing threads
+        self.workers.clear();
+
+        // Create new threads
+        for id in 0..num_threads {
+            self.workers.push(WorkerThread::new(id, Arc::clone(&self.shared)));
+        }
+    }
+
+    pub fn main_thread(&mut self) -> &mut ThreadData {
+        &mut self.workers[0].data
+    }
+
+    pub fn shared(&self) -> &Arc<SharedContext> {
+        &self.shared
+    }
 }
 
-// fn make_worker_threads(num_threads: usize, shared: Arc<SharedContext>) -> Vec<WorkerThread> {
-//     (0..num_threads).map(|i| make_worker_thread(i, shared)).collect()
-// }
-//
-// fn make_worker_thread(id: usize, shared: Arc<SharedContext>) -> WorkerThread {
-//
-// }
+impl WorkerThread {
+    pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
+        WorkerThread {
+            data: Box::new(ThreadData::new(id, shared)),
+            handle: None,
+        }
+    }
+}
 
-pub struct ThreadData<'a> {
+pub struct ThreadData {
     pub id: usize,
-    pub shared: &'a mut SharedContext,
+    pub shared: Arc<SharedContext>,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
     pub pv: PrincipalVariationTable,
@@ -72,9 +93,9 @@ pub struct ThreadData<'a> {
     pub best_score: i32,
 }
 
-impl<'a> ThreadData<'a> {
+impl ThreadData {
 
-    pub fn new(id: usize, shared: &'a mut SharedContext) -> Self {
+    pub fn new(id: usize, shared: Arc<SharedContext>) -> Self {
         ThreadData {
             id,
             shared,

@@ -5,7 +5,7 @@ use crate::board::Board;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::search;
-use crate::search::thread::{SharedContext, ThreadData};
+use crate::search::thread::ThreadPool;
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
@@ -15,24 +15,25 @@ use crate::VERSION;
 use std::io;
 use std::time::Instant;
 
-pub struct UCI<'a> {
+pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData<'a>>,
+    pub thread_pool: ThreadPool,
     pub frc: bool,
 }
 
-impl<'a> Default for UCI<'a> {
+impl Default for UCI {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> UCI<'a> {
-    pub fn new() -> UCI<'a> {
-        let td = Box::new(ThreadData::new(0, &mut SharedContext::new(64)));
+impl UCI {
+    pub fn new() -> UCI {
+        let mut thread_pool = ThreadPool::new(64);
+        thread_pool.resize(1); // Start with 1 thread
         UCI {
             board: Board::new(),
-            td,
+            thread_pool,
             frc: false,
         }
     }
@@ -89,8 +90,9 @@ impl<'a> UCI<'a> {
         println!("id author Dan Kelsey");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.shared.tt.size_mb()
+            self.thread_pool.shared().tt.size_mb()
         );
+        println!("option name Threads type spin default 1 min 1 max 512");
         println!(
             "option name UCI_Chess960 type check default {}",
             self.board.is_frc()
@@ -112,7 +114,7 @@ impl<'a> UCI<'a> {
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
+            ["setoption", "name", "threads", "value", threads_str] => self.set_threads(threads_str),
             ["setoption", "name", "uci_chess960", "value", bool_str] => {
                 self.set_chess_960(bool_str)
             }
@@ -136,7 +138,10 @@ impl<'a> UCI<'a> {
                 return;
             }
         };
-        self.td.shared.tt.resize(value);
+        // Need to get mutable access to shared context through Arc
+        // For now, we'll need to recreate the thread pool
+        self.thread_pool = ThreadPool::new(value);
+        self.thread_pool.resize(1);
         println!("info string Hash {}", value);
     }
 
@@ -163,7 +168,7 @@ impl<'a> UCI<'a> {
                 return;
             }
         };
-        self.td.minimal_output = value;
+        self.thread_pool.main_thread().minimal_output = value;
         println!("info string Minimal {}", value);
     }
 
@@ -176,8 +181,26 @@ impl<'a> UCI<'a> {
                 return;
             }
         };
-        self.td.use_soft_nodes = value;
+        self.thread_pool.main_thread().use_soft_nodes = value;
         println!("info string UseSoftNodes {}", value);
+    }
+
+    fn set_threads(&mut self, value_str: &str) {
+        let value: usize = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+
+        if value < 1 || value > 512 {
+            println!("info error: threads must be between 1 and 512");
+            return;
+        }
+
+        self.thread_pool.resize(value);
+        println!("info string Threads {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -193,11 +216,11 @@ impl<'a> UCI<'a> {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.clear();
+        self.thread_pool.main_thread().clear();
     }
 
     fn handle_bench(&mut self) {
-        bench(&mut self.td);
+        bench(self.thread_pool.main_thread());
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -214,7 +237,7 @@ impl<'a> UCI<'a> {
                 .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
-                .join(" "), // Returns owned String
+                .join(" "),
             _ => {
                 println!("info error: invalid position command");
                 return;
@@ -240,9 +263,10 @@ impl<'a> UCI<'a> {
             Vec::new()
         };
 
-        self.td.keys.clear();
-        self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash());
+        let td = self.thread_pool.main_thread();
+        td.keys.clear();
+        td.root_ply = 0;
+        td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
             let mut legal_moves = self.board.gen_moves(MoveFilter::All);
@@ -253,8 +277,8 @@ impl<'a> UCI<'a> {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash());
-                    self.td.root_ply += 1;
+                    self.thread_pool.main_thread().keys.push(self.board.hash());
+                    self.thread_pool.main_thread().root_ply += 1;
                 }
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
@@ -264,11 +288,15 @@ impl<'a> UCI<'a> {
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-        self.td.reset();
-        self.td.start_time = Instant::now();
-        self.td.shared.tt.birthday();
+        // Reset thread data and start timer
+        self.thread_pool.main_thread().reset();
+        self.thread_pool.main_thread().start_time = Instant::now();
+        self.thread_pool.main_thread().shared.tt.birthday();
 
-        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        // Check use_soft_nodes flag before we start borrowing
+        let use_soft_nodes = self.thread_pool.main_thread().use_soft_nodes;
+
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -331,7 +359,7 @@ impl<'a> UCI<'a> {
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+        } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -362,18 +390,18 @@ impl<'a> UCI<'a> {
             }
         }
 
-        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
-
-        // Perform the search
-        search(&self.board, &mut self.td);
+        // Set limits and perform search
+        self.thread_pool.main_thread().limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
+        search(&self.board, self.thread_pool.main_thread());
 
         // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+        println!("bestmove {}", self.thread_pool.main_thread().best_move.to_uci());
     }
 
     fn handle_eval(&mut self) {
-        self.td.nnue.activate(&self.board);
-        let eval: i32 = self.td.nnue.evaluate(&self.board);
+        let td = self.thread_pool.main_thread();
+        td.nnue.activate(&self.board);
+        let eval: i32 = td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 
@@ -421,7 +449,7 @@ impl<'a> UCI<'a> {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
+        for opening in generate_random_openings(self.thread_pool.main_thread(), count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
     }
