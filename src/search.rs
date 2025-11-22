@@ -1014,7 +1014,7 @@ fn late_move_threshold(depth: i32, improving: bool, history_score: i32) -> i32 {
     } else {
         lmp_scale()
     };
-    ((base + depth * scale) / 10) - (history_score < -8000) as i32
+    ((base + depth * scale) / 10) - (history_score.max(0).abs() / 8000)
 }
 
 fn print_search_info(td: &mut ThreadData) {
