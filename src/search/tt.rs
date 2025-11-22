@@ -16,8 +16,6 @@ pub struct TranspositionTable {
     age: UnsafeCell<u8>,
 }
 
-// Implement Send + Sync manually since we're using UnsafeCell
-// This is safe because we control access patterns
 unsafe impl Send for TranspositionTable {}
 unsafe impl Sync for TranspositionTable {}
 

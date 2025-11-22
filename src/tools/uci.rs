@@ -138,8 +138,6 @@ impl UCI {
                 return;
             }
         };
-        // Need to get mutable access to shared context through Arc
-        // For now, we'll need to recreate the thread pool
         self.thread_pool = ThreadPool::new(value);
         self.thread_pool.resize(1);
         println!("info string Hash {}", value);
