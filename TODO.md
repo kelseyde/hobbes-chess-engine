@@ -87,16 +87,16 @@
 - [ ] Qs guard recaptures
 
 #### Transposition Table
-- [ ] Static eval to TT
-- [ ] Early static eval write (Qs)
-- [ ] Early static eval write (PVS)
+- [x] Static eval to TT
+- [x] Early static eval write (Qs)
+- [x] Early static eval write (PVS)
 - [x] No TT cut in PV nodes
 - [x] TT buckets
 - [x] TT aging
 - [ ] TT low depth extension
 - [ ] TT cut PV node depth reduction
-- [ ] Better replacement scheme
-- [ ] SF TT aging
+- [x] Better replacement scheme
+- [x] SF TT aging
 - [ ] Qs standpat TT store
 - [ ] "Would TT prune" PV reduction
 
@@ -121,14 +121,14 @@
 ### Misc search
 - [x] IIR
 - [x] Cutnode IIR
-- [ ] IIR TT depth condition
+- [x] IIR TT depth condition
 - [x] Hindsight reductions
 - [x] Hindsight extensions
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
 - [ ] SF small probcut idea
-- [ ] Deeper/shallower
+- [x] Deeper/shallower
 
 ## Move Ordering / History
 - [x] MVV-LVA
@@ -161,9 +161,9 @@
 - [x] SIMD
 - [x] Horizontal mirroring
 - [x] Output buckets
-- [ ] Lazy updates
+- [x] Lazy updates
 - [x] Finny tables
-- [ ] Remove unnecessary copy
+- [x] Remove unnecessary copy
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)
