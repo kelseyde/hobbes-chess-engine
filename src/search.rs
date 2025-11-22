@@ -534,7 +534,7 @@ fn alpha_beta(board: &Board,
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let mut new_depth = depth - 1 + extension;
+        let mut new_depth = if legal_moves == 1 { depth + extension - 1 } else { depth - 1 };
 
         let mut score = Score::MIN;
 
