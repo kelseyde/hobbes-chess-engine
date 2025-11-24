@@ -151,6 +151,7 @@ impl Default for ContinuationHistory {
 
 impl QuietHistory {
     const MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
@@ -161,6 +162,7 @@ impl QuietHistory {
         let threat_index = ThreatIndex::new(*mv, threats);
         let entry =
             &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
@@ -171,6 +173,7 @@ impl QuietHistory {
 
 impl CaptureHistory {
     const MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
         self.entries[stm][pc][sq][captured]
@@ -178,6 +181,7 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
         let entry = &mut self.entries[stm][pc][sq][captured];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
@@ -188,6 +192,7 @@ impl CaptureHistory {
 
 impl ContinuationHistory {
     const MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
@@ -195,6 +200,7 @@ impl ContinuationHistory {
 
     pub fn update(&mut self, prev_mv: &Move, prev_pc: Piece, mv: &Move, pc: Piece, bonus: i16) {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
