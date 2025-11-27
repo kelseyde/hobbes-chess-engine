@@ -66,7 +66,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             let search_depth = td.depth - reduction;
             score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
 
-            if td.main && !td.minimal_output {
+            if td.is_main_thread() && !td.minimal_output() {
                 print_search_info(td);
             }
 
@@ -101,7 +101,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    if td.main {
+    if td.is_main_thread() {
         print_search_info(td);
     }
 
@@ -198,7 +198,7 @@ fn alpha_beta(board: &Board,
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash()) {
+        if let Some(entry) = td.shared.tt.probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -236,7 +236,7 @@ fn alpha_beta(board: &Board,
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.shared.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
@@ -527,7 +527,7 @@ fn alpha_beta(board: &Board,
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.shared.tt.prefetch(board.hash());
 
         searched_moves += 1;
         td.nodes += 1;
@@ -748,7 +748,7 @@ fn alpha_beta(board: &Board,
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.shared.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -796,7 +796,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = Score::MIN;
-    if let Some(entry) = td.tt.probe(board.hash()) {
+    if let Some(entry) = td.shared.tt.probe(board.hash()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
@@ -820,7 +820,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, 0, ply, TTFlag::None, tt_pv);
+            td.shared.tt.insert(board.hash(), Move::NONE, 0, raw_eval, 0, ply, TTFlag::None, tt_pv);
         }
         let correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
@@ -901,7 +901,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.ss[ply].pc = Some(pc);
         td.ss[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.shared.tt.prefetch(board.hash());
 
         move_count += 1;
         td.nodes += 1;
@@ -948,7 +948,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(
+        td.shared.tt.insert(
             board.hash(),
             best_move,
             best_score,
@@ -1021,13 +1021,13 @@ fn print_search_info(td: &mut ThreadData) {
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
     let nodes = td.nodes;
-    let time = td.start_time.elapsed().as_millis();
+    let time = td.start_time().elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
         (nodes as u128 / time) * 1000
     } else {
         0
     };
-    let hashfull = td.tt.fill();
+    let hashfull = td.shared.tt.fill();
     print!(
         "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
         depth, seldepth, best_score, nodes, time, nps, hashfull

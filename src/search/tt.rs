@@ -1,6 +1,7 @@
 use crate::board::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
+use std::cell::UnsafeCell;
 
 const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
@@ -9,11 +10,14 @@ const AGE_CYCLE: u8 = 1 << 5;
 const AGE_MASK: u8 = AGE_CYCLE - 1;
 
 pub struct TranspositionTable {
-    table: Vec<Bucket>,
+    table: UnsafeCell<Vec<Bucket>>,
     size_mb: usize,
     size: usize,
-    age: u8,
+    age: UnsafeCell<u8>,
 }
+
+unsafe impl Send for TranspositionTable {}
+unsafe impl Sync for TranspositionTable {}
 
 #[derive(Clone, Default)]
 #[repr(align(32))]
@@ -115,34 +119,41 @@ impl TranspositionTable {
         let table = vec![Bucket::default(); size];
         let age = 0;
         TranspositionTable {
-            table,
+            table: UnsafeCell::new(table),
             size_mb,
             size,
-            age,
+            age: UnsafeCell::new(age),
         }
     }
 
     pub fn resize(&mut self, size_mb: usize) {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
-        self.table = vec![Bucket::default(); size];
+        let new_table = vec![Bucket::default(); size];
+        unsafe {
+            *self.table.get() = new_table;
+        }
         self.size_mb = size_mb;
         self.size = size;
     }
 
-    pub fn clear(&mut self) {
-        self.table
-            .iter_mut()
-            .for_each(|entry| *entry = Bucket::default());
-        self.age = 0;
+    pub fn clear(&self) {
+        unsafe {
+            (*self.table.get())
+                .iter_mut()
+                .for_each(|entry| *entry = Bucket::default());
+            *self.age.get() = 0;
+        }
     }
 
-    pub const fn birthday(&mut self) {
-        self.age = (self.age + 1) & AGE_MASK;
+    pub const fn birthday(&self) {
+        unsafe {
+            *self.age.get() = (*self.age.get() + 1) & AGE_MASK;
+        }
     }
 
     pub fn probe(&self, hash: u64) -> Option<&Entry> {
         let idx = self.idx(hash);
-        let bucket = &self.table[idx];
+        let bucket = unsafe { &(*self.table.get())[idx] };
         bucket
             .entries
             .iter()
@@ -151,7 +162,7 @@ impl TranspositionTable {
 
     #[allow(clippy::too_many_arguments)]
     pub fn insert(
-        &mut self,
+        &self,
         hash: u64,
         best_move: Move,
         score: i32,
@@ -162,9 +173,9 @@ impl TranspositionTable {
         pv: bool,
     ) {
         let idx = self.idx(hash);
-        let tt_age = self.age;
+        let tt_age = unsafe { *self.age.get() };
         let key_part = hash as u16;
-        let cluster = &mut self.table[idx];
+        let cluster = unsafe { &mut (*self.table.get())[idx] };
 
         let mut index = 0;
         let mut minimum = i32::MAX;
@@ -219,10 +230,12 @@ impl TranspositionTable {
 
     pub fn fill(&self) -> usize {
         let mut fill = 0;
-        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
-            for entry in &bucket.entries {
-                if entry.flags.bound() != TTFlag::None {
-                    fill += 1;
+        unsafe {
+            for bucket in (*self.table.get()).iter().take(1000 / ENTRIES_PER_BUCKET) {
+                for entry in &bucket.entries {
+                    if entry.flags.bound() != TTFlag::None {
+                        fill += 1;
+                    }
                 }
             }
         }
@@ -234,7 +247,7 @@ impl TranspositionTable {
         unsafe {
             use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
             let index = self.idx(hash);
-            let ptr = self.table.as_ptr().add(index);
+            let ptr = (*self.table.get()).as_ptr().add(index);
             _mm_prefetch::<_MM_HINT_T0>(ptr as *const _);
         }
         #[cfg(not(target_arch = "x86_64"))]
