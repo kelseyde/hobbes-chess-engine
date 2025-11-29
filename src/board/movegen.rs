@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
+use crate::board::moves::{Move, MoveFlag, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
@@ -126,6 +126,24 @@ impl Board {
 
         checkers
     }
+
+    /// Roughly 90–95% accurate. Does not account for discovered checks, promotions,
+    /// en passant, or checks delivered via castling.
+    /// Implementation taken from Reckless.
+    pub fn maybe_gives_check(&self, mv: &Move, pc: Piece) -> bool {
+        let stm = self.stm;
+        let occ = self.occ() ^ mv.from().to_bb() ^ mv.to().to_bb();
+        let attacks = match pc {
+            Piece::Pawn => attacks::pawn(mv.to(), stm),
+            Piece::Knight => attacks::knight(mv.to()),
+            Piece::Bishop => attacks::bishop(mv.to(), occ),
+            Piece::Rook => attacks::rook(mv.to(), occ),
+            Piece::Queen => attacks::queen(mv.to(), occ),
+            _ => Bitboard::empty(),
+        };
+        attacks.contains(self.king_sq(!stm))
+    }
+
 }
 
 #[inline(always)]

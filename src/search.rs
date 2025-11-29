@@ -400,6 +400,7 @@ fn alpha_beta(board: &Board,
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let maybe_gives_check = board.maybe_gives_check(&mv, pc);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
@@ -422,6 +423,7 @@ fn alpha_beta(board: &Board,
             && !in_check
             && is_quiet
             && lmr_depth < fp_max_depth()
+            && !maybe_gives_check
             && !is_mate_score
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;

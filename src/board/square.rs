@@ -1,6 +1,7 @@
 use crate::board::file::File;
 use crate::board::rank::Rank;
 use std::ops::{Index, IndexMut};
+use crate::board::bitboard::Bitboard;
 
 #[derive(Copy, Clone, Eq, PartialEq, Default)]
 #[repr(transparent)]
@@ -42,6 +43,11 @@ impl Square {
     #[inline(always)]
     pub const fn minus(self, offset: u8) -> Square {
         Square(self.0 - offset)
+    }
+
+    #[inline(always)]
+    pub fn to_bb(self) -> Bitboard {
+        Bitboard::of_sq(self)
     }
 
     pub fn iter() -> impl Iterator<Item = Square> {
