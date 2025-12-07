@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use crate::evaluation::network::SCALE;
 
+// Implementation yoinked from Viridithas
 pub fn eval_stats(td: &mut ThreadData, input: &Path) {
 
     let mut total = 0i128;
