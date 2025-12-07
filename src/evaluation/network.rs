@@ -2,7 +2,7 @@ use crate::evaluation::NUM_BUCKETS;
 
 pub const FEATURES: usize = 768;
 pub const HIDDEN: usize = 1280;
-pub const SCALE: i32 = 400;
+pub const SCALE: i32 = 363;
 pub const QA: i32 = 255;
 pub const QB: i32 = 64;
 pub const QAB: i32 = QA * QB;
