@@ -13,7 +13,9 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::path::Path;
 use std::time::Instant;
+use crate::evaluation::stats;
 
 pub struct UCI {
     pub board: Board,
@@ -69,6 +71,7 @@ impl UCI {
                     "stop" => self.handle_stop(),
                     "fen" => self.handle_fen(),
                     "eval" => self.handle_eval(),
+                    "eval_stats" => self.handle_eval_stats(tokens),
                     "perft" => self.handle_perft(tokens),
                     "genfens" => self.handle_genfens(tokens),
                     "help" => self.handle_help(),
@@ -374,6 +377,16 @@ impl UCI {
         self.td.nnue.activate(&self.board);
         let eval: i32 = self.td.nnue.evaluate(&self.board);
         println!("{}", eval);
+    }
+
+    fn handle_eval_stats(&mut self, tokens: Vec<String>) {
+        if tokens.len() < 2 {
+            println!("info error: missing input file argument");
+            return;
+        }
+
+        let input_path = Path::new(&tokens[1]);
+        stats::eval_stats(&mut self.td, &input_path);
     }
 
     fn handle_fen(&self) {
