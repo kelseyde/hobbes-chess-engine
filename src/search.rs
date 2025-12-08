@@ -315,7 +315,8 @@ fn alpha_beta(board: &Board,
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        let razor_depth_mult = depth + improving as i32;
+        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * razor_depth_mult * razor_depth_mult {
             return qs(board, td, alpha, beta, ply);
         }
 
