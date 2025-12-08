@@ -738,6 +738,10 @@ fn alpha_beta(board: &Board,
         };
     }
 
+    if best_score >= beta && !Score::is_mate(best_score) && !Score::is_mate(alpha) {
+        best_score = (best_score * depth + beta) / (depth + 1);
+    }
+
     // Update static eval correction history.
     if !in_check
         && !singular_search
