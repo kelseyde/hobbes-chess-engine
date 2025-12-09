@@ -11,7 +11,6 @@ use crate::board::Board;
 /// a starting position for FRC and DFRC chess. Implementation based on Viridithas. Original source:
 /// https://en.wikipedia.org/wiki/Fischer_random_chess_numbering_scheme#Direct_derivation
 fn get_scharnagl_backrank(scharnagl: usize) -> [Piece; 8] {
-
     let mut backrank = [None; 8];
     let n = scharnagl;
     let (n2, b1) = (n / 4, n % 4);
@@ -60,19 +59,21 @@ fn get_scharnagl_backrank(scharnagl: usize) -> [Piece; 8] {
         }
     }
 
-    backrank.iter_mut()
+    backrank
+        .iter_mut()
         .filter(|piece| piece.is_none())
         .zip([Piece::Rook, Piece::King, Piece::Rook])
         .for_each(|(slot, piece)| *slot = Some(piece));
 
     backrank.map(Option::unwrap)
-
 }
 
 impl Board {
-
     pub fn from_frc_idx(scharnagl: usize) -> Board {
-        assert!(scharnagl < 960, "Scharnagl index must be in the range [0, 959)");
+        assert!(
+            scharnagl < 960,
+            "Scharnagl index must be in the range [0, 959)"
+        );
 
         let mut board = Board::empty();
         board.frc = true;
@@ -104,7 +105,11 @@ impl Board {
         }
 
         let mut rook_indices = backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook { Some(i) } else { None }
+            if piece == Piece::Rook {
+                Some(i)
+            } else {
+                None
+            }
         });
         let queenside_file = rook_indices.next().unwrap();
         let kingside_file = rook_indices.next().unwrap();
@@ -120,12 +125,18 @@ impl Board {
         board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.keys.major_hash = Zobrist::get_major_hash(&board);
         board.keys.minor_hash = Zobrist::get_minor_hash(&board);
+        board.threats = board.calc_threats(board.stm);
+        board.checkers = board.calc_checkers(board.stm);
+        board.pinned = board.calc_both_pinned();
 
         board
     }
 
     pub fn from_dfrc_idx(scharnagl: usize) -> Board {
-        assert!(scharnagl < 960 * 960, "Double scharnagl index must be in the range [0, 921599)");
+        assert!(
+            scharnagl < 960 * 960,
+            "Double scharnagl index must be in the range [0, 921599)"
+        );
 
         let mut board = Board::empty();
         board.frc = true;
@@ -158,13 +169,21 @@ impl Board {
         }
 
         let mut w_rook_indices = white_backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook { Some(i) } else { None }
+            if piece == Piece::Rook {
+                Some(i)
+            } else {
+                None
+            }
         });
         let w_queenside_file = w_rook_indices.next().unwrap();
         let w_kingside_file = w_rook_indices.next().unwrap();
 
         let mut b_rook_indices = black_backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook { Some(i) } else { None }
+            if piece == Piece::Rook {
+                Some(i)
+            } else {
+                None
+            }
         });
         let b_queenside_file = b_rook_indices.next().unwrap();
         let b_kingside_file = b_rook_indices.next().unwrap();
@@ -181,10 +200,12 @@ impl Board {
         board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.keys.major_hash = Zobrist::get_major_hash(&board);
         board.keys.minor_hash = Zobrist::get_minor_hash(&board);
+        board.threats = board.calc_threats(board.stm);
+        board.checkers = board.calc_checkers(board.stm);
+        board.pinned = board.calc_both_pinned();
 
         board
     }
-
 }
 
 #[cfg(test)]
@@ -208,7 +229,11 @@ mod tests {
             );
         }
 
-        assert_eq!(hashes.len(), 960, "Expected 960 unique hashes for FRC positions");
+        assert_eq!(
+            hashes.len(),
+            960,
+            "Expected 960 unique hashes for FRC positions"
+        );
     }
 
     #[test]
@@ -234,5 +259,4 @@ mod tests {
     fn test_dfrc_idx_invalid_bound() {
         Board::from_dfrc_idx(921600);
     }
-
 }

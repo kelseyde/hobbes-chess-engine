@@ -5,7 +5,11 @@ use std::collections::HashMap;
 pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
     let moves = board.gen_moves(MoveFilter::All);
 
-    let mut move_counts = if depth == original_depth { Some(HashMap::new()) } else { None };
+    let mut move_counts = if depth == original_depth {
+        Some(HashMap::new())
+    } else {
+        None
+    };
 
     if depth == 1 {
         let mut nodes = 0;
@@ -66,7 +70,6 @@ mod test {
 
     // #[test]
     fn test_perft_suite() {
-
         println!("reading file...");
         let perft_suite = fs::read_to_string("resources/standard.epd").unwrap();
         println!("parsed file!");
@@ -88,5 +91,4 @@ mod test {
             assert_eq!(perft(&board, depth, depth), nodes, "Failed test: {}", fen);
         }
     }
-
 }

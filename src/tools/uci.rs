@@ -13,23 +13,32 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::path::Path;
 use std::time::Instant;
+use crate::evaluation::stats;
 
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
+    pub frc: bool,
+}
+
+impl Default for UCI {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default())
+            td: Box::new(ThreadData::default()),
+            frc: false,
         }
     }
 
     pub fn run(&mut self, args: &[String]) {
-
         if args.len() > 1 && args[1] == "bench" {
             println!("Running benchmark...");
             self.handle_bench();
@@ -44,31 +53,35 @@ impl UCI {
         pretty::print_uci_info();
 
         loop {
-            let mut command = String::new();
+            let mut line = String::new();
             io::stdin()
-                .read_line(&mut command)
+                .read_line(&mut line)
                 .expect("info error failed to parse command");
+            let tokens = self.split_args(line.clone());
 
-            let tokens = self.split_args(command.clone());
-
-            match command.split_ascii_whitespace().next().unwrap() {
-                "uci" => self.handle_uci(),
-                "isready" => self.handle_isready(),
-                "setoption" => self.handle_setoption(tokens),
-                "ucinewgame" => self.handle_ucinewgame(),
-                "bench" => self.handle_bench(),
-                "position" => self.handle_position(tokens),
-                "go" => self.handle_go(tokens),
-                "stop" => self.handle_stop(),
-                "fen" => self.handle_fen(),
-                "eval" => self.handle_eval(),
-                "perft" => self.handle_perft(tokens),
-                "genfens" => self.handle_genfens(tokens),
-                "help" => self.handle_help(),
-                #[cfg(feature = "tuning")]
-                "params" => print_params_ob(),
-                "quit" => self.handle_quit(),
-                _ => println!("info error: unknown command"),
+            if let Some(command) = line.split_ascii_whitespace().next() {
+                match command {
+                    "uci" => self.handle_uci(),
+                    "isready" => self.handle_isready(),
+                    "setoption" => self.handle_setoption(tokens),
+                    "ucinewgame" => self.handle_ucinewgame(),
+                    "bench" => self.handle_bench(),
+                    "position" => self.handle_position(tokens),
+                    "go" => self.handle_go(tokens),
+                    "stop" => self.handle_stop(),
+                    "fen" => self.handle_fen(),
+                    "eval" => self.handle_eval(),
+                    "eval_stats" => self.handle_eval_stats(tokens),
+                    "perft" => self.handle_perft(tokens),
+                    "genfens" => self.handle_genfens(tokens),
+                    "help" => self.handle_help(),
+                    #[cfg(feature = "tuning")]
+                    "params" => print_params_ob(),
+                    "quit" => self.handle_quit(),
+                    _ => println!("info error: unknown command"),
+                }
+            } else {
+                continue;
             }
         }
     }
@@ -76,8 +89,14 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
-        println!("option name Hash type spin default {} min 1 max 1024", self.td.tt.size_mb());
-        println!("option name UCI_Chess960 type check default {}", self.board.is_frc());
+        println!(
+            "option name Hash type spin default {} min 1 max 1024",
+            self.td.tt.size_mb()
+        );
+        println!(
+            "option name UCI_Chess960 type check default {}",
+            self.board.is_frc()
+        );
         println!("option name Minimal type check default false");
         println!("option name UseSoftNodes type check default false");
         #[cfg(feature = "tuning")]
@@ -95,13 +114,19 @@ impl UCI {
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => return, // TODO set threads
-            ["setoption", "name", "uci_chess960", "value", bool_str] => self.set_chess_960(bool_str),
+            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
+            ["setoption", "name", "uci_chess960", "value", bool_str] => {
+                self.set_chess_960(bool_str)
+            }
             ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
-            ["setoption", "name", "usesoftnodes", "value", bool_str] => self.set_use_soft_nodes(bool_str),
+            ["setoption", "name", "usesoftnodes", "value", bool_str] => {
+                self.set_use_soft_nodes(bool_str)
+            }
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
-            _ => { println!("info error unknown option"); }
+            _ => {
+                println!("info error unknown option");
+            }
         }
     }
 
@@ -126,6 +151,7 @@ impl UCI {
                 return;
             }
         };
+        self.frc = value;
         self.board.set_frc(value);
         println!("info string Chess960 {}", value);
     }
@@ -204,6 +230,7 @@ impl UCI {
                 return;
             }
         };
+        self.board.set_frc(self.frc);
 
         let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
             tokens
@@ -221,7 +248,8 @@ impl UCI {
 
         moves.iter().for_each(|m| {
             let mut legal_moves = self.board.gen_moves(MoveFilter::All);
-            let legal_move = legal_moves.iter()
+            let legal_move = legal_moves
+                .iter()
                 .map(|entry| entry.mv)
                 .find(|lm| lm.matches(m));
             match legal_move {
@@ -351,6 +379,16 @@ impl UCI {
         println!("{}", eval);
     }
 
+    fn handle_eval_stats(&mut self, tokens: Vec<String>) {
+        if tokens.len() < 2 {
+            println!("info error: missing input file argument");
+            return;
+        }
+
+        let input_path = Path::new(&tokens[1]);
+        stats::eval_stats(&mut self.td, &input_path);
+    }
+
     fn handle_fen(&self) {
         println!("{}", self.board.to_fen());
     }
@@ -379,20 +417,17 @@ impl UCI {
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-
-        let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or({
             println!("info error: count is not a valid number");
             0
         }) as usize;
 
-        let seed = self.parse_uint(&tokens, "seed").unwrap_or_else(|_| {
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or({
             println!("info error: seed is not a valid number");
             0
         });
 
-        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or_else(|_| {
-            8
-        }) as usize;
+        let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or(8) as usize;
 
         let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
             println!("info error: dfrc is not a valid boolean");
@@ -401,7 +436,6 @@ impl UCI {
         for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
-
     }
 
     fn handle_stop(&mut self) {
@@ -454,9 +488,9 @@ impl UCI {
     }
 
     fn split_args(&self, args_str: String) -> Vec<String> {
-        args_str.split_whitespace()
+        args_str
+            .split_whitespace()
             .map(|v| v.trim().to_string())
             .collect()
     }
-
 }

@@ -4,9 +4,12 @@ use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
+use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{Score, SearchStack, MAX_PLY};
+use crate::search::{Score, MAX_PLY};
+#[cfg(debug_assertions)]
+use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
@@ -24,6 +27,8 @@ pub struct ThreadData {
     pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
     pub node_table: NodeTable,
+    #[cfg(debug_assertions)]
+    pub debug_stats: DebugStatsMap,
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub nodes: u64,
@@ -51,10 +56,12 @@ impl Default for ThreadData {
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::default(),
+            #[cfg(debug_assertions)]
+            debug_stats: DebugStatsMap::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
-            depth: 0,
+            depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
@@ -64,7 +71,6 @@ impl Default for ThreadData {
 }
 
 impl ThreadData {
-
     pub fn reset(&mut self) {
         self.ss = SearchStack::new();
         self.node_table.clear();
@@ -101,7 +107,10 @@ impl ThreadData {
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
 
-        if let Some(soft_time) = self.limits.scaled_soft_limit(self.depth, self.nodes, best_move_nodes) {
+        if let Some(soft_time) =
+            self.limits
+                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes)
+        {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }
@@ -123,6 +132,12 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
+
+        // Only check hard limits every 2048 nodes to reduce overhead
+        if self.nodes % 2048 != 0 {
+            return false;
+        }
+
         if let Some(hard_time) = self.limits.hard_time {
             if self.start_time.elapsed() >= hard_time {
                 return true;
@@ -151,12 +166,13 @@ pub struct NodeTable {
 
 impl Default for NodeTable {
     fn default() -> Self {
-        NodeTable { table: unsafe { boxed_and_zeroed() } }
+        NodeTable {
+            table: unsafe { boxed_and_zeroed() },
+        }
     }
 }
 
 impl NodeTable {
-
     pub fn add(&mut self, mv: &Move, nodes: u64) {
         self.table[mv.from()][mv.to()] += nodes;
     }

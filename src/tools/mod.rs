@@ -1,8 +1,9 @@
 pub mod bench;
 pub mod datagen;
+pub mod debug;
 pub mod fen;
 pub mod perft;
+pub mod pretty;
 pub mod scharnagl;
 pub mod uci;
 pub mod utils;
-pub mod pretty;

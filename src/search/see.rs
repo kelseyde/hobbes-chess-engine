@@ -1,11 +1,13 @@
-use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook};
+use crate::board::{attacks, ray};
+use crate::search::parameters::{
+    see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
+};
 
 pub fn value(pc: Piece) -> i32 {
     match pc {
@@ -19,14 +21,12 @@ pub fn value(pc: Piece) -> i32 {
 }
 
 pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
-
     let from = mv.from();
     let to = mv.to();
 
-    let next_victim = mv.promo_piece().map_or_else(
-        || board.piece_at(from).unwrap(),
-        |promo| promo,
-    );
+    let next_victim = mv
+        .promo_piece()
+        .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
 
     let mut balance = move_value(board, mv) - threshold;
 
@@ -49,6 +49,13 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     let mut attackers = attackers_to(board, to, occ) & occ;
     let diagonal = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
     let orthogonal = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
+
+    let white_pinned = board.pinned[Side::White];
+    let black_pinned = board.pinned[Side::Black];
+    let pinned = white_pinned | black_pinned;
+    attackers &= !pinned
+        | (white_pinned & ray::extending(board.king_sq(Side::White), to))
+        | (black_pinned & ray::extending(board.king_sq(Side::Black), to));
 
     let mut stm = !board.stm;
 
@@ -88,8 +95,10 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
     stm != board.stm
 }
 
+#[allow(clippy::redundant_closure)]
 fn move_value(board: &Board, mv: &Move) -> i32 {
-    let mut see_value = board.piece_at(mv.to())
+    let mut see_value = board
+        .piece_at(mv.to())
         .map_or(0, |captured| value(captured));
 
     if let Some(promo) = mv.promo_piece() {
@@ -144,12 +153,34 @@ mod tests {
     use super::*;
     use crate::board::movegen::MoveFilter;
     use crate::board::Board;
+    use crate::ray;
     use std::fs;
+
+    #[test]
+    fn pinned() {
+        ray::init();
+        for (fen, mv, thresh) in [
+            (
+                "3R1rk1/1N3n2/8/8/8/8/8/6K1 b - - 0 1",
+                "f7d8",
+                value(Piece::Rook),
+            ),
+            (
+                "6k1/6r1/3q2N1/4N3/8/8/6K1/8 b - - 0 1",
+                "d6e5",
+                value(Piece::Knight),
+            ),
+        ] {
+            let board = Board::from_fen(fen).unwrap();
+            let mv = Move::parse_uci(mv);
+            assert!(see(&board, &mv, thresh));
+            assert!(!see(&board, &mv, thresh + 1));
+        }
+    }
 
     // #[test]
     fn test_see_suite() {
-
-        let see_suite = fs::read_to_string("../../resources/see.epd").unwrap();
+        let see_suite = fs::read_to_string("resources/see.epd").unwrap();
 
         let mut tried = 0;
         let mut passed = 0;
@@ -163,7 +194,8 @@ mod tests {
 
             let board = Board::from_fen(fen).unwrap();
             let mut moves = board.gen_moves(MoveFilter::All);
-            let mv = moves.iter()
+            let mv = moves
+                .iter()
                 .map(|entry| entry.mv)
                 .find(|m| m.to_uci() == mv_uci)
                 .expect("Move not found in generated moves");
@@ -174,12 +206,12 @@ mod tests {
             } else {
                 println!("Failed SEE test for FEN: {} and move: {}", fen, mv_uci);
             }
-
         }
 
-        assert_eq!(passed, tried, "Passed {} out of {} SEE tests", passed, tried);
-
-
+        assert_eq!(
+            passed, tried,
+            "Passed {} out of {} SEE tests",
+            passed, tried
+        );
     }
-
 }
