@@ -18,9 +18,10 @@ use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];
+type ThreatBucket<T> = [[T; 2]; 2];
 
 pub struct QuietHistory {
-    entries: Box<[[[FromToHistory<i16>; 2]; 2]; 2]>,
+    entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
 }
 
 pub struct CaptureHistory {
@@ -29,6 +30,12 @@ pub struct CaptureHistory {
 
 pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
+}
+
+#[derive(Default, Copy, Clone)]
+struct QuietHistoryEntry {
+    factoriser: i16,
+    bucket: ThreatBucket<i16>
 }
 
 #[derive(Default)]
@@ -150,24 +157,28 @@ impl Default for ContinuationHistory {
 }
 
 impl QuietHistory {
-    const MAX: i32 = 16384;
-    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+    const FACTORISER_MAX: i32 = 8192;
+    const BUCKET_MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
-        self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()]
+        let entry = &self.entries[stm][mv.from()][mv.to()];
+        entry.factoriser + entry.bucket[threat_index.from()][threat_index.to()]
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, threats: Bitboard, bonus: i16) {
-        let threat_index = ThreatIndex::new(*mv, threats);
-        let entry =
-            &mut self.entries[stm][threat_index.from()][threat_index.to()][mv.from()][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+        let threat_index = ThreatIndex::new(*mv, threats);
+        let entry = &mut self.entries[stm][mv.from()][mv.to()];
+        entry.factoriser = gravity(entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
+        let bucket_entry =
+            &mut entry.bucket[threat_index.from()][threat_index.to()];
+        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 64]; 2]; 2]; 2]);
+        self.entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
     }
 }
 
