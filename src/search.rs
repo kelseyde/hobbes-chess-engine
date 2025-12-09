@@ -306,7 +306,8 @@ fn alpha_beta(board: &Board,
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            + 50 * cut_node as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
             && tt_flag != Upper {
