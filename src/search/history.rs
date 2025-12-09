@@ -25,7 +25,7 @@ pub struct QuietHistory {
 }
 
 pub struct CaptureHistory {
-    entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+    entries: Box<[PieceToHistory<[i16; 3]>; 2]>,
 }
 
 pub struct ContinuationHistory {
@@ -187,17 +187,28 @@ impl CaptureHistory {
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
-        self.entries[stm][pc][sq][captured]
+        let piece_bucket = self.piece_bucket_index(captured);
+        self.entries[stm][pc][sq][piece_bucket]
     }
 
     pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
-        let entry = &mut self.entries[stm][pc][sq][captured];
+        let piece_bucket = self.piece_bucket_index(captured);
+        let entry = &mut self.entries[stm][pc][sq][piece_bucket];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+        self.entries = Box::new([[[[0; 3]; 64]; 6], [[[0; 3]; 64]; 6]]);
+    }
+
+    fn piece_bucket_index(&self, captured: Piece) -> usize {
+        match captured {
+            Piece::Pawn => 0,
+            Piece::Knight | Piece::Bishop => 1,
+            Piece::Rook | Piece::Queen => 2,
+            _ => unreachable!(),
+        }
     }
 }
 
