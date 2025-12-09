@@ -5,8 +5,6 @@ use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 
-const CORRECTION_SCALE: i32 = 256;
-
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
 /// the static eval and the search score of previously searched positions.
@@ -94,7 +92,7 @@ impl CorrectionHistories {
             + (minor * 100 / corr_minor_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
-            / CORRECTION_SCALE
+            / 280
 
     }
 
@@ -186,9 +184,9 @@ impl<const N: usize> Default for CorrectionHistory<N> {
 }
 
 impl<const N: usize> CorrectionHistory<N> {
-    const MASK: usize = N - 1;
-    const GRAIN: i32 = 256;
-    const MAX: i32 = Self::GRAIN * 32;
+    const MAX_HISTORY: i32 = 14734;
+    const SIZE: usize = 16384;
+    const MASK: usize = Self::SIZE - 1;
 
     pub fn get(&self, stm: Side, key: u64) -> i32 {
         let idx = self.index(key);
@@ -196,15 +194,13 @@ impl<const N: usize> CorrectionHistory<N> {
     }
 
     pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
+        let diff = score - static_eval;
+        let bonus = (corr_bonus_mult() * depth * diff / corr_bonus_div())
+            .clamp(corr_bonus_min(), corr_bonus_max());
+
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
-        let new_value = (score - static_eval) * CORRECTION_SCALE;
-
-        let new_weight = (depth + 1).min(16);
-        let old_weight = CORRECTION_SCALE - new_weight;
-
-        let update = *entry * old_weight + new_value * new_weight;
-        *entry = i32::clamp(update / CORRECTION_SCALE, -Self::MAX, Self::MAX);
+        *entry += bonus - bonus.abs() * (*entry) / Self::MAX_HISTORY;
     }
 
     pub fn clear(&mut self) {
