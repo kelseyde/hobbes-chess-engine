@@ -162,7 +162,7 @@ impl MovePicker {
             let victim_value = see::value(victim);
             let history_score = td
                 .history
-                .capture_history_score(board, mv, attacker, victim);
+                .capture_history_score(board, mv, attacker, victim, threats);
             entry.score = victim_value + history_score;
         } else {
             // Score quiet

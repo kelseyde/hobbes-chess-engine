@@ -2,7 +2,6 @@ use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
-use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::parameters::{
     capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
@@ -21,11 +20,11 @@ type PieceToHistory<T> = [[T; 64]; 6];
 type ThreatBucket<T> = [[T; 2]; 2];
 
 pub struct QuietHistory {
-    entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
+    entries: Box<[FromToHistory<FactorisedHistoryEntry>; 2]>,
 }
 
 pub struct CaptureHistory {
-    entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+    entries: Box<[PieceToHistory<[FactorisedHistoryEntry; 6]>; 2]>,
 }
 
 pub struct ContinuationHistory {
@@ -33,7 +32,7 @@ pub struct ContinuationHistory {
 }
 
 #[derive(Default, Copy, Clone)]
-struct QuietHistoryEntry {
+struct FactorisedHistoryEntry {
     factoriser: i16,
     bucket: ThreatBucket<i16>
 }
@@ -58,7 +57,7 @@ impl Histories {
         captured: Option<Piece>,
     ) -> i32 {
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, mv, pc, captured, threats)
         } else {
             let quiet_score = self.quiet_history_score(board, mv, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
@@ -102,8 +101,9 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         captured: Piece,
+        threats: Bitboard,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+        self.capture_history.get(board.stm, *mv, pc, captured, threats) as i32
     }
 
     pub fn update_continuation_history(
@@ -178,26 +178,33 @@ impl QuietHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
+        self.entries = Box::new([[[FactorisedHistoryEntry::default(); 64]; 64]; 2]);
     }
 }
 
 impl CaptureHistory {
-    const MAX: i32 = 16384;
-    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+    const FACTORISER_MAX: i32 = 8192;
+    const BUCKET_MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, pc: Piece, sq: Square, captured: Piece) -> i16 {
-        self.entries[stm][pc][sq][captured]
+    pub fn get(&self, stm: Side, mv: Move, pc: Piece, captured: Piece, threats: Bitboard) -> i16 {
+        let threat_index = ThreatIndex::new(mv, threats);
+        let entry = &self.entries[stm][pc][mv.to()][captured];
+        entry.factoriser + entry.bucket[threat_index.from()][threat_index.to()]
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, captured: Piece, bonus: i16) {
-        let entry = &mut self.entries[stm][pc][sq][captured];
+    pub fn update(&mut self, stm: Side, mv: Move, pc: Piece,  captured: Piece, threats: Bitboard, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+        let threat_index = ThreatIndex::new(mv, threats);
+        let entry = &mut self.entries[stm][pc][mv.to()][captured];
+        entry.factoriser = gravity(entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
+        let bucket_entry =
+            &mut entry.bucket[threat_index.from()][threat_index.to()];
+        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+        self.entries = Box::new([[[[FactorisedHistoryEntry::default(); 6]; 64]; 6], [[[FactorisedHistoryEntry::default(); 6]; 64]; 6]]);
     }
 }
 
