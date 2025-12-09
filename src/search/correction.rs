@@ -5,6 +5,8 @@ use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 
+const CORRECTION_SCALE: i32 = 280;
+
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
 /// the static eval and the search score of previously searched positions.
@@ -92,7 +94,7 @@ impl CorrectionHistories {
             + (minor * 100 / corr_minor_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
-            / 280
+            / CORRECTION_SCALE
 
     }
 
