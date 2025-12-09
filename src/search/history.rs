@@ -157,7 +157,7 @@ impl Default for ContinuationHistory {
 }
 
 impl QuietHistory {
-    const FACTORISER_MAX: i32 = 8192;
+    const FACTORISER_MAX: i32 = 12288;
     const BUCKET_MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
