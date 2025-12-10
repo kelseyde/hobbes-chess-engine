@@ -475,6 +475,7 @@ fn alpha_beta(board: &Board,
         };
         if !pv_node
             && depth <= pvs_see_max_depth()
+            && move_picker.stage != Stage::GoodNoisies
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
