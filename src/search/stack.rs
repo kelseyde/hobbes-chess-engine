@@ -19,6 +19,7 @@ pub struct StackEntry {
     pub raw_eval: i32,
     pub static_eval: i32,
     pub reduction: i32,
+    pub dextensions: i32,
 }
 
 impl Default for SearchStack {
@@ -40,6 +41,7 @@ impl SearchStack {
                 raw_eval: Score::MIN,
                 static_eval: Score::MIN,
                 reduction: 0,
+                dextensions: 0,
             }; MAX_PLY + 8],
         }
     }

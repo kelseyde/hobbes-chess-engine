@@ -244,6 +244,7 @@ fn alpha_beta(board: &Board,
 
     td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
+    td.ss[ply].dextensions = if root_node { 0 } else { td.ss[ply - 1].dextensions };
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
@@ -503,8 +504,10 @@ fn alpha_beta(board: &Board,
 
             if score < s_beta {
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
-                extension += (!pv_node && score < s_beta - se_triple_ext_margin()) as i32;
+                if !pv_node && td.ss[ply].dextensions < 12 {
+                    extension += (score < s_beta - se_double_ext_margin()) as i32;
+                    extension += (is_quiet && score < s_beta - se_triple_ext_margin()) as i32;
+                }
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
@@ -515,6 +518,9 @@ fn alpha_beta(board: &Board,
                 extension = -1;
             }
 
+        }
+        if extension >= 2 {
+            td.ss[ply].dextensions += 1;
         }
 
         // We have decided that the current move should not be pruned and is worth searching further.
@@ -609,6 +615,10 @@ fn alpha_beta(board: &Board,
         td.ss[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
+
+        if extension >= 2 {
+            td.ss[ply].dextensions -= 1;
+        }
 
         if root_node {
             td.node_table.add(&mv, td.nodes - initial_nodes);
