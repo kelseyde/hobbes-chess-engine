@@ -687,17 +687,17 @@ fn alpha_beta(board: &Board,
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            td.history.update_capture_history(board.stm, &best_move, pc, captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.ss[ply].killer = Some(best_move);
-            td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
+            td.history.update_quiet_history(board.stm, &best_move, threats, quiet_bonus);
             td.history.update_continuation_history(&td.ss, ply, &best_move, pc, cont_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
+                    td.history.update_quiet_history(board.stm, mv, threats, quiet_malus);
                     td.history.update_continuation_history(&td.ss, ply, mv, pc, cont_malus);
                 }
             }
@@ -707,7 +707,7 @@ fn alpha_beta(board: &Board,
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history.update_capture_history(board.stm, mv, pc, captured, capt_malus);
                 }
             }
         }
@@ -723,7 +723,7 @@ fn alpha_beta(board: &Board,
         if let Some(prev_mv) = td.ss[ply - 1].mv {
             let prev_threats = td.ss[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
-            td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, quiet_bonus);
+            td.history.update_quiet_history(board.stm, &prev_mv, prev_threats, quiet_bonus);
         }
     }
 

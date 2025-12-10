@@ -20,6 +20,10 @@ type FromToHistory<T> = [[T; 64]; 64];
 type PieceToHistory<T> = [[T; 64]; 6];
 type ThreatBucket<T> = [[T; 2]; 2];
 
+pub struct BaseHistory {
+    entries: Box<[FromToHistory<i16>; 2]>,
+}
+
 pub struct QuietHistory {
     entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
 }
@@ -40,6 +44,7 @@ struct QuietHistoryEntry {
 
 #[derive(Default)]
 pub struct Histories {
+    pub base_history: BaseHistory,
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
@@ -72,7 +77,8 @@ impl Histories {
         mv: &Move,
         threats: Bitboard,
     ) -> i32 {
-        self.quiet_history.get(board.stm, *mv, threats) as i32
+        self.base_history.get(board.stm, *mv) as i32
+            + self.quiet_history.get(board.stm, *mv, threats) as i32
     }
 
     pub fn cont_history_score(
@@ -103,7 +109,31 @@ impl Histories {
         pc: Piece,
         captured: Piece,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+        self.base_history.get(board.stm, *mv) as i32
+            + self.capture_history.get(board.stm, pc, mv.to(), captured) as i32
+    }
+
+    pub fn update_quiet_history(
+        &mut self,
+        stm: Side,
+        mv: &Move,
+        threats: Bitboard,
+        bonus: i16
+    ) {
+        self.base_history.update(stm, mv, bonus);
+        self.quiet_history.update(stm, mv, threats, bonus);
+    }
+
+    pub fn update_capture_history(
+        &mut self,
+        stm: Side,
+        mv: &Move,
+        pc: Piece,
+        captured: Piece,
+        bonus: i16
+    ) {
+        self.base_history.update(stm, mv, bonus);
+        self.capture_history.update(stm, pc, mv.to(), captured, bonus);
     }
 
     pub fn update_continuation_history(
@@ -126,9 +156,18 @@ impl Histories {
     }
 
     pub fn clear(&mut self) {
+        self.base_history.clear();
         self.quiet_history.clear();
         self.capture_history.clear();
         self.cont_history.clear();
+    }
+}
+
+impl Default for BaseHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
     }
 }
 
@@ -153,6 +192,25 @@ impl Default for ContinuationHistory {
         Self {
             entries: unsafe { boxed_and_zeroed() },
         }
+    }
+}
+
+impl BaseHistory {
+    const MAX: i32 = 8192;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+
+    pub fn get(&self, stm: Side, mv: Move) -> i16 {
+        self.entries[stm][mv.from()][mv.to()]
+    }
+
+    pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
+        let entry = &mut self.entries[stm][mv.from()][mv.to()];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[[0; 64]; 64]; 2]);
     }
 }
 
