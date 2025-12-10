@@ -20,7 +20,6 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -245,6 +244,12 @@ fn alpha_beta(board: &Board,
     td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
 
+    let maybe_singular = depth >= se_min_depth()
+        && tt_depth >= depth - se_tt_depth_offset()
+        && tt_flag != TTFlag::Upper
+        && Score::is_defined(tt_score)
+        && !Score::is_mate(tt_score);
+
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
@@ -309,7 +314,7 @@ fn alpha_beta(board: &Board,
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
-            && tt_flag != Upper {
+            && tt_flag != TTFlag::Upper {
             return beta + (static_eval - beta) / 3;
         }
 
@@ -322,10 +327,11 @@ fn alpha_beta(board: &Board,
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
+            && !maybe_singular
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && tt_flag != TTFlag::Upper {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
@@ -487,11 +493,9 @@ fn alpha_beta(board: &Board,
         // only good move), and extend the search depth.
         if !root_node
             && !singular_search
+            && maybe_singular
             && tt_hit
-            && mv == tt_move
-            && depth >= se_min_depth()
-            && tt_flag != TTFlag::Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && mv == tt_move {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
             let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
