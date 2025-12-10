@@ -1,0 +1,415 @@
+NET ID        | ARCH                  | SCHEDULE                           | vs. SELFGEN                                    | vs. CALVIN NET                                 |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-random | (768->32)x2->1        | source: hobbes-random              | Elo   | 1199.83 +- 0.00 (95%)                  | Elo   | -1199.83 +- 0.00 (95%)                 |
+              | activ: screlu         | dataset: 33 million                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 508 W: 0 L: 508 D: 0                |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 318 W: 318 L: 0 D: 0                | Penta | [254, 0, 0, 0, 0]                      |
+              | optim: AdamW          | wdl: constant(1)                   | https://chess.n9x.co/test/3723/                | https://chess.n9x.co/test/3724/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-2      | (768->64)x2->1        | source: hobbes-random              | Elo   | 721.93 +- 303.38 (95%)                 | Elo   | -816.73 +- 114.41 (95%)                |
+              | activ: screlu         | dataset: 59 million                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1000 W: 1 L: 983 D: 16              |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 324 W: 318 L: 4 D: 2                | Penta | [483, 16, 1, 0, 0]                     |
+              | optim: AdamW          | wdl: constant(1)                   | https://chess.n9x.co/test/3743/                | https://chess.n9x.co/test/3744/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-3      | (768->64)x2->1        | source: hobbes-random              | Elo   | 96.25 +- 21.97 (95%)                   | Elo   | -723.26 +- 82.79 (95%)                 |
+              | activ: screlu         | dataset: 59 million                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1012 W: 3 L: 984 D: 25              |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 744 W: 395 L: 194 D: 155            | Penta | [478, 25, 3, 0, 0]                     |
+              | optim: AdamW          | wdl: constant(0.75)                | https://chess.n9x.co/test/3752/                | https://chess.n9x.co/test/3753/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-4      | (768->64)x2->1        | source: hobbes-random              | Elo   | 110.97 +- 23.26 (95%)                  | Elo   | -589.87 +- 56.56 (95%)                 |
+              | activ: screlu         | dataset: 59 million                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1002 W: 12 L: 949 D: 41             |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 670 W: 352 L: 145 D: 173            | Penta | [448, 41, 12, 0, 0]                    |
+              | optim: AdamW          | wdl: constant(0.5)                 | https://chess.n9x.co/test/3763/                | https://chess.n9x.co/test/3767/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-5      | (768->128)x2->1       | source: hobbes 2 -> 4              | Elo   | 391.63 +- 56.94 (95%)                  | Elo   | -287.42 +- 19.84 (95%)                 |
+              | activ: screlu         | dataset: 115 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1000 W: 35 L: 714 D: 251            |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 358 W: 302 L: 12 D: 44              | Penta | [232, 218, 47, 3, 0]                   |
+              | optim: AdamW          | wdl: constant(0.5)                 | https://chess.n9x.co/test/3771/                | https://chess.n9x.co/test/3772/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-6      | (768->256)x2->1       | source: hobbes 2 -> 5              | Elo   | 137.91 +- 22.76 (95%)                  | Elo   | -184.96 +- 16.18 (95%)                 |
+              | activ: screlu         | dataset: 210 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | 4sb: 400                           | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1014 W: 104 L: 598 D: 312           |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 538 W: 285 L: 82 D: 171             | Penta | [135, 243, 110, 19, 0]                 |
+              | optim: AdamW          | wdl: constant(0.5)                 | https://kelseyde.pythonanywhere.com/test/905/  | https://kelseyde.pythonanywhere.com/test/906   |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-7      | (768->256)x2->1       | source: hobbes 2 -> 5              | Elo   | 9.58 +- 5.41 (95%)                     | Elo   | -183.51 +- 15.23 (95%)                 |
+              | activ: screlu         | dataset: 210 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.61 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1000 W: 77 L: 561 D: 362            |
+              | quant: [255,64]       | lr: cosine(0.001,0.000027)         | Games | N: 5548 W: 1606 L: 1453 D: 2489        | Penta | [115, 269, 103, 11, 2]                 |
+              | optim: AdamW          | wdl: constant(0.4)                 | https://chess.n9x.co/test/3833/                | https://chess.n9x.co/test/3843/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-8      | (768->256)x2->1       | source: hobbes 2 -> 5              | Elo   | 3.60 +- 2.92 (95%)                     | Elo   | -192.71 +- 15.15 (95%)                 |
+              | activ: screlu         | dataset: 210 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1000 W: 82 L: 586 D: 332            |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 18506 W: 5087 L: 4895 D: 8524       | Penta | [125, 262, 105, 8, 0]                  |
+              | optim: AdamW          | wdl: constant(0.5)                 | https://chess.n9x.co/test/3858/                | https://chess.n9x.co/test/3874/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-9      | (768hm->256)x2->1     | source: hobbes 2 -> 7              | Elo   | 37.48 +- 11.32 (95%)                   | Elo   | -162.51 +- 14.28 (95%)                 |
+              | activ: screlu         | dataset: 310 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1006 W: 94 L: 533 D: 379            |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 1340 W: 446 L: 302 D: 592           | Penta | [94, 268, 125, 15, 1]                  |
+              | optim: AdamW          | wdl: constant(0.4)                 | https://chess.n9x.co/test/3914/                | https://chess.n9x.co/test/3915/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-10     | (768hm->384)x2->1     | source: hobbes 2 -> 7              | Elo   | 35.79 +- 10.94 (95%)                   | Elo   | -140.69 +- 12.82 (95%)                 |
+              | activ: screlu         | dataset: 310 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1010 W: 111 L: 499 D: 400           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 1432 W: 489 L: 342 D: 601           | Penta | [59, 292, 133, 20, 1]                  |
+              | optim: AdamW          | wdl: constant(0.4)                 | https://chess.n9x.co/test/3934/                | https://chess.n9x.co/test/3935/                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-11     | (768hm->384)x2->1     | source: hobbes 2 -> 8              | Elo   | 5.40 +- 3.83 (95%)                     | Elo   | -141.40 +- 13.39 (95%)                 |
+              | activ: screlu         | dataset: 310 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1008 W: 117 L: 506 D: 385           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 10550 W: 2993 L: 2829 D: 4728       | Penta | [74, 260, 151, 19, 0]                  |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [121, 1171, 2553, 1283, 147]           | https://chess.n9x.co/test/3944/                |
+              |                       |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/3940/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-12     | (768hm->512)x2->1     | source: hobbes 5 -> 11             | Elo   | 67.38 +- 13.86 (95%)                   | Elo   | -93.29 +- 12.53 (95%)                  |
+              | activ: screlu         | dataset: 900 million               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.59 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 1022 W: 154 L: 422 D: 446           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 804 W: 300 L: 146 D: 358            | Penta | [36, 243, 188, 41, 3]                  |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [5, 40, 172, 166, 19]                  | https://chess.n9x.co/test/3962/                |
+              |                       |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/3961/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-13     | (768hm->768)x2->1     | source: hobbes 5 -> 12             | Elo   | 25.75 +- 9.23 (95%)                    | Elo   | -85.70 +- 9.11 (95%)                   |
+              | activ: screlu         | dataset: 1 billion                 | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 2006 W: 337 L: 822 D: 847           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 1852 W: 559 L: 422 D: 871           | Penta | [70, 455, 377, 92, 9]                  |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [10, 191, 407, 288, 30]                | https://chess.n9x.co/test/3976/                |
+              |                       |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/3975/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-14     | (768hm->768)x2->1     | source: hobbes 6 -> 12             | Elo   | 4.07 +- 3.14 (95%)                     | Elo   | -83.36 +- 9.02 (95%)                   |
+              | activ: screlu         | dataset: 1 billion                 | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.55 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 2026 W: 322 L: 799 D: 905           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 14438 W: 3917 L: 3748 D: 6773       | Penta | [75, 436, 399, 97, 6]                  |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [125, 1629, 3543, 1796, 126]           | https://chess.n9x.co/test/3987/                |
+              |                       |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/3985/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-15     | (768hm->1024)x2->1    | source: hobbes 6 -> 13             | Elo   | 13.00 +- 6.27 (95%)                    | Elo   | -72.18 +- 8.81 (95%)                   |
+              | activ: screlu         | dataset: 1.2 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB.          | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 2036 W: 371 L: 788 D: 877           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 3582 W: 1023 L: 889 D: 1670         | Penta | [61, 418, 423, 109, 7]                 |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [18, 385, 873, 475, 40]                | https://chess.n9x.co/test/3993/                |
+              |                       |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/3992/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-16     | (768x4hm->1024)x2->1  | source: hobbes 6 -> 15             | Elo   | 25.96 +- 9.12 (95%)                    | Elo   | -52.58 +- 9.05 (95%)                   |
+              | activ: screlu         | dataset: 1.7 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB.          | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 2004 W: 422 L: 723 D: 859           |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 1810 W: 566 L: 431 D: 813           | Penta | [55, 355, 439, 142, 11]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [14, 166, 419, 283, 23]                | https://chess.n9x.co/test/4057/                |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://chess.n9x.co/test/4056/                |                                                |
+              | 0, 0, 1, 1,           |                                    |                                                |                                                |
+              | 2, 2, 2, 2,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-17     | (768x4hm->1024)x2->1  | source: hobbes 6 -> 16             | Elo   | 8.90 +- 5.18 (95%)                     | Elo   | -45.19 +- 7.32 (95%)                   |
+              | activ: screlu         | dataset: 1.9 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB.          | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3000 W: 659 L: 1047 D: 1294         |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 5778 W: 1644 L: 1496 D: 2638        | Penta | [73, 506, 675, 228, 18]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [59, 646, 1341, 774, 69]               | https://kelseyde.pythonanywhere.com/test/957/  |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/953/  |                                                |
+              | 0, 0, 1, 1,           | random fen skipping: 0.01          |                                                |                                                |
+              | 2, 2, 2, 2,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-18     | (768x4hm->1024)x2->1  | source: hobbes 6 -> 16             | Elo   | 4.96 +- 3.62 (95%)                     | Elo   | -42.78 +- 7.22 (95%)                   |
+              | activ: screlu         | dataset: 1.9 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3028 W: 659 L: 1030 D: 1339         |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 11640 W: 3270 L: 3104 D: 5266       | Penta | [71, 499, 690, 238, 16]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [119, 1325, 2798, 1427, 151]           | https://kelseyde.pythonanywhere.com/test/968/  |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/965/  |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 2, 2,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+              | 3, 3, 3, 3,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-19     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 16             | Elo   | 6.93 +- 4.45 (95%)                     | Elo   | -42.78 +- 7.61 (95%)                   |
+              | activ: screlu         | dataset: 2.1 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3004 W: 642 L: 1010 D: 1352         |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 7624 W: 2141 L: 1989 D: 3494        | Penta | [67, 536, 632, 232, 35]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [81, 829, 1850, 961, 91]               | https://kelseyde.pythonanywhere.com/test/1008/ |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1006/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-20     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 19             | Elo   | 5.87 +- 3.99 (95%)                     | Elo   | -38.74 +- 7.46 (95%)                   |
+              | activ: screlu         | dataset: 2.3 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3044 W: 701 L: 1039 D: 1304         |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 9354 W: 2607 L: 2449 D: 4298        | Penta | [79, 483, 682, 253, 25]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [92, 1057, 2222, 1213, 93              | https://kelseyde.pythonanywhere.com/test/1055/ |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1054/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-21     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 19             | Elo   | 15.65 +- 7.08 (95%)                    | Elo   | -24.54 +- 7.39 (95%)                   |
+              | activ: screlu         | dataset: 3.3 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.60 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3006 W: 711 L: 923 D: 1372          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 3198 W: 941 L: 797 D: 1460          | Penta | [56, 453, 665, 305, 24]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [32, 335, 741, 439, 52]                | https://kelseyde.pythonanywhere.com/test/1117/ |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1116/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-22     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 21             | Elo   | 12.54 +- 6.19 (95%)                    | Elo   | -23.45 +- 7.28 (95%)                   |
+              | activ: screlu         | dataset: 4.2 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 400                            | LLR   | 2.57 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3012 W: 718 L: 921 D: 1373          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 3854 W: 1114 L: 975 D: 1765         | Penta | [51, 447, 688, 294, 26]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [34, 399, 932, 518, 44]                | https://kelseyde.pythonanywhere.com/test/1227/ |
+              | buckets:              |      300sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1226/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-23     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 21             | Elo   | 6.02 +- 4.05 (95%)                     | Elo   | -17.43 +- 7.30 (95%)                   |
+              | activ: screlu         | dataset: 4.2 billion               | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 800                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3012 W: 745 L: 896 D: 1371          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 8772 W: 2365 L: 2213 D: 4194        | Penta | [50, 423, 688, 318, 27]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [72, 985, 2135, 1107, 87]              | https://kelseyde.pythonanywhere.com/test/1232/ |
+              | buckets:              |      700sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1231/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-24     | (768x6hm->1024)x2->1  | source: hobbes 6 -> 23             | Elo   | 4.97 +- 3.56 (95%)                     | Elo   | -16.44 +- 7.29 (95%)                   |
+              | activ: screlu         | dataset: 5 billion                 | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 800                            | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3004 W: 754 L: 896 D: 1354          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 11114 W: 3000 L: 2841 D: 5273       | Penta | [50, 410, 704, 308, 30]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [79, 1277, 2704, 1400, 97]             | https://kelseyde.pythonanywhere.com/test/1329/ |
+              | buckets:              |      700sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1328/ |                                                |
+              | 0, 0, 1, 1,           | viriformat -> bulletformat         |                                                |                                                |
+              | 2, 2, 3, 3,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 4, 4, 4, 4,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+              | 5, 5, 5, 5,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-25     | (768x8hm->1024)x2->1  | source: hobbes 6 -> 23             | Elo   | 2.15 +- 1.86 (95%)                     | Elo   | -9.15 +- 7.14 (95%)                    |
+              | activ: screlu         | dataset: 5 billion                 | SPRT  | 40.0+0.40s Threads=1 Hash=64MB         | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 800                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3002 W: 765 L: 844 D: 1393          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 34264 W: 8929 L: 8717 D: 16618      | Penta | [34, 406, 693, 341, 27]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [112, 3830, 9034, 4046, 110]           | https://kelseyde.pythonanywhere.com/test/1363/ |
+              | buckets:              |      700sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1339/ |                                                |
+              | 0, 1, 2, 3,           | viriformat -> bulletformat         |                                                |                                                |
+              | 4, 4, 5, 5,           |                                    |                                                |                                                |
+              | 6, 6, 6, 6,           |                                    |                                                |                                                |
+              | 6, 6, 6, 6,           |                                    |                                                |                                                |
+              | 6, 6, 6, 6,           |                                    |                                                |                                                |
+              | 7, 7, 7, 7,           |                                    |                                                |                                                |
+              | 7, 7, 7, 7,           |                                    |                                                |                                                |
+              | 7, 7, 7, 7,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-27     | (768x10hm->1024)x2->1 | source: hobbes 6 -> 23             | Elo   | 4.69 +- 3.46 (95%)                     | Elo   | 3.70 +- 7.18 (95%)                     |
+              | activ: screlu         | dataset: 7 billion                 | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           | Conf  | 8.0+0.08s Threads=1 Hash=8MB           |
+              | scale: 400            | sb: 800                            | LLR   | 2.56 (-2.23, 2.55) [0.00, 4.00]        | Games | N: 3004 W: 835 L: 803 D: 1366          |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 12078 W: 3291 L: 3128 D: 5659       | Penta | [30, 345, 739, 339, 49]                |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [99, 1386, 2926, 1509, 119]            | https://kelseyde.pythonanywhere.com/test/1527/ |
+              | buckets:              |      700sb linear(0.2,0.4)         | https://kelseyde.pythonanywhere.com/test/1525/ |                                                |
+              | 0, 1, 2, 3,           | viriformat -> bulletformat         |                                                |                                                |
+              | 4, 5, 6, 7,           |                                    |                                                |                                                |
+              | 8, 8, 8, 8,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-28     | (768x10hm->1024)x2->1 | source: hobbes 6 -> 27             | Elo   | 8.82 +- 4.77 (95%)                     |                                                 |
+              | activ: screlu         | dataset: 12.5 billion              | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                 |
+              | scale: 400            | sb: 800                            | LLR   | 2.76 (-2.23, 2.55) [0.00, 4.00]        |                                                 |
+              | quant: [255,64]       | lr: cosine(0.001,0.0000081)        | Games | N: 5672 W: 1549 L: 1405 D: 2718        |                                                 |
+              | optim: AdamW          | wdl: 100sb constant(0.2),          | Penta | [29, 599, 1440, 735, 33]               |                                                 |
+              | buckets:              |      700sb linear(0.2,0.4)         | https://chess.n9x.co/test/4218/                |                                                |
+              | 0, 1, 2, 3,           | viriformat -> bulletformat         |                                                |                                                |
+              | 4, 5, 6, 7,           |                                    |                                                |                                                |
+              | 8, 8, 8, 8,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-29     | (768x10hm->1024)x2->1 | source: hobbes 6 -> 27             | Elo   | 1.71 +- 1.39 (95%)                     |                                                |
+              | activ: screlu         | dataset: 12.5 billion              | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | scale: 400            | sb: 1000                           | LLR   | 2.75 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | quant: [255,64]       | lr:                                | Games | N: 68118 W: 17748 L: 17412 D: 32958    |                                                |
+              | optim: AdamW          | 800 cosine(0.001,0.0000081)        | Penta | [368, 7947, 17155, 8159, 430]          |                                                |
+              | buckets:              | 200 constant(0.00000081)           | https://chess.n9x.co/test/4224/                |                                                |
+              | 0, 1, 2, 3,           | wdl:                               |                                                |                                                |
+              | 4, 5, 6, 7,           | 100 constant(0.2)                  |                                                |                                                |
+              | 8, 8, 8, 8,           | 700 linear(0.2,0.4)                |                                                |                                                |
+              | 9, 9, 9, 9,           | 200 constant(0.4)                  |                                                |                                                |
+              | 9, 9, 9, 9,           | viriformat -> bulletformat         |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-30     | (768x10hm->1280)x2->1 | source: hobbes 6 -> 27             | Elo   | 2.16 +- 1.86 (95%)                     |                                                |
+              | activ: screlu         | dataset: 12.5 billion              | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | scale: 400            | sb: 1000                           | LLR   | 2.60 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | quant: [255,64]       | lr:                                | Games | N: 37728 W: 9878 L: 9643 D: 18207      |                                                |
+              | optim: AdamW          | 800 cosine(0.001,0.0000081)        | https://chess.n9x.co/test/4240/                |                                                |
+              | buckets:              | 200 constant(0.00000081)           |                                                |                                                |
+              | 0, 1, 2, 3,           | wdl:                               |                                                |                                                |
+              | 4, 5, 6, 7,           | 100 constant(0.2)                  |                                                |                                                |
+              | 8, 8, 8, 8,           | 700 linear(0.2,0.4)                |                                                |                                                |
+              | 9, 9, 9, 9,           | 200 constant(0.4)                  |                                                |                                                |
+              | 9, 9, 9, 9,           | viriformat -> bulletformat         |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-31     | (768x10hm->1280)x2->1 | d1: h6-h27 (12.5b)                 | Elo   | 6.65 +- 4.07 (95%)                     |                                                |
+              | activ: screlu         | d2: h23-h27 (7.9b)                 | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | scale: 400            | s1:                                | LLR   | 2.74 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | Games | N: 7890 W: 2073 L: 1922 D: 3895        |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Penta | [48, 855, 1980, 1022, 40]              |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | https://chess.n9x.co/test/4244/                |                                                |
+              | 0, 1, 2, 3,           |        700sb(lin(0.2,0.4))         |                                                |                                                |
+              | 4, 5, 6, 7,           | s2:                                |                                                |                                                |
+              | 8, 8, 8, 8,           |   d2, 200sb                        |                                                |                                                |
+              | 9, 9, 9, 9,           |   lr: 200sb(k(0.00000081))         |                                                |                                                |
+              | 9, 9, 9, 9,           | viriformat -> bulletformat         |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+              | 9, 9, 9, 9,           |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-32     | (768x10hm->1280)x2->1 | d1: h6-h31 (14b std, 3b dfrc)      | DFRC:                                          |                                                |
+              | activ: screlu         | d2: h23-h31 (10b std, 3b dfrc)     | Elo   | 158.84 +- 23.11 (95%)                  |                                                |
+              | scale: 400            | s1:                                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | LLR   | 2.82 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Games | N: 540 W: 274 L: 43 D: 223             |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | Penta | [1, 17, 70, 114, 68]                   |                                                |
+              | 0, 1, 2, 3,           |        700sb(lin(0.2,0.4))         | https://chess.n9x.co/test/4526/                |                                                |
+              | 4, 5, 6, 7,           | s2:                                |                                                |                                                |
+              | 8, 8, 8, 8,           |   d2, 200sb                        | Standard:                                      |                                                |
+              | 9, 9, 9, 9,           |   lr: 200sb(k(0.00000081))         | Elo   | 6.21 +- 4.05 (95%)                     |                                                |
+              | 9, 9, 9, 9,           | viriformat -> bulletformat         | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | 9, 9, 9, 9,           |                                    | LLR   | 2.59 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | 9, 9, 9, 9,           |                                    | Games | N: 8224 W: 2250 L: 2103 D: 3871        |                                                |
+              | 9, 9, 9, 9,           |                                    | Penta | [49, 918, 2043, 1041, 61]              |                                                |
+              |                       |                                    | https://chess.n9x.co/test/4527/                |                                                |
+              |                       |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-33     | (768x10hm->1280)x2->1 | d1: h6-h31 (14b std, 3b dfrc)      | Elo   | 3.71 +- 2.81 (95%)                     |                                                |
+              | activ: screlu         | d2: h23-h31 (10b std, 3b dfrc)     | SPRT  | 40.0+0.40s Threads=1 Hash=64MB         |                                                |
+              | scale: 400            | s1:                                | LLR   | 2.61 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | Games | N: 14138 W: 3810 L: 3659 D: 6669       |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Penta | [24, 1521, 3835, 1658, 31]             |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | https://chess.n9x.co/test/4545/                |                                                |
+              | 0,  1,  2,  3,        |        700sb(lin(0.2,0.4))         |                                                |                                                |
+              | 4,  5,  6,  7,        | s2:                                |                                                |                                                |
+              | 8,  9,  10, 11,       |   d2, 200sb                        |                                                |                                                |
+              | 8,  9,  10, 11,       |   lr: 200sb(k(0.00000081))         |                                                |                                                |
+              | 12, 12, 13, 13,       |   wdl: k(0.6)                      |                                                |                                                |
+              | 12, 12, 13, 13,       | viriformat -> bulletformat         |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-34     | (768x10hm->1280)x2->1 | d1: h6-h33 (14b std, 5b dfrc)      | Standard non-reg (stopped):                    |                                                |
+              | activ: screlu         | d2: h23-h33 (10b std, 5b dfrc)     | Elo   | -1.71 +- 1.84 (95%)                    |                                                |
+              | scale: 400            | s1:                                | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | LLR   | -1.17 (-2.23, 2.55) [-5.00, 0.00]      |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Games | N: 38920 W: 10411 L: 10603 D: 17906    |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | Penta | [241, 4640, 9882, 4464, 233]           |                                                |
+              | 0,  1,  2,  3,        |        700sb(lin(0.2,0.4))         | https://chess.n9x.co/test/4796/                |                                                |
+              | 4,  5,  6,  7,        | s2:                                |                                                |                                                |
+              | 8,  9,  10, 11,       |   d2, 200sb                        | DFRC non-reg:                                  |                                                |
+              | 8,  9,  10, 11,       |   lr: 200sb(k(0.00000081))         | Elo   | 6.41 +- 5.09 (95%)                     |                                                |
+              | 12, 12, 13, 13,       |   wdl: k(0.6)                      | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | 12, 12, 13, 13,       | viriformat (fen skipping: 0.01)    | LLR   | 2.56 (-2.23, 2.55) [-5.00, 0.00]       |                                                |
+              | 14, 14, 15, 15,       |                                    | Games | N: 3738 W: 1300 L: 1231 D: 1207        |                                                |
+              | 14, 14, 15, 15,       |                                    | Penta | [25, 245, 1271, 292, 36]               |                                                |
+              |                       |                                    | https://chess.n9x.co/test/4801/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-35     | (768x10hm->1280)x2->1 | d1: h6-h33 (14b std, 5b dfrc)      | Elo   | 2.54 +- 2.16 (95%)                     |                                                |
+              | activ: screlu         | d2: h23-h33 (10b std, 5b dfrc)     | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | scale: 400            | s1:                                | LLR   | 2.58 (-2.23, 2.55) [0.00, 4.00]        |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | Games | N: 28038 W: 7695 L: 7490 D: 12853      |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Penta | [162, 3193, 7120, 3366, 178]           |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | https://chess.n9x.co/test/4803/                |                                                |
+              | 0,  1,  2,  3,        |        700sb(lin(0.2,0.4))         |                                                |                                                |
+              | 4,  5,  6,  7,        | s2:                                |                                                |                                                |
+              | 8,  9,  10, 11,       |   d2, 200sb                        |                                                |                                                |
+              | 8,  9,  10, 11,       |   lr: 200sb(k(0.00000081))         |                                                |                                                |
+              | 12, 12, 13, 13,       |   wdl: k(0.6)                      |                                                |                                                |
+              | 12, 12, 13, 13,       | viriformat (fen skipping: 0.75)    |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-36     | (768x10hm->1280)x2->1 | d1: h6-h33 (14b std, 5b dfrc)      | Elo   | 0.33 +- 2.58 (95%)                     |                                                |
+              | activ: screlu         | d2: h23-h33 (10b std, 5b dfrc)     | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | scale: 400            | s1:                                | LLR   | 2.57 (-2.23, 2.55) [-5.00, 0.00]       |                                                |
+              | quant: [255,64]       |   d1, 800sb                        | Games | N: 19826 W: 5309 L: 5290 D: 9227       |                                                |
+              | optim: AdamW          |   lr: 800sb(cos(0.001, 0.0000081)) | Penta | [119, 2345, 4962, 2372, 115]           |                                                |
+              | buckets:              |   wdl: 100sb(k(0.2)),              | https://chess.n9x.co/test/4810/                |                                                |
+              | 0,  1,  2,  3,        |        700sb(lin(0.2,0.4))         |                                                |                                                |
+              | 4,  5,  6,  7,        | s2:                                |                                                |                                                |
+              | 8,  9,  10, 11,       |   d2, 200sb                        |                                                |                                                |
+              | 8,  9,  10, 11,       |   lr: 200sb(k(0.00000081))         |                                                |                                                |
+              | 12, 12, 13, 13,       |   wdl: k(0.6)                      |                                                |                                                |
+              | 12, 12, 13, 13,       | viriformat (fen skipping: 0.5)     |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+              | 14, 14, 15, 15,       |                                    |                                                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|
+hobbes-37     | (768x10hm->1280)x2->1 | d1: h6-h33                         | STC:                                           |                                                |
+              | activ: screlu         |     16b std (2b 20k), 5b dfrc      | Elo   | -0.89 +- 2.70 (95%)                    |                                                |
+              | scale: 400            | d2: h23-h33                        | SPRT  | 8.0+0.08s Threads=1 Hash=8MB           |                                                |
+              | quant: [255,64]       |     12b std (2b 20k), 5b dfrc)     | LLR   | -2.26 (-2.25, 2.89) [0.00, 4.00]       |                                                |
+              | optim: AdamW          | s1:                                | Games | N: 18692 W: 4967 L: 5015 D: 8710       |                                                |
+              | buckets:              |   d1, 800sb                        | Penta | [127, 2266, 4608, 2218, 127]           |                                                |
+              | 0,  1,  2,  3,        |   lr: 800sb(cos(0.001, 0.0000081)) | https://chess.n9x.co/test/5055/                |                                                |
+              | 4,  5,  6,  7,        |   wdl: 100sb(k(0.2)),              | LTC:                                           |                                                |
+              | 8,  9,  10, 11,       |        700sb(lin(0.2,0.4))         | Elo   | 2.64 +- 2.09 (95%)                     |                                                |
+              | 8,  9,  10, 11,       | s2:                                | SPRT  | 40.0+0.40s Threads=1 Hash=64MB         |                                                |
+              | 12, 12, 13, 13,       |   d2, 200sb                        | LLR   | 2.91 (-2.25, 2.89) [0.00, 4.00]        |                                                |
+              | 12, 12, 13, 13,       |   lr: 200sb(k(0.00000081))         | Games | N: 27362 W: 6991 L: 6783 D: 13588      |                                                |
+              | 14, 14, 15, 15,       |   wdl: k(0.6)                      | Penta | [62, 3178, 6983, 3406, 52]             |                                                |
+              | 14, 14, 15, 15,       | viriformat (fen skipping: 0.5)     | https://chess.n9x.co/test/5056/                |                                                |
+--------------|-----------------------|------------------------------------|------------------------------------------------|------------------------------------------------|

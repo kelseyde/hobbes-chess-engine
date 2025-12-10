@@ -1,7 +1,9 @@
+.idea
 *.iml
 hobbes-chess-engine
+data
+*.nnue
 
-# Added by cargo
 
 /target
 flamegraph.svg
