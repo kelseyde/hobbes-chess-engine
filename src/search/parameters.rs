@@ -115,6 +115,10 @@ tunable_params! {
     pcm_bonus_scale             = 227, 80, 280, 40;
     pcm_bonus_offset            = 63, 0, 200, 25;
     pcm_bonus_max               = 1425, 1000, 1600, 100;
+    corr_bonus_mult             = 182, 100, 300, 25;
+    corr_bonus_div              = 128, 64, 256, 16;
+    corr_bonus_min              = -4838, -6000, -2000, 500;
+    corr_bonus_max              = 2985, 2000, 6000, 500;
     corr_pawn_weight            = 121, 0, 200, 10;
     corr_non_pawn_weight        = 97, 0, 200, 10;
     corr_major_weight           = 82, 0, 200, 10;
