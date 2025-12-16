@@ -67,7 +67,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
 
             if td.main && !td.minimal_output {
-                print_search_info(td);
+                print_search_info(board, td);
             }
 
             if td.should_stop(Hard) || Score::is_mate(score) {
@@ -102,7 +102,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     // Print the final search stats
     if td.main {
-        print_search_info(td);
+        print_search_info(board, td);
     }
 
     // If time expired before a best move was found in search, pick the first legal move.
@@ -1017,7 +1017,7 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     (base + depth * scale) / 10
 }
 
-fn print_search_info(td: &mut ThreadData) {
+fn print_search_info(board: &Board, td: &mut ThreadData) {
     let depth = td.depth;
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
@@ -1033,6 +1033,21 @@ fn print_search_info(td: &mut ThreadData) {
         "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
         depth, seldepth, best_score, nodes, time, nps, hashfull
     );
+    let mut moves = 0;
+    let mut board = *board;
+    while moves < 24 {
+        let tt_move = td.tt.probe(board.hash())
+            .map(|entry| entry.best_move())
+            .filter(|mv| mv.exists())
+            .filter(|mv| board.is_legal(&mv));
+        if let Some(mv) = tt_move {
+            print!(" {}", mv.to_uci());
+            board.make(&mv);
+            moves += 1;
+        } else {
+            break;
+        }
+    }
 
     // TODO fix illegal PV moves
     // for mv in td.pv.line() {
@@ -1042,7 +1057,7 @@ fn print_search_info(td: &mut ThreadData) {
     // if td.pv.line().is_empty() {
     //     print!(" {}", td.pv.best_move().to_uci());
     // }
-    print!(" {}", td.best_move.to_uci());
+    // print!(" {}", td.best_move.to_uci());
     println!();
 }
 
@@ -1052,7 +1067,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
-    print_search_info(td);
+    print_search_info(board, td);
     (td.best_move, td.best_score)
 }
 
