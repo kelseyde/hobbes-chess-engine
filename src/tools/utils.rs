@@ -32,13 +32,14 @@ macro_rules! tunable_params {
         #[cfg(feature = "tuning")]
         pub fn print_params_ob() {
             $(
+                let step = ($max - $min) / 20;
                 println!(
                     "{}, int, {}.0, {}.0, {}.0, {}, 0.002",
                     stringify!($name),
                     $name(),
                     $min,
                     $max,
-                    $step,
+                    step,
                 );
             )*
         }
