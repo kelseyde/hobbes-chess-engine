@@ -177,6 +177,23 @@ impl QuietHistory {
         *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
     }
 
+    pub fn age(&mut self) {
+        for stm in 0..2 {
+            for from in 0..64 {
+                for to in 0..64 {
+                    let entry = &mut self.entries[stm][from][to];
+                    entry.factoriser = (entry.factoriser as i32 / 2) as i16;
+                    for from_attacked in 0..2 {
+                        for to_attacked in 0..2 {
+                            entry.bucket[from_attacked][to_attacked] =
+                                (entry.bucket[from_attacked][to_attacked] as i32 / 2) as i16;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn clear(&mut self) {
         self.entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
     }

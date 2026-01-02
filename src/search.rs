@@ -47,6 +47,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut score = 0;
     let mut delta = asp_delta();
     let mut reduction = 0;
+    td.history.quiet_history.age();
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
