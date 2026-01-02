@@ -499,7 +499,7 @@ fn alpha_beta(board: &Board,
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
-            let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, false);
             td.ss[ply].singular = None;
 
             if score < s_beta {
