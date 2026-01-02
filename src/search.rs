@@ -566,7 +566,7 @@ fn alpha_beta(board: &Board,
             td.ss[ply].reduction = 0;
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
-            if score > alpha && new_depth > reduced_depth {
+            if score > alpha && new_depth > reduced_depth && !root_node {
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
                 let do_shallower_margin = best_score + new_depth;
