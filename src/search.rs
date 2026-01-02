@@ -495,8 +495,10 @@ fn alpha_beta(board: &Board,
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
+            let s_beta_base = tt_score - s_beta_mult * se_beta_scale() / 16;
+            let s_beta_old_pv_offset = (tt_pv && !pv_node) as i32 * se_beta_old_pv_offset();
+            let s_beta = (s_beta_base + s_beta_old_pv_offset).max(-Score::MATE + 1);
 
             td.ss[ply].singular = Some(mv);
             let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
