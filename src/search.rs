@@ -567,6 +567,10 @@ fn alpha_beta(board: &Board,
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
+                if !root_node && mv == tt_move && tt_score < alpha && tt_flag == TTFlag::Upper {
+                    new_depth -= 1;
+                }
+
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
                 let do_shallower_margin = best_score + new_depth;
