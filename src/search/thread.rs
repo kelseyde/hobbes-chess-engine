@@ -8,6 +8,8 @@ use crate::search::stack::SearchStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
+#[cfg(debug_assertions)]
+use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
@@ -25,6 +27,8 @@ pub struct ThreadData {
     pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
     pub node_table: NodeTable,
+    #[cfg(debug_assertions)]
+    pub debug_stats: DebugStatsMap,
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub nodes: u64,
@@ -52,10 +56,12 @@ impl Default for ThreadData {
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::default(),
+            #[cfg(debug_assertions)]
+            debug_stats: DebugStatsMap::default(),
             limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
-            depth: 0,
+            depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
@@ -126,6 +132,12 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
+
+        // Only check hard limits every 2048 nodes to reduce overhead
+        if self.nodes % 2048 != 0 {
+            return false;
+        }
+
         if let Some(hard_time) = self.limits.hard_time {
             if self.start_time.elapsed() >= hard_time {
                 return true;
