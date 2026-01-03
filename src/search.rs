@@ -1039,7 +1039,7 @@ fn print_search_info(board: &Board, td: &mut ThreadData) {
         let tt_move = td.tt.probe(board.hash())
             .map(|entry| entry.best_move())
             .filter(|mv| mv.exists())
-            .filter(|mv| board.is_legal(&mv));
+            .filter(|mv| board.is_pseudo_legal(&mv) && board.is_legal(&mv));
         if let Some(mv) = tt_move {
             print!(" {}", mv.to_uci());
             board.make(&mv);
