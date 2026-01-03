@@ -136,5 +136,6 @@ tunable_params! {
     material_scaling_base       = 19208, 10000, 40000, 150;
     qs_futility_threshold       = 162, 80, 250, 10;
     qs_see_threshold            = -89, -200, 100, 25;
+    movepick_good_noisy_cutoff  = 8000, 0, 16000, 2000;
     movepick_see_threshold      = -97, -100, 100, 50;
 }

@@ -4,7 +4,7 @@ use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::movepick_see_threshold;
+use crate::search::parameters::{movepick_good_noisy_cutoff, movepick_see_threshold};
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
@@ -95,7 +95,7 @@ impl MovePicker {
                         .is_some_and(|p| p == Piece::Queen || p == Piece::Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
-                    self.see_threshold
+                    entry.score > movepick_good_noisy_cutoff() || self.see_threshold
                         .map(|threshold| see(board, &entry.mv, threshold))
                         .unwrap_or(true)
                 };
