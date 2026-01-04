@@ -226,6 +226,7 @@ fn alpha_beta(board: &Board,
     // extensions, reductions and pruning.
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -238,7 +239,7 @@ fn alpha_beta(board: &Board,
         if !tt_hit {
             td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        let correction = td.correction_history.correction(board, &td.ss, ply);
+        correction = td.correction_history.correction(board, &td.ss, ply);
         static_eval = raw_eval + correction;
     }
 
@@ -330,7 +331,8 @@ fn alpha_beta(board: &Board,
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
                 + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
-                + tt_move_noisy as i32;
+                + tt_move_noisy as i32
+                + correction.abs() / 130;
 
             let mut board = *board;
             board.make_null_move();
