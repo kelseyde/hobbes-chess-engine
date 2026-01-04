@@ -423,7 +423,6 @@ fn alpha_beta(board: &Board,
             && !in_check
             && is_quiet
             && lmr_depth < fp_max_depth()
-            && !maybe_gives_check
             && !is_mate_score
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
@@ -459,6 +458,7 @@ fn alpha_beta(board: &Board,
         let futility_margin = static_eval + bnp_scale() * lmr_depth;
         if !pv_node
             && !in_check
+            && !maybe_gives_check
             && lmr_depth < bnp_max_depth()
             && move_picker.stage == Stage::BadNoisies
             && futility_margin <= alpha {
