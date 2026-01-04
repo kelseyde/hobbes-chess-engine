@@ -512,7 +512,7 @@ fn alpha_beta(board: &Board,
             } else if cut_node {
                 extension = -2;
             } else if tt_score <= alpha {
-                extension = -1;
+                extension = -2;
             }
 
         }
