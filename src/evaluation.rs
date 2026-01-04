@@ -3,6 +3,7 @@ pub mod cache;
 pub mod feature;
 pub mod network;
 pub mod simd;
+pub mod stats;
 
 use crate::board::file::File;
 use crate::board::moves::Move;
