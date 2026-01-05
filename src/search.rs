@@ -23,6 +23,8 @@ use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::board::piece::Piece;
+use crate::board::piece::Piece::King;
 
 pub const MAX_PLY: usize = 256;
 
@@ -686,6 +688,20 @@ fn alpha_beta(board: &Board,
         let cont_malus = cont_history_malus(depth)
             + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
 
+        let pc_bonus = piece_history_bonus(depth);
+        let pc_malus = piece_history_malus(depth);
+
+        if pc != King {
+            td.history.piece_history.update(board.stm, pc, pc_bonus);
+            // for weaker_pc in Piece::weaker_pieces(pc) {
+            //     td.history.piece_history.update(board.stm, *weaker_pc, -pc_malus);
+            // }
+            td.debug_stats.insert(String::from("PawnScore"), td.history.piece_history.get(board.stm, Piece::Pawn) as i64);
+            td.debug_stats.insert(String::from("KnightScore"), td.history.piece_history.get(board.stm, Piece::Knight) as i64);
+            td.debug_stats.insert(String::from("BishopScore"), td.history.piece_history.get(board.stm, Piece::Bishop) as i64);
+            td.debug_stats.insert(String::from("RookScore"), td.history.piece_history.get(board.stm, Piece::Rook) as i64);
+            td.debug_stats.insert(String::from("QueenScore"), td.history.piece_history.get(board.stm, Piece::Queen) as i64);
+        }
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
             td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);

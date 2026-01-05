@@ -111,6 +111,12 @@ tunable_params! {
     cont_hist_malus_offset      = 88, 0, 200, 25;
     cont_hist_ttmove_malus      = 65, 0, 200, 25;
     cont_hist_malus_max         = 1035, 1000, 1600, 100;
+    piece_hist_bonus_scale      = 150, 80, 280, 40;
+    piece_hist_bonus_offset     = 60, 0, 200, 25;
+    piece_hist_bonus_max        = 1200, 1000, 1600, 100;
+    piece_hist_malus_scale      = 150, 80, 280, 40;
+    piece_hist_malus_offset     = 60, 0, 200, 25;
+    piece_hist_malus_max        = 1200, 1000, 1600, 100;
     pcm_bonus_scale             = 232, 80, 280, 40;
     pcm_bonus_offset            = 69, 0, 200, 25;
     pcm_bonus_max               = 1398, 1000, 1600, 100;

@@ -31,6 +31,17 @@ impl Piece {
     pub const fn is_minor(self) -> bool {
         matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
     }
+
+    pub const fn weaker_pieces(self) -> &'static [Piece] {
+        match self {
+            Piece::King => &[],
+            Piece::Queen => &[Piece::Rook, Piece::Bishop, Piece::Knight, Piece::Pawn],
+            Piece::Rook => &[Piece::Bishop, Piece::Knight, Piece::Pawn],
+            Piece::Bishop => &[Piece::Pawn],
+            Piece::Knight => &[Piece::Pawn],
+            Piece::Pawn => &[],
+        }
+    }
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {

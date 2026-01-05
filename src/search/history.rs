@@ -4,15 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
-    capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,
-    cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale,
-    lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale,
-    lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max,
-    pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
-    quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, piece_hist_bonus_max, piece_hist_bonus_offset, piece_hist_bonus_scale, piece_hist_malus_max, piece_hist_malus_offset, piece_hist_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale};
 use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -32,6 +24,10 @@ pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
+pub struct PieceHistory {
+    entries: Box<[[i16; 6]; 2]>
+}
+
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
@@ -43,6 +39,7 @@ pub struct Histories {
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
+    pub piece_history: PieceHistory,
 }
 
 impl Histories {
@@ -156,6 +153,14 @@ impl Default for ContinuationHistory {
     }
 }
 
+impl Default for PieceHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
 impl QuietHistory {
     const FACTORISER_MAX: i32 = 8192;
     const BUCKET_MAX: i32 = 16384;
@@ -217,6 +222,17 @@ impl ContinuationHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
+    }
+}
+
+impl PieceHistory {
+    pub fn get(&self, stm: Side, pc: Piece) -> i16 {
+        self.entries[stm][pc]
+    }
+
+    pub fn update(&mut self, stm: Side, pc: Piece, bonus: i16) {
+        let entry = &mut self.entries[stm][pc];
+        *entry += bonus;
     }
 }
 
@@ -283,6 +299,20 @@ pub fn cont_history_malus(depth: i32) -> i16 {
     let scale = cont_hist_malus_scale() as i16;
     let offset = cont_hist_malus_offset() as i16;
     let max = cont_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn piece_history_bonus(depth: i32) -> i16 {
+    let scale = piece_hist_bonus_scale() as i16;
+    let offset = piece_hist_bonus_offset() as i16;
+    let max = piece_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn piece_history_malus(depth: i32) -> i16 {
+    let scale = piece_hist_malus_scale() as i16;
+    let offset = piece_hist_malus_offset() as i16;
+    let max = piece_hist_malus_max() as i16;
     history_malus(depth, scale, offset, max)
 }
 
