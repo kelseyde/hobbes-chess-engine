@@ -181,6 +181,7 @@ fn alpha_beta(board: &Board,
 
     let singular = td.ss[ply].singular;
     let singular_search = singular.is_some();
+    let null_move_search = td.null_move_search;
 
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
@@ -336,12 +337,14 @@ fn alpha_beta(board: &Board,
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
+            td.null_move_search = true;
             let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
+                    td.null_move_search = false;
                     return if Score::is_mate(score) { beta } else {score };
                 }
 
@@ -351,6 +354,7 @@ fn alpha_beta(board: &Board,
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
+                    td.null_move_search = false;
                     return score;
                 }
             }
@@ -742,6 +746,7 @@ fn alpha_beta(board: &Board,
     // Update static eval correction history.
     if !in_check
         && !singular_search
+        && !null_move_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
         td.correction_history.update_correction_history(board, &td.ss, depth, ply, static_eval, best_score);
