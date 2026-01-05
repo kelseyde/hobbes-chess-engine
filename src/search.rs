@@ -664,26 +664,27 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
 
-        let quiet_bonus = quiet_history_bonus(depth)
+        let history_depth = depth + (pv_node as i32);
+        let quiet_bonus = quiet_history_bonus(history_depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
             + capture_count as i16 * quiet_hist_capture_mult() as i16;
 
-        let quiet_malus = quiet_history_malus(depth)
+        let quiet_malus = quiet_history_malus(history_depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
 
-        let capt_bonus = capture_history_bonus(depth)
+        let capt_bonus = capture_history_bonus(history_depth)
             + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
 
-        let capt_malus = capture_history_malus(depth)
+        let capt_malus = capture_history_malus(history_depth)
             + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
 
-        let cont_bonus = cont_history_bonus(depth)
+        let cont_bonus = cont_history_bonus(history_depth)
             - cut_node as i16 * cont_hist_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16
             + capture_count as i16 * cont_hist_capture_mult() as i16;
 
-        let cont_malus = cont_history_malus(depth)
+        let cont_malus = cont_history_malus(history_depth)
             + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
 
         if let Some(captured) = board.captured(&best_move) {
