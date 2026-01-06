@@ -89,11 +89,13 @@ tunable_params! {
     quiet_hist_bonus_offset     = 57, 0, 200, 25;
     quiet_hist_cutnode_offset   = 47, 0, 200, 25;
     quiet_hist_ttmove_bonus     = 63, 0, 200, 25;
+    quiet_hist_killer_bonus     = 50, 0, 200, 25;
     quiet_hist_capture_mult     = 11, 0, 100, 10;
     quiet_hist_bonus_max        = 1013, 1000, 1600, 100;
     quiet_hist_malus_scale      = 98, 80, 280, 40;
     quiet_hist_malus_offset     = 10, 0, 200, 25;
     quiet_hist_ttmove_malus     = 74, 0, 200, 25;
+    quiet_hist_killer_malus     = 50, 0, 200, 25;
     quiet_hist_malus_max        = 1333, 1000, 1600, 100;
     capt_hist_bonus_scale       = 262, 80, 280, 40;
     capt_hist_bonus_offset      = 56, 0, 200, 25;
@@ -107,11 +109,13 @@ tunable_params! {
     cont_hist_bonus_offset      = 198, 0, 200, 25;
     cont_hist_cutnode_offset    = 81, 0, 200, 25;
     cont_hist_ttmove_bonus      = 65, 0, 200, 25;
+    cont_hist_killer_bonus      = 50, 0, 200, 25;
     cont_hist_capture_mult      = 26, 0, 100, 10;
     cont_hist_bonus_max         = 1001, 1000, 1600, 100;
     cont_hist_malus_scale       = 80, 80, 280, 40;
     cont_hist_malus_offset      = 88, 0, 200, 25;
     cont_hist_ttmove_malus      = 65, 0, 200, 25;
+    cont_hist_killer_malus      = 50, 0, 200, 25;
     cont_hist_malus_max         = 1035, 1000, 1600, 100;
     pcm_bonus_scale             = 232, 80, 280, 40;
     pcm_bonus_offset            = 69, 0, 200, 25;

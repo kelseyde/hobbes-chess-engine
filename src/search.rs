@@ -674,14 +674,17 @@ fn alpha_beta(board: &Board,
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
+        let best_move_is_killer = td.ss[ply].killer.is_some_and(|k| k == best_move);
 
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+            + capture_count as i16 * quiet_hist_capture_mult() as i16
+            + best_move_is_killer as i16 * quiet_hist_killer_bonus() as i16;
 
         let quiet_malus = quiet_history_malus(depth)
-            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
+            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16
+            + best_move_is_killer as i16 * quiet_hist_killer_malus() as i16;
 
         let capt_bonus = capture_history_bonus(depth)
             + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
@@ -692,10 +695,12 @@ fn alpha_beta(board: &Board,
         let cont_bonus = cont_history_bonus(depth)
             - cut_node as i16 * cont_hist_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_capture_mult() as i16
+            + best_move_is_killer as i16 * cont_hist_killer_bonus() as i16;
 
         let cont_malus = cont_history_malus(depth)
-            + new_tt_move as i16 * cont_hist_ttmove_malus() as i16;
+            + new_tt_move as i16 * cont_hist_ttmove_malus() as i16
+            + best_move_is_killer as i16 * cont_hist_killer_malus() as i16;
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
