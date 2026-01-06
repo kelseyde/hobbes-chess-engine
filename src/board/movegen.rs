@@ -34,18 +34,18 @@ impl Board {
     }
 
     pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+        const STANDARD_PIECES: [Piece; 4] = [
+            Piece::Knight,
+            Piece::Bishop,
+            Piece::Rook,
+            Piece::Queen,
+        ];
         let side = self.stm;
         let mut moves = MoveList::new();
 
         let us = self.us();
         let them = self.them();
         let occ = us | them;
-
-        // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
-        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-            gen_castle_moves(self, side, &mut moves);
-        }
 
         let filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
@@ -54,22 +54,23 @@ impl Board {
             MoveFilter::Captures => them,
         };
 
+        // Generate king moves first
+        self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
+
+        // If we are in double-check, the only legal moves are king moves
+        if self.checkers.count() == 2 {
+            return moves;
+        }
+
+        // handle special moves first (en passant, promo, castling etc.)
+        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
+        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+            gen_castle_moves(self, side, &mut moves);
+        }
+
         // handle standard moves
-        for &pc in [
-            Piece::Knight,
-            Piece::Bishop,
-            Piece::Rook,
-            Piece::Queen,
-            Piece::King,
-        ]
-        .iter()
-        {
-            for from in self.pcs(pc) & us {
-                let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
-                for to in attacks {
-                    moves.add_move(from, to, MoveFlag::Standard);
-                }
-            }
+        for &pc in STANDARD_PIECES.iter() {
+            self.gen_standard_moves(pc, side, occ, us, filter_mask, &mut moves);
         }
 
         moves
@@ -125,6 +126,24 @@ impl Board {
         checkers |= diag_attacks;
 
         checkers
+    }
+
+    fn gen_standard_moves(
+        &self,
+        pc: Piece,
+        side: Side,
+        occ: Bitboard,
+        us: Bitboard,
+        filter_mask: Bitboard,
+        moves: &mut MoveList) {
+
+        for from in self.pcs(pc) & us {
+            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+            for to in attacks {
+                moves.add_move(from, to, MoveFlag::Standard);
+            }
+        }
+
     }
 }
 
