@@ -371,8 +371,8 @@ fn alpha_beta(board: &Board,
     // Cutnode TT reduction.
     if cut_node
         && !singular_search
-        && depth >= 8
-        && (tt_move.is_null() || (!tt_hit || tt_depth + 4 <= depth)) {
+        && depth >= cutnode_red_min_depth()
+        && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
         depth -= 1;
     }
 

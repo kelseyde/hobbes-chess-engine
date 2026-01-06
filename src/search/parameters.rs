@@ -22,6 +22,8 @@ tunable_params! {
     nmp_eval_max_reduction      = 4, 2, 6, 1;
     iir_min_depth               = 4, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;
+    cutnode_red_min_depth       = 8, 4, 12, 1;
+    cutnode_red_tt_offset       = 4, 1, 6, 1;
     hindsight_ext_min_depth     = 1, 1, 5, 1;
     hindsight_ext_min_reduction = 3, 1, 5, 1;
     hindsight_ext_eval_diff     = -13, -50, 50, 5;
