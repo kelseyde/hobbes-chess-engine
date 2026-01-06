@@ -368,7 +368,7 @@ fn alpha_beta(board: &Board,
         depth -= 1;
     }
 
-    // Cutnode-based TT reduction.
+    // Cutnode TT reduction.
     if cut_node
         && !singular_search
         && depth >= 8
