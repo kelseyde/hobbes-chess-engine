@@ -408,6 +408,7 @@ fn alpha_beta(board: &Board,
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
+        let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
@@ -453,6 +454,7 @@ fn alpha_beta(board: &Board,
         if !pv_node
             && !root_node
             && !is_mate_score
+            && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
             && history_score < hp_scale() * depth * depth {
@@ -561,7 +563,7 @@ fn alpha_beta(board: &Board,
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
-            r -= lmr_killer() * td.ss[ply].killer.is_some_and(|k| k == mv) as i32;
+            r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
