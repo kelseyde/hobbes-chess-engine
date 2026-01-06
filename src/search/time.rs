@@ -67,7 +67,8 @@ impl SearchLimits {
 
     fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
         let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
-        let base = time * 0.05 + inc * 0.08;
+        let max_time = time * 600.0 / 1000.0;
+        let base = max_time * 0.05 + inc * 0.08;
         let soft_time = base * 0.66;
         let hard_time = base * 2.0;
         let soft = soft_time.min(time - 50.0);
