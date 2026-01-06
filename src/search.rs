@@ -368,6 +368,14 @@ fn alpha_beta(board: &Board,
         depth -= 1;
     }
 
+    // Cutnode TT reduction.
+    if cut_node
+        && !singular_search
+        && depth >= 8
+        && (tt_move.is_null() || (!tt_hit || tt_depth + 4 <= depth)) {
+        depth -= 1;
+    }
+
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
