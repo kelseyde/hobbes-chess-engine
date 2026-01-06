@@ -443,6 +443,7 @@ fn alpha_beta(board: &Board,
         if !pv_node
             && !root_node
             && !is_mate_score
+            && !is_killer
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
