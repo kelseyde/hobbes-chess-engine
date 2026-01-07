@@ -4,15 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max,
-    capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset,
-    cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale,
-    lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale,
-    lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max,
-    pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
-    quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
 use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -32,6 +24,10 @@ pub struct ContinuationHistory {
     entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
+pub struct SquareHistory {
+    pub entries: Box<[[i16; 64]; 2]>,
+}
+
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
@@ -43,6 +39,8 @@ pub struct Histories {
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
+    pub from_history: SquareHistory,
+    pub to_history: SquareHistory,
 }
 
 impl Histories {
@@ -62,7 +60,9 @@ impl Histories {
         } else {
             let quiet_score = self.quiet_history_score(board, mv, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
-            quiet_score + cont_score
+            let from_score = self.from_history.get(board.stm, mv.from()) as i32;
+            let to_score = self.to_history.get(board.stm, mv.to()) as i32;
+            quiet_score + cont_score + from_score + to_score
         }
     }
 
@@ -129,6 +129,8 @@ impl Histories {
         self.quiet_history.clear();
         self.capture_history.clear();
         self.cont_history.clear();
+        self.from_history.clear();
+        self.to_history.clear();
     }
 }
 
@@ -149,6 +151,14 @@ impl Default for CaptureHistory {
 }
 
 impl Default for ContinuationHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
+impl Default for SquareHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() },
@@ -217,6 +227,25 @@ impl ContinuationHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
+    }
+}
+
+impl SquareHistory {
+    const MAX: i32 = 4096;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+
+    pub fn get(&self, stm: Side, sq: Square) -> i16 {
+        self.entries[stm][sq]
+    }
+
+    pub fn update(&mut self, stm: Side, sq: Square, bonus: i16) {
+        let entry = &mut self.entries[stm][sq];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[0; 64]; 2]);
     }
 }
 
@@ -291,6 +320,34 @@ pub fn prior_countermove_bonus(depth: i32) -> i16 {
     let offset = pcm_bonus_offset() as i16;
     let max = pcm_bonus_max() as i16;
     history_bonus(depth, scale, offset, max)
+}
+
+pub fn from_history_bonus(depth: i32) -> i16 {
+    let scale = from_hist_bonus_scale() as i16;
+    let offset = from_hist_bonus_offset() as i16;
+    let max = from_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn from_history_malus(depth: i32) -> i16 {
+    let scale = from_hist_malus_scale() as i16;
+    let offset = from_hist_malus_offset() as i16;
+    let max = from_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn to_history_bonus(depth: i32) -> i16 {
+    let scale = to_hist_bonus_scale() as i16;
+    let offset = to_hist_bonus_offset() as i16;
+    let max = to_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn to_history_malus(depth: i32) -> i16 {
+    let scale = to_hist_malus_scale() as i16;
+    let offset = to_hist_malus_offset() as i16;
+    let max = to_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
 }
 
 pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
