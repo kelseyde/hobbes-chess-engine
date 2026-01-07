@@ -485,6 +485,7 @@ fn alpha_beta(board: &Board,
                 - history_score / pvs_see_noisy_history_div()
         };
         if !pv_node
+            && !is_killer
             && depth <= pvs_see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
