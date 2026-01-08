@@ -13,7 +13,7 @@ pub struct StackEntry {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub captured: Option<Piece>,
-    pub killer: Option<Move>,
+    pub killers: Killers,
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub raw_eval: i32,
@@ -34,7 +34,7 @@ impl SearchStack {
                 mv: None,
                 pc: None,
                 captured: None,
-                killer: None,
+                killers: Killers::default(),
                 singular: None,
                 threats: Bitboard::empty(),
                 raw_eval: Score::MIN,
@@ -57,4 +57,43 @@ impl IndexMut<usize> for SearchStack {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { self.data.get_unchecked_mut(index) }
     }
+}
+
+#[derive(Copy, Clone)]
+pub struct Killers {
+    pub entries: [Move; 2],
+}
+
+impl Default for Killers {
+    fn default() -> Self {
+        Killers {
+            entries: [Move::NONE; 2],
+        }
+    }
+}
+
+impl Killers {
+
+    pub fn add(&mut self, mv: Move) {
+        self.entries[1] = self.entries[0];
+        self.entries[0] = mv;
+    }
+
+    pub fn is_killer(&self, mv: Move) -> bool {
+        self.entries.iter().any(|&x| x == mv)
+    }
+
+    pub fn killer_index(&self, mv: Move) -> Option<usize> {
+        for (i, &killer) in self.entries.iter().enumerate() {
+            if killer == mv {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = [Move::NONE; 2];
+    }
+
 }
