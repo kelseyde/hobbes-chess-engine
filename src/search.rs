@@ -487,6 +487,7 @@ fn alpha_beta(board: &Board,
         if !pv_node
             && depth <= pvs_see_max_depth()
             && threats.contains(mv.to())
+            && (!is_killer || !is_quiet)
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold) {
