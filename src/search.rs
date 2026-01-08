@@ -380,6 +380,7 @@ fn alpha_beta(board: &Board,
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
     let mut move_picker = MovePicker::new(tt_move, ply, threats);
+    td.ss[ply + 1].killers.clear();
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
