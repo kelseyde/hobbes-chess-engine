@@ -48,8 +48,10 @@ tunable_params! {
     bnp_max_depth               = 6, 4, 10, 1;
     bnp_scale                   = 116, 64, 256, 16;
     pvs_see_max_depth           = 8, 6, 10, 1;
-    pvs_see_quiet_scale         = -39, -72, -36, 12;
-    pvs_see_noisy_scale         = -28, -48, -12, 12;
+    pvs_see_quiet_quad          = -16, -20, -4, 2;
+    pvs_see_noisy_quad          = -8, -20, -4, 2;
+    pvs_see_quiet_scale         = 50, 20, 64, 4;
+    pvs_see_noisy_scale         = 36, 20, 64, 4;
     pvs_see_quiet_history_div   = 247, 164, 388, 25;
     pvs_see_noisy_history_div   = 237, 164, 388, 25;
     pvs_see_quiet_ttpv_scale    = 26, 0, 36, 6;
