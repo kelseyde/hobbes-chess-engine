@@ -68,6 +68,7 @@ impl SearchLimits {
 
     fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
         let (time, inc) = (fischer.0, fischer.1);
+        // Credit to Reckless for this formula for calculating the hard/soft bounds
         let soft_scale = 0.024 + 0.042 * (1.0 - (-0.045 * fm_clock as f64).exp());
         let hard_scale = 0.742;
         let soft_bound = (soft_scale * time.saturating_sub(50) as f64 + 0.75 * inc as f64) as u64;
