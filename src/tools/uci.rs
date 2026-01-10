@@ -364,7 +364,8 @@ impl UCI {
             }
         }
 
-        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
+        self.td.limits =
+            SearchLimits::new(fischer, movetime, softnodes, nodes, depth, self.board.fm as usize);
 
         // Perform the search
         search(&self.board, &mut self.td);
