@@ -20,7 +20,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -307,7 +307,8 @@ fn alpha_beta(board: &Board,
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            - rfp_tt_fail_high_scale() * (tt_hit && tt_flag == Lower) as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
             && tt_flag != Upper {
