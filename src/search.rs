@@ -244,6 +244,7 @@ fn alpha_beta(board: &Board,
 
     td.ss[ply].raw_eval = raw_eval;
     td.ss[ply].static_eval = static_eval;
+    td.ss[ply + 1].killer = None;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
