@@ -969,6 +969,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
+    // Update capture history table
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
         let capt_bonus = qs_capthist_bonus(1);
