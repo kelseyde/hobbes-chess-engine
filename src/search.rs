@@ -874,6 +874,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
     let mut flag = TTFlag::Upper;
+    let mut captures = ArrayVec::<Move, 32>::new();
+    let mut capture_count = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
         if !board.is_legal(&mv) {
@@ -942,6 +944,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             break;
         }
 
+        if captured.is_some() && capture_count < 32 {
+            captures.push(mv);
+            capture_count += 1;
+        }
+
         if score > best_score {
             best_score = score;
         }
@@ -958,6 +965,23 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             if score >= beta {
                 flag = TTFlag::Lower;
                 break;
+            }
+        }
+    }
+
+    if best_move.exists() {
+        let pc = board.piece_at(best_move.from()).unwrap();
+        let capt_bonus = qs_capthist_bonus(1);
+        let capt_malus = qs_capthist_malus(1);
+        if let Some(captured) = board.captured(&best_move) {
+             // If the best move was a capture, give it a capture history bonus.
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+        }
+        for mv in captures.iter() {
+            if mv != &best_move {
+                if let Some(captured) = board.captured(mv) {
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                }
             }
         }
     }
