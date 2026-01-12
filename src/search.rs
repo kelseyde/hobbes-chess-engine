@@ -408,6 +408,7 @@ fn alpha_beta(board: &Board,
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
         let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
@@ -522,6 +523,8 @@ fn alpha_beta(board: &Board,
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
                 extension = -3;
+            } else if pv_node && is_recapture {
+                extension = 1;
             } else if cut_node {
                 extension = -2;
             } else if tt_score <= alpha {
