@@ -470,6 +470,7 @@ fn alpha_beta(board: &Board,
         let futility_margin = static_eval + bnp_scale() * lmr_depth;
         if !pv_node
             && !in_check
+            && !is_quiet
             && lmr_depth < bnp_max_depth()
             && move_picker.stage == Stage::BadNoisies
             && futility_margin <= alpha {
