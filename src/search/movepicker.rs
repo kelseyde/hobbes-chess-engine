@@ -212,4 +212,8 @@ impl MovePicker {
             return None;
         }
     }
+
+    pub fn has_bad_noisies(&self) -> bool {
+        !self.bad_noisies.is_empty()
+    }
 }

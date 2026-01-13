@@ -448,8 +448,12 @@ fn alpha_beta(board: &Board,
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
-            move_picker.skip_quiets = true;
-            continue;
+            if !move_picker.has_bad_noisies() {
+                break;
+            } else {
+                move_picker.skip_quiets = true;
+                continue;
+            }
         }
 
         // History Pruning
