@@ -53,6 +53,7 @@ tunable_params! {
     pvs_see_quiet_history_div   = 252, 164, 388, 25;
     pvs_see_noisy_history_div   = 235, 164, 388, 25;
     pvs_see_quiet_ttpv_scale    = 26, 0, 36, 6;
+    pvs_see_noisy_ttpv_scale    = 26, 0, 36, 6;
     se_min_depth                = 8, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 16, 16, 48, 6;
