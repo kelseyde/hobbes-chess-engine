@@ -567,6 +567,7 @@ fn alpha_beta(board: &Board,
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
+            r += 1024 * (is_quiet && threats.contains(mv.to())) as i32;
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
