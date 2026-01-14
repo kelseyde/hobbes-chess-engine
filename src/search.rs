@@ -326,7 +326,11 @@ fn alpha_beta(board: &Board,
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && tt_flag != Upper
+            && !(tt_flag == TTFlag::Lower
+                && tt_move.exists()
+                && tt_move_noisy
+                && board.piece_at(tt_move.to()).is_some_and(|p| p.is_valuable())) {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()

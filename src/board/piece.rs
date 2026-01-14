@@ -31,6 +31,10 @@ impl Piece {
     pub const fn is_minor(self) -> bool {
         matches!(self, Piece::Bishop | Piece::Knight | Piece::King)
     }
+
+    pub const fn is_valuable(self) -> bool {
+        matches!(self, Piece::Queen | Piece::Rook | Piece::Bishop | Piece::Knight)
+    }
 }
 
 impl<T, const N: usize> Index<Piece> for [T; N] {
