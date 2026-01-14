@@ -407,7 +407,7 @@ fn alpha_beta(board: &Board,
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
-        let is_quiet = captured.is_none();
+        let is_quiet = captured.is_none() || mv.promo_piece().is_some();
         let is_mate_score = Score::is_mate(best_score);
         let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
