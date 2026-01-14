@@ -410,7 +410,7 @@ fn alpha_beta(board: &Board,
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let is_good_promo = mv.promo_piece().is_some_and(|p| p == Queen || p == Knight);
+        let is_good_promo = mv.promo_piece().is_some_and(|p| p == Queen || p == Knight) && !threats.contains(mv.to());
         let is_killer = td.ss[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.ss, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
