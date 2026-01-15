@@ -13,7 +13,8 @@ type PieceToHistory<T> = [[T; 64]; 6];
 type ThreatBucket<T> = [[T; 2]; 2];
 
 pub struct QuietHistory {
-    entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
+    from_to_entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
 }
 
 pub struct CaptureHistory {
@@ -58,7 +59,7 @@ impl Histories {
         if let Some(captured) = captured {
             self.capture_history_score(board, mv, pc, captured)
         } else {
-            let quiet_score = self.quiet_history_score(board, mv, threats);
+            let quiet_score = self.quiet_history_score(board, mv, pc, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
             let from_score = self.from_history.get(board.stm, mv.from()) as i32;
             let to_score = self.to_history.get(board.stm, mv.to()) as i32;
@@ -70,9 +71,10 @@ impl Histories {
         &self,
         board: &Board,
         mv: &Move,
+        pc: Piece,
         threats: Bitboard,
     ) -> i32 {
-        self.quiet_history.get(board.stm, *mv, threats) as i32
+        self.quiet_history.get(board.stm, *mv, pc, threats) as i32
     }
 
     pub fn cont_history_score(
@@ -137,7 +139,8 @@ impl Histories {
 impl Default for QuietHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() },
+            from_to_entries: unsafe { boxed_and_zeroed() },
+            piece_to_entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -171,24 +174,35 @@ impl QuietHistory {
     const BUCKET_MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, mv: Move, threats: Bitboard) -> i16 {
+    pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
-        let entry = &self.entries[stm][mv.from()][mv.to()];
-        entry.factoriser + entry.bucket[threat_index.from()][threat_index.to()]
+        let from_to_entry = &self.from_to_entries[stm][mv.from()][mv.to()];
+        let from_to_score =
+            from_to_entry.factoriser + from_to_entry.bucket[threat_index.from()][threat_index.to()];
+        let piece_to_entry = &self.piece_to_entries[stm][pc][mv.to()];
+        let piece_to_score =
+            piece_to_entry.factoriser + piece_to_entry.bucket[threat_index.from()][threat_index.to()];
+        ((from_to_score as i32 + piece_to_score as i32) / 2) as i16
     }
 
-    pub fn update(&mut self, stm: Side, mv: &Move, threats: Bitboard, bonus: i16) {
+    pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
-        let entry = &mut self.entries[stm][mv.from()][mv.to()];
-        entry.factoriser = gravity(entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
-        let bucket_entry =
-            &mut entry.bucket[threat_index.from()][threat_index.to()];
-        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
+        let from_to_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        from_to_entry.factoriser = gravity(from_to_entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
+        let from_to_bucket_entry =
+            &mut from_to_entry.bucket[threat_index.from()][threat_index.to()];
+        *from_to_bucket_entry = gravity(*from_to_bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
+        let piece_to_entry = &mut self.piece_to_entries[stm][pc][mv.to()];
+        piece_to_entry.factoriser = gravity(piece_to_entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
+        let piece_to_bucket_entry =
+            &mut piece_to_entry.bucket[threat_index.from()][threat_index.to()];
+        *piece_to_bucket_entry = gravity(*piece_to_bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
+        self.from_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
+        self.piece_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 6]; 2]);
     }
 }
 
