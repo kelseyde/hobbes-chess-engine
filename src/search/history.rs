@@ -4,7 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, quiet_hist_lerp_factor, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
 use crate::search::node::NodeStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -33,6 +33,25 @@ pub struct SquareHistory {
 struct QuietHistoryEntry {
     factoriser: i16,
     bucket: ThreatBucket<i16>
+}
+
+impl QuietHistoryEntry {
+    #[inline]
+    fn score(&self, threat_index: &ThreatIndex) -> i16 {
+        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
+    }
+
+    #[inline]
+    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
+        self.factoriser = gravity(
+            self.factoriser as i32,
+            bonus as i32,
+            QuietHistory::FACTORISER_MAX,
+        ) as i16;
+
+        let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
+        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
+    }
 }
 
 #[derive(Default)]
@@ -176,28 +195,20 @@ impl QuietHistory {
 
     pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
-        let from_to_entry = &self.from_to_entries[stm][mv.from()][mv.to()];
-        let from_to_score =
-            from_to_entry.factoriser + from_to_entry.bucket[threat_index.from()][threat_index.to()];
-        let piece_to_entry = &self.piece_to_entries[stm][pc][mv.to()];
-        let piece_to_score =
-            piece_to_entry.factoriser + piece_to_entry.bucket[threat_index.from()][threat_index.to()];
-        ((from_to_score as i32 + piece_to_score as i32) / 2) as i16
+
+        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_index) as i32;
+        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_index) as i32;
+
+        let lerp_factor = quiet_hist_lerp_factor();
+        ((from_to_score * (100 - lerp_factor) + piece_to_score * lerp_factor) / 100) as i16
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
-        let from_to_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
-        from_to_entry.factoriser = gravity(from_to_entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
-        let from_to_bucket_entry =
-            &mut from_to_entry.bucket[threat_index.from()][threat_index.to()];
-        *from_to_bucket_entry = gravity(*from_to_bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
-        let piece_to_entry = &mut self.piece_to_entries[stm][pc][mv.to()];
-        piece_to_entry.factoriser = gravity(piece_to_entry.factoriser as i32, bonus as i32, Self::FACTORISER_MAX) as i16;
-        let piece_to_bucket_entry =
-            &mut piece_to_entry.bucket[threat_index.from()][threat_index.to()];
-        *piece_to_bucket_entry = gravity(*piece_to_bucket_entry as i32, bonus as i32, Self::BUCKET_MAX) as i16;
+
+        self.from_to_entries[stm][mv.from()][mv.to()].update(&threat_index, bonus);
+        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus);
     }
 
     pub fn clear(&mut self) {
