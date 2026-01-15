@@ -8,6 +8,7 @@ pub mod stack;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod node;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
@@ -23,6 +24,7 @@ use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::search::node::{NodeType, NonPV, Root, PV};
 
 pub const MAX_PLY: usize = 256;
 
@@ -64,7 +66,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
         loop {
             let search_depth = td.depth - reduction;
-            score = alpha_beta(board, td, search_depth, 0, alpha, beta, false);
+            score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
             if td.main && !td.minimal_output {
                 print_search_info(td);
@@ -117,13 +119,14 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 }
 
 #[rustfmt::skip]
-fn alpha_beta(board: &Board,
-              td: &mut ThreadData,
-              mut depth: i32,
-              ply: usize,
-              mut alpha: i32,
-              mut beta: i32,
-              cut_node: bool) -> i32 {
+fn alpha_beta<NODE: NodeType>(
+    board: &Board,
+    td: &mut ThreadData,
+    mut depth: i32,
+    ply: usize,
+    mut alpha: i32,
+    mut beta: i32,
+    cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -131,10 +134,10 @@ fn alpha_beta(board: &Board,
     }
 
     // A PV (principal variation) node is one that falls within the alpha-beta window.
-    let pv_node = beta - alpha > 1;
+    let pv_node = NODE::PV;
 
     // The root node is the first node in the search tree, and is thus also always a PV node.
-    let root_node = ply == 0;
+    let root_node = NODE::ROOT;
 
     // Determine if we are currently in check.
     let threats = board.threats;
@@ -337,7 +340,7 @@ fn alpha_beta(board: &Board,
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
-            let score = -alpha_beta(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
@@ -348,7 +351,7 @@ fn alpha_beta(board: &Board,
 
                 // At high depths, we do a normal search to verify the null move result.
                 td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
-                let verif_score = alpha_beta(&board, td, depth - r, ply, beta - 1, beta, true);
+                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, beta - 1, beta, true);
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
@@ -512,7 +515,7 @@ fn alpha_beta(board: &Board,
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.ss[ply].singular = Some(mv);
-            let score = alpha_beta(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.ss[ply].singular = None;
 
             if score < s_beta {
@@ -575,7 +578,7 @@ fn alpha_beta(board: &Board,
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.ss[ply].reduction = r;
-            score = -alpha_beta(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
             td.ss[ply].reduction = 0;
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
@@ -587,7 +590,7 @@ fn alpha_beta(board: &Board,
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
-                    score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                    score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let bonus = lmr_conthist_bonus(depth, score >= beta);
@@ -599,13 +602,13 @@ fn alpha_beta(board: &Board,
         // If we're skipping late move reductions - either due to being in a PV node, or searching
         // the first move, or another reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
-            score = -alpha_beta(&board, td, new_depth, ply + 1, -beta, -alpha, false);
+            score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
         // Register the current move, to update its history score later
