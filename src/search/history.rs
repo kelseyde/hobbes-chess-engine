@@ -4,7 +4,7 @@ use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, quiet_hist_lerp_factor, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
+use crate::search::parameters::*;
 use crate::search::node::NodeStack;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -33,25 +33,6 @@ pub struct SquareHistory {
 struct QuietHistoryEntry {
     factoriser: i16,
     bucket: ThreatBucket<i16>
-}
-
-impl QuietHistoryEntry {
-    #[inline]
-    fn score(&self, threat_index: &ThreatIndex) -> i16 {
-        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
-    }
-
-    #[inline]
-    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
-        self.factoriser = gravity(
-            self.factoriser as i32,
-            bonus as i32,
-            QuietHistory::FACTORISER_MAX,
-        ) as i16;
-
-        let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
-        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
-    }
 }
 
 #[derive(Default)]
@@ -188,6 +169,25 @@ impl Default for SquareHistory {
     }
 }
 
+impl QuietHistoryEntry {
+    #[inline]
+    fn score(&self, threat_index: &ThreatIndex) -> i16 {
+        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
+    }
+
+    #[inline]
+    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
+        self.factoriser = gravity(
+            self.factoriser as i32,
+            bonus as i32,
+            QuietHistory::FACTORISER_MAX,
+        ) as i16;
+
+        let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
+        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
+    }
+}
+
 impl QuietHistory {
     const FACTORISER_MAX: i32 = 8192;
     const BUCKET_MAX: i32 = 16384;
@@ -203,12 +203,20 @@ impl QuietHistory {
         ((from_to_score * (100 - lerp_factor) + piece_to_score * lerp_factor) / 100) as i16
     }
 
-    pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
-        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+    pub fn update(
+        &mut self,
+        stm: Side,
+        mv: &Move,
+        pc: Piece,
+        threats: Bitboard,
+        ft_bonus: i16,
+        pt_bonus: i16) {
+        let ft_bonus = ft_bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        let pt_bonus = pt_bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
 
-        self.from_to_entries[stm][mv.from()][mv.to()].update(&threat_index, bonus);
-        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus);
+        self.from_to_entries[stm][mv.from()][mv.to()].update(&threat_index, ft_bonus);
+        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, pt_bonus);
     }
 
     pub fn clear(&mut self) {
@@ -298,17 +306,35 @@ impl ThreatIndex {
     }
 }
 
-pub fn quiet_history_bonus(depth: i32) -> i16 {
-    let scale = quiet_hist_bonus_scale() as i16;
-    let offset = quiet_hist_bonus_offset() as i16;
-    let max = quiet_hist_bonus_max() as i16;
+/// Bonus for the from/to-indexed quiet history table.
+pub fn quiet_history_ft_bonus(depth: i32) -> i16 {
+    let scale = quiet_hist_ft_bonus_scale() as i16;
+    let offset = quiet_hist_ft_bonus_offset() as i16;
+    let max = quiet_hist_ft_bonus_max() as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn quiet_history_malus(depth: i32) -> i16 {
-    let scale = quiet_hist_malus_scale() as i16;
-    let offset = quiet_hist_malus_offset() as i16;
-    let max = quiet_hist_malus_max() as i16;
+/// Malus for the from/to-indexed quiet history table.
+pub fn quiet_history_ft_malus(depth: i32) -> i16 {
+    let scale = quiet_hist_ft_malus_scale() as i16;
+    let offset = quiet_hist_ft_malus_offset() as i16;
+    let max = quiet_hist_ft_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+/// Bonus for the piece/to-indexed quiet history table.
+pub fn quiet_history_pt_bonus(depth: i32) -> i16 {
+    let scale = quiet_hist_pt_bonus_scale() as i16;
+    let offset = quiet_hist_pt_bonus_offset() as i16;
+    let max = quiet_hist_pt_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+/// Malus for the piece/to-indexed quiet history table.
+pub fn quiet_history_pt_malus(depth: i32) -> i16 {
+    let scale = quiet_hist_pt_malus_scale() as i16;
+    let offset = quiet_hist_pt_malus_offset() as i16;
+    let max = quiet_hist_pt_malus_max() as i16;
     history_malus(depth, scale, offset, max)
 }
 
@@ -340,10 +366,17 @@ pub fn cont_history_malus(depth: i32) -> i16 {
     history_malus(depth, scale, offset, max)
 }
 
-pub fn prior_countermove_bonus(depth: i32) -> i16 {
-    let scale = pcm_bonus_scale() as i16;
-    let offset = pcm_bonus_offset() as i16;
-    let max = pcm_bonus_max() as i16;
+pub fn prior_countermove_ft_bonus(depth: i32) -> i16 {
+    let scale = pcm_ft_bonus_scale() as i16;
+    let offset = pcm_ft_bonus_offset() as i16;
+    let max = pcm_ft_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn prior_countermove_pt_bonus(depth: i32) -> i16 {
+    let scale = pcm_pt_bonus_scale() as i16;
+    let offset = pcm_pt_bonus_offset() as i16;
+    let max = pcm_pt_bonus_max() as i16;
     history_bonus(depth, scale, offset, max)
 }
 
@@ -401,6 +434,25 @@ pub fn lmr_conthist_bonus(depth: i32, good: bool) -> i16 {
         let max = lmr_cont_hist_malus_max() as i16;
         history_malus(depth, scale, offset, max)
     }
+}
+
+pub fn dynamic_policy_ft_bonus(static_eval: i32, prev_eval: i32) -> i16 {
+    let mult = dynamic_policy_ft_mult();
+    let min = dynamic_policy_ft_min();
+    let max = dynamic_policy_ft_max();
+    dynamic_policy_bonus(static_eval, prev_eval, mult, min, max)
+}
+
+pub fn dynamic_policy_pt_bonus(static_eval: i32, prev_eval: i32) -> i16 {
+    let mult = dynamic_policy_pt_mult();
+    let min = dynamic_policy_pt_min();
+    let max = dynamic_policy_pt_max();
+    dynamic_policy_bonus(static_eval, prev_eval, mult, min, max)
+}
+
+fn dynamic_policy_bonus(static_eval: i32, prev_eval: i32, mult: i32, min: i32, max: i32) -> i16 {
+    let value = mult * -(static_eval + prev_eval);
+    value.clamp(min, max) as i16
 }
 
 fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
