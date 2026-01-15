@@ -266,11 +266,12 @@ fn alpha_beta<NODE: NodeType>(
 
         let prev_eval = td.stack[ply - 1].static_eval;
         let prev_mv = td.stack[ply - 1].mv.unwrap();
+        let prev_pc = td.stack[ply - 1].pc.unwrap();
         let prev_threats = td.stack[ply - 1].threats;
 
         let value = dynamic_policy_mult() * -(static_eval + prev_eval);
         let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
-        td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, bonus);
+        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus);
     }
 
     // Hindsight extension
@@ -712,7 +713,8 @@ fn alpha_beta<NODE: NodeType>(
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
-            td.history.quiet_history.update(board.stm, &best_move, threats, quiet_bonus);
+            let pc = board.piece_at(best_move.from()).unwrap();
+            td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus);
             td.history.update_continuation_history(&td.stack, ply, &best_move, pc, cont_bonus);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
@@ -720,7 +722,8 @@ fn alpha_beta<NODE: NodeType>(
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
                 if mv != &best_move {
-                    td.history.quiet_history.update(board.stm, mv, threats, quiet_malus);
+                    let pc = board.piece_at(mv.from()).unwrap();
+                    td.history.quiet_history.update(board.stm, mv, pc, threats, quiet_malus);
                     td.history.update_continuation_history(&td.stack, ply, mv, pc, cont_malus);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
@@ -745,10 +748,10 @@ fn alpha_beta<NODE: NodeType>(
     if !root_node
         && flag == TTFlag::Upper
         && td.stack[ply - 1].captured.is_none() {
-        if let Some(prev_mv) = td.stack[ply - 1].mv {
+        if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             let prev_threats = td.stack[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
-            td.history.quiet_history.update(!board.stm, &prev_mv, prev_threats, quiet_bonus);
+            td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus);
         }
     }
 
