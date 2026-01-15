@@ -449,7 +449,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mate_score
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves > late_move_threshold(depth, improving || is_killer) {
             move_picker.skip_quiets = true;
             continue;
         }
