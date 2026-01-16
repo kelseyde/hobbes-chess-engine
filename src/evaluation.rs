@@ -225,7 +225,6 @@ impl NNUE {
     /// bucket or mirror change - we bail out and perform a full refresh instead.
     fn apply_lazy_updates(&mut self, board: &Board) {
         for perspective in [White, Black] {
-
             // If already up-to-date for this perspective, then there is nothing to do.
             if self.stack[self.current].computed[perspective] {
                 continue;
