@@ -22,7 +22,7 @@ impl SearchLimits {
         soft_nodes: Option<u64>,
         hard_nodes: Option<u64>,
         depth: Option<u64>,
-        fm_clock: usize
+        fm_clock: usize,
     ) -> SearchLimits {
         let (soft_time, hard_time) = match (fischer, movetime) {
             (Some(f), _) => {

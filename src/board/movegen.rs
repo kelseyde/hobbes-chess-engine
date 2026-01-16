@@ -34,12 +34,8 @@ impl Board {
     }
 
     pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
-        const STANDARD_PIECES: [Piece; 4] = [
-            Piece::Knight,
-            Piece::Bishop,
-            Piece::Rook,
-            Piece::Queen,
-        ];
+        const STANDARD_PIECES: [Piece; 4] =
+            [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
         let side = self.stm;
         let mut moves = MoveList::new();
 
@@ -135,15 +131,14 @@ impl Board {
         occ: Bitboard,
         us: Bitboard,
         filter_mask: Bitboard,
-        moves: &mut MoveList) {
-
+        moves: &mut MoveList,
+    ) {
         for from in self.pcs(pc) & us {
             let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
             for to in attacks {
                 moves.add_move(from, to, MoveFlag::Standard);
             }
         }
-
     }
 }
 

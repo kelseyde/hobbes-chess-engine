@@ -2,6 +2,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::Move;
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
+use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::search;
@@ -15,7 +16,6 @@ use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
-use crate::evaluation::stats;
 
 pub struct UCI {
     pub board: Board,
@@ -364,8 +364,14 @@ impl UCI {
             }
         }
 
-        self.td.limits =
-            SearchLimits::new(fischer, movetime, softnodes, nodes, depth, self.board.fm as usize);
+        self.td.limits = SearchLimits::new(
+            fischer,
+            movetime,
+            softnodes,
+            nodes,
+            depth,
+            self.board.fm as usize,
+        );
 
         // Perform the search
         search(&self.board, &mut self.td);
@@ -387,7 +393,7 @@ impl UCI {
         }
 
         let input_path = Path::new(&tokens[1]);
-        stats::eval_stats(&mut self.td, &input_path);
+        stats::eval_stats(&mut self.td, input_path);
     }
 
     fn handle_fen(&self) {

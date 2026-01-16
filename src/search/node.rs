@@ -1,9 +1,9 @@
-use std::ops::{Index, IndexMut};
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
-use crate::search::MAX_PLY;
 use crate::search::score::Score;
+use crate::search::MAX_PLY;
+use std::ops::{Index, IndexMut};
 
 pub trait NodeType {
     const PV: bool;

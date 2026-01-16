@@ -1,13 +1,13 @@
 pub mod correction;
 pub mod history;
 pub mod movepicker;
+pub mod node;
 pub mod parameters;
 pub mod score;
 pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
-pub mod node;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
@@ -15,6 +15,7 @@ use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::movepicker::{MovePicker, Stage};
+use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
 use crate::search::see::see;
 use crate::search::thread::ThreadData;
@@ -23,7 +24,6 @@ use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
-use crate::search::node::{NodeType, NonPV, Root, PV};
 
 pub const MAX_PLY: usize = 256;
 
@@ -861,7 +861,16 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, 0, ply, TTFlag::None, tt_pv);
+            td.tt.insert(
+                board.hash(),
+                Move::NONE,
+                0,
+                raw_eval,
+                0,
+                ply,
+                TTFlag::None,
+                tt_pv,
+            );
         }
         let correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -918,7 +927,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
-        if !in_check && !is_mate_score && !is_killer && futility_margin <= alpha && !see::see(board, &mv, 1) {
+        if !in_check
+            && !is_mate_score
+            && !is_killer
+            && futility_margin <= alpha
+            && !see::see(board, &mv, 1)
+        {
             if best_score < futility_margin {
                 best_score = futility_margin;
             }
@@ -993,13 +1007,17 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let capt_bonus = qs_capthist_bonus(1);
         let capt_malus = qs_capthist_malus(1);
         if let Some(captured) = board.captured(&best_move) {
-             // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
+            // If the best move was a capture, give it a capture history bonus.
+            td.history
+                .capture_history
+                .update(board.stm, pc, best_move.to(), captured, capt_bonus);
         }
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
+                    td.history
+                        .capture_history
+                        .update(board.stm, pc, mv.to(), captured, capt_malus);
                 }
             }
         }

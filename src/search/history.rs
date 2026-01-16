@@ -32,7 +32,7 @@ pub struct SquareHistory {
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
-    bucket: ThreatBucket<i16>
+    bucket: ThreatBucket<i16>,
 }
 
 #[derive(Default)]
@@ -77,13 +77,7 @@ impl Histories {
         self.quiet_history.get(board.stm, *mv, pc, threats) as i32
     }
 
-    pub fn cont_history_score(
-        &self,
-        board: &Board,
-        ss: &NodeStack,
-        mv: &Move,
-        ply: usize
-    ) -> i32 {
+    pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
         let mut cont_score = 0;
         for &prev_ply in &[1, 2] {
@@ -114,7 +108,7 @@ impl Histories {
         ply: usize,
         mv: &Move,
         pc: Piece,
-        bonus: i16
+        bonus: i16,
     ) {
         for &prev_ply in &[1, 2] {
             if ply >= prev_ply {
@@ -196,7 +190,8 @@ impl QuietHistory {
     pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
         let threat_index = ThreatIndex::new(mv, threats);
 
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_index) as i32;
+        let from_to_score =
+            self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_index) as i32;
         let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_index) as i32;
 
         let lerp_factor = quiet_hist_lerp_factor();

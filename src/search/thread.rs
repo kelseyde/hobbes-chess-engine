@@ -132,7 +132,6 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-
         // Only check hard limits every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;
