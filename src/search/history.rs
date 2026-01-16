@@ -49,26 +49,6 @@ struct QuietHistoryEntry {
     bucket: ThreatBucket<i16>,
 }
 
-impl QuietHistoryEntry {
-    #[inline]
-    fn score(&self, threat_index: &ThreatIndex) -> i16 {
-        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
-    }
-
-    #[inline]
-    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
-        self.factoriser = gravity(
-            self.factoriser as i32,
-            bonus as i32,
-            QuietHistory::FACTORISER_MAX,
-        ) as i16;
-
-        let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
-        *bucket_entry =
-            gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
-    }
-}
-
 #[derive(Default)]
 pub struct Histories {
     pub quiet_history: QuietHistory,
@@ -194,6 +174,26 @@ impl Default for SquareHistory {
         Self {
             entries: unsafe { boxed_and_zeroed() },
         }
+    }
+}
+
+impl QuietHistoryEntry {
+    #[inline]
+    fn score(&self, threat_index: &ThreatIndex) -> i16 {
+        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
+    }
+
+    #[inline]
+    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
+        self.factoriser = gravity(
+            self.factoriser as i32,
+            bonus as i32,
+            QuietHistory::FACTORISER_MAX,
+        ) as i16;
+
+        let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
+        *bucket_entry =
+            gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
     }
 }
 
