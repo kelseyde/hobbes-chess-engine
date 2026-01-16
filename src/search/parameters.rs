@@ -40,9 +40,10 @@ tunable_params! {
     fp_history_divisor          = 92, 64, 256, 16;
     lmp_max_depth               = 8, 6, 10, 1;
     lmp_base                    = 2, 1, 5, 1;
-    lmp_improving_base          = 3, 1, 5, 1;
+    lmp_optimistic_base         = 3, 1, 5, 1;
     lmp_scale                   = 26, 10, 100, 20;
-    lmp_improving_scale         = 91, 10, 100, 20;
+    lmp_optimistic_scale        = 91, 10, 100, 20;
+    lmp_corrplexity_margin      = 84, 40, 120, 20;
     hp_max_depth                = 4, 4, 8, 1;
     hp_scale                    = -2232, -3072, -1024, 128;
     bnp_max_depth               = 6, 4, 10, 1;
