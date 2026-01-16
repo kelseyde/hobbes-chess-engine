@@ -7,7 +7,6 @@ use std::mem::size_of;
 /// information. Since positions are often encountered via different move orders (via
 /// 'transposition'), the transposition table therefore greatly reduces the size of the search tree,
 /// since on subsequent visits we can re-use the results of previous searches.
-
 const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
 const BUCKET_SIZE: usize = size_of::<Bucket>();
@@ -116,7 +115,6 @@ impl Default for TranspositionTable {
 }
 
 impl TranspositionTable {
-
     /// Create a new transposition table with the given size in megabytes. The number of entries in
     /// the table is calculated based on the size of each bucket and the number of entries per bucket.
     pub fn new(size_mb: usize) -> TranspositionTable {
