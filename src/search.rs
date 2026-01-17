@@ -385,7 +385,7 @@ fn alpha_beta<NODE: NodeType>(
 
     let mut move_picker = MovePicker::new(tt_move, ply, threats);
 
-    let mut legal_moves = 0;
+    let mut legal_moves: i32 = 0;
     let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
@@ -561,7 +561,7 @@ fn alpha_beta<NODE: NodeType>(
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut r = base_reduction * 1024;
+            let mut r = lmr_base() * (legal_moves.max(1).ilog2() * depth.max(1).ilog2()) as i32;
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
