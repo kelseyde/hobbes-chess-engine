@@ -510,8 +510,9 @@ fn alpha_beta<NODE: NodeType>(
             && tt_flag != TTFlag::Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
+            let se_history = td.history.singular_history.get(board.stm, mv.from(), mv.to()) as i32;
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
+            let s_beta = (tt_score- s_beta_mult * se_beta_scale() / 16 + (se_history / se_hist_divisor())).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.stack[ply].singular = Some(mv);
@@ -519,16 +520,24 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].singular = None;
 
             if score < s_beta {
+                let bonus = singular_history_bonus(depth);
+                td.history.singular_history.update(board.stm, mv.from(), mv.to(), bonus);
+
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
-            } else if s_beta >= beta {
-                return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
-                extension = -3;
-            } else if cut_node {
-                extension = -2;
-            } else if tt_score <= alpha {
-                extension = -1;
+            } else {
+                let malus = singular_history_malus(depth);
+                td.history.singular_history.update(board.stm, mv.from(), mv.to(), malus);
+
+                if s_beta >= beta {
+                    return (s_beta * s_depth + beta) / (s_depth + 1);
+                } else if tt_score >= beta {
+                    extension = -3;
+                } else if cut_node {
+                    extension = -2;
+                } else if tt_score <= alpha {
+                    extension = -1;
+                }
             }
 
         }

@@ -59,6 +59,7 @@ tunable_params! {
     se_depth_offset             = 1, 0, 3, 1;
     se_depth_divisor            = 2, 1, 4, 1;
     se_double_ext_margin        = 11, 10, 30, 5;
+    se_hist_divisor             = 300, 128, 512, 16;
     lmr_min_depth               = 2, 1, 5, 1;
     lmr_min_moves               = 2, 1, 4, 1;
     lmr_ttpv_base               = 253, 0, 2048, 256;
@@ -114,6 +115,12 @@ tunable_params! {
     cont_hist_malus_offset      = 78, 0, 200, 25;
     cont_hist_ttmove_malus      = 65, 0, 200, 25;
     cont_hist_malus_max         = 1061, 1000, 1600, 100;
+    sing_hist_bonus_scale       = 200, 80, 280, 40;
+    sing_hist_bonus_offset      = 60, 0, 200, 25;
+    sing_hist_bonus_max         = 1200, 1000, 1800, 100;
+    sing_hist_malus_scale       = 200, 80, 280, 40;
+    sing_hist_malus_offset      = 60, 0, 200, 25;
+    sing_hist_malus_max         = 1200, 1000, 1800, 100;
     from_hist_bonus_scale       = 201, 80, 280, 40;
     from_hist_bonus_offset      = 77, 0, 200, 25;
     from_hist_bonus_max         = 1000, 1000, 1600, 100;
