@@ -15,9 +15,9 @@ pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
         let mut nodes = 0;
         for i in 0..moves.len {
             let mv = moves.list[i].mv;
-            let mut new_board = *board;
-            new_board.make(&mv);
-            if !is_check(&new_board, board.stm) {
+            if board.is_legal(&mv) {
+                let mut new_board = *board;
+                new_board.make(&mv);
                 nodes += 1;
                 if let Some(ref mut counts) = move_counts {
                     *counts.entry(mv.to_uci()).or_insert(0) += 1;

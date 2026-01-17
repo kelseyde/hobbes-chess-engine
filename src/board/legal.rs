@@ -180,9 +180,7 @@ impl Board {
                 }
 
                 // Must capture on an adjacent file
-                if to_file as usize != from_file as usize + 1
-                    && to_file as usize != from_file as usize - 1
-                {
+                if (to.0 as i8 - from.0 as i8).abs() != 1 {
                     return false;
                 }
 
