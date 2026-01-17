@@ -515,10 +515,6 @@ fn alpha_beta<NODE: NodeType>(
             let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16 - (se_history / se_hist_divisor())).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
-            /**
-            s_beta = (tt_score - depth)
-            **/
-
             td.stack[ply].singular = Some(mv);
             let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.stack[ply].singular = None;
