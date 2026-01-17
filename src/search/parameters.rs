@@ -71,7 +71,7 @@ tunable_params! {
     lmr_killer                  = 894, 0, 2048, 256;
     lmr_quiet_see               = 1263, 0, 2048, 256;
     lmr_hist_offset             = 452, -2048, 2048, 256;
-    lmr_hist_divisor            = 20844, 8192, 32768, 2048;
+    lmr_hist_divisor            = 20, 8, 32, 4;
     lmr_mvv_divisor             = 3, 1, 5, 1;
     lmr_extension_divisor       = 4, 1, 6, 1;
     lmr_deeper_base             = 35, 0, 100, 10;

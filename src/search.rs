@@ -571,7 +571,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
-            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor());
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
             r += (is_quiet && !see::see(original_board, &mv, 0)) as i32 * lmr_quiet_see();
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
