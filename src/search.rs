@@ -511,9 +511,9 @@ fn alpha_beta<NODE: NodeType>(
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let se_history = td.history.singular_history.get(board.stm, mv.from(), mv.to()) as i32;
-            let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
+            let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32 + (se_history > 6000) as i32);
             let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
-            let s_depth = ((depth - se_depth_offset()) / se_depth_divisor() - (se_history / 1800)).max(0);
+            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.stack[ply].singular = Some(mv);
             let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
