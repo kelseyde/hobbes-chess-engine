@@ -180,7 +180,7 @@ impl Board {
                 }
 
                 // Must capture on an adjacent file
-                if (to.0 as i8 - from.0 as i8).abs() != 1 {
+                if (to_file as i8 - from_file as i8).abs() != 1 {
                     return false;
                 }
 
