@@ -96,6 +96,7 @@ tunable_params! {
     quiet_hist_ttmove_malus     = 76, 0, 200, 25;
     quiet_hist_malus_max        = 1316, 1000, 1600, 100;
     quiet_hist_lerp_factor      = 50, 0, 100, 5;
+    capt_hist_lerp_factor       = 50, 0, 100, 5;
     capt_hist_bonus_scale       = 251, 80, 280, 40;
     capt_hist_bonus_offset      = 59, 0, 200, 25;
     capt_hist_ttmove_bonus      = 62, 0, 200, 25;
