@@ -205,14 +205,10 @@ impl QuietHistory {
     const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
-        let threat_index = ThreatIndex::new(mv, threats);
-
-        let from_to_score =
-            self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_index) as i32;
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_index) as i32;
-
-        let lerp_factor = quiet_hist_lerp_factor();
-        ((from_to_score * (100 - lerp_factor) + piece_to_score * lerp_factor) / 100) as i16
+        let threat_idx = ThreatIndex::new(mv, threats);
+        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx) as i32;
+        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx) as i32;
+        lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
@@ -236,9 +232,7 @@ impl CaptureHistory {
     pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
         let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
         let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
-
-        let lerp_factor = capt_hist_lerp_factor();
-        ((from_to_score * (100 - lerp_factor) + piece_to_score * lerp_factor) / 100) as i16
+        lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
     }
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
@@ -434,4 +428,8 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 
 fn gravity(current: i32, update: i32, max: i32) -> i32 {
     current + update - current * update.abs() / max
+}
+
+fn lerp(a: i32, b: i32, factor: i32) -> i32 {
+    (a * (100 - factor) + b * factor) / 100
 }
