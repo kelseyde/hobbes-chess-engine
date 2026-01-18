@@ -133,21 +133,20 @@ impl Board {
         let bb: Bitboard = Bitboard::of_sq(sq);
         self.bb[pc] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq] = if self.pcs[sq] == Some(pc) {
-            None
-        } else {
-            Some(pc)
-        };
-        self.keys.hash ^= Zobrist::sq(pc, side, sq);
+        let cur = self.pcs[sq];
+        self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
+
+        let hash = Zobrist::sq(pc, side, sq);
+        self.keys.hash ^= hash;
         if pc == Piece::Pawn {
-            self.keys.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
+            self.keys.pawn_hash ^= hash;
         } else {
-            self.keys.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
+            self.keys.non_pawn_hashes[side] ^= hash;
             if pc.is_major() {
-                self.keys.major_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.major_hash ^= hash;
             }
             if pc.is_minor() {
-                self.keys.minor_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.minor_hash ^= hash;
             }
         }
     }
@@ -252,21 +251,25 @@ impl Board {
 
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
-        let mut pinned = Bitboard::empty();
 
         let king = self.king_sq(side);
-
         let us = self.side(side);
         let them = self.side(!side);
 
         let their_diags = (self.pcs(Queen) | self.pcs(Bishop)) & them;
         let their_orthos = (self.pcs(Queen) | self.pcs(Piece::Rook)) & them;
 
+        if their_diags.is_empty() && their_orthos.is_empty() {
+            return Bitboard::empty();
+        }
+
         let potential_attackers =
             attacks::bishop(king, them) & their_diags | attacks::rook(king, them) & their_orthos;
 
-        for potential_attacker in potential_attackers {
-            let maybe_pinned = us & ray::between(king, potential_attacker);
+        let mut pinned = Bitboard::empty();
+        for attacker in potential_attackers {
+            let between = ray::between(king, attacker);
+            let maybe_pinned = us & between;
             if maybe_pinned.count() == 1 {
                 pinned |= maybe_pinned;
             }
@@ -405,8 +408,6 @@ impl Board {
 
     pub fn is_insufficient_material(&self) -> bool {
         let pawns = self.bb[Piece::Pawn];
-        let knights = self.bb[Piece::Knight];
-        let bishops = self.bb[Piece::Bishop];
         let rooks = self.bb[Piece::Rook];
         let queens = self.bb[Piece::Queen];
 
@@ -414,9 +415,12 @@ impl Board {
             return false;
         }
 
+        let knights = self.bb[Piece::Knight];
+        let bishops = self.bb[Piece::Bishop];
+
         let minor_pieces = knights | bishops;
-        let piece_count = minor_pieces.count();
-        if piece_count <= 1 {
+        let minor_count = minor_pieces.count();
+        if minor_count <= 1 {
             return true;
         }
 
@@ -425,7 +429,7 @@ impl Board {
         {
             return false;
         }
-        piece_count <= 3
+        minor_count <= 3
     }
 
     pub const fn is_frc(&self) -> bool {
