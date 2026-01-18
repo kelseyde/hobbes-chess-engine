@@ -412,7 +412,7 @@ fn alpha_beta<NODE: NodeType>(
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mate_score = Score::is_mate(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let is_killer = td.stack[ply].killer.is_some_and(|k| k.mv == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves);
         let lmr_depth = depth.saturating_sub(base_reduction);
@@ -712,7 +712,7 @@ fn alpha_beta<NODE: NodeType>(
             td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
-            td.stack[ply].killer = Some(best_move);
+            td.stack[ply].update_killer(best_move, depth);
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus);
             td.history.update_continuation_history(&td.stack, ply, &best_move, pc, cont_bonus);
@@ -905,7 +905,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
         let is_mate_score = Score::is_mate(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let is_killer = td.stack[ply].killer.is_some_and(|k| k.mv == mv);
 
         // Late Move Pruning
         if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {

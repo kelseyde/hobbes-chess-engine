@@ -42,12 +42,18 @@ pub struct Node {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub captured: Option<Piece>,
-    pub killer: Option<Move>,
+    pub killer: Option<KillerEntry>,
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub raw_eval: i32,
     pub static_eval: i32,
     pub reduction: i32,
+}
+
+#[derive(Copy, Clone)]
+pub struct KillerEntry {
+    pub mv: Move,
+    pub depth: i32,
 }
 
 impl Default for NodeStack {
@@ -66,6 +72,23 @@ impl Default for NodeStack {
             }; MAX_PLY + 8],
         }
     }
+}
+
+impl Node {
+
+    // Only update the killer if the searched depth is >= the stored depth
+    pub fn update_killer(&mut self, mv: Move, depth: i32) {
+        match &self.killer {
+            None => {
+                self.killer = Some(KillerEntry { mv, depth });
+            }
+            Some(k) if depth >= k.depth => {
+                self.killer = Some(KillerEntry { mv, depth });
+            }
+            _ => {}
+        }
+    }
+
 }
 
 impl Index<usize> for NodeStack {
