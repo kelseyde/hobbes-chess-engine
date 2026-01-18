@@ -37,7 +37,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.nnue.activate(board);
 
     let root_moves = board.gen_legal_moves();
-    match root_moves.len {
+    match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
         1 => return handle_one_legal_move(board, td, &root_moves),
         _ => {}
@@ -422,7 +422,7 @@ fn alpha_beta<NODE: NodeType>(
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
         if in_check {
-            extension = 1;
+            extension = is_quiet as i32;
         }
 
         // Futility Pruning
