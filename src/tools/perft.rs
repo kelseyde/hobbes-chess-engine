@@ -13,7 +13,7 @@ pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
 
     if depth == 1 {
         let mut nodes = 0;
-        for i in 0..moves.len {
+        for i in 0..moves.len() {
             let mv = moves.list[i].mv;
             let mut new_board = *board;
             new_board.make(&mv);
@@ -36,7 +36,7 @@ pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
     }
 
     let mut nodes = 0;
-    for i in 0..moves.len {
+    for i in 0..moves.len() {
         let mv = moves.list[i].mv;
         let mut new_board = *board;
         new_board.make(&mv);

@@ -22,18 +22,10 @@ pub mod search;
 pub mod tools;
 
 fn main() {
+    // Initialise static data
+    ray::init();
 
-    let handle = std::thread::Builder::new()
-        .stack_size(1024 * 1024)
-        .spawn(|| {
-            // Initialise static data
-            ray::init();
-
-            // Start up the UCI (Universal Chess Interface)
-            let args: Vec<String> = std::env::args().collect();
-            UCI::new().run(&args);
-        })
-        .unwrap();
-
-    handle.join().unwrap();
+    // Start up the UCI (Universal Chess Interface)
+    let args: Vec<String> = std::env::args().collect();
+    UCI::new().run(&args);
 }
