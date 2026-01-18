@@ -1,9 +1,9 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
-use crate::search::score::Score;
 use crate::search::MAX_PLY;
 use std::ops::{Index, IndexMut};
+use crate::tools::utils::boxed_and_zeroed;
 
 pub trait NodeType {
     const PV: bool;
@@ -31,7 +31,7 @@ impl NodeType for NonPV {
 /// Represents the variation in the search tree currently being searched. Is updated every time the
 /// node currently being searched changes.
 pub struct NodeStack {
-    data: [Node; MAX_PLY + 8],
+    data: Box<[Node; MAX_PLY + 8]>,
 }
 
 /// Container for all the information related to a single node in the search tree, that is used during
@@ -53,31 +53,35 @@ pub struct Node {
 impl Default for NodeStack {
     fn default() -> Self {
         NodeStack {
-            data: [Node {
-                mv: None,
-                pc: None,
-                captured: None,
-                killer: None,
-                singular: None,
-                threats: Bitboard::empty(),
-                raw_eval: Score::MIN,
-                static_eval: Score::MIN,
-                reduction: 0,
-            }; MAX_PLY + 8],
+            data: unsafe { boxed_and_zeroed() },
         }
+    }
+}
+
+impl NodeStack {
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&Node> {
+        self.data.get(index)
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Node> {
+        self.data.get_mut(index)
     }
 }
 
 impl Index<usize> for NodeStack {
     type Output = Node;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        unsafe { self.data.get_unchecked(index) }
+        self.get(index).expect("NodeStack index out of bounds")
     }
 }
 
 impl IndexMut<usize> for NodeStack {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        unsafe { self.data.get_unchecked_mut(index) }
+        self.get_mut(index).expect("NodeStack index out of bounds")
     }
 }
