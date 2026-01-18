@@ -13,7 +13,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
-use crate::search::movepicker::Stage::BadNoisies;
+use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
 use crate::search::movepicker::{MovePicker, Stage};
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
@@ -491,6 +491,7 @@ fn alpha_beta<NODE: NodeType>(
         };
         if !pv_node
             && depth <= pvs_see_max_depth()
+            && move_picker.stage != GoodNoisies
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
