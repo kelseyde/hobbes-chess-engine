@@ -1085,7 +1085,7 @@ fn late_move_threshold(depth: i32, improving: bool, in_check: bool) -> i32 {
     } else {
         lmp_scale()
     };
-    ((base + depth * scale) / 10) + in_check as i32
+    (base + depth * scale) / 10 + in_check as i32
 }
 
 fn print_search_info(td: &mut ThreadData) {
