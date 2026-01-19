@@ -709,7 +709,7 @@ fn alpha_beta<NODE: NodeType>(
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
@@ -735,7 +735,7 @@ fn alpha_beta<NODE: NodeType>(
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
                 }
             }
         }
@@ -995,16 +995,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let capt_malus = qs_capthist_malus(1);
         if let Some(captured) = board.captured(&best_move) {
             // If the best move was a capture, give it a capture history bonus.
-            td.history
-                .capture_history
-                .update(board.stm, pc, &best_move, captured, capt_bonus);
+            td.history.capture_history.update(board.stm, pc, best_move.to(), captured, capt_bonus);
         }
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history
-                        .capture_history
-                        .update(board.stm, pc, mv, captured, capt_malus);
+                    td.history.capture_history.update(board.stm, pc, mv.to(), captured, capt_malus);
                 }
             }
         }
