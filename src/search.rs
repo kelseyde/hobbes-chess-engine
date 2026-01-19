@@ -247,6 +247,7 @@ fn alpha_beta<NODE: NodeType>(
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
+    td.stack[ply + 2].fail_highs = 0;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
@@ -574,6 +575,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
             r += (is_quiet && !see::see(original_board, &mv, 0)) as i32 * lmr_quiet_see();
+            r += td.stack[ply + 1].fail_highs as i32 * 24 * 24;
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -658,6 +660,7 @@ fn alpha_beta<NODE: NodeType>(
             // further, and we can cut off the search.
             if score >= beta {
                 flag = TTFlag::Lower;
+                td.stack[ply].fail_highs += 1;
                 break;
             }
 

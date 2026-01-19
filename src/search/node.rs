@@ -48,6 +48,7 @@ pub struct Node {
     pub raw_eval: i32,
     pub static_eval: i32,
     pub reduction: i32,
+    pub fail_highs: usize
 }
 
 impl Default for NodeStack {
@@ -63,6 +64,7 @@ impl Default for NodeStack {
                 raw_eval: Score::MIN,
                 static_eval: Score::MIN,
                 reduction: 0,
+                fail_highs: 0,
             }; MAX_PLY + 8],
         }
     }
