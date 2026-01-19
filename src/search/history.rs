@@ -37,7 +37,7 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
+    entries: Box<PieceToHistory<PieceToHistory<i16>>>,
 }
 
 pub struct SquareHistory {
@@ -100,7 +100,7 @@ impl Histories {
                 let prev_mv = ss[ply - prev_ply].mv;
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32;
+                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc) as i32;
                 }
             }
         }
@@ -133,7 +133,7 @@ impl Histories {
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
                     self.cont_history
-                        .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
+                        .update(&prev_mv, prev_pc, mv, pc, total_score, bonus);
                 }
             }
         }
@@ -259,9 +259,8 @@ impl ContinuationHistory {
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
-    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
-        let prev_ply = prev_ply - 1; // 0-based index
-        self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()]
+    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece) -> i16 {
+        self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -272,17 +271,15 @@ impl ContinuationHistory {
         mv: &Move,
         pc: Piece,
         total_score: i32,
-        bonus: i16,
-        prev_ply: usize)
+        bonus: i16)
     {
-        let prev_ply = prev_ply - 1; // 0-based index
-        let entry = &mut self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
+        let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        self.entries = Box::new([[[[0; 64]; 6]; 64]; 6])
     }
 }
 
