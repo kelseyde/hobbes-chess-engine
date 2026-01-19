@@ -594,7 +594,7 @@ fn alpha_beta<NODE: NodeType>(
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let bonus = lmr_conthist_bonus(depth, score >= beta);
-                        td.history.update_continuation_history(&td.stack, ply, &mv, pc, bonus);
+                        td.history.update_continuation_history(&original_board, &td.stack, ply, &mv, pc, bonus);
                     }
                 }
             }
@@ -715,7 +715,7 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus);
-            td.history.update_continuation_history(&td.stack, ply, &best_move, pc, cont_bonus);
+            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, cont_bonus);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
@@ -724,7 +724,7 @@ fn alpha_beta<NODE: NodeType>(
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history.update(board.stm, mv, pc, threats, quiet_malus);
-                    td.history.update_continuation_history(&td.stack, ply, mv, pc, cont_malus);
+                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, cont_malus);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
