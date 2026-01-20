@@ -58,7 +58,7 @@ impl Default for ThreadData {
             node_table: NodeTable::default(),
             #[cfg(debug_assertions)]
             debug_stats: DebugStatsMap::default(),
-            limits: SearchLimits::new(None, None, None, None, None, 0),
+            limits: SearchLimits::new(None, None, None, None, None),
             start_time: Instant::now(),
             nodes: 0,
             depth: 1,

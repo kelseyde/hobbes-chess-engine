@@ -21,12 +21,11 @@ impl SearchLimits {
         movetime: Option<u64>,
         soft_nodes: Option<u64>,
         hard_nodes: Option<u64>,
-        depth: Option<u64>,
-        fm_clock: usize,
+        depth: Option<u64>
     ) -> SearchLimits {
         let (soft_time, hard_time) = match (fischer, movetime) {
             (Some(f), _) => {
-                let (soft, hard) = Self::calc_time_limits(f, fm_clock);
+                let (soft, hard) = Self::calc_time_limits(f);
                 (Some(soft), Some(hard))
             }
             (None, Some(mt)) => {
@@ -66,7 +65,7 @@ impl SearchLimits {
         (1.5 - fraction) * 1.35
     }
 
-    fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
+    fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
         let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
         let base = time * 0.05 + inc * 0.08;
         let soft_time = base * 0.66;

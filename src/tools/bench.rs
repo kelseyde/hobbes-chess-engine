@@ -63,7 +63,7 @@ pub fn bench(td: &mut ThreadData) {
     let mut nodes: u64 = 0;
     let mut time: u64 = 0;
     td.clear();
-    td.limits = SearchLimits::new(None, None, None, None, Some(BENCH_DEPTH), 0);
+    td.limits = SearchLimits::new(None, None, None, None, Some(BENCH_DEPTH));
 
     for fen in FENS {
         let board = Board::from_fen(fen).unwrap();
