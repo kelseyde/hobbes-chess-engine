@@ -132,8 +132,7 @@ impl Histories {
                 let prev_mv = ss[ply - prev_ply].mv;
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    self.cont_history
-                        .update(&prev_mv, prev_pc, mv, pc, total_score, bonus);
+                    self.cont_history.update(&prev_mv, prev_pc, mv, pc, bonus, prev_ply);
                 }
             }
         }
@@ -263,19 +262,18 @@ impl ContinuationHistory {
         self.entries[prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         prev_mv: &Move,
         prev_pc: Piece,
         mv: &Move,
         pc: Piece,
-        total_score: i32,
-        bonus: i16)
+        bonus: i16,
+        prev_ply: usize)
     {
         let entry = &mut self.entries[prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
