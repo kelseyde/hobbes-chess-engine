@@ -369,7 +369,8 @@ impl UCI {
             movetime,
             softnodes,
             nodes,
-            depth
+            depth,
+            self.board.fm as usize,
         );
 
         // Perform the search

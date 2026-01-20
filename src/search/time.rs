@@ -21,11 +21,12 @@ impl SearchLimits {
         movetime: Option<u64>,
         soft_nodes: Option<u64>,
         hard_nodes: Option<u64>,
-        depth: Option<u64>
+        depth: Option<u64>,
+        fm_clock: usize,
     ) -> SearchLimits {
         let (soft_time, hard_time) = match (fischer, movetime) {
             (Some(f), _) => {
-                let (soft, hard) = Self::calc_time_limits(f);
+                let (soft, hard) = Self::calc_time_limits(f, fm_clock);
                 (Some(soft), Some(hard))
             }
             (None, Some(mt)) => {
@@ -65,16 +66,16 @@ impl SearchLimits {
         (1.5 - fraction) * 1.35
     }
 
-    fn calc_time_limits(fischer: FischerTime) -> (Duration, Duration) {
-        let (time, inc) = (fischer.0 as f64, fischer.1 as f64);
-        let base = time * 0.05 + inc * 0.08;
-        let soft_time = base * 0.66;
-        let hard_time = base * 2.0;
-        let soft = soft_time.min(time - 50.0);
-        let hard = hard_time.min(time - 50.0);
+    fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
+        let (time, inc) = (fischer.0, fischer.1);
+        // Credit to Reckless for this formula for calculating the hard/soft bounds
+        let soft_scale = 0.024 + 0.042 * (1.0 - (-0.045 * fm_clock as f64).exp());
+        let hard_scale = 0.742;
+        let soft_bound = (soft_scale * time.saturating_sub(50) as f64 + 0.75 * inc as f64) as u64;
+        let hard_bound = (hard_scale * time.saturating_sub(50) as f64 + 0.75 * inc as f64) as u64;
         (
-            Duration::from_millis(soft as u64),
-            Duration::from_millis(hard as u64),
+            Duration::from_millis(soft_bound),
+            Duration::from_millis(hard_bound),
         )
     }
 }
