@@ -988,28 +988,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    // Update capture history table
-    if best_move.exists() {
-        let pc = board.piece_at(best_move.from()).unwrap();
-        let capt_bonus = qs_capthist_bonus(1);
-        let capt_malus = qs_capthist_malus(1);
-        if let Some(captured) = board.captured(&best_move) {
-            // If the best move was a capture, give it a capture history bonus.
-            td.history
-                .capture_history
-                .update(board.stm, pc, &best_move, captured, capt_bonus);
-        }
-        for mv in captures.iter() {
-            if mv != &best_move {
-                if let Some(captured) = board.captured(mv) {
-                    td.history
-                        .capture_history
-                        .update(board.stm, pc, mv, captured, capt_malus);
-                }
-            }
-        }
-    }
-
     if move_count == 0 && in_check {
         return -Score::MATE + ply as i32;
     }
