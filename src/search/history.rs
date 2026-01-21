@@ -209,9 +209,9 @@ impl QuietHistory {
 
     pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
         let threat_idx = ThreatIndex::new(mv, threats);
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx) as i32;
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx) as i32;
-        lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
+        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx);
+        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx);
+        from_to_score + piece_to_score
     }
 
     pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
