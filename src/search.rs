@@ -372,14 +372,6 @@ fn alpha_beta<NODE: NodeType>(
         depth -= 1;
     }
 
-    // Cutnode TT reduction.
-    if cut_node
-        && !singular_search
-        && depth >= cutnode_red_min_depth()
-        && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
-        depth -= 1;
-    }
-
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
