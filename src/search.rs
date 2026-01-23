@@ -303,7 +303,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
@@ -325,7 +325,8 @@ fn alpha_beta<NODE: NodeType>(
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
-        if depth >= nmp_min_depth()
+        if cut_node
+            && depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
