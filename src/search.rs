@@ -521,7 +521,7 @@ fn alpha_beta<NODE: NodeType>(
             if score < s_beta {
                 extension = 1;
                 extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
-                extension += (!pv_node && score > s_beta - se_triple_ext_margin()) as i32;
+                extension += (!pv_node && score < s_beta - se_triple_ext_margin()) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
