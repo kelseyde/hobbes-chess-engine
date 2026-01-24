@@ -1097,16 +1097,6 @@ fn print_search_info(board: &Board, td: &mut ThreadData) {
             break;
         }
     }
-
-    // TODO fix illegal PV moves
-    // for mv in td.pv.line() {
-    //     print!(" {}", mv.to_uci());
-    // }
-    //
-    // if td.pv.line().is_empty() {
-    //     print!(" {}", td.pv.best_move().to_uci());
-    // }
-    // print!(" {}", td.best_move.to_uci());
     println!();
 }
 
