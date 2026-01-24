@@ -37,7 +37,6 @@ impl Default for DebugStats {
 }
 
 impl DebugStats {
-
     pub fn add(&mut self, data_point: i64) {
         self.sum += data_point;
         self.sum_sqr += data_point.unsigned_abs() as u128 * data_point.unsigned_abs() as u128;

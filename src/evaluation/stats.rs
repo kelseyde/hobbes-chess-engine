@@ -1,12 +1,11 @@
 use crate::board::{movegen, Board};
+use crate::evaluation::network::SCALE;
 use crate::search::thread::ThreadData;
 use std::fs;
 use std::path::Path;
-use crate::evaluation::network::SCALE;
 
 // Implementation yoinked from Viridithas
 pub fn eval_stats(td: &mut ThreadData, input: &Path) {
-
     let mut total = 0i128;
     let mut count = 0i128;
     let mut abs_total = 0i128;
@@ -18,7 +17,6 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
     let lines = binding.lines();
     let file_len = lines.clone().count();
     for (i, line) in lines.into_iter().enumerate() {
-
         let parts: Vec<&str> = line.split("[").collect();
         let fen = parts[0].trim();
         let board = Board::from_fen(fen).unwrap();
@@ -42,7 +40,6 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
         if i % 1024 == 0 {
             print!("\rPROCESSED {:>10}/{}.", i + 1, file_len);
         }
-
     }
 
     println!("\rPROCESSED {file_len:>10}/{file_len}.");
@@ -70,5 +67,4 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
         let scale = master_abs_mean / abs_mean * f64::from(SCALE);
         println!("  TARGET SCALING FACTOR: {scale:.6}");
     }
-
 }

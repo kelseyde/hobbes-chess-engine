@@ -1,7 +1,7 @@
 use crate::board::side::Side;
 use crate::board::Board;
+use crate::search::node::NodeStack;
 use crate::search::parameters::*;
-use crate::search::stack::SearchStack;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 
@@ -32,7 +32,7 @@ impl CorrectionHistories {
     pub fn update_correction_history(
         &mut self,
         board: &Board,
-        ss: &SearchStack,
+        ss: &NodeStack,
         depth: i32,
         ply: usize,
         static_eval: i32,
@@ -70,7 +70,7 @@ impl CorrectionHistories {
     }
 
     #[rustfmt::skip]
-    pub fn correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+    pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
 
         let us = board.stm;
         let pawn_hash = board.keys.pawn_hash;
@@ -101,7 +101,7 @@ impl CorrectionHistories {
     fn update_countermove_correction(
         &mut self,
         board: &Board,
-        ss: &SearchStack,
+        ss: &NodeStack,
         ply: usize,
         depth: i32,
         static_eval: i32,
@@ -124,7 +124,7 @@ impl CorrectionHistories {
     fn update_follow_up_move_correction(
         &mut self,
         board: &Board,
-        ss: &SearchStack,
+        ss: &NodeStack,
         ply: usize,
         depth: i32,
         static_eval: i32,
@@ -144,7 +144,7 @@ impl CorrectionHistories {
         }
     }
 
-    fn countermove_correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+    fn countermove_correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
         if ply >= 1 {
             if let Some(prev_mv) = ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
@@ -154,7 +154,7 @@ impl CorrectionHistories {
         0
     }
 
-    fn follow_up_move_correction(&self, board: &Board, ss: &SearchStack, ply: usize) -> i32 {
+    fn follow_up_move_correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
         if ply >= 2 {
             if let Some(prev_mv) = ss[ply - 2].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
