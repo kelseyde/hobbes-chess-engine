@@ -20,7 +20,7 @@ tunable_params! {
     nmp_depth_divisor           = 3, 1, 4, 1;
     nmp_eval_divisor            = 198, 100, 300, 25;
     nmp_eval_max_reduction      = 4, 2, 6, 1;
-    iir_min_depth               = 4, 1, 10, 1;
+    iir_min_depth               = 6, 1, 10, 1;
     iir_tt_depth_offset         = 4, 1, 6, 1;
     cutnode_red_min_depth       = 8, 4, 12, 1;
     cutnode_red_tt_offset       = 4, 1, 6, 1;
