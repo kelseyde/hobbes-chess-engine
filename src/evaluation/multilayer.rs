@@ -6,6 +6,13 @@ const L1_SIZE: usize = 1024;
 const FT_QUANT: usize = 255;
 const FT_SHIFT: u32 = 9;
 
+
+
+const fn mulhi(a: i16, b: i16) -> i16 {
+    let product = (a as i32) * (b as i32);
+    (product >> 16) as i16
+}
+
 pub fn activate_ft(acc: &Accumulator) -> [u8; L1_SIZE] {
     let mut output = [0; L1_SIZE];
     for side in [White, Black] {
