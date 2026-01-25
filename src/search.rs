@@ -711,6 +711,7 @@ fn alpha_beta<NODE: NodeType>(
              // If the best move was a capture, give it a capture history bonus.
             td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
         } else {
+            let check_malus = check_history_malus(depth);
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
@@ -718,6 +719,11 @@ fn alpha_beta<NODE: NodeType>(
             td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, cont_bonus);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
+
+            if board.maybe_gives_check(best_move, pc) {
+                let check_bonus = check_history_bonus(depth);
+                td.history.check_history.update(board.stm, pc, best_move.to(), check_bonus);
+            }
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
@@ -727,6 +733,9 @@ fn alpha_beta<NODE: NodeType>(
                     td.history.update_continuation_history(board, &td.stack, ply, mv, pc, cont_malus);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
+                    if board.maybe_gives_check(*mv, pc) {
+                        td.history.check_history.update(board.stm, pc, mv.to(), check_malus);
+                    }
                 }
             }
         }

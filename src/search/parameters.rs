@@ -127,6 +127,12 @@ tunable_params! {
     to_hist_malus_scale         = 188, 80, 280, 40;
     to_hist_malus_offset        = 68, 0, 200, 25;
     to_hist_malus_max           = 1000, 1000, 1600, 100;
+    check_hist_bonus_scale      = 213, 80, 280, 40;
+    check_hist_bonus_offset     = 87, 0, 200, 25;
+    check_hist_bonus_max        = 1123, 1000, 1600, 100;
+    check_hist_malus_scale      = 155, 80, 280, 40;
+    check_hist_malus_offset     = 95, 0, 200, 25;
+    check_hist_malus_max        = 1234, 1000, 1600, 100;
     pcm_bonus_scale             = 242, 80, 280, 40;
     pcm_bonus_offset            = 75, 0, 200, 25;
     pcm_bonus_max               = 1387, 1000, 1600, 100;
