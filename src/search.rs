@@ -78,7 +78,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             // Adjust the aspiration window in case the score fell outside the current window.
             match score {
                 s if s <= alpha => {
-                    beta = (alpha + beta) / 2;
+                    beta = (3 * alpha + beta) / 4;
                     alpha = (score - delta).max(Score::MIN);
                     delta += (delta * 100) / asp_alpha_widening_factor();
                     reduction = 0;
@@ -254,6 +254,8 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
+    let opponent_worsening = !root_node && !in_check && static_eval > -td.stack[ply - 1].static_eval;
+
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
@@ -303,13 +305,14 @@ fn alpha_beta<NODE: NodeType>(
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
+            - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
