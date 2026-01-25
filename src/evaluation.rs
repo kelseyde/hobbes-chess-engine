@@ -4,6 +4,7 @@ pub mod feature;
 pub mod network;
 pub mod simd;
 pub mod stats;
+mod multilayer;
 
 use crate::board::file::File;
 use crate::board::moves::Move;
