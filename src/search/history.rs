@@ -40,6 +40,10 @@ pub struct ContinuationHistory {
     entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
 }
 
+pub struct CheckHistory {
+    entries: Box<[PieceToHistory<i16>; 2]>,
+}
+
 pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
@@ -57,6 +61,7 @@ pub struct Histories {
     pub cont_history: ContinuationHistory,
     pub from_history: SquareHistory,
     pub to_history: SquareHistory,
+    pub check_history: CheckHistory,
 }
 
 impl Histories {
@@ -145,6 +150,7 @@ impl Histories {
         self.cont_history.clear();
         self.from_history.clear();
         self.to_history.clear();
+        self.check_history.clear();
     }
 }
 
@@ -175,6 +181,14 @@ impl Default for ContinuationHistory {
 }
 
 impl Default for SquareHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
+impl Default for CheckHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() },
@@ -302,6 +316,25 @@ impl SquareHistory {
 
     pub fn clear(&mut self) {
         self.entries = Box::new([[0; 64]; 2]);
+    }
+}
+
+impl CheckHistory {
+    const MAX: i32 = 8192;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+
+    pub fn get(&self, stm: Side, pc: Piece, sq: Square) -> i16 {
+        self.entries[stm][pc][sq]
+    }
+
+    pub fn update(&mut self, stm: Side, pc: Piece, sq: Square, bonus: i16) {
+        let entry = &mut self.entries[stm][pc][sq];
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[[0; 64]; 6]; 2]);
     }
 }
 
