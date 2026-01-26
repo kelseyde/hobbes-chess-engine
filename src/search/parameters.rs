@@ -130,6 +130,12 @@ tunable_params! {
     pcm_bonus_scale             = 242, 80, 280, 40;
     pcm_bonus_offset            = 75, 0, 200, 25;
     pcm_bonus_max               = 1387, 1000, 1600, 100;
+    tt_quiet_hist_bonus_scale   = 213, 80, 280, 40;
+    tt_quiet_hist_bonus_offset  = 60, 0, 200, 25;
+    tt_quiet_hist_bonus_max     = 1123, 1000, 1600, 100;
+    tt_cont_hist_bonus_scale    = 199, 80, 280, 40;
+    tt_cont_hist_bonus_offset   = 85, 0, 200, 25;
+    tt_cont_hist_bonus_max      = 1105, 1000, 1600, 100;
     qs_capt_hist_bonus_scale    = 256, 80, 280, 40;
     qs_capt_hist_bonus_offset   = 31, 0, 200, 25;
     qs_capt_hist_bonus_max      = 1495, 1000, 1600, 100;

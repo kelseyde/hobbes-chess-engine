@@ -217,6 +217,19 @@ fn alpha_beta<NODE: NodeType>(
                 && !pv_node
                 && tt_depth >= depth
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
+
+                if tt_move.exists()
+                    && !tt_move_noisy
+                    && tt_score >= beta
+                    && td.stack[ply - 1].legal_moves < 4 {
+                    let pc = board.piece_at(tt_move.from()).unwrap();
+                    let quiet_bonus = tt_quiet_history_bonus(depth);
+                    let cont_bonus = tt_cont_history_bonus(depth);
+
+                    td.history.quiet_history.update(board.stm, &tt_move, pc, threats, quiet_bonus);
+                    td.history.update_continuation_history(board, &td.stack, ply, &tt_move, pc, cont_bonus);
+                }
+
                 return tt_score;
             }
         }
@@ -384,8 +397,8 @@ fn alpha_beta<NODE: NodeType>(
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
     let mut move_picker = MovePicker::new(tt_move, ply, threats);
-
     let mut legal_moves = 0;
+    td.stack[ply].legal_moves = 0;
     let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
@@ -403,6 +416,7 @@ fn alpha_beta<NODE: NodeType>(
         }
 
         legal_moves += 1;
+        td.stack[ply].legal_moves = legal_moves;
 
         if singular.is_some_and(|s| s == mv) {
             continue;

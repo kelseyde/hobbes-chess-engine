@@ -47,6 +47,7 @@ pub struct Node {
     pub threats: Bitboard,
     pub raw_eval: i32,
     pub static_eval: i32,
+    pub legal_moves: i32,
     pub reduction: i32,
 }
 
@@ -62,6 +63,7 @@ impl Default for NodeStack {
                 threats: Bitboard::empty(),
                 raw_eval: Score::MIN,
                 static_eval: Score::MIN,
+                legal_moves: 0,
                 reduction: 0,
             }; MAX_PLY + 8],
         }
