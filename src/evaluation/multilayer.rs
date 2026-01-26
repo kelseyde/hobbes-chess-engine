@@ -1,9 +1,27 @@
+use crate::board::Board;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::accumulator::Accumulator;
 
-const L1_SIZE: usize = 1024;
+const kFtQBits: i32 = 8;
+const kL1QBits: i32 = 7;
+const kQBits: i32 = 6;
+const kFtScaleBits: i32 = 7;
+
+const FT_SIZE: u32 = 768;
 const FT_QUANT: usize = 255;
 const FT_SHIFT: u32 = 9;
+
+const L1_SIZE: usize = 1536;
+const L1_QUANT: usize = 64;
+
+const L2_SIZE: u32 = 16;
+const L3_SIZE: u32 = 32;
+
+const SCALE: i32 = 400;
+
+pub fn forward(acc: &Accumulator, board: &Board) -> i32 {
+    0
+}
 
 /// We are in [0, 255] space, we want to end up in [0, 64] space for int multilayer.
 /// Our L1 weights are in [-128, 127] space.
