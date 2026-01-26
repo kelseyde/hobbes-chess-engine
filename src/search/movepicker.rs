@@ -3,7 +3,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
 use crate::board::Board;
-use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies, Killer};
 use crate::search::parameters::movepick_see_threshold;
 use crate::search::see;
 use crate::search::thread::ThreadData;
@@ -14,6 +14,7 @@ pub enum Stage {
     TTMove,
     GenerateNoisies,
     GoodNoisies,
+    Killer,
     GenerateQuiets,
     Quiets,
     BadNoisies,
@@ -109,11 +110,18 @@ impl MovePicker {
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(false) {
+            if let Some(best_move) = self.pick(td, false) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
-                self.stage = GenerateQuiets;
+                self.stage = Killer;
+            }
+        }
+        if self.stage == Killer {
+            let killer = td.stack[self.ply].killer;
+            self.stage = GenerateQuiets;
+            if let Some(killer) = killer.filter(|k| board.is_pseudo_legal(k) && board.is_legal(k)) {
+                return Some(killer);
             }
         }
         if self.stage == GenerateQuiets {
@@ -132,7 +140,7 @@ impl MovePicker {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(false) {
+            } else if let Some(best_move) = self.pick(td, false) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
@@ -140,7 +148,7 @@ impl MovePicker {
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
+            if let Some(best_move) = self.pick(td, true) {
                 return Some(best_move);
             } else {
                 self.stage = Done;
@@ -168,13 +176,11 @@ impl MovePicker {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
             let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-            let is_killer = td.stack[ply].killer == Some(*mv);
-            let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score + cont_score;
+            entry.score = quiet_score + cont_score;
         }
     }
 
-    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
+    fn pick(&mut self, td: &ThreadData, use_bad_noisies: bool) -> Option<Move> {
         let moves = if use_bad_noisies {
             &mut self.bad_noisies
         } else {
@@ -202,7 +208,7 @@ impl MovePicker {
 
             if let Some(best_move) = moves.get(self.idx) {
                 let mv = best_move.mv;
-                if mv == self.tt_move {
+                if mv == self.tt_move || td.stack[self.ply].killer == Some(mv) {
                     self.idx += 1;
                     continue;
                 }
@@ -212,4 +218,5 @@ impl MovePicker {
             return None;
         }
     }
+
 }
