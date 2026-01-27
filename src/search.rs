@@ -506,7 +506,7 @@ fn alpha_beta<NODE: NodeType>(
             && !singular_search
             && tt_hit
             && mv == tt_move
-            && depth >= se_min_depth()
+            && depth >= se_min_depth() + tt_pv as i32
             && tt_flag != TTFlag::Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
