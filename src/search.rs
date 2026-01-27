@@ -769,9 +769,12 @@ fn alpha_beta<NODE: NodeType>(
     // Update static eval correction history.
     if !in_check
         && !singular_search
-        && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        let refreshed_eval = raw_eval + td.correction_history.correction(board, &td.stack, ply);
+        if flag.bounds_match(best_score, refreshed_eval, refreshed_eval) {
+         td.correction_history
+             .update_correction_history(board, &td.stack, depth, ply, refreshed_eval, best_score);
+        }
     }
 
     // Store the best move and score in the transposition table
