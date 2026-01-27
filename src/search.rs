@@ -511,7 +511,7 @@ fn alpha_beta<NODE: NodeType>(
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
+            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 64).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.stack[ply].singular = Some(mv);

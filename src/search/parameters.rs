@@ -55,7 +55,7 @@ tunable_params! {
     pvs_see_quiet_ttpv_scale    = 27, 0, 36, 6;
     se_min_depth                = 6, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
-    se_beta_scale               = 16, 16, 48, 6;
+    se_beta_scale               = 48, 32, 128, 16;
     se_depth_offset             = 1, 0, 3, 1;
     se_depth_divisor            = 2, 1, 4, 1;
     se_double_ext_margin        = 11, 10, 30, 5;
