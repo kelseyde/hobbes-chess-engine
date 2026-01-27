@@ -21,7 +21,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Exact, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -771,7 +771,8 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        let weight = depth + 2 * (tt_flag == Exact) as i32;
+        td.correction_history.update_correction_history(board, &td.stack, weight, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
