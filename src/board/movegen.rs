@@ -19,6 +19,10 @@ pub enum MoveFilter {
 }
 
 impl Board {
+
+    /// Generate all legal moves for the current position.
+    /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
+    /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
         let mut moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
@@ -33,7 +37,11 @@ impl Board {
         legal_moves
     }
 
+    /// Generate all pseudo-legal moves for the current position.
     pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+
+        // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
+        // The king is technically also a standard piece, but its moves are generated first for efficiency.
         const STANDARD_PIECES: [Piece; 4] =
             [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
         let side = self.stm;
@@ -72,6 +80,7 @@ impl Board {
         moves
     }
 
+    /// Compute the squares attacked by the opponent's pieces.
     #[inline(always)]
     pub fn calc_threats(&self, side: Side) -> Bitboard {
         // The king is excluded from the occupancy bitboard to include slider threats 'through' the
@@ -102,6 +111,7 @@ impl Board {
         threats
     }
 
+    /// Compute the pieces checking the king of the given side.
     #[inline(always)]
     pub fn calc_checkers(&self, side: Side) -> Bitboard {
         let occ = self.occ();
