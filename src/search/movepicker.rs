@@ -163,7 +163,7 @@ impl MovePicker {
             let history_score = td
                 .history
                 .capture_history_score(board, mv, attacker, victim);
-            entry.score = victim_value + history_score;
+            entry.score = victim_value + history_score / 8;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
