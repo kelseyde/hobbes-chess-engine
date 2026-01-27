@@ -21,7 +21,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -507,7 +507,7 @@ fn alpha_beta<NODE: NodeType>(
             && tt_hit
             && mv == tt_move
             && depth >= se_min_depth() + tt_pv as i32
-            && tt_flag != TTFlag::Upper
+            && tt_flag == Lower
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
