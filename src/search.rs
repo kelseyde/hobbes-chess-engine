@@ -432,7 +432,8 @@ fn alpha_beta<NODE: NodeType>(
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * 25
-            - (tt_hit && tt_flag == Upper) as i32 * 20;
+            - (tt_hit && tt_flag == Upper) as i32 * 20
+            + pv_node as i32 * (fp_pv_node() + fp_no_best_move() * !best_move.exists() as i32);
         if !root_node
             && !in_check
             && is_quiet
