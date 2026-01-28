@@ -99,7 +99,7 @@ impl MovePicker {
                     if !self.split_noisies {
                         true
                     } else {
-                        let threshold = -entry.score / 4 - movepick_see_offset();
+                        let threshold = -entry.score / 4 + movepick_see_offset();
                         if threshold > see::value(Queen) {
                             false
                         } else if threshold < -see::value(Queen) {
