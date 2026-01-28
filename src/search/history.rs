@@ -72,7 +72,7 @@ impl Histories {
         captured: Option<Piece>,
     ) -> i32 {
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, mv, pc, captured, threats)
         } else {
             let quiet_score = self.quiet_history_score(board, mv, pc, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
@@ -113,8 +113,10 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         captured: Piece,
+        threats: Bitboard,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, *mv, captured) as i32
+        (self.capture_history.get(board.stm, pc, *mv, captured) as i32 +
+            self.quiet_history.get(board.stm, *mv, pc, threats) as i32) / 2
     }
 
     pub fn update_continuation_history(
