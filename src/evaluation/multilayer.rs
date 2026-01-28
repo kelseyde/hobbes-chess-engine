@@ -77,27 +77,20 @@ pub fn activate_ft(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> [u8; L1_SIZE] {
 
             // Downshift back into ~[0, 127].
             // Note: this is equivalent to the << 7 >> 16 that mulhi does.
-            let result: u8 = ((multiplied >> FT_SHIFT) as i32).clamp(0, 255) as u8;
+            let result: u8 = ((multiplied >> FT_SHIFT)).clamp(0, 255) as u8;
             output[base + i] = result;
         }
     }
-§
     output
 }
 
 /// L1 propagation
 fn propagate_l1(input: &[u8; L1_SIZE], weights: &[i8; L1_SIZE * L2_SIZE], biases: &[i32; L2_SIZE]) -> [i16; L2_SIZE] {
-    let mut out = [0i16; L2_SIZE];
+    // Unactivated L1 outputs in FT_QUANT*L1_QUANT space
+    let mut out = [0; L2_SIZE];
 
-    for o in 0..L2_SIZE {
-        let mut sum: i32 = biases[o];
-        let row = &weights[o * L1_SIZE..(o + 1) * L1_SIZE];
-
-        for i in 0..L1_SIZE {
-            sum += (row[i] as i32) * (input[i] as i32);
-        }
-
-        out[o] = sum.clamp(0, 255) as i16; // TODO, what do we clamp to here?
+    for o in 0..L1_SIZE {
+        // do some dpbusd shit here
     }
 
     out
@@ -108,14 +101,7 @@ fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i8; L2_SIZE * L3_SIZE], biase
     let mut out = [0i16; L3_SIZE];
 
     for o in 0..L3_SIZE {
-        let mut sum: i32 = biases[o];
-        let row = &weights[o * L2_SIZE..(o + 1) * L2_SIZE];
-
-        for i in 0..L2_SIZE {
-            sum += (row[i] as i32) * (input[i] as i32);
-        }
-
-        out[o] = sum.clamp(0, 255) as i16; // TODO, what do we clamp to here?
+        // do some shit here too
     }
 
     out
@@ -125,7 +111,7 @@ fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i8; L2_SIZE * L3_SIZE], biase
 fn propagate_l3(input: &[i16; L3_SIZE], weights: &[i8; L3_SIZE], bias: i32) -> i32 {
     let mut sum: i32 = bias;
     for i in 0..L3_SIZE {
-        sum += (weights[i] as i32) * (input[i] as i32);
+        // finally, also do some shit here
     }
     sum
 }
