@@ -1,3 +1,4 @@
+use Piece::Knight;
 use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
@@ -90,10 +91,7 @@ impl MovePicker {
 
                 let good_noisy = if entry.mv.is_promo() {
                     // Queen and knight promos are treated as good noisies
-                    entry
-                        .mv
-                        .promo_piece()
-                        .is_some_and(|p| p == Piece::Queen || p == Piece::Knight)
+                    entry.mv.promo_piece().is_some_and(|p| p == Queen || p == Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
                     if !self.split_noisies {
@@ -106,7 +104,6 @@ impl MovePicker {
                             _ => see(board, &entry.mv, threshold),
                         }
                     }
-
                 };
 
                 if good_noisy {
