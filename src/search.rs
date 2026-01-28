@@ -482,12 +482,17 @@ fn alpha_beta<NODE: NodeType>(
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            lmr_depth * pvs_see_quiet_scale()
+            (pvs_see_quiet_mult1() * depth * depth
+                + pvs_see_quiet_mult2() * depth
                 - history_score / pvs_see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+                + pvs_see_quiet_offset() ).min(0)
         } else {
-            depth * depth * pvs_see_noisy_scale()
-                - history_score / pvs_see_noisy_history_div()
+            (pvs_see_noisy_mult1() * depth * depth
+                - pvs_see_noisy_mult2() * depth
+                - history_score / pvs_see_quiet_history_div()
+                - tt_pv as i32 * lmr_depth * pvs_see_quiet_ttpv_scale()
+                + pvs_see_noisy_offset()).min(0)
         };
         if !pv_node
             && depth <= pvs_see_max_depth()
