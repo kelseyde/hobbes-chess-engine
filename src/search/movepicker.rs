@@ -100,12 +100,10 @@ impl MovePicker {
                         true
                     } else {
                         let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
-                        if threshold > see::value(Queen) {
-                            false
-                        } else if threshold < -see::value(Queen) {
-                            true
-                        } else {
-                            see(board, &entry.mv, threshold)
+                        match threshold {
+                            t if t > see::value(Queen) => false,
+                            t if t < -see::value(Queen) => true,
+                            _ => see(board, &entry.mv, threshold),
                         }
                     }
 
