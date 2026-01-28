@@ -616,15 +616,6 @@ fn alpha_beta<NODE: NodeType>(
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
-        // Register the current move, to update its history score later
-        if is_quiet && quiet_count < 32 {
-            quiets.push(mv);
-            quiet_count += 1;
-        } else if captured.is_some() && capture_count < 32 {
-            captures.push(mv);
-            capture_count += 1;
-        }
-
         td.stack[ply].mv = None;
         td.stack[ply].pc = None;
         td.stack[ply].captured = None;
@@ -675,6 +666,15 @@ fn alpha_beta<NODE: NodeType>(
                 depth -= 1;
             }
 
+        } else {
+            // Record moves that failed low, so we can penalise them in the history tables later.
+            if is_quiet && quiet_count < 32 {
+                quiets.push(mv);
+                quiet_count += 1;
+            } else if captured.is_some() && capture_count < 32 {
+                captures.push(mv);
+                capture_count += 1;
+            }
         }
     }
 
