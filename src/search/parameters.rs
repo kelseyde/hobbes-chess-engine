@@ -57,6 +57,7 @@ tunable_params! {
     see_quiet_history_div       = 260, 164, 388, 25;
     see_noisy_history_div       = 234, 164, 388, 25;
     see_quiet_ttpv_scale        = 27, 0, 36, 6;
+    see_quiet_killer_scale      = 25, 0, 36, 6;
     se_min_depth                = 6, 6, 10, 1;
     se_tt_depth_offset          = 3, 1, 6, 1;
     se_beta_scale               = 16, 16, 48, 6;

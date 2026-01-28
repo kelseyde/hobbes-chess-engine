@@ -486,6 +486,7 @@ fn alpha_beta<NODE: NodeType>(
                 + see_quiet_mult2() * depth
                 - history_score / see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * see_quiet_ttpv_scale()
+                - is_killer as i32 * see_quiet_killer_scale()
                 + see_quiet_offset() ).min(0)
         } else {
             (see_noisy_mult1() * depth * depth
