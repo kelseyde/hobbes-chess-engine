@@ -4,10 +4,11 @@ use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::movepick_see_threshold;
 use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::board::piece::Piece::Queen;
+use crate::search::parameters::movepick_see_offset;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -29,7 +30,7 @@ pub struct MovePicker {
     ply: usize,
     threats: Bitboard,
     pub skip_quiets: bool,
-    see_threshold: Option<i32>,
+    split_noisies: bool,
     bad_noisies: MoveList,
 }
 
@@ -49,7 +50,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(movepick_see_threshold()),
+            split_noisies: true,
             bad_noisies: MoveList::new(),
         }
     }
@@ -69,7 +70,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: true,
-            see_threshold: None,
+            split_noisies: false,
             bad_noisies: MoveList::new(),
         }
     }
@@ -95,9 +96,19 @@ impl MovePicker {
                         .is_some_and(|p| p == Piece::Queen || p == Piece::Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
-                    self.see_threshold
-                        .map(|threshold| see(board, &entry.mv, threshold))
-                        .unwrap_or(true)
+                    if !self.split_noisies {
+                        true
+                    } else {
+                        let threshold = -entry.score / 4 - movepick_see_offset();
+                        if threshold > see::value(Queen) {
+                            false
+                        } else if threshold < -see::value(Queen) {
+                            true
+                        } else {
+                            see(board, &entry.mv, threshold)
+                        }
+                    }
+
                 };
 
                 if good_noisy {
