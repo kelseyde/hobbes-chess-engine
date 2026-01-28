@@ -8,7 +8,7 @@ use crate::search::see;
 use crate::search::thread::ThreadData;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 use crate::board::piece::Piece::Queen;
-use crate::search::parameters::movepick_see_offset;
+use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -99,7 +99,7 @@ impl MovePicker {
                     if !self.split_noisies {
                         true
                     } else {
-                        let threshold = -entry.score / 4 + movepick_see_offset();
+                        let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
                         if threshold > see::value(Queen) {
                             false
                         } else if threshold < -see::value(Queen) {
@@ -171,10 +171,8 @@ impl MovePicker {
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
             let victim_value = see::value(victim);
-            let history_score = td
-                .history
-                .capture_history_score(board, mv, attacker, victim);
-            entry.score = victim_value + history_score / 8;
+            let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
