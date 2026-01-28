@@ -70,7 +70,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: true,
-            split_noisies: false,
+            split_noisies: true,
             bad_noisies: MoveList::new(),
         }
     }
