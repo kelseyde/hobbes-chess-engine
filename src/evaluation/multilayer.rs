@@ -13,13 +13,13 @@ const L3_SIZE: usize = 32;
 
 const SCALE: i32 = 400;
 
-#[derive(Clone)]
+#[repr(C, align(64))]
 pub struct Network {
     pub l1_weights: [i8; L1_SIZE * L2_SIZE],
     pub l1_biases: [i32; L2_SIZE],
-    pub l2_weights: [i8; L2_SIZE * L3_SIZE],
+    pub l2_weights: [i32; L2_SIZE * L3_SIZE],
     pub l2_biases: [i32; L3_SIZE],
-    pub l3_weights: [i8; L3_SIZE],
+    pub l3_weights: [i32; L3_SIZE],
     pub l3_bias: i32,
 }
 
@@ -97,7 +97,7 @@ fn propagate_l1(input: &[u8; L1_SIZE], weights: &[i8; L1_SIZE * L2_SIZE], biases
 }
 
 /// L2 propagation
-fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i8; L2_SIZE * L3_SIZE], biases: &[i32; L3_SIZE]) -> [i16; L3_SIZE] {
+fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i32; L2_SIZE * L3_SIZE], biases: &[i32; L3_SIZE]) -> [i16; L3_SIZE] {
     let mut out = [0i16; L3_SIZE];
 
     for o in 0..L3_SIZE {
@@ -108,7 +108,7 @@ fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i8; L2_SIZE * L3_SIZE], biase
 }
 
 /// L3 propagation
-fn propagate_l3(input: &[i16; L3_SIZE], weights: &[i8; L3_SIZE], bias: i32) -> i32 {
+fn propagate_l3(input: &[i16; L3_SIZE], weights: &[i32; L3_SIZE], bias: i32) -> i32 {
     let mut sum: i32 = bias;
     for i in 0..L3_SIZE {
         // finally, also do some shit here
