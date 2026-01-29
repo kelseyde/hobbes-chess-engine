@@ -588,10 +588,6 @@ fn alpha_beta<NODE: NodeType>(
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
-                if !root_node && mv == tt_move && tt_score < alpha && tt_flag == TTFlag::Upper {
-                    new_depth -= 1;
-                }
-
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
                 let do_shallower_margin = best_score + new_depth;
@@ -617,6 +613,9 @@ fn alpha_beta<NODE: NodeType>(
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+            if !root_node && mv == tt_move && tt_score < alpha && tt_flag == TTFlag::Upper {
+                new_depth -= 1;
+            }
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
