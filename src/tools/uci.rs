@@ -1,4 +1,4 @@
-use crate::board::movegen::MoveFilter;
+use crate::board::movegen::MoveFilterType;
 use crate::board::moves::Move;
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
@@ -247,7 +247,7 @@ impl UCI {
         self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
-            let mut legal_moves = self.board.gen_moves(MoveFilter::All);
+            let mut legal_moves = self.board.gen_legal_moves();
             let legal_move = legal_moves
                 .iter()
                 .map(|entry| entry.mv)

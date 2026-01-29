@@ -9,7 +9,7 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
-use crate::board::movegen::MoveFilter;
+use crate::board::movegen::MoveFilterType;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
@@ -880,9 +880,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     let filter = if in_check {
-        MoveFilter::All
+        MoveFilterType::All
     } else {
-        MoveFilter::Captures
+        MoveFilterType::Captures
     };
     let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 

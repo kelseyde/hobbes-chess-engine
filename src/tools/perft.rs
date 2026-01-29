@@ -1,9 +1,9 @@
-use crate::board::movegen::{is_check, MoveFilter};
+use crate::board::movegen::{is_check, All, MoveFilterType};
 use crate::board::Board;
 use std::collections::HashMap;
 
 pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
-    let moves = board.gen_moves(MoveFilter::All);
+    let moves = board.gen_moves::<All>();
 
     let mut move_counts = if depth == original_depth {
         Some(HashMap::new())

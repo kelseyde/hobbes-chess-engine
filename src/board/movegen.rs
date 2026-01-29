@@ -11,11 +11,35 @@ use crate::board::Board;
 use crate::board::{attacks, castling, ray};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub enum MoveFilter {
+pub enum MoveFilterType {
     All,
     Quiets,
     Noisies,
     Captures,
+}
+
+pub trait MoveFilter {
+    const TYPE: MoveFilterType;
+}
+
+pub struct All;
+impl MoveFilter for All {
+    const TYPE: MoveFilterType = MoveFilterType::All;
+}
+
+pub struct Quiets;
+impl MoveFilter for Quiets {
+    const TYPE: MoveFilterType = MoveFilterType::Quiets;
+}
+
+pub struct Noisies;
+impl MoveFilter for Noisies {
+    const TYPE: MoveFilterType = MoveFilterType::Noisies;
+}
+
+struct Captures;
+impl MoveFilter for Captures {
+    const TYPE: MoveFilterType = MoveFilterType::Captures;
 }
 
 impl Board {
@@ -24,7 +48,7 @@ impl Board {
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
-        let mut moves = self.gen_moves(MoveFilter::All);
+        let mut moves = self.gen_moves::<All>();
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
@@ -38,7 +62,7 @@ impl Board {
     }
 
     /// Generate all pseudo-legal moves for the current position.
-    pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+    pub fn gen_moves<T: MoveFilter>(&self) -> MoveList {
 
         // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
@@ -51,11 +75,11 @@ impl Board {
         let them = self.them();
         let occ = us | them;
 
-        let filter_mask = match filter {
-            MoveFilter::All => Bitboard::ALL,
-            MoveFilter::Quiets => !them,
-            MoveFilter::Noisies => them,
-            MoveFilter::Captures => them,
+        let filter_mask = match T::TYPE {
+            MoveFilterType::All => Bitboard::ALL,
+            MoveFilterType::Quiets => !them,
+            MoveFilterType::Noisies => them,
+            MoveFilterType::Captures => them,
         };
 
         // Generate king moves first
@@ -67,8 +91,8 @@ impl Board {
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
-        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+        gen_pawn_moves::<T>(self, side, occ, them, &mut moves);
+        if T::TYPE != MoveFilterType::Captures && T::TYPE != MoveFilterType::Noisies {
             gen_castle_moves(self, side, &mut moves);
         }
 
@@ -153,17 +177,16 @@ impl Board {
 }
 
 #[inline(always)]
-fn gen_pawn_moves(
+fn gen_pawn_moves<T: MoveFilter>(
     board: &Board,
     side: Side,
     occ: Bitboard,
     them: Bitboard,
-    filter: MoveFilter,
     moves: &mut MoveList,
 ) {
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
-    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+    if T::TYPE != MoveFilterType::Captures && T::TYPE != MoveFilterType::Noisies {
         for to in single_push(pawns, side, occ) {
             let from = if side == White {
                 to.minus(8)
@@ -183,7 +206,7 @@ fn gen_pawn_moves(
         }
     }
 
-    if filter != MoveFilter::Quiets {
+    if T::TYPE != MoveFilterType::Quiets {
         for to in left_capture(pawns, side, them) {
             let from = if side == White {
                 to.minus(7)
