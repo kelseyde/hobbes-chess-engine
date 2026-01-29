@@ -56,7 +56,13 @@ impl MovePicker {
         }
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
+    pub fn new_qsearch(
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        in_check: bool)
+        -> Self {
         let stage = if tt_move.exists() {
             TTMove
         } else {
@@ -70,7 +76,7 @@ impl MovePicker {
             tt_move,
             ply,
             threats,
-            skip_quiets: true,
+            skip_quiets: !in_check,
             split_noisies: false,
             bad_noisies: MoveList::new(),
         }

@@ -884,7 +884,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats, in_check);
 
     let mut move_count = 0;
 
