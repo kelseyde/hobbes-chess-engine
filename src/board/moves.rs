@@ -7,12 +7,11 @@ use crate::board::square::Square;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
 
-pub const MAX_MOVES: usize = 256;
+pub const MAX_MOVES: usize = 218;
 
 #[derive(Debug, Clone)]
 pub struct MoveList {
-    pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
-    pub len: usize,
+    pub list: ArrayVec<MoveListEntry, MAX_MOVES>
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -225,7 +224,6 @@ impl MoveList {
     pub fn new() -> Self {
         MoveList {
             list: ArrayVec::new(),
-            len: 0,
         }
     }
 
@@ -234,31 +232,22 @@ impl MoveList {
             mv: Move::new(from, to, flag),
             score: 0,
         });
-        self.len += 1;
     }
 
     pub fn add(&mut self, entry: MoveListEntry) {
         self.list.push(entry);
-        self.len += 1;
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.len == 0
+        self.list.is_empty()
     }
 
     pub const fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn contains(&self, m: &Move) -> bool {
-        self.list
-            .iter()
-            .take(self.len)
-            .any(|entry| entry.mv.matches(m))
+        self.list.len()
     }
 
     pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
-        if idx < self.len {
+        if idx < self.list.len() {
             Some(&self.list[idx])
         } else {
             None
@@ -266,6 +255,6 @@ impl MoveList {
     }
 
     pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
-        self.list.iter_mut().take(self.len)
+        self.list.iter_mut()
     }
 }

@@ -4,7 +4,7 @@ use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
-use crate::search::stack::SearchStack;
+use crate::search::node::NodeStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
@@ -19,7 +19,7 @@ pub struct ThreadData {
     pub use_soft_nodes: bool,
     pub tt: TranspositionTable,
     pub pv: PrincipalVariationTable,
-    pub ss: SearchStack,
+    pub stack: NodeStack,
     pub nnue: NNUE,
     pub keys: Vec<u64>,
     pub root_ply: usize,
@@ -48,7 +48,7 @@ impl Default for ThreadData {
             use_soft_nodes: false,
             tt: TranspositionTable::new(64),
             pv: PrincipalVariationTable::default(),
-            ss: SearchStack::new(),
+            stack: NodeStack::default(),
             nnue: NNUE::default(),
             keys: Vec::new(),
             root_ply: 0,
@@ -58,7 +58,7 @@ impl Default for ThreadData {
             node_table: NodeTable::default(),
             #[cfg(debug_assertions)]
             debug_stats: DebugStatsMap::default(),
-            limits: SearchLimits::new(None, None, None, None, None),
+            limits: SearchLimits::new(None, None, None, None, None, 0),
             start_time: Instant::now(),
             nodes: 0,
             depth: 1,
@@ -72,7 +72,7 @@ impl Default for ThreadData {
 
 impl ThreadData {
     pub fn reset(&mut self) {
-        self.ss = SearchStack::new();
+        self.stack = NodeStack::default();
         self.node_table.clear();
         self.nodes = 0;
         self.depth = 1;
@@ -132,7 +132,6 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-
         // Only check hard limits every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;

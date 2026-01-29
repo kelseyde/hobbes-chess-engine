@@ -19,6 +19,10 @@ pub enum MoveFilter {
 }
 
 impl Board {
+
+    /// Generate all legal moves for the current position.
+    /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
+    /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
         let mut moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
@@ -33,19 +37,19 @@ impl Board {
         legal_moves
     }
 
+    /// Generate all pseudo-legal moves for the current position.
     pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+
+        // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
+        // The king is technically also a standard piece, but its moves are generated first for efficiency.
+        const STANDARD_PIECES: [Piece; 4] =
+            [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
         let side = self.stm;
         let mut moves = MoveList::new();
 
         let us = self.us();
         let them = self.them();
         let occ = us | them;
-
-        // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
-        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-            gen_castle_moves(self, side, &mut moves);
-        }
 
         let filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
@@ -54,27 +58,29 @@ impl Board {
             MoveFilter::Captures => them,
         };
 
+        // Generate king moves first
+        self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
+
+        // If we are in double-check, the only legal moves are king moves
+        if self.checkers.count() == 2 {
+            return moves;
+        }
+
+        // handle special moves first (en passant, promo, castling etc.)
+        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
+        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+            gen_castle_moves(self, side, &mut moves);
+        }
+
         // handle standard moves
-        for &pc in [
-            Piece::Knight,
-            Piece::Bishop,
-            Piece::Rook,
-            Piece::Queen,
-            Piece::King,
-        ]
-        .iter()
-        {
-            for from in self.pcs(pc) & us {
-                let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
-                for to in attacks {
-                    moves.add_move(from, to, MoveFlag::Standard);
-                }
-            }
+        for &pc in STANDARD_PIECES.iter() {
+            self.gen_standard_moves(pc, side, occ, us, filter_mask, &mut moves);
         }
 
         moves
     }
 
+    /// Compute the squares attacked by the opponent's pieces.
     #[inline(always)]
     pub fn calc_threats(&self, side: Side) -> Bitboard {
         // The king is excluded from the occupancy bitboard to include slider threats 'through' the
@@ -105,6 +111,7 @@ impl Board {
         threats
     }
 
+    /// Compute the pieces checking the king of the given side.
     #[inline(always)]
     pub fn calc_checkers(&self, side: Side) -> Bitboard {
         let occ = self.occ();
@@ -125,6 +132,23 @@ impl Board {
         checkers |= diag_attacks;
 
         checkers
+    }
+
+    fn gen_standard_moves(
+        &self,
+        pc: Piece,
+        side: Side,
+        occ: Bitboard,
+        us: Bitboard,
+        filter_mask: Bitboard,
+        moves: &mut MoveList,
+    ) {
+        for from in self.pcs(pc) & us {
+            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+            for to in attacks {
+                moves.add_move(from, to, MoveFlag::Standard);
+            }
+        }
     }
 }
 

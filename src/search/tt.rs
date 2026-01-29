@@ -2,6 +2,11 @@ use crate::board::moves::Move;
 use crate::search::Score;
 use std::mem::size_of;
 
+/// The transposition table is a lookup table that stores the results of previously searched
+/// positions, including the search depth, the score, the best move found, and other relevant
+/// information. Since positions are often encountered via different move orders (via
+/// 'transposition'), the transposition table therefore greatly reduces the size of the search tree,
+/// since on subsequent visits we can re-use the results of previous searches.
 const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
 const BUCKET_SIZE: usize = size_of::<Bucket>();
@@ -110,6 +115,8 @@ impl Default for TranspositionTable {
 }
 
 impl TranspositionTable {
+    /// Create a new transposition table with the given size in megabytes. The number of entries in
+    /// the table is calculated based on the size of each bucket and the number of entries per bucket.
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
         let table = vec![Bucket::default(); size];
@@ -122,6 +129,8 @@ impl TranspositionTable {
         }
     }
 
+    /// Resize the transposition table to the given size in megabytes. This will reallocate the table
+    /// and reset all entries to their default values.
     pub fn resize(&mut self, size_mb: usize) {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
         self.table = vec![Bucket::default(); size];
@@ -129,6 +138,7 @@ impl TranspositionTable {
         self.size = size;
     }
 
+    /// Clear all entries in the transposition table by resetting them to their default values.
     pub fn clear(&mut self) {
         self.table
             .iter_mut()
@@ -136,10 +146,14 @@ impl TranspositionTable {
         self.age = 0;
     }
 
+    /// Increment the age of the transposition table. This is used to track the relative age of the
+    /// entries in the table, which is a factor in the entry replacement scheme.
     pub const fn birthday(&mut self) {
         self.age = (self.age + 1) & AGE_MASK;
     }
 
+    /// Probe the transposition table for an entry with the given hash. The hash is used as an index
+    /// into a bucket, and the entries in the bucket are searched for a matching key.
     pub fn probe(&self, hash: u64) -> Option<&Entry> {
         let idx = self.idx(hash);
         let bucket = &self.table[idx];
@@ -149,6 +163,9 @@ impl TranspositionTable {
             .find(|&entry| entry.validate_key(hash))
     }
 
+    /// Insert a new entry into the transposition table. We iterate through the entries in the bucket
+    /// to find either an empty slot or the least valuable entry to replace, based on a quality metric
+    /// that considers both search depth and entry age.
     #[allow(clippy::too_many_arguments)]
     pub fn insert(
         &mut self,
@@ -207,6 +224,8 @@ impl TranspositionTable {
         entry.flags = Flags::new(flag, pv, tt_age);
     }
 
+    /// For efficient indexing into an arbitrarily-sized hash table, we use Lemire's multiplication
+    /// trick (see: https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/).
     const fn idx(&self, hash: u64) -> usize {
         let key = hash as u128;
         let len = self.size as u128;
@@ -217,6 +236,8 @@ impl TranspositionTable {
         self.size_mb
     }
 
+    /// Calculate the fill level of the transposition table by counting the number of occupied
+    /// entries out of the first 1000. This information is printed to UCI.
     pub fn fill(&self) -> usize {
         let mut fill = 0;
         for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
