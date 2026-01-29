@@ -3,11 +3,14 @@ use crate::board::side::Side::{Black, White};
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::network::HIDDEN;
 
-const FT_SIZE: u32 = 768;
+const FT_SIZE: usize = 768;
 const FT_QUANT: usize = 255;
-const FT_SHIFT: u32 = 9;
+const FT_SHIFT: usize = 9;
+const INPUT_BUCKETS: usize = 16;
 
 const L1_SIZE: usize = 1536;
+const L1_QUANT: usize = 128;
+
 const L2_SIZE: usize = 16;
 const L3_SIZE: usize = 32;
 
@@ -15,6 +18,8 @@ const SCALE: i32 = 400;
 
 #[repr(C, align(64))]
 pub struct Network {
+    pub ft_weights: [i16; INPUT_BUCKETS * FT_SIZE * L1_SIZE],
+    pub ft_biases: [i16; L1_SIZE],
     pub l1_weights: [i8; L1_SIZE * L2_SIZE],
     pub l1_biases: [i32; L2_SIZE],
     pub l2_weights: [i32; L2_SIZE * L3_SIZE],
@@ -26,6 +31,8 @@ pub struct Network {
 impl Default for Network {
     fn default() -> Self {
         Self {
+            ft_weights: [0; INPUT_BUCKETS * FT_SIZE * L1_SIZE],
+            ft_biases: [0; L1_SIZE],
             l1_weights: [0; L1_SIZE * L2_SIZE],
             l1_biases: [0; L2_SIZE],
             l2_weights: [0; L2_SIZE * L3_SIZE],
@@ -77,6 +84,7 @@ pub fn activate_ft(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> [u8; L1_SIZE] {
 
             // Downshift back into ~[0, 127].
             // Note: this is equivalent to the << 7 >> 16 that mulhi does.
+            // where the fuck do I shift by 8 though
             let result: u8 = ((multiplied >> FT_SHIFT)).clamp(0, 255) as u8;
             output[base + i] = result;
         }
