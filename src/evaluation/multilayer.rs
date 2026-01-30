@@ -60,7 +60,7 @@ pub fn forward(acc: &Accumulator, board: &Board) -> i32 {
     let l2_outputs = propagate_l2(&l1_outputs, &net.l2_weights, &net.l2_biases);
     let l3_output = propagate_l3(&l2_outputs, &net.l3_weights, net.l3_bias);
 
-    l3_output.saturating_mul(SCALE)
+    l3_output * SCALE
 }
 
 /// Feature transformer activation
