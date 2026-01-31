@@ -1058,17 +1058,7 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
 }
 
 fn late_move_threshold(depth: i32, improving: bool) -> i32 {
-    let base = if improving {
-        lmp_improving_base()
-    } else {
-        lmp_base()
-    };
-    let scale = if improving {
-        lmp_improving_scale()
-    } else {
-        lmp_scale()
-    };
-    (base + depth * scale) / 10
+    (3 + depth * depth) / (2 - improving as i32)
 }
 
 fn print_search_info(board: &Board, td: &mut ThreadData) {
