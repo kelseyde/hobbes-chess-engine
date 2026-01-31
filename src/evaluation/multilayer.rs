@@ -33,7 +33,7 @@ pub struct Network {
 impl Default for Network {
     fn default() -> Self {
         Self {
-            ft_weights: [0; INPUT_BUCKET_COUNT * FT_SIZE * L1_SIZE],
+            ft_weights: [[0; FT_SIZE * L1_SIZE]; INPUT_BUCKET_COUNT],
             ft_biases: [0; L1_SIZE],
             l1_weights: [0; L1_SIZE * L2_SIZE],
             l1_biases: [0; L2_SIZE],
