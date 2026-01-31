@@ -107,7 +107,7 @@ pub(crate) mod scalar {
         let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
-        l3_output * SCALE
+        l3_output
     }
 
     /// L0 ('feature transformer') activation
@@ -201,7 +201,8 @@ pub(crate) mod scalar {
 
         let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
-            output += input * weight;
+            let clamped = input.clamp(0, 64 * 64 * 64);
+            output += clamped * weight;
         }
         output
     }
