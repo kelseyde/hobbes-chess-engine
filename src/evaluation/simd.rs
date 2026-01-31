@@ -99,7 +99,7 @@ pub(crate) mod avx2 {
 #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
 pub(crate) mod scalar {
     use crate::board::Board;
-    use crate::evaluation::network::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, SCALE};
+    use crate::evaluation::network::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 
     pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         let output_bucket = get_output_bucket(board);
@@ -143,6 +143,7 @@ pub(crate) mod scalar {
         let weights = &NETWORK.l1_weights[output_bucket];
         let biases = &NETWORK.l1_biases[output_bucket];
 
+        // Unactivated L1 outputs in the quantized space L0_QUANT * L1_QUANT
         let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
 
         // L1 matrix multiplication
@@ -166,10 +167,11 @@ pub(crate) mod scalar {
             // Add the bias
             out += bias;
 
-            // Clipped ReLU activation
+            // Squared Clipped ReLU activation
             let clamped: i32 = out.clamp(0, L1_QUANT as i32);
+            let screlu = clamped * clamped;
 
-            output[i] = clamped;
+            output[i] = screlu;
         }
 
 
@@ -179,16 +181,15 @@ pub(crate) mod scalar {
     /// L2 propagation
     fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
         let weights = &NETWORK.l2_weights[output_bucket];
-        let biases = &NETWORK.l2_biases[output_bucket];
 
-        let mut out = [0; L3_SIZE];
+        let mut out = NETWORK.l2_biases[output_bucket];
         for input_idx in 0..L2_SIZE {
             let input = input[input_idx];
             for output_idx in 0..L3_SIZE {
                 let w_idx = input_idx * L3_SIZE + output_idx;
                 let weight = weights[w_idx];
-                let bias = biases[output_idx];
-                out[output_idx] += input * weight + bias;
+                let clamped = input.clamp(0, (Q * Q) as i32);
+                out[output_idx] += clamped * weight;
             }
         }
         out
@@ -201,8 +202,7 @@ pub(crate) mod scalar {
 
         let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
-            let clamped = input.clamp(0, 64 * 64 * 64);
-            output += clamped * weight;
+            output += input * weight;
         }
         output
     }
