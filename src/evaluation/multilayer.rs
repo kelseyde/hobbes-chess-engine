@@ -1,13 +1,13 @@
-use crate::board::side::Side::{Black, White};
 use crate::board::Board;
-use crate::evaluation::accumulator::Accumulator;
 
 const L0_SIZE: usize = 768;
 const L0_QUANT: usize = 255;
 const L0_SHIFT: usize = 9;
 const L0_BUCKET_COUNT: usize = 16;
 
-const L1_SIZE: usize = 1280;
+const OUTPUT_BUCKET_COUNT: usize = 8;
+
+const L1_SIZE: usize = 2048;
 const L1_SHIFT: usize = 8;
 const L1_QUANT: usize = 128;
 
@@ -22,46 +22,23 @@ pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 pub struct Network {
     pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],
     pub l0_biases: [i16; L1_SIZE],
-    pub l1_weights: [i8; L1_SIZE * L2_SIZE],
-    pub l1_biases: [i32; L2_SIZE],
-    pub l2_weights: [i32; L2_SIZE * L3_SIZE],
-    pub l2_biases: [i32; L3_SIZE],
-    pub l3_weights: [i32; L3_SIZE],
-    pub l3_bias: i32,
+    pub l1_weights: [[i8; L1_SIZE * L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_weights: [[i32; L2_SIZE * L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_biases: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l3_weights: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
 }
 
-impl Default for Network {
-    fn default() -> Self {
-        Self {
-            l0_weights: [[0; L0_SIZE * L1_SIZE]; L0_BUCKET_COUNT],
-            l0_biases: [0; L1_SIZE],
-            l1_weights: [0; L1_SIZE * L2_SIZE],
-            l1_biases: [0; L2_SIZE],
-            l2_weights: [0; L2_SIZE * L3_SIZE],
-            l2_biases: [0; L3_SIZE],
-            l3_weights: [0; L3_SIZE],
-            l3_bias: 0,
-        }
-    }
-}
+pub(crate) static NETWORK: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../../multilayer.nnue")) };
 
-pub fn forward(acc: &Accumulator, board: &Board) -> i32 {
-    // TODO: load real net lol
-    let net = Network::default();
-    let us = match board.stm {
-        White => &acc.white_features,
-        Black => &acc.black_features,
-    };
-    let them = match board.stm {
-        White => &acc.black_features,
-        Black => &acc.white_features,
-    };
-
+pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
+    let output_bucket = get_output_bucket(board);
     let l0_outputs = activate_l0(us, them);
-    let l1_outputs = propagate_l1(&l0_outputs, &net.l1_weights, &net.l1_biases);
-    let l2_outputs = propagate_l2(&l1_outputs, &net.l2_weights, &net.l2_biases);
-    let l3_output = propagate_l3(&l2_outputs, &net.l3_weights, net.l3_bias);
-
+    let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
+    let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
+    let l3_output = propagate_l3(&l2_outputs, output_bucket);
     l3_output * SCALE
 }
 
@@ -94,11 +71,10 @@ pub fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] 
 }
 
 /// L1 propagation
-fn propagate_l1(
-    input: &[u8; L1_SIZE],
-    weights: &[i8; L1_SIZE * L2_SIZE],
-    biases: &[i32; L2_SIZE],
-) -> [i32; L2_SIZE] {
+fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE] {
+    let weights = &NETWORK.l1_weights[output_bucket];
+    let biases = &NETWORK.l1_biases[output_bucket];
+
     let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
 
     // L1 matrix multiplication
@@ -133,24 +109,37 @@ fn propagate_l1(
 }
 
 /// L2 propagation
-fn propagate_l2(input: &[i32; L2_SIZE], weights: &[i32; L2_SIZE * L3_SIZE], biases: &[i32; L3_SIZE]) -> [i32; L3_SIZE] {
+fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
+    let weights = &NETWORK.l2_weights[output_bucket];
+    let biases = &NETWORK.l2_biases[output_bucket];
+
     let mut out = [0; L3_SIZE];
     for input_idx in 0..L2_SIZE {
-        let input = input[input_idx] as i32;
+        let input = input[input_idx];
         for output_idx in 0..L3_SIZE {
             let w_idx = input_idx * L3_SIZE + output_idx;
             let weight = weights[w_idx];
-            out[output_idx] += input * weight;
+            let bias = biases[output_idx];
+            out[output_idx] += input * weight + bias;
         }
     }
     out
 }
 
 /// L3 propagation
-fn propagate_l3(input: &[i32; L3_SIZE], weights: &[i32; L3_SIZE], bias: i32) -> i32 {
+fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
+    let weights = &NETWORK.l3_weights[output_bucket];
+    let bias = NETWORK.l3_biases[output_bucket];
+
     let mut output: i32 = bias;
     for (&input, &weight) in input.iter().zip(weights.iter()) {
         output += input * weight;
     }
     output
+}
+
+fn get_output_bucket(board: &Board) -> usize {
+    const DIVISOR: usize = 32 / OUTPUT_BUCKET_COUNT;
+    let occ_count = board.occ().count() as usize;
+    (occ_count - 2) / DIVISOR
 }
