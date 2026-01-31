@@ -1,12 +1,12 @@
 use crate::board::Board;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::accumulator::Accumulator;
-use crate::evaluation::network::HIDDEN;
+use crate::evaluation::network::{FEATURES, HIDDEN, QA};
 
 const FT_SIZE: usize = 768;
 const FT_QUANT: usize = 255;
 const FT_SHIFT: usize = 9;
-const INPUT_BUCKETS: usize = 16;
+const INPUT_BUCKET_COUNT: usize = 16;
 
 const L1_SIZE: usize = 1536;
 const L1_QUANT: usize = 128;
@@ -16,9 +16,11 @@ const L3_SIZE: usize = 32;
 
 const SCALE: i32 = 400;
 
+pub type FeatureWeights = [i16; FT_SIZE * L1_SIZE];
+
 #[repr(C, align(64))]
 pub struct Network {
-    pub ft_weights: [i16; INPUT_BUCKETS * FT_SIZE * L1_SIZE],
+    pub ft_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
     pub ft_biases: [i16; L1_SIZE],
     pub l1_weights: [i8; L1_SIZE * L2_SIZE],
     pub l1_biases: [i32; L2_SIZE],
@@ -31,7 +33,7 @@ pub struct Network {
 impl Default for Network {
     fn default() -> Self {
         Self {
-            ft_weights: [0; INPUT_BUCKETS * FT_SIZE * L1_SIZE],
+            ft_weights: [0; INPUT_BUCKET_COUNT * FT_SIZE * L1_SIZE],
             ft_biases: [0; L1_SIZE],
             l1_weights: [0; L1_SIZE * L2_SIZE],
             l1_biases: [0; L2_SIZE],
@@ -44,7 +46,7 @@ impl Default for Network {
 }
 
 pub fn forward(acc: &Accumulator, board: &Board) -> i32 {
-    // TODO: load real net
+    // TODO: load real net lol
     let net = Network::default();
     let us = match board.stm {
         White => &acc.white_features,
@@ -106,20 +108,27 @@ fn propagate_l1(input: &[u8; L1_SIZE], weights: &[i8; L1_SIZE * L2_SIZE], biases
 
 /// L2 propagation
 fn propagate_l2(input: &[i16; L2_SIZE], weights: &[i32; L2_SIZE * L3_SIZE], biases: &[i32; L3_SIZE]) -> [i16; L3_SIZE] {
-    let mut out = [0i16; L3_SIZE];
-
-    for o in 0..L3_SIZE {
-        // do some shit here too
-    }
+    let mut out = [0; L3_SIZE];
 
     out
 }
 
 /// L3 propagation
 fn propagate_l3(input: &[i16; L3_SIZE], weights: &[i32; L3_SIZE], bias: i32) -> i32 {
-    let mut sum: i32 = bias;
-    for i in 0..L3_SIZE {
-        // finally, also do some shit here
+    let mut output: i32 = bias;
+    for (&input, &weight) in input.iter().zip(weights.iter()) {
+        output += input as i32 * weight;
     }
-    sum
+    output
+}
+
+
+pub fn forward(features: &[i16; HIDDEN], weights: &[i16; HIDDEN]) -> i32 {
+    let mut output = 0;
+    for (&input, &weight) in features.iter().zip(weights.iter()) {
+        let clipped = input.clamp(0, QA as i16);
+        let result = clipped * weight;
+        output += result as i32 * clipped as i32;
+    }
+    output
 }
