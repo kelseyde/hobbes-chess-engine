@@ -4,7 +4,6 @@ pub mod feature;
 pub mod network;
 pub mod simd;
 pub mod stats;
-mod multilayer;
 
 use crate::board::file::File;
 use crate::board::moves::Move;
@@ -17,7 +16,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{HIDDEN, NETWORK, QA, QAB, SCALE};
+use crate::evaluation::network::{L1_SIZE, NETWORK};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -26,18 +25,6 @@ use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
 
-#[rustfmt::skip]
-pub const BUCKETS: [usize; 64] = [
-         0,  1,  2,  3, 3, 2,  1,  0,
-         4,  5,  6,  7, 7, 6,  5,  4,
-         8,  9, 10, 11, 11, 10, 9,  8,
-         8,  9, 10, 11, 11, 10, 9,  8,
-        12, 12, 13, 13, 13, 13, 12, 12,
-        12, 12, 13, 13, 13, 13, 12, 12,
-        14, 14, 15, 15, 15, 15, 14, 14,
-        14, 14, 15, 15, 15, 15, 14, 14,
-];
-pub const NUM_BUCKETS: usize = get_num_buckets(&BUCKETS);
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
 pub struct NNUE {
@@ -77,19 +64,19 @@ impl NNUE {
             Black => &acc.white_features,
         };
 
-        let mut output = Self::forward(us, them);
+        let output = Self::forward(us, them, board);
 
-        output /= QA;
-        output += NETWORK.output_bias as i32;
-        output *= SCALE;
-        output /= QAB;
-        output = scale_evaluation(board, output);
+        // output /= QA;
+        // output += NETWORK.output_bias as i32;
+        // output *= SCALE;
+        // output /= QAB;
+        // output = scale_evaluation(board, output);
         output
     }
 
     /// Forward pass through the neural network. SIMD instructions are used if available to
     /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
-    pub(crate) fn forward(us: &[i16; HIDDEN], them: &[i16; HIDDEN]) -> i32 {
+    pub(crate) fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         #[cfg(target_feature = "avx512f")]
         {
             use crate::evaluation::network::NETWORK;
@@ -106,10 +93,8 @@ impl NNUE {
         }
         #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
         {
-            use crate::evaluation::network::NETWORK;
             use crate::evaluation::simd::scalar;
-            let weights = &NETWORK.output_weights;
-            scalar::forward(us, &weights[0]) + scalar::forward(them, &weights[1])
+            scalar::forward(us, them, board)
         }
     }
 
@@ -167,7 +152,7 @@ impl NNUE {
             }
         }
 
-        let weights = &NETWORK.feature_weights[bucket];
+        let weights = &NETWORK.l0_weights[bucket];
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
@@ -258,7 +243,7 @@ impl NNUE {
                 self.full_refresh(board, self.current, perspective, mirror, bucket);
             } else {
                 // Otherwise, move forward through the stack applying all updates one by one.
-                let weights = &NETWORK.feature_weights[bucket];
+                let weights = &NETWORK.l0_weights[bucket];
                 while curr < self.current {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
                     let prev_acc = front.last().unwrap();
@@ -396,7 +381,7 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
 #[inline(always)]
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
-    BUCKETS[sq]
+    network::BUCKETS[sq]
 }
 
 #[inline(always)]
@@ -404,35 +389,22 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
-fn scale_evaluation(board: &Board, eval: i32) -> i32 {
-    let phase = material_phase(board);
-    eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
-}
-
-fn material_phase(board: &Board) -> i32 {
-    let knights = board.pieces(Knight).count();
-    let bishops = board.pieces(Bishop).count();
-    let rooks = board.pieces(Rook).count();
-    let queens = board.pieces(Queen).count();
-
-    scale_value_knight() * knights as i32
-        + scale_value_bishop() * bishops as i32
-        + scale_value_rook() * rooks as i32
-        + scale_value_queen() * queens as i32
-}
-
-pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
-    let mut max = 0;
-    let mut i = 0;
-
-    while i < N {
-        if arr[i] > max {
-            max = arr[i];
-        }
-        i += 1;
-    }
-    max + 1
-}
+// fn scale_evaluation(board: &Board, eval: i32) -> i32 {
+//     let phase = material_phase(board);
+//     eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
+// }
+//
+// fn material_phase(board: &Board) -> i32 {
+//     let knights = board.pieces(Knight).count();
+//     let bishops = board.pieces(Bishop).count();
+//     let rooks = board.pieces(Rook).count();
+//     let queens = board.pieces(Queen).count();
+//
+//     scale_value_knight() * knights as i32
+//         + scale_value_bishop() * bishops as i32
+//         + scale_value_rook() * rooks as i32
+//         + scale_value_queen() * queens as i32
+// }
 
 #[cfg(test)]
 mod tests {

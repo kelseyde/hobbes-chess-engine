@@ -1,13 +1,13 @@
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{FeatureWeights, HIDDEN, NETWORK};
+use crate::evaluation::network::{FeatureWeights, L1_SIZE, NETWORK};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct Accumulator {
-    pub white_features: [i16; HIDDEN],
-    pub black_features: [i16; HIDDEN],
+    pub white_features: [i16; L1_SIZE],
+    pub black_features: [i16; L1_SIZE],
     pub update: AccumulatorUpdate,
     pub computed: [bool; 2],
     pub needs_refresh: [bool; 2],
@@ -35,8 +35,8 @@ pub enum AccumulatorUpdateType {
 impl Default for Accumulator {
     fn default() -> Self {
         Accumulator {
-            white_features: NETWORK.feature_bias,
-            black_features: NETWORK.feature_bias,
+            white_features: NETWORK.l0_biases,
+            black_features: NETWORK.l0_biases,
             update: AccumulatorUpdate::default(),
             computed: [false, false],
             needs_refresh: [false, false],
@@ -75,7 +75,7 @@ impl AccumulatorUpdate {
 
 impl Accumulator {
     #[inline(always)]
-    pub fn features(&self, perspective: Side) -> &[i16; HIDDEN] {
+    pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         match perspective {
             White => &self.white_features,
             Black => &self.black_features,
@@ -83,7 +83,7 @@ impl Accumulator {
     }
 
     #[inline(always)]
-    pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; HIDDEN] {
+    pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
         match perspective {
             White => &mut self.white_features,
             Black => &mut self.black_features,
@@ -96,11 +96,11 @@ impl Accumulator {
             White => &mut self.white_features,
             Black => &mut self.black_features,
         };
-        *feats = NETWORK.feature_bias;
+        *feats = NETWORK.l0_biases;
     }
 
     #[inline]
-    pub fn copy_from(&mut self, side: Side, features: &[i16; HIDDEN]) {
+    pub fn copy_from(&mut self, side: Side, features: &[i16; L1_SIZE]) {
         match side {
             White => self.white_features = *features,
             Black => self.black_features = *features,
@@ -112,10 +112,10 @@ impl Accumulator {
         let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
         let idx = add.index(perspective, mirror);
         let feats = self.features_mut(perspective);
-        let weight_offset = idx * HIDDEN;
+        let weight_offset = idx * L1_SIZE;
 
         let mut i = 0;
-        while i < HIDDEN {
+        while i < L1_SIZE {
             unsafe {
                 let feat_ptr = feats.get_unchecked_mut(i);
                 let weight = *weights.get_unchecked(i + weight_offset);
@@ -130,10 +130,10 @@ impl Accumulator {
         let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
         let idx = sub.index(perspective, mirror);
         let feats = self.features_mut(perspective);
-        let weight_offset = idx * HIDDEN;
+        let weight_offset = idx * L1_SIZE;
 
         let mut i = 0;
-        while i < HIDDEN {
+        while i < L1_SIZE {
             unsafe {
                 let feat_ptr = feats.get_unchecked_mut(i);
                 let weight = *weights.get_unchecked(i + weight_offset);
@@ -155,15 +155,15 @@ impl Accumulator {
     ) {
         let mirror = self.mirrored[perspective as usize];
 
-        let add1_offset = add1.index(perspective, mirror) * HIDDEN;
-        let add2_offset = add2.index(perspective, mirror) * HIDDEN;
-        let add3_offset = add3.index(perspective, mirror) * HIDDEN;
-        let add4_offset = add4.index(perspective, mirror) * HIDDEN;
+        let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
+        let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
+        let add3_offset = add3.index(perspective, mirror) * L1_SIZE;
+        let add4_offset = add4.index(perspective, mirror) * L1_SIZE;
 
         let feats = self.features_mut(perspective);
 
         let mut i = 0;
-        while i < HIDDEN {
+        while i < L1_SIZE {
             unsafe {
                 let feat_ptr = feats.get_unchecked_mut(i);
                 *feat_ptr = feat_ptr
@@ -187,15 +187,15 @@ impl Accumulator {
     ) {
         let mirror = self.mirrored[perspective as usize];
 
-        let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
-        let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
-        let sub3_offset = sub3.index(perspective, mirror) * HIDDEN;
-        let sub4_offset = sub4.index(perspective, mirror) * HIDDEN;
+        let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
+        let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
+        let sub3_offset = sub3.index(perspective, mirror) * L1_SIZE;
+        let sub4_offset = sub4.index(perspective, mirror) * L1_SIZE;
 
         let feats = self.features_mut(perspective);
 
         let mut i = 0;
-        while i < HIDDEN {
+        while i < L1_SIZE {
             unsafe {
                 let feat_ptr = feats.get_unchecked_mut(i);
                 *feat_ptr = feat_ptr
@@ -210,8 +210,8 @@ impl Accumulator {
 }
 
 pub fn apply_update(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     weights: &FeatureWeights,
     update: &AccumulatorUpdate,
     perspective: Side,
@@ -297,18 +297,18 @@ pub fn apply_update(
 
 #[inline]
 pub fn add(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     add: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
 ) {
     let idx = add.index(perspective, mirror);
-    let weight_offset = idx * HIDDEN;
+    let weight_offset = idx * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -321,18 +321,18 @@ pub fn add(
 
 #[inline]
 pub fn sub(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
 ) {
     let idx = sub.index(perspective, mirror);
-    let weight_offset = idx * HIDDEN;
+    let weight_offset = idx * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -345,19 +345,19 @@ pub fn sub(
 
 #[inline]
 pub fn add_sub(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     add: Feature,
     sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let add_offset = add.index(perspective, mirror) * HIDDEN;
-    let sub_offset = sub.index(perspective, mirror) * HIDDEN;
+    let add_offset = add.index(perspective, mirror) * L1_SIZE;
+    let sub_offset = sub.index(perspective, mirror) * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -372,8 +372,8 @@ pub fn add_sub(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_sub_sub(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     add: Feature,
     sub1: Feature,
     sub2: Feature,
@@ -381,12 +381,12 @@ pub fn add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let add_offset = add.index(perspective, mirror) * HIDDEN;
-    let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
-    let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
+    let add_offset = add.index(perspective, mirror) * L1_SIZE;
+    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
+    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -402,8 +402,8 @@ pub fn add_sub_sub(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_add_sub_sub(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     add1: Feature,
     add2: Feature,
     sub1: Feature,
@@ -412,13 +412,13 @@ pub fn add_add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let add1_offset = add1.index(perspective, mirror) * HIDDEN;
-    let add2_offset = add2.index(perspective, mirror) * HIDDEN;
-    let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
-    let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
+    let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
+    let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
+    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
+    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -435,8 +435,8 @@ pub fn add_add_sub_sub(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_add_add_add(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     add1: Feature,
     add2: Feature,
     add3: Feature,
@@ -445,13 +445,13 @@ pub fn add_add_add_add(
     perspective: Side,
     mirror: bool,
 ) {
-    let add1_offset = add1.index(perspective, mirror) * HIDDEN;
-    let add2_offset = add2.index(perspective, mirror) * HIDDEN;
-    let add3_offset = add3.index(perspective, mirror) * HIDDEN;
-    let add4_offset = add4.index(perspective, mirror) * HIDDEN;
+    let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
+    let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
+    let add3_offset = add3.index(perspective, mirror) * L1_SIZE;
+    let add4_offset = add4.index(perspective, mirror) * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
@@ -468,8 +468,8 @@ pub fn add_add_add_add(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn sub_sub_sub_sub(
-    input_features: &[i16; HIDDEN],
-    output_features: &mut [i16; HIDDEN],
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
     sub1: Feature,
     sub2: Feature,
     sub3: Feature,
@@ -478,13 +478,13 @@ pub fn sub_sub_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let sub1_offset = sub1.index(perspective, mirror) * HIDDEN;
-    let sub2_offset = sub2.index(perspective, mirror) * HIDDEN;
-    let sub3_offset = sub3.index(perspective, mirror) * HIDDEN;
-    let sub4_offset = sub4.index(perspective, mirror) * HIDDEN;
+    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
+    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
+    let sub3_offset = sub3.index(perspective, mirror) * L1_SIZE;
+    let sub4_offset = sub4.index(perspective, mirror) * L1_SIZE;
 
     let mut i = 0;
-    while i < HIDDEN {
+    while i < L1_SIZE {
         unsafe {
             let in_feat_ptr = input_features.get_unchecked(i);
             let out_feat_ptr = output_features.get_unchecked_mut(i);
