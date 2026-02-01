@@ -76,6 +76,8 @@ tunable_params! {
     lmr_quiet_see               = 1225, 0, 2048, 256;
     lmr_hist_offset             = 560, -2048, 2048, 256;
     lmr_hist_divisor            = 20209, 8192, 32768, 2048;
+    lmr_corr_mult               = 6488, 2048, 16384, 1024;
+    lmr_corr_offset             = 256, -1024, 1024, 128;
     lmr_mvv_divisor             = 3, 1, 5, 1;
     lmr_extension_divisor       = 4, 1, 6, 1;
     lmr_deeper_base             = 29, 0, 100, 10;
