@@ -301,20 +301,26 @@ fn alpha_beta<NODE: NodeType>(
         depth -= 1;
     }
 
+    let mut whole_node_reduction = false;
+
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search{
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
-        let futility_margin = rfp_base()
+        let prune_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+        let reduce_margin = prune_margin - 20;
         if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
+            && static_eval - reduce_margin >= beta
             && tt_flag != Upper {
-            return beta + (static_eval - beta) / 3;
+            whole_node_reduction = true;
+            if static_eval - prune_margin >= beta {
+                return beta + (static_eval - beta) / 3;
+            }
         }
 
         // Razoring
@@ -567,6 +573,7 @@ fn alpha_beta<NODE: NodeType>(
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
+            r += 1024 * whole_node_reduction as i32;
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
