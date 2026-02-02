@@ -108,9 +108,8 @@ pub(crate) mod scalar {
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
         let mut output = l3_output as i64;
-        output /= Q as i64;
         output *= SCALE as i64;
-        output /= Q as i64 * Q as i64 * Q as i64;
+        output /= Q as i64 * Q as i64 * Q as i64 * Q as i64;
         output as i32
     }
 
@@ -154,7 +153,8 @@ pub(crate) mod scalar {
         for input_idx in 0..L1_SIZE {
             let input: i32 = input[input_idx] as i32;
             for output_idx in 0..L2_SIZE {
-                let weight: i32 = weights[input_idx * output_idx] as i32;
+                let w_idx = input_idx * L2_SIZE + output_idx;
+                let weight: i32 = weights[w_idx] as i32;
                 intermediate[output_idx] += input * weight;
             }
         }
