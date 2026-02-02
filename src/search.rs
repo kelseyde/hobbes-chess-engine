@@ -329,7 +329,7 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && !(tt_flag == Upper && tt_score < beta) {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()
