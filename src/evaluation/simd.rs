@@ -107,11 +107,11 @@ pub(crate) mod scalar {
         let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
-        let mut output = l3_output;
-        output /= Q;
-        output *= SCALE;
-        output /= Q * Q * Q;
-        output
+        let mut output = l3_output as i64;
+        output /= Q as i64;
+        output *= SCALE as i64;
+        output /= Q as i64 * Q as i64 * Q as i64;
+        output as i32
     }
 
     /// L0 ('feature transformer') activation
@@ -172,7 +172,9 @@ pub(crate) mod scalar {
             out += bias;
 
             // Squared Clipped ReLU activation
+            // Clamp to [0, Q]
             let clamped: i32 = out.clamp(0, Q);
+            // Square the clamped value, moving to [0, Q*Q]
             let activated = clamped * clamped;
 
             output[i] = activated;
@@ -192,6 +194,7 @@ pub(crate) mod scalar {
             for output_idx in 0..L3_SIZE {
                 let w_idx = input_idx * L3_SIZE + output_idx;
                 let weight = weights[w_idx];
+                // This multiplication moves us into [0, Q^3] space
                 out[output_idx] += input * weight;
             }
         }
@@ -206,6 +209,7 @@ pub(crate) mod scalar {
         let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
             let clamped = input.clamp(0, Q * Q * Q);
+            // This multiplication moves us into [0, Q^4] space
             output += clamped * weight;
         }
         output
