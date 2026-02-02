@@ -101,6 +101,8 @@ pub(crate) mod scalar {
     use crate::board::Board;
     use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 
+    /// Forward pass through the neural network. We already have the pre-activations of L0 stored in
+    /// the accumulator. We activate L0 and propagate through L1, L2, and L3 to get the final output.
     pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         let output_bucket = get_output_bucket(board);
         let l0_outputs = activate_l0(us, them);
