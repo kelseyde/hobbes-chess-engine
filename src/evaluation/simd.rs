@@ -104,13 +104,9 @@ pub(crate) mod scalar {
     pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         let output_bucket = get_output_bucket(board);
         let l0_outputs = activate_l0(us, them);
-        println!("ft after clamping and packing: {:?}", l0_outputs);
         let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
-        println!("l1 outputs: {:?}", l1_outputs);
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
-        println!("l2 outputs: {:?}", l2_outputs);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
-        println!("l3 output: {}", l3_output);
         let mut output = l3_output as i64;
         output *= SCALE;
         output /= Q * Q * Q * Q;
@@ -153,9 +149,6 @@ pub(crate) mod scalar {
         // Unactivated L1 outputs in the quantized space L0_QUANT * L1_QUANT
         let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
 
-        println!("output_bucket: {}", output_bucket);
-        // println!("weights: {:?}", weights);
-
         // L1 matrix multiplication
         for input_idx in 0..L1_SIZE {
             let input: i32 = input[input_idx] as i32;
@@ -165,8 +158,6 @@ pub(crate) mod scalar {
                 intermediate[output_idx] += input * weight;
             }
         }
-
-        println!("l1 after matmul: {:?}", intermediate);
 
         // Re-quantise, add biases and activate L1 outputs
         let mut output: [i32; L2_SIZE] = [0; L2_SIZE];
