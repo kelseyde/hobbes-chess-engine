@@ -125,14 +125,14 @@ pub(crate) mod scalar {
                 let left: i16 = feats[i];
                 let right: i16 = feats[i + (L1_SIZE / 2)];
 
-                // Clipped ReLU activation
+                // Clipped ReLU activation, in [0, 255] space.
                 let l_clamped: u8 = left.clamp(0, L0_QUANT as i16) as u8;
                 let r_clamped: u8 = right.clamp(0, L0_QUANT as i16) as u8;
 
                 // Pairwise multiplication of left and right input.
                 let multiplied: i32 = l_clamped as i32 * r_clamped as i32;
 
-                // Downshift back into [0, 127].
+                // Downshift back into [0, 127] space.
                 // Note: this is equivalent to the << 7 >> 16 that mulhi does.
                 let result: u8 = (multiplied >> L0_SHIFT).clamp(0, 255) as u8;
                 output[base + i] = result;
