@@ -108,8 +108,8 @@ pub(crate) mod scalar {
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
         let mut output = l3_output as i64;
-        output *= SCALE as i64;
-        output /= Q as i64 * Q as i64 * Q as i64 * Q as i64;
+        output *= SCALE;
+        output /= Q * Q * Q * Q;
         output as i32
     }
 
@@ -173,7 +173,7 @@ pub(crate) mod scalar {
 
             // Squared Clipped ReLU activation
             // Clamp to [0, Q]
-            let clamped: i32 = out.clamp(0, Q);
+            let clamped: i32 = out.clamp(0, Q as i32);
             // Square the clamped value, moving to [0, Q*Q]
             let activated = clamped * clamped;
 
@@ -208,7 +208,7 @@ pub(crate) mod scalar {
 
         let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
-            let clamped = input.clamp(0, Q * Q * Q);
+            let clamped = input.clamp(0, (Q * Q * Q) as i32);
             // This multiplication moves us into [0, Q^4] space
             output += clamped * weight;
         }

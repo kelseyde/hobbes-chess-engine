@@ -27,8 +27,8 @@ pub const L1_QUANT: usize = 128;
 pub const L2_SIZE: usize = 16;
 pub const L3_SIZE: usize = 32;
 
-pub const Q: i32 = 64;
-pub const SCALE: i32 = 400;
+pub const Q: i64 = 64;
+pub const SCALE: i64 = 400;
 
 pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!("../../hobbes.nnue")) };
