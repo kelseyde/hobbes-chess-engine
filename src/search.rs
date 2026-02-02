@@ -21,9 +21,10 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
+use crate::board::piece::Piece::Pawn;
 
 pub const MAX_PLY: usize = 256;
 
@@ -329,7 +330,9 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && tt_flag != Upper
+            // Skip NMP when we have a TT fail high on an obvious capture
+            && !(tt_flag == Lower && board.estimated_see(tt_move) > see::value(Pawn) * 2) {
 
             let r = nmp_base_reduction()
                 + depth / nmp_depth_divisor()

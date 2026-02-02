@@ -14,7 +14,7 @@ pub mod square;
 pub mod zobrist;
 
 use crate::board::castling::Rights;
-use crate::board::piece::Piece::{Bishop, Queen};
+use crate::board::piece::Piece::{Bishop, Pawn, Queen};
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -23,6 +23,7 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
+use crate::search::see;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -430,6 +431,19 @@ impl Board {
             return false;
         }
         minor_count <= 3
+    }
+
+    /// Estimate the static exchange evaluation (SEE) value of a move without performing a full SEE.
+    pub fn estimated_see(&self, m: Move) -> i32 {
+        let mut value = self.piece_at(m.to()).map_or(0, |p| see::value(p));
+
+        if let Some(promo) = m.promo_piece() {
+            value += see::value(promo) - see::value(Pawn);
+        } else if m.is_ep() {
+            value = see::value(Pawn)
+        }
+
+        value
     }
 
     pub const fn is_frc(&self) -> bool {
