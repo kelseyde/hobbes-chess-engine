@@ -153,6 +153,9 @@ pub(crate) mod scalar {
         // Unactivated L1 outputs in the quantized space L0_QUANT * L1_QUANT
         let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
 
+        println!("output_bucket: {}", output_bucket);
+        // println!("weights: {:?}", weights);
+
         // L1 matrix multiplication
         for input_idx in 0..L1_SIZE {
             let input: i32 = input[input_idx] as i32;
@@ -162,6 +165,8 @@ pub(crate) mod scalar {
                 intermediate[output_idx] += input * weight;
             }
         }
+
+        println!("l1 after matmul: {:?}", intermediate);
 
         // Re-quantise, add biases and activate L1 outputs
         let mut output: [i32; L2_SIZE] = [0; L2_SIZE];
@@ -220,8 +225,8 @@ pub(crate) mod scalar {
     }
 
     fn get_output_bucket(board: &Board) -> usize {
-        const DIVISOR: usize = 32 / OUTPUT_BUCKET_COUNT;
-        let occ_count = board.occ().count() as usize;
-        (occ_count - 2) / DIVISOR
+        const DIVISOR: usize = usize::div_ceil(32, OUTPUT_BUCKET_COUNT);
+        (board.occ().count() as usize - 2) / DIVISOR
     }
+
 }
