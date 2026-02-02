@@ -16,7 +16,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{L1_SIZE, NETWORK, SCALE};
+use crate::evaluation::network::{L1_SIZE, NETWORK, Q, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -66,9 +66,8 @@ impl NNUE {
 
         let mut output = Self::forward(us, them, board);
 
-        output /= 64;
         output *= SCALE;
-        output /= 64 * 64 * 64;
+        output /= (Q * Q * Q * Q) as i32;
         // output = scale_evaluation(board, output);
         output
     }

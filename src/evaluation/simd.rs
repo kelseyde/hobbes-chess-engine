@@ -188,8 +188,7 @@ pub(crate) mod scalar {
             for output_idx in 0..L3_SIZE {
                 let w_idx = input_idx * L3_SIZE + output_idx;
                 let weight = weights[w_idx];
-                let clamped = input.clamp(0, (Q * Q) as i32);
-                out[output_idx] += clamped * weight;
+                out[output_idx] += input * weight;
             }
         }
         out
@@ -200,11 +199,12 @@ pub(crate) mod scalar {
         let weights = &NETWORK.l3_weights[output_bucket];
         let bias = NETWORK.l3_biases[output_bucket];
 
-        let mut output: i32 = bias;
+        let mut output: i32 = 0;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
-            output += input * weight;
+            let clamped = input.clamp(0, Q * Q * Q);
+            output += clamped * weight;
         }
-        output
+        output + bias
     }
 
     fn get_output_bucket(board: &Board) -> usize {
