@@ -104,9 +104,13 @@ pub(crate) mod scalar {
     pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         let output_bucket = get_output_bucket(board);
         let l0_outputs = activate_l0(us, them);
+        println!("ft after clamping and packing: {:?}", l0_outputs);
         let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
+        println!("l1 outputs: {:?}", l1_outputs);
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
+        println!("l2 outputs: {:?}", l2_outputs);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
+        println!("l3 output: {}", l3_output);
         let mut output = l3_output as i64;
         output *= SCALE;
         output /= Q * Q * Q * Q;
