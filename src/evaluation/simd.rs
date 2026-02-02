@@ -221,6 +221,3 @@ pub(crate) mod scalar {
         (occ_count - 2) / DIVISOR
     }
 }
-
-// activte ft: q0
-// l1: gets shifted by this thing: comptime Q0_BITS * 2 - 9 + Q1_BITS - Q_BITS;
