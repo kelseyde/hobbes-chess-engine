@@ -1,7 +1,7 @@
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{FeatureWeights, L1_SIZE, NETWORK};
+use crate::evaluation::arch::{FeatureWeights, L1_SIZE, NETWORK};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]

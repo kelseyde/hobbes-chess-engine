@@ -19,6 +19,8 @@ pub const L0_BUCKET_COUNT: usize = 16;
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
 pub const L1_SIZE: usize = 2048;
+
+// ceil(log2(127 * 128 / 64)) = 8
 pub const L1_SHIFT: usize = 8;
 pub const L1_QUANT: usize = 128;
 

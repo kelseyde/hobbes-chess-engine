@@ -1,5 +1,5 @@
 use crate::board::{movegen, Board};
-use crate::evaluation::network::SCALE;
+use crate::evaluation::arch::SCALE;
 use crate::search::thread::ThreadData;
 use std::fs;
 use std::path::Path;

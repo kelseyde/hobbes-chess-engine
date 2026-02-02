@@ -1,6 +1,6 @@
 #[cfg(target_feature = "avx512f")]
 pub(crate) mod avx512 {
-    use crate::evaluation::network::{HIDDEN, QA};
+    use crate::evaluation::arch::{HIDDEN, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 32; // 32 i16 elements per 512-bit vector
@@ -54,7 +54,7 @@ pub(crate) mod avx512 {
 // AVX2 path is compiled only if AVX512F not enabled (so AVX512 takes precedence)
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 pub(crate) mod avx2 {
-    use crate::evaluation::network::{HIDDEN, QA};
+    use crate::evaluation::arch::{HIDDEN, QA};
     use std::arch::x86_64::*;
 
     const CHUNK_SIZE: usize = 16;
@@ -99,7 +99,7 @@ pub(crate) mod avx2 {
 #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
 pub(crate) mod scalar {
     use crate::board::Board;
-    use crate::evaluation::network::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
+    use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 
     pub fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         let output_bucket = get_output_bucket(board);
@@ -107,7 +107,11 @@ pub(crate) mod scalar {
         let l1_outputs = propagate_l1(&l0_outputs, output_bucket);
         let l2_outputs = propagate_l2(&l1_outputs, output_bucket);
         let l3_output = propagate_l3(&l2_outputs, output_bucket);
-        l3_output
+        let mut output = l3_output;
+        output /= Q;
+        output *= SCALE;
+        output /= Q * Q * Q;
+        output
     }
 
     /// L0 ('feature transformer') activation
@@ -129,7 +133,7 @@ pub(crate) mod scalar {
                 // Pairwise multiplication of left and right input.
                 let multiplied: i32 = l_clamped as i32 * r_clamped as i32;
 
-                // Downshift back into ~[0, 127].
+                // Downshift back into [0, 127].
                 // Note: this is equivalent to the << 7 >> 16 that mulhi does.
                 let result: u8 = (multiplied >> L0_SHIFT).clamp(0, 255) as u8;
                 output[base + i] = result;
@@ -168,10 +172,10 @@ pub(crate) mod scalar {
             out += bias;
 
             // Squared Clipped ReLU activation
-            let clamped: i32 = out.clamp(0, L1_QUANT as i32);
-            let screlu = clamped * clamped;
+            let clamped: i32 = out.clamp(0, Q);
+            let activated = clamped * clamped;
 
-            output[i] = screlu;
+            output[i] = activated;
         }
 
 
@@ -199,12 +203,12 @@ pub(crate) mod scalar {
         let weights = &NETWORK.l3_weights[output_bucket];
         let bias = NETWORK.l3_biases[output_bucket];
 
-        let mut output: i32 = 0;
+        let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
             let clamped = input.clamp(0, Q * Q * Q);
             output += clamped * weight;
         }
-        output + bias
+        output
     }
 
     fn get_output_bucket(board: &Board) -> usize {
@@ -213,3 +217,6 @@ pub(crate) mod scalar {
         (occ_count - 2) / DIVISOR
     }
 }
+
+// activte ft: q0
+// l1: gets shifted by this thing: comptime Q0_BITS * 2 - 9 + Q1_BITS - Q_BITS;

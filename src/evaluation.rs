@@ -1,7 +1,7 @@
 pub mod accumulator;
 pub mod cache;
 pub mod feature;
-pub mod network;
+pub mod arch;
 pub mod simd;
 pub mod stats;
 
@@ -16,7 +16,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::network::{L1_SIZE, NETWORK, Q, SCALE};
+use crate::evaluation::arch::{L1_SIZE, NETWORK, Q, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -65,9 +65,6 @@ impl NNUE {
         };
 
         let mut output = Self::forward(us, them, board);
-
-        output *= SCALE;
-        output /= (Q * Q * Q * Q) as i32;
         // output = scale_evaluation(board, output);
         output
     }
@@ -77,14 +74,14 @@ impl NNUE {
     pub(crate) fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
         #[cfg(target_feature = "avx512f")]
         {
-            use crate::evaluation::network::NETWORK;
+            use crate::evaluation::arch::NETWORK;
             use crate::evaluation::simd::avx512;
             let weights = &NETWORK.output_weights;
             unsafe { avx512::forward(us, &weights[0]) + avx512::forward(them, &weights[1]) }
         }
         #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
-            use crate::evaluation::network::NETWORK;
+            use crate::evaluation::arch::NETWORK;
             use crate::evaluation::simd::avx2;
             let weights = &NETWORK.output_weights;
             unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
@@ -379,7 +376,7 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
 #[inline(always)]
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
-    network::BUCKETS[sq]
+    arch::BUCKETS[sq]
 }
 
 #[inline(always)]
