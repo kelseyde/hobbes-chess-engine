@@ -138,6 +138,12 @@ fn alpha_beta<NODE: NodeType>(
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
 
+    
+    // Clear the principal variation for this ply.
+    if pv_node {
+        td.pv.clear(ply);
+    }
+
     // Determine if we are currently in check.
     let threats = board.threats;
     let in_check = threats.contains(board.king_sq(board.stm));
@@ -174,11 +180,6 @@ fn alpha_beta<NODE: NodeType>(
     beta = beta.min(Score::mate_in(ply));
     if alpha >= beta {
         return alpha;
-    }
-
-    // Clear the principal variation for this ply.
-    if pv_node {
-        td.pv.clear(ply);
     }
 
     let singular = td.stack[ply].singular;
@@ -814,14 +815,14 @@ fn qs(
         td.seldepth = ply + 1;
     }
 
-    // If drawn by repetition, insufficient material or fifty move rule, return zero.
-    if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
-    }
-
     // Clear the principal variation for this ply.
     if pv_node {
         td.pv.clear(ply);
+    }
+
+    // If drawn by repetition, insufficient material or fifty move rule, return zero.
+    if ply > 0 && is_draw(td, board) {
+        return Score::DRAW;
     }
 
     // If the maximum depth is reached, return the static evaluation of the position.
