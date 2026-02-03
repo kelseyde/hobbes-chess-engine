@@ -35,6 +35,20 @@ pub(crate) static NETWORK: Network =
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
+pub struct Arch {
+    pub input_buckets: [usize; 64],
+    pub output_bucket_count: usize,
+    pub l0_size: usize,
+    pub l0_quant: usize,
+    pub l0_shift: usize,
+    pub l1_size: usize,
+    pub l1_quant: usize,
+    pub l1_shift: usize,
+    pub l2_size: usize,
+    pub l3_size: usize,
+    pub scale: i64,
+}
+
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],

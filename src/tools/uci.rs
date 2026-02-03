@@ -108,27 +108,27 @@ impl UCI {
         println!("readyok");
     }
 
-    fn handle_setoption(&mut self, tokens: Vec<String>) {
-        let tokens: Vec<String> = tokens.iter().map(|s| s.to_lowercase()).collect();
-        let tokens: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
+fn handle_setoption(&mut self, tokens: Vec<String>) {
+    let tokens: Vec<String> = tokens.iter().map(|s| s.to_lowercase()).collect();
+    let tokens: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
 
-        match tokens.as_slice() {
-            ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
-            ["setoption", "name", "uci_chess960", "value", bool_str] => {
-                self.set_chess_960(bool_str)
-            }
-            ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
-            ["setoption", "name", "usesoftnodes", "value", bool_str] => {
-                self.set_use_soft_nodes(bool_str)
-            }
-            #[cfg(feature = "tuning")]
-            ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
-            _ => {
-                println!("info error unknown option");
-            }
+    match tokens.as_slice() {
+        ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
+        ["setoption", "name", "threads", "value", _] => (), // TODO set threads
+        ["setoption", "name", "uci_chess960", "value", bool_str] => {
+            self.set_chess_960(bool_str)
+        }
+        ["setoption", "name", "minimal", "value", bool_str] => self.set_minimal(bool_str),
+        ["setoption", "name", "usesoftnodes", "value", bool_str] => {
+            self.set_use_soft_nodes(bool_str)
+        }
+        #[cfg(feature = "tuning")]
+        ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
+        _ => {
+            println!("info error unknown option");
         }
     }
+}
 
     fn set_hash_size(&mut self, value_str: &str) {
         let value: usize = match value_str.parse() {
