@@ -138,6 +138,12 @@ fn alpha_beta<NODE: NodeType>(
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
 
+    
+    // Clear the principal variation for this ply.
+    if pv_node {
+        td.pv.clear(ply);
+    }
+
     // Determine if we are currently in check.
     let threats = board.threats;
     let in_check = threats.contains(board.king_sq(board.stm));
@@ -150,7 +156,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
-        return qs(board, td, alpha, beta, ply);
+        return qs(board, td, alpha, beta, ply, root_node);
     }
 
     // Ensure depth is not negative
@@ -174,11 +180,6 @@ fn alpha_beta<NODE: NodeType>(
     beta = beta.min(Score::mate_in(ply));
     if alpha >= beta {
         return alpha;
-    }
-
-    // Clear the principal variation for this ply.
-    if pv_node {
-        td.pv.clear(ply);
     }
 
     let singular = td.stack[ply].singular;
@@ -320,7 +321,7 @@ fn alpha_beta<NODE: NodeType>(
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
         if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
-            return qs(board, td, alpha, beta, ply);
+            return qs(board, td, alpha, beta, ply, root_node);
         }
 
         // Null Move Pruning
@@ -633,6 +634,9 @@ fn alpha_beta<NODE: NodeType>(
 
         if root_node {
             td.node_table.add(&mv, td.nodes - initial_nodes);
+            if searched_moves == 1 {
+                td.pv.update(0, mv);
+            }
         }
 
         if td.should_stop(Hard) {
@@ -791,7 +795,14 @@ fn alpha_beta<NODE: NodeType>(
 /// Extend the search by searching captures until a quiet position is reached, where there are no
 /// more captures and therefore limited potential for winning tactics that drastically alter the
 /// evaluation. Used to mitigate the 'horizon effect'.
-fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
+fn qs(
+    board: &Board,
+    td: &mut ThreadData,
+    mut alpha: i32,
+    beta: i32,
+    ply: usize,
+    root_node: bool,
+) -> i32 {
     let pv_node = beta - alpha > 1;
 
     // If search is aborted, exit immediately
@@ -804,14 +815,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.seldepth = ply + 1;
     }
 
-    // If drawn by repetition, insufficient material or fifty move rule, return zero.
-    if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
-    }
-
     // Clear the principal variation for this ply.
     if pv_node {
         td.pv.clear(ply);
+    }
+
+    // If drawn by repetition, insufficient material or fifty move rule, return zero.
+    if ply > 0 && is_draw(td, board) {
+        return Score::DRAW;
     }
 
     // If the maximum depth is reached, return the static evaluation of the position.
@@ -933,7 +944,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !is_killer && !see::see(board, &mv, qs_see_threshold()) {
+        if !in_check && !is_killer && !is_mate_score && !see::see(board, &mv, qs_see_threshold()) {
             continue;
         }
 
@@ -956,13 +967,17 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         move_count += 1;
         td.nodes += 1;
 
-        let score = -qs(&board, td, -beta, -alpha, ply + 1);
+        let score = -qs(&board, td, -beta, -alpha, ply + 1, false);
 
         td.stack[ply].mv = None;
         td.stack[ply].pc = None;
         td.stack[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
+
+        if root_node && move_count == 1 {
+            td.pv.update(ply, mv);
+        }
 
         if td.should_stop(Hard) {
             break;
@@ -1071,7 +1086,7 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     (base + depth * scale) / 10
 }
 
-fn print_search_info(board: &Board, td: &mut ThreadData) {
+fn print_search_info(_board: &Board, td: &mut ThreadData) {
     let depth = td.depth;
     let seldepth = td.seldepth;
     let best_score = format_score(td.best_score);
@@ -1087,20 +1102,8 @@ fn print_search_info(board: &Board, td: &mut ThreadData) {
         "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
         depth, seldepth, best_score, nodes, time, nps, hashfull
     );
-    let mut moves = 0;
-    let mut board = *board;
-    while moves < 24 {
-        let tt_move = td.tt.probe(board.hash())
-            .map(|entry| entry.best_move())
-            .filter(|mv| mv.exists())
-            .filter(|mv| board.is_pseudo_legal(&mv) && board.is_legal(&mv));
-        if let Some(mv) = tt_move {
-            print!(" {}", mv.to_uci());
-            board.make(&mv);
-            moves += 1;
-        } else {
-            break;
-        }
+    for mv in td.pv.line().iter().take(24) {
+        print!(" {}", mv.to_uci());
     }
     println!();
 }
