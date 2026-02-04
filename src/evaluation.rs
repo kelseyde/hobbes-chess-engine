@@ -5,6 +5,18 @@ pub mod arch;
 pub mod simd;
 pub mod stats;
 
+mod forward {
+    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    mod vectorised;
+    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    pub use vectorised::*;
+
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    mod scalar;
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    pub use scalar::*;
+}
+
 use crate::board::file::File;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
@@ -16,7 +28,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::arch::{L1_SIZE, NETWORK, Q, SCALE};
+use crate::evaluation::arch::{L1_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -48,9 +60,10 @@ impl Default for NNUE {
 }
 
 impl NNUE {
-    /// Evaluates the current position. Gets the 'us-perspective' and 'them-perspective' feature
-    /// sets, based on the side to move. Then, passes the features through the network to get the
-    /// static evaluation.
+
+    /// Forward pass through the neural network. We apply any pending accumulator updates and end up
+    /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
+    /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         self.apply_lazy_updates(board);
 
@@ -64,33 +77,16 @@ impl NNUE {
             Black => &acc.white_features,
         };
 
-        let mut output = Self::forward(us, them, board);
-        // output = scale_evaluation(board, output);
-        output
-    }
+        let output_bucket = get_output_bucket(board);
+        let l0_outputs = forward::activate_l0(us, them);
+        let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
+        let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
+        let l3_output = forward::propagate_l3(&l2_outputs, output_bucket);
+        let mut output = l3_output as i64;
+        output *= SCALE;
+        output /= Q * Q * Q * Q;
+        output as i32
 
-    /// Forward pass through the neural network. SIMD instructions are used if available to
-    /// accelerate inference. Otherwise, a fall-back scalar implementation is used.
-    pub(crate) fn forward(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], board: &Board) -> i32 {
-        #[cfg(target_feature = "avx512f")]
-        {
-            use crate::evaluation::arch::NETWORK;
-            use crate::evaluation::simd::avx512;
-            let weights = &NETWORK.output_weights;
-            unsafe { avx512::forward(us, &weights[0]) + avx512::forward(them, &weights[1]) }
-        }
-        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-        {
-            use crate::evaluation::arch::NETWORK;
-            use crate::evaluation::simd::avx2;
-            let weights = &NETWORK.output_weights;
-            unsafe { avx2::forward(us, &weights[0]) + avx2::forward(them, &weights[1]) }
-        }
-        #[cfg(all(not(target_feature = "avx2"), not(target_feature = "avx512f")))]
-        {
-            use crate::evaluation::simd::scalar;
-            scalar::forward(us, them, board)
-        }
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -205,27 +201,27 @@ impl NNUE {
     /// one by one. If at any point we encounter an accumulator that requires a refresh - due to
     /// bucket or mirror change - we bail out and perform a full refresh instead.
     fn apply_lazy_updates(&mut self, board: &Board) {
-        for perspective in [White, Black] {
+        for side in [White, Black] {
             // If already up-to-date for this perspective, then there is nothing to do.
-            if self.stack[self.current].computed[perspective] {
+            if self.stack[self.current].computed[side] {
                 continue;
             }
 
-            let king_sq = board.king_sq(perspective);
+            let king_sq = board.king_sq(side);
             let mirror = should_mirror(king_sq);
-            let bucket = king_bucket(king_sq, perspective);
+            let bucket = king_bucket(king_sq, side);
 
             // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
-            if self.stack[self.current].needs_refresh[perspective] {
-                self.full_refresh(board, self.current, perspective, mirror, bucket);
+            if self.stack[self.current].needs_refresh[side] {
+                self.full_refresh(board, self.current, side, mirror, bucket);
                 continue;
             }
 
             // Scan backwards to find the nearest parent accumulator that is computed for this
             // perspective, or requires a refresh.
             let mut curr = self.current - 1;
-            while !self.stack[curr].computed[perspective]
-                && !self.stack[curr].needs_refresh[perspective]
+            while !self.stack[curr].computed[side]
+                && !self.stack[curr].needs_refresh[side]
             {
                 if curr == 0 {
                     break;
@@ -233,9 +229,9 @@ impl NNUE {
                 curr -= 1;
             }
 
-            if self.stack[curr].needs_refresh[perspective] {
+            if self.stack[curr].needs_refresh[side] {
                 // If we found an accumulator that requires a full refresh, do that instead.
-                self.full_refresh(board, self.current, perspective, mirror, bucket);
+                self.full_refresh(board, self.current, side, mirror, bucket);
             } else {
                 // Otherwise, move forward through the stack applying all updates one by one.
                 let weights = &NETWORK.l0_weights[bucket];
@@ -244,17 +240,10 @@ impl NNUE {
                     let prev_acc = front.last().unwrap();
                     let next_acc = back.first_mut().unwrap();
                     let update = next_acc.update;
-                    let prev_features = prev_acc.features(perspective);
-                    let next_features = next_acc.features_mut(perspective);
-                    accumulator::apply_update(
-                        prev_features,
-                        next_features,
-                        weights,
-                        &update,
-                        perspective,
-                        mirror,
-                    );
-                    next_acc.computed[perspective] = true;
+                    let prev_fts = prev_acc.features(side);
+                    let next_fts = next_acc.features_mut(side);
+                    accumulator::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
+                    next_acc.computed[side] = true;
                     curr += 1;
                 }
             }
@@ -377,6 +366,11 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
     arch::BUCKETS[sq]
+}
+
+fn get_output_bucket(board: &Board) -> usize {
+    const DIVISOR: usize = usize::div_ceil(32, OUTPUT_BUCKET_COUNT);
+    (board.occ().count() as usize - 2) / DIVISOR
 }
 
 #[inline(always)]
