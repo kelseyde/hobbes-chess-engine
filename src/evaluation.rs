@@ -95,11 +95,14 @@ impl NNUE {
         };
 
         let output_bucket = get_output_bucket(board);
-        let l0_outputs = forward::activate_l0(us, them);
-        let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
-        let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
-        let l3_output = forward::propagate_l3(&l2_outputs, output_bucket);
-        let mut output = l3_output as i64;
+        let mut output: i64;
+        unsafe  {
+            let l0_outputs = forward::activate_l0(us, them);
+            let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
+            let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
+            let l3_output = forward::propagate_l3(&l2_outputs, output_bucket);
+            output = l3_output as i64;
+        }
         output *= SCALE;
         output /= Q * Q * Q * Q;
         output as i32

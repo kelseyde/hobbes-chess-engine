@@ -1,5 +1,4 @@
-use crate::board::Board;
-use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, Q};
 use crate::evaluation::simd;
 
 /// L0 ('feature transformer') activation
@@ -7,29 +6,39 @@ use crate::evaluation::simd;
 pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
     let mut output = [0; L1_SIZE];
 
-    let zero = simd::splat_i16(0);
-    let one = simd::splat_i16(L0_QUANT as i16);
+    let lo = simd::splat_i16(0);
+    let hi = simd::splat_i16(L0_QUANT as i16);
 
     for (side, feats) in [us, them].into_iter().enumerate() {
         let base = side * (L1_SIZE / 2);
 
         for i in (0..L1_SIZE / 2).step_by(2 * simd::I16_LANES) {
-            // Load the pair of inputs to be multiplied.
-            let left = *feats.as_ptr().add(i).cast();
-            let right = *feats.as_ptr().add(i + (L1_SIZE / 2) + simd::I16_LANES).cast();
+            let left1 = *feats.as_ptr().add(i).cast();
+            let left2 = *feats.as_ptr().add(i + simd::I16_LANES).cast();
 
-            // Clipped ReLU activation, in [0, 255] space.
-            let l_clamped = simd::clamp_i16(left, zero, one);
+            let right1 = *feats.as_ptr().add(i + L1_SIZE / 2).cast();
+            let right2 = *feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES).cast();
 
-            // Pairwise multiplication of left and right input.
-            let multiplied: i32 = l_clamped as i32 * r_clamped as i32;
+            let left1_clipped = simd::clamp_i16(left1, lo, hi);
+            let left2_clipped = simd::clamp_i16(left2, lo, hi);
 
-            // Downshift back into [0, 127] space.
-            // Note: this is equivalent to the << 7 >> 16 that mulhi does.
-            let result: u8 = (multiplied >> L0_SHIFT).clamp(0, 255) as u8;
-            output[base + i] = result;
+            let right1_clipped = simd::clamp_i16(right1, lo, hi);
+            let right2_clipped = simd::clamp_i16(right2, lo, hi);
+
+            let shifted1 = simd::shift_left_i16::<{ 16 - L0_SHIFT as i32 }>(left1_clipped);
+            let shifted2 = simd::shift_left_i16::<{ 16 - L0_SHIFT as i32 }>(left2_clipped);
+
+            let product1 = simd::mul_high_i16(shifted1, right1_clipped);
+            let product2 = simd::mul_high_i16(shifted2, right2_clipped);
+
+            let packed = simd::packus(product1, product2);
+            let unpacked = simd::permute(packed);
+
+            *output.as_mut_ptr().add(i + base).cast() = unpacked;
         }
+
     }
+
     output
 }
 
