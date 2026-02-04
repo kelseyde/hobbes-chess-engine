@@ -2,7 +2,6 @@ pub mod accumulator;
 pub mod cache;
 pub mod feature;
 pub mod arch;
-pub mod simd;
 pub mod stats;
 
 mod forward {
@@ -15,6 +14,24 @@ mod forward {
     mod scalar;
     #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     pub use scalar::*;
+}
+
+mod simd {
+    #[cfg(target_feature = "avx512f")]
+    mod avx512;
+    #[cfg(target_feature = "avx512f")]
+    pub use avx512::*;
+
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    mod avx2;
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    pub use avx2::*;
+
+    #[cfg(all(target_feature = "neon", not(any(target_feature = "avx2", target_feature = "avx512f"))))]
+    mod neon;
+    #[cfg(all(target_feature = "neon", not(any(target_feature = "avx2", target_feature = "avx512f"))))]
+    pub use neon::*;
+
 }
 
 use crate::board::file::File;
