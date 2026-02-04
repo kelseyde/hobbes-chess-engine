@@ -875,7 +875,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             alpha = static_eval
         }
         if alpha >= beta {
-            return (alpha + beta) / 2;
+            return beta + (alpha - beta) / 3;
         }
     }
 
