@@ -5,14 +5,14 @@ pub mod arch;
 pub mod stats;
 
 mod forward {
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    mod vectorised;
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    pub use vectorised::*;
+    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    // mod vectorised;
+    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    // pub use vectorised::*;
 
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     mod scalar;
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     pub use scalar::*;
 }
 
