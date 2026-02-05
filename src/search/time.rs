@@ -50,10 +50,13 @@ impl SearchLimits {
         depth: i32,
         nodes: u64,
         best_move_nodes: u64,
+        best_move_stability: u64,
     ) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
             let scaled =
-                soft_time.as_secs_f32() * self.node_tm_scale(depth, nodes, best_move_nodes);
+                soft_time.as_secs_f32()
+                    * self.node_tm_scale(depth, nodes, best_move_nodes)
+                    * Self::best_move_stability_scale(best_move_stability);
             Duration::from_secs_f32(scaled)
         })
     }
@@ -64,6 +67,10 @@ impl SearchLimits {
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
         (1.5 - fraction) * 1.35
+    }
+
+    const fn best_move_stability_scale(stability: u64) -> f32 {
+        (1.8 - 0.1 * (stability as f32)).max(0.9)
     }
 
     fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
