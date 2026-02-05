@@ -21,6 +21,3 @@ panic = "abort"
 tuning = []
 avx2 = []
 avx512 = []
-
-[build]
-rustflags = ["target-feature", "+avx2"]
