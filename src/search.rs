@@ -71,7 +71,11 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             if td.main && !td.minimal_output {
                 print_search_info(board, td);
             }
-            td.best_move_stability += (prev_mv == td.best_move) as u32;
+            if prev_mv == td.best_move {
+                td.best_move_stability += 1;
+            } else {
+                td.best_move_stability = 0;
+            }
             prev_mv = td.best_move;
 
             if td.should_stop(Hard) || Score::is_mate(score) {
