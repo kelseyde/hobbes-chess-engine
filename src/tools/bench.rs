@@ -79,7 +79,7 @@ pub fn bench(td: &mut ThreadData) {
     td.clear();
     let nps = (nodes / time) * 1000;
 
-    #[cfg(target_feature = "+avx2")]
+    #[cfg(target_feature = "avx2")]
     println!("AVX2");
 
     // #[cfg(target_feature = "avx512f")]
