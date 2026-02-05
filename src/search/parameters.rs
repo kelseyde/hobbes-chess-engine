@@ -164,4 +164,5 @@ tunable_params! {
     qs_see_threshold            = -77, -200, 100, 25;
     movepick_see_divisor        = 45, 30, 60, 2;
     movepick_see_offset         = 113, 80, 200, 10;
+    score_stability_threshold   = 12, 4, 24, 2;
 }
