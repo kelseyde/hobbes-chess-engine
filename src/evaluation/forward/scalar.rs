@@ -1,5 +1,4 @@
-use crate::board::Board;
-use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, Q};
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.

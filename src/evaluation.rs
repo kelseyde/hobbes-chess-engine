@@ -5,14 +5,14 @@ pub mod arch;
 pub mod stats;
 
 mod forward {
-    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    // mod vectorised;
-    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    // pub use vectorised::*;
+    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    mod vectorised;
+    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    pub use vectorised::*;
 
-    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     mod scalar;
-    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     pub use scalar::*;
 }
 
@@ -45,7 +45,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::arch::{L1_SIZE, NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use crate::evaluation::arch::{NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
     scale_value_rook,
@@ -105,6 +105,7 @@ impl NNUE {
         }
         output *= SCALE;
         output /= Q * Q * Q * Q;
+        output = scale_evaluation(board, output as i32) as i64;
         output as i32
 
     }
@@ -398,22 +399,22 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
-// fn scale_evaluation(board: &Board, eval: i32) -> i32 {
-//     let phase = material_phase(board);
-//     eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
-// }
-//
-// fn material_phase(board: &Board) -> i32 {
-//     let knights = board.pieces(Knight).count();
-//     let bishops = board.pieces(Bishop).count();
-//     let rooks = board.pieces(Rook).count();
-//     let queens = board.pieces(Queen).count();
-//
-//     scale_value_knight() * knights as i32
-//         + scale_value_bishop() * bishops as i32
-//         + scale_value_rook() * rooks as i32
-//         + scale_value_queen() * queens as i32
-// }
+fn scale_evaluation(board: &Board, eval: i32) -> i32 {
+    let phase = material_phase(board);
+    eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
+}
+
+fn material_phase(board: &Board) -> i32 {
+    let knights = board.pieces(Knight).count();
+    let bishops = board.pieces(Bishop).count();
+    let rooks = board.pieces(Rook).count();
+    let queens = board.pieces(Queen).count();
+
+    scale_value_knight() * knights as i32
+        + scale_value_bishop() * bishops as i32
+        + scale_value_rook() * rooks as i32
+        + scale_value_queen() * queens as i32
+}
 
 #[cfg(test)]
 mod tests {
