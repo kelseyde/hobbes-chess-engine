@@ -85,7 +85,7 @@ impl SearchLimits {
 
     fn root_complexity_scale(score: i32, complexity: u64, depth: i32) -> f32 {
         if !Score::is_mate(score) {
-            (0.8 + 0.002 * complexity as f32 * (depth as f32).ln()).min(1.5)
+            (0.8 + 0.002 * complexity as f32 * (depth as f32).ln()).clamp(1.0, 1.5)
         } else {
             1.0
         }
