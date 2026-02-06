@@ -32,6 +32,7 @@ pub struct ThreadData {
     pub limits: SearchLimits,
     pub start_time: Instant,
     pub best_move_stability: u32,
+    pub score_stability: u32,
     pub nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
@@ -62,6 +63,7 @@ impl Default for ThreadData {
             limits: SearchLimits::new(None, None, None, None, None, 0),
             start_time: Instant::now(),
             best_move_stability: 0,
+            score_stability: 0,
             nodes: 0,
             depth: 1,
             seldepth: 0,
@@ -82,6 +84,7 @@ impl ThreadData {
         self.best_move = Move::NONE;
         self.best_score = 0;
         self.best_move_stability = 0;
+        self.score_stability = 0;
     }
 
     pub fn clear(&mut self) {
@@ -110,10 +113,14 @@ impl ThreadData {
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
+        let score_stability = self.score_stability as u64;
 
-        if let Some(soft_time) =
-            self.limits
-                .scaled_soft_limit(self.depth, self.nodes, best_move_nodes, best_move_stability)
+        if let Some(soft_time) = self.limits.scaled_soft_limit(
+                self.depth,
+                self.nodes,
+                best_move_nodes,
+                best_move_stability,
+                score_stability)
         {
             if self.start_time.elapsed() >= soft_time {
                 return true;

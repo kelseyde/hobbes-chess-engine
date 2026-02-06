@@ -49,6 +49,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut delta = asp_delta();
     let mut reduction = 0;
     let mut prev_mv = Move::NONE;
+    let mut prev_score: i32 = 0;
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -71,12 +72,20 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             if td.main && !td.minimal_output {
                 print_search_info(board, td);
             }
+
             if prev_mv == td.best_move {
                 td.best_move_stability += 1;
             } else {
                 td.best_move_stability = 0;
             }
             prev_mv = td.best_move;
+
+            if score - prev_score.abs() < score_stability_threshold() {
+                td.score_stability += 1;
+            } else {
+                td.score_stability = 0;
+            }
+            prev_score = score;
 
             if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
