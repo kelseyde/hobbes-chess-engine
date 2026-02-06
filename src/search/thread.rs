@@ -33,6 +33,7 @@ pub struct ThreadData {
     pub start_time: Instant,
     pub best_move_stability: u32,
     pub score_stability: u32,
+    pub root_complexity: u32,
     pub nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
@@ -64,6 +65,7 @@ impl Default for ThreadData {
             start_time: Instant::now(),
             best_move_stability: 0,
             score_stability: 0,
+            root_complexity: 0,
             nodes: 0,
             depth: 1,
             seldepth: 0,
@@ -114,13 +116,16 @@ impl ThreadData {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
         let score_stability = self.score_stability as u64;
+        let root_complexity = self.root_complexity as u64;
 
         if let Some(soft_time) = self.limits.scaled_soft_limit(
                 self.depth,
+                self.best_score,
                 self.nodes,
                 best_move_nodes,
                 best_move_stability,
-                score_stability)
+                score_stability,
+                root_complexity)
         {
             if self.start_time.elapsed() >= soft_time {
                 return true;
