@@ -251,7 +251,6 @@ impl Board {
 
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
-
         let king = self.king_sq(side);
         let us = self.side(side);
         let them = self.side(!side);

@@ -116,12 +116,12 @@ impl ThreadData {
         let score_stability = self.score_stability as u64;
 
         if let Some(soft_time) = self.limits.scaled_soft_limit(
-                self.depth,
-                self.nodes,
-                best_move_nodes,
-                best_move_stability,
-                score_stability)
-        {
+            self.depth,
+            self.nodes,
+            best_move_nodes,
+            best_move_stability,
+            score_stability,
+        ) {
             if self.start_time.elapsed() >= soft_time {
                 return true;
             }

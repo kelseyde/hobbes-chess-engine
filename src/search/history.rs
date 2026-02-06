@@ -10,15 +10,15 @@ use crate::search::parameters::{
     capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max,
     cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset,
     cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale,
-    from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale,
-    lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max,
-    pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset,
-    qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset,
-    qs_capt_hist_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
+    from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max,
+    lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max,
+    lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset,
+    pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale,
+    qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale,
+    quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_lerp_factor,
+    quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max,
+    to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset,
+    to_hist_malus_scale,
 };
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -132,8 +132,15 @@ impl Histories {
                 let prev_mv = ss[ply - prev_ply].mv;
                 let prev_pc = ss[ply - prev_ply].pc;
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    self.cont_history
-                        .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
+                    self.cont_history.update(
+                        &prev_mv,
+                        prev_pc,
+                        mv,
+                        pc,
+                        total_score,
+                        bonus,
+                        prev_ply,
+                    );
                 }
             }
         }
@@ -273,8 +280,8 @@ impl ContinuationHistory {
         pc: Piece,
         total_score: i32,
         bonus: i16,
-        prev_ply: usize)
-    {
+        prev_ply: usize,
+    ) {
         let prev_ply = prev_ply - 1; // 0-based index
         let entry = &mut self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
