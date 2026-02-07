@@ -19,7 +19,6 @@ pub enum MoveFilter {
 }
 
 impl Board {
-
     /// Generate all legal moves for the current position.
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
@@ -39,7 +38,6 @@ impl Board {
 
     /// Generate all pseudo-legal moves for the current position.
     pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
-
         // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
         const STANDARD_PIECES: [Piece; 4] =
