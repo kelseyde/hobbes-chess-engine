@@ -104,36 +104,26 @@ pub fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SI
 
 /// L3 propagation
 pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
-    // const LANES: usize = L3_SIZE / simd::I32_LANES;
-    //
-    // let input_ptr = input.as_ptr();
-    // let weights = &NETWORK.l3_weights[output_bucket].as_ptr();
-    // let bias = NETWORK.l3_biases[output_bucket];
-    //
-    // let lo = simd::splat_i32(0);
-    // let hi = simd::splat_i32((Q * Q * Q) as i32);
-    //
-    // let mut output = [simd::splat_i32(0); LANES];
-    // for (lane, result) in output.iter_mut().enumerate() {
-    //     for i in (0..L3_SIZE).step_by(LANES * simd::I32_LANES) {
-    //         let w = *weights.add(i + lane * simd::I32_LANES).cast();
-    //         let b = *input_ptr.add(i + lane * simd::I32_LANES).cast();
-    //         let b_clamped = simd::clamp_i32(b, lo, hi);
-    //
-    //         *result = simd::mul_add_i32(w, b_clamped, *result);
-    //     }
-    // }
-    // simd::horizontal_sum_i32(output) + bias
+    const LANES: usize = L3_SIZE / simd::I32_LANES;
 
-    let weights = &NETWORK.l3_weights[output_bucket];
+    let input_ptr = input.as_ptr();
+    let weights = &NETWORK.l3_weights[output_bucket].as_ptr();
     let bias = NETWORK.l3_biases[output_bucket];
 
-    let mut output: i32 = bias;
-    for (&input, &weight) in input.iter().zip(weights.iter()) {
-        let clamped = input.clamp(0, (Q * Q * Q) as i32);
-        // This multiplication moves us into [0, Q^4] space
-        output += clamped * weight;
+    let lo = simd::splat_i32(0);
+    let hi = simd::splat_i32((Q * Q * Q) as i32);
+
+    let mut output = [simd::splat_i32(0); LANES];
+    for (lane, result) in output.iter_mut().enumerate() {
+        for i in (0..L3_SIZE).step_by(LANES * simd::I32_LANES) {
+            let w = *weights.add(i + lane * simd::I32_LANES).cast();
+            let b = *input_ptr.add(i + lane * simd::I32_LANES).cast();
+            let b_clamped = simd::clamp_i32(b, lo, hi);
+
+            *result = simd::mul_add_i32(w, b_clamped, *result);
+        }
     }
-    output
+    simd::horizontal_sum_i32(output) + bias
+
 }
 
