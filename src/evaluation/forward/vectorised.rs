@@ -86,19 +86,30 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
 }
 
 /// L2 propagation
-pub fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
+pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
+    const LANES: usize = L3_SIZE / simd::I32_LANES;
     let weights = &NETWORK.l2_weights[output_bucket];
-
     let mut out = NETWORK.l2_biases[output_bucket];
+
+    let mut acc = [simd::splat_i32(0); LANES];
+    for (v, vec) in acc.iter_mut().enumerate() {
+        *vec = simd::load_i32(out.as_ptr().add(v * simd::I32_LANES));
+    }
+
     for input_idx in 0..L2_SIZE {
-        let input = input[input_idx];
-        for output_idx in 0..L3_SIZE {
-            let w_idx = input_idx * L3_SIZE + output_idx;
-            let weight = weights[w_idx];
-            // This multiplication moves us into [0, Q^3] space
-            out[output_idx] += input * weight;
+        let x = simd::splat_i32(input[input_idx]);
+        let base = input_idx * L3_SIZE;
+
+        for v in 0..acc.len() {
+            let w = simd::load_i32(weights.as_ptr().add(base + v * simd::I32_LANES));
+            acc[v] = simd::mul_add_i32(w, x, acc[v]);
         }
     }
+
+    for (v, vec) in acc.into_iter().enumerate() {
+        simd::store_i32(out.as_mut_ptr().add(v * simd::I32_LANES), vec);
+    }
+
     out
 }
 
@@ -126,4 +137,3 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     simd::horizontal_sum_i32(output) + bias
 
 }
-

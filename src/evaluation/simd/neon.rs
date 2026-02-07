@@ -122,3 +122,18 @@ unsafe fn dot_bytes(u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
 pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
     vaddq_s32(i32s, dot_bytes(u8s, i8s))
 }
+
+#[inline(always)]
+pub unsafe fn load_i32(ptr: *const i32) -> int32x4_t {
+    vld1q_s32(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn store_i32(ptr: *mut i32, v: int32x4_t) {
+    vst1q_s32(ptr, v)
+}
+
+#[inline(always)]
+pub unsafe fn add_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
+    vaddq_s32(a, b)
+}
