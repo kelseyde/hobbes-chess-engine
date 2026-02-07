@@ -91,13 +91,17 @@ impl MovePicker {
 
                 let good_noisy = if entry.mv.is_promo() {
                     // Queen and knight promos are treated as good noisies
-                    entry.mv.promo_piece().is_some_and(|p| p == Queen || p == Knight)
+                    entry
+                        .mv
+                        .promo_piece()
+                        .is_some_and(|p| p == Queen || p == Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
                     if !self.split_noisies {
                         true
                     } else {
-                        let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+                        let threshold =
+                            -entry.score / movepick_see_divisor() + movepick_see_offset();
                         match threshold {
                             t if t > see::value(Queen) => false,
                             t if t < -see::value(Queen) => true,
@@ -166,7 +170,9 @@ impl MovePicker {
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
             let victim_value = see::value(victim);
-            let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            let history_score = td
+                .history
+                .capture_history_score(board, mv, attacker, victim);
             entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet

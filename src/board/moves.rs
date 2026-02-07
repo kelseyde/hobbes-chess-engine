@@ -11,7 +11,7 @@ pub const MAX_MOVES: usize = 218;
 
 #[derive(Debug, Clone)]
 pub struct MoveList {
-    pub list: ArrayVec<MoveListEntry, MAX_MOVES>
+    pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
 }
 
 #[derive(Debug, Copy, Clone)]

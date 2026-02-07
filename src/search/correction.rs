@@ -30,7 +30,6 @@ pub struct CorrectionHistories {
 }
 
 impl CorrectionHistories {
-
     #[rustfmt::skip]
     pub fn update_correction_history(
         &mut self,
