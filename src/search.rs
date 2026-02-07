@@ -50,7 +50,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut reduction = 0;
     let mut prev_mv = Move::NONE;
     let mut prev_score: i32 = 0;
-    let root_static_eval = td.nnue.evaluate(board);
+    td.root_qsearch_score = qs(board, td, alpha, beta, 0);
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -74,7 +74,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 print_search_info(board, td);
             }
 
-            update_tm_heuristics(td, score, root_static_eval, prev_mv, prev_score);
+            update_tm_heuristics(td, score, prev_mv, prev_score);
             prev_mv = td.best_move;
             prev_score = score;
 
@@ -1136,7 +1136,6 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 fn update_tm_heuristics(
     td: &mut ThreadData,
     score: i32,
-    root_static_eval: i32,
     prev_mv: Move, prev_score: i32
 ) {
     if prev_mv == td.best_move {
@@ -1150,6 +1149,4 @@ fn update_tm_heuristics(
     } else {
         td.score_stability = 0;
     }
-
-    td.root_complexity = (root_static_eval - score).abs() as u32;
 }
