@@ -14,7 +14,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::Stage::BadNoisies;
-use crate::search::movepicker::{MovePicker, Stage};
+use crate::search::movepicker::MovePicker;
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
 use crate::search::see::see;
@@ -319,7 +319,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search{
+    if !root_node && !pv_node && !in_check && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
@@ -407,7 +407,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
-    let mut flag = TTFlag::Upper;
+    let mut flag = Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
@@ -490,7 +490,7 @@ fn alpha_beta<NODE: NodeType>(
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
-            && move_picker.stage == Stage::BadNoisies
+            && move_picker.stage == BadNoisies
             && futility_margin <= alpha {
             break;
         }
@@ -528,7 +528,7 @@ fn alpha_beta<NODE: NodeType>(
             && tt_hit
             && mv == tt_move
             && depth >= se_min_depth() + tt_pv as i32
-            && tt_flag != TTFlag::Upper
+            && tt_flag != Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
@@ -767,7 +767,7 @@ fn alpha_beta<NODE: NodeType>(
     // quiet it will receive a quiet history bonus - but we give it one here too, which ensures the
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node
-        && flag == TTFlag::Upper
+        && flag == Upper
         && td.stack[ply - 1].captured.is_none() {
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             let prev_threats = td.stack[ply - 1].threats;
@@ -908,7 +908,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
-    let mut flag = TTFlag::Upper;
+    let mut flag = Upper;
     let mut captures = ArrayVec::<Move, 32>::new();
     let mut capture_count = 0;
 
