@@ -378,16 +378,6 @@ fn alpha_beta<NODE: NodeType>(
 
     }
 
-    // Internal Iterative Reductions
-    // If the position has not been searched yet, the search will be potentially expensive. So we
-    // search with a reduced depth expecting to record a move that we can later re-use.
-    if !root_node
-        && depth >= iir_min_depth()
-        && (pv_node || cut_node)
-        && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
-        depth -= 1;
-    }
-
     // Cutnode TT reduction.
     if cut_node
         && !singular_search
@@ -572,6 +562,16 @@ fn alpha_beta<NODE: NodeType>(
 
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + extension;
+
+        // Internal Iterative Reductions
+        // If the position has not been searched yet, the search will be potentially expensive. So we
+        // search with a reduced depth expecting to record a move that we can later re-use.
+        if !root_node
+            && new_depth >= iir_min_depth()
+            && (pv_node || cut_node)
+            && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
+            new_depth -= 1;
+        }
 
         let mut score = Score::MIN;
 
