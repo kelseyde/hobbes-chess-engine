@@ -511,7 +511,7 @@ fn alpha_beta<NODE: NodeType>(
                 + see_noisy_offset()).min(0)
         };
         if !pv_node
-            && depth <= see_max_depth()
+            && lmr_depth <= see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
