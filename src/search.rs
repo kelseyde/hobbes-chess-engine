@@ -13,8 +13,8 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
-use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::movepicker::MovePicker;
+use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
 use crate::search::see::see;
@@ -35,6 +35,7 @@ pub const MAX_PLY: usize = 256;
 pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.pv.clear(0);
     td.nnue.activate(board);
+    td.lmr.init();
 
     let root_moves = board.gen_legal_moves();
     match root_moves.len() {
@@ -430,7 +431,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_mate_score = Score::is_mate(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
-        let base_reduction = td.lmr.reduction(depth, legal_moves);
+        let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
         let mut extension = 0;
