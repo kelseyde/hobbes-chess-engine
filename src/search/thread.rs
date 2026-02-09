@@ -8,6 +8,7 @@ use crate::search::node::NodeStack;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
+use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 #[cfg(debug_assertions)]
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
@@ -234,31 +235,41 @@ impl Default for PrincipalVariationTable {
 }
 
 pub struct LmrTable {
-    table: Box<[[i32; 64]; 256]>,
+    table: Box<[[[i32; 2]; 64]; 256]>,
 }
 
 impl LmrTable {
-    pub fn reduction(&self, depth: i32, move_count: i32) -> i32 {
-        self.table[depth.min(255) as usize][move_count.min(63) as usize]
+    pub fn reduction(&self, depth: i32, move_count: i32, is_quiet: bool) -> i32 {
+        self.table[depth.min(255) as usize][move_count.min(63) as usize][is_quiet as usize]
+    }
+
+    pub fn init(&mut self) {
+        let quiet_base = lmr_quiet_base() as f32 / 100.0;
+        let quiet_divisor = lmr_quiet_div() as f32 / 100.0;
+        let noisy_base = lmr_noisy_base() as f32 / 100.0;
+        let noisy_divisor = lmr_noisy_div() as f32 / 100.0;
+
+        for depth in 1..256 {
+            for move_count in 1..64 {
+                for is_quiet in [true, false] {
+                    let base = if is_quiet { quiet_base } else { noisy_base };
+                    let divisor = if is_quiet { quiet_divisor } else { noisy_divisor };
+                    let ln_depth = (depth as f32).ln();
+                    let ln_move_count = (move_count as f32).ln();
+                    let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
+                    self.table[depth as usize][move_count as usize][is_quiet as usize] = reduction;
+                }
+            }
+        }
     }
 }
 
 impl Default for LmrTable {
     fn default() -> Self {
-        let base = 0.92;
-        let divisor = 3.11;
-
-        let mut table: Box<[[i32; 64]; 256]> = unsafe { boxed_and_zeroed() };
-
-        for depth in 1..256 {
-            for move_count in 1..64 {
-                let ln_depth = (depth as f32).ln();
-                let ln_move_count = (move_count as f32).ln();
-                let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
-                table[depth as usize][move_count as usize] = reduction;
+        unsafe {
+            Self {
+                table: boxed_and_zeroed(),
             }
         }
-
-        Self { table }
     }
 }
