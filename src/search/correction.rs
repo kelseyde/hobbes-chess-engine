@@ -6,7 +6,7 @@ use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 use Side::{Black, White};
 
-const CORRECTION_SCALE: i32 = 280;
+const CORRECTION_SCALE: i32 = 180;
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
 /// score. We can use this information to 'correct' the current static eval based on the diff between
