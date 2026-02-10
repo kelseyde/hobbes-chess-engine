@@ -5,21 +5,7 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max,
-    cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset,
-    cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale,
-    from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max,
-    lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max,
-    lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset,
-    pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale,
-    qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale,
-    quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_lerp_factor,
-    quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max,
-    to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset,
-    to_hist_malus_scale,
-};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_bonus_max, cont_hist_bonus_offset, cont_hist_bonus_scale, cont_hist_malus_max, cont_hist_malus_offset, cont_hist_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_bonus_max, lmr_cont_hist_bonus_offset, lmr_cont_hist_bonus_scale, lmr_cont_hist_malus_max, lmr_cont_hist_malus_offset, lmr_cont_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max, quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset, quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
 use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -196,10 +182,10 @@ impl QuietHistoryEntry {
     }
 
     #[inline]
-    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16) {
+    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16, factoriser_bonus: i16) {
         self.factoriser = gravity(
             self.factoriser as i32,
-            bonus as i32,
+            factoriser_bonus as i32,
             QuietHistory::FACTORISER_MAX,
         ) as i16;
 
@@ -221,12 +207,23 @@ impl QuietHistory {
         lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
     }
 
-    pub fn update(&mut self, stm: Side, mv: &Move, pc: Piece, threats: Bitboard, bonus: i16) {
+    pub fn update(
+        &mut self,
+        stm: Side,
+        mv: &Move,
+        pc: Piece,
+        threats: Bitboard,
+        bonus: i16,
+        factoriser_bonus: i16
+    ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
 
-        self.from_to_entries[stm][mv.from()][mv.to()].update(&threat_index, bonus);
-        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus);
+        self.from_to_entries[stm][mv.from()][mv.to()]
+            .update(&threat_index, bonus, factoriser_bonus);
+
+        self.piece_to_entries[stm][pc][mv.to()]
+            .update(&threat_index, bonus, factoriser_bonus);
     }
 
     pub fn clear(&mut self) {
@@ -343,10 +340,24 @@ pub fn quiet_history_bonus(depth: i32) -> i16 {
     history_bonus(depth, scale, offset, max)
 }
 
+pub fn quiet_history_factoriser_bonus(depth: i32) -> i16 {
+    let scale = quiet_fact_bonus_scale() as i16;
+    let offset = quiet_fact_bonus_offset() as i16;
+    let max = quiet_fact_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
 pub fn quiet_history_malus(depth: i32) -> i16 {
     let scale = quiet_hist_malus_scale() as i16;
     let offset = quiet_hist_malus_offset() as i16;
     let max = quiet_hist_malus_max() as i16;
+    history_malus(depth, scale, offset, max)
+}
+
+pub fn quiet_history_factoriser_malus(depth: i32) -> i16 {
+    let scale = quiet_fact_malus_scale() as i16;
+    let offset = quiet_fact_malus_offset() as i16;
+    let max = quiet_fact_malus_max() as i16;
     history_malus(depth, scale, offset, max)
 }
 
