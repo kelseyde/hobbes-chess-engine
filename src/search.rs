@@ -74,20 +74,6 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                 print_search_info(board, td);
             }
 
-            if prev_mv == td.best_move {
-                td.best_move_stability += 1;
-            } else {
-                td.best_move_stability = 0;
-            }
-            prev_mv = td.best_move;
-
-            if score - prev_score.abs() < score_stability_threshold() {
-                td.score_stability += 1;
-            } else {
-                td.score_stability = 0;
-            }
-            prev_score = score;
-
             if td.should_stop(Hard) || Score::is_mate(score) {
                 break;
             }
@@ -105,7 +91,22 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                     delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
                 }
-                _ => break,
+                _ => {
+                    if prev_mv == td.best_move {
+                        td.best_move_stability += 1;
+                    } else {
+                        td.best_move_stability = 0;
+                    }
+                    prev_mv = td.best_move;
+
+                    if score - prev_score.abs() < score_stability_threshold() {
+                        td.score_stability += 1;
+                    } else {
+                        td.score_stability = 0;
+                    }
+                    prev_score = score;
+                    break
+                },
             }
         }
 
