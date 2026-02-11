@@ -218,23 +218,25 @@ fn alpha_beta<NODE: NodeType>(
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
         if let Some(entry) = td.tt.probe(board.hash()) {
-            tt_hit = true;
-            tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
-            has_tt_score = Score::is_defined(tt_score);
-            tt_depth = entry.depth() as i32;
-            tt_flag = entry.flag();
-            tt_pv = tt_pv || entry.pv();
-            if can_use_tt_move(board, &entry.best_move()) {
-                tt_move = entry.best_move();
-                tt_move_noisy = board.is_noisy(&tt_move)
-            }
+            if entry.flag() != TTFlag::None {
+                tt_hit = true;
+                tt_score = entry.score(ply) as i32;
+                has_tt_score = Score::is_defined(tt_score);
+                tt_depth = entry.depth() as i32;
+                tt_flag = entry.flag();
+                tt_pv = tt_pv || entry.pv();
+                if can_use_tt_move(board, &entry.best_move()) {
+                    tt_move = entry.best_move();
+                    tt_move_noisy = board.is_noisy(&tt_move)
+                }
 
-            if !root_node
-                && !pv_node
-                && tt_depth >= depth
-                && entry.flag().bounds_match(tt_score, alpha, beta) {
-                return tt_score;
+                if !root_node
+                    && !pv_node
+                    && tt_depth >= depth
+                    && entry.flag().bounds_match(tt_score, alpha, beta) {
+                    return tt_score;
+                }
             }
         }
     }
@@ -249,7 +251,7 @@ fn alpha_beta<NODE: NodeType>(
     if !in_check {
         raw_eval = if singular_search {
             td.stack[ply].raw_eval
-        } else if tt_hit && Score::is_defined(tt_eval) {
+        } else if Score::is_defined(tt_eval) {
             tt_eval
         } else {
             td.nnue.evaluate(board)
