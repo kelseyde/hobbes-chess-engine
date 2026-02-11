@@ -859,16 +859,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_move = Move::NONE;
     let mut tt_eval = Score::MIN;
     if let Some(entry) = td.tt.probe(board.hash()) {
-        tt_hit = true;
-        tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
-        if can_use_tt_move(board, &entry.best_move()) {
-            tt_move = entry.best_move();
-        }
-        let score = entry.score(ply) as i32;
+        if entry.flag() != TTFlag::None {
+            tt_hit = true;
+            tt_pv = tt_pv || entry.pv();
+            if can_use_tt_move(board, &entry.best_move()) {
+                tt_move = entry.best_move();
+            }
+            let score = entry.score(ply) as i32;
 
-        if entry.flag().bounds_match(score, alpha, beta) {
-            return score;
+            if entry.flag().bounds_match(score, alpha, beta) {
+                return score;
+            }
         }
     }
 
@@ -876,7 +878,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut static_eval = Score::MIN;
 
     if !in_check {
-        raw_eval = if tt_hit && Score::is_defined(tt_eval) {
+        raw_eval = if Score::is_defined(tt_eval) {
             tt_eval
         } else {
             td.nnue.evaluate(board)
