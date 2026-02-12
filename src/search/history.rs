@@ -90,7 +90,7 @@ impl Histories {
                 }
             }
         }
-        cont_score
+        cont_score / ContinuationHistory::NUM_CONTHISTS
     }
 
     pub fn capture_history_score(
@@ -260,6 +260,7 @@ impl CaptureHistory {
 
 impl ContinuationHistory {
     const PLIES: [usize; 2] = [1, 2];
+    const NUM_CONTHISTS: i32 = ContinuationHistory::PLIES.len() as i32;
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
