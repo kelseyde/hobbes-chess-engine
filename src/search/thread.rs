@@ -9,7 +9,6 @@ use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
 use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
-#[cfg(debug_assertions)]
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -28,7 +27,6 @@ pub struct ThreadData {
     pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
     pub node_table: NodeTable,
-    #[cfg(debug_assertions)]
     pub debug_stats: DebugStatsMap,
     pub limits: SearchLimits,
     pub start_time: Instant,
@@ -59,7 +57,6 @@ impl Default for ThreadData {
             correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::default(),
-            #[cfg(debug_assertions)]
             debug_stats: DebugStatsMap::default(),
             limits: SearchLimits::new(None, None, None, None, None, 0),
             start_time: Instant::now(),

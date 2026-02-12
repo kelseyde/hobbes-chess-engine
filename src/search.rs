@@ -348,10 +348,12 @@ fn alpha_beta<NODE: NodeType>(
             && board.has_non_pawns()
             && tt_flag != Upper {
 
-            let r = nmp_base_reduction()
-                + depth / nmp_depth_divisor()
-                + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
-                + tt_move_noisy as i32;
+            let r = (nmp_base_reduction()
+                + depth * 64 / nmp_depth_divisor()
+                + ((static_eval - beta) * 64 / nmp_eval_divisor()).min(nmp_eval_max_reduction())
+                + tt_move_noisy as i32 * 64)
+                / 64;
+            td.debug_stats.insert(String::from("null move reduction"), r as i64);
 
             let mut board = *board;
             board.make_null_move();
