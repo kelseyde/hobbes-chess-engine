@@ -87,7 +87,7 @@ pub fn bench(td: &mut ThreadData) {
     td.clear();
 
     let seconds = end.duration_since(start).as_secs_f64();
-    println!("{} seconds\n", seconds);
+    println!("{:.4} seconds\n", seconds);
 
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
