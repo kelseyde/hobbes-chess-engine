@@ -295,6 +295,7 @@ fn alpha_beta<NODE: NodeType>(
     // If we reduced depth in the parent node, but now the static eval indicates the position is
     // improving, we correct the reduction 'in hindsight' by extending depth in the current node.
     if !root_node
+        && !pv_node
         && !in_check
         && !singular_search
         && depth >= hindsight_ext_min_depth()
