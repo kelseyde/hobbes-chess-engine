@@ -340,6 +340,7 @@ pub fn gen_frc_castle_moves_side(board: &Board, side: Side, kingside: bool, move
             moves.add_move(king_from, rook_from, flag);
         }
     }
+
 }
 
 #[inline(always)]
