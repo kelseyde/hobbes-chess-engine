@@ -320,6 +320,14 @@ impl Board {
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
     }
+    
+    pub fn diags(&self, side: Side) -> Bitboard {
+        self.bishops(side) | self.queens(side)
+    }
+    
+    pub fn orthos(&self, side: Side) -> Bitboard {
+        self.rooks(side) | self.queens(side)
+    }
 
     pub fn king(&self, side: Side) -> Bitboard {
         self.bb[Piece::King] & self.bb[side.idx()]
