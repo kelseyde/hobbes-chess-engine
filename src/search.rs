@@ -406,6 +406,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
+    let mut alpha_raises = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
     let mut flag = Upper;
@@ -592,6 +593,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
+            r += lmr_alpha_raise() * alpha_raises;
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c) / lmr_mvv_divisor());
@@ -666,6 +668,9 @@ fn alpha_beta<NODE: NodeType>(
             alpha = score;
             best_move = mv;
             flag = TTFlag::Exact;
+            if !Score::is_mate(score) {
+                alpha_raises += 1;
+            }
 
             if pv_node {
                 td.pv.update(ply, mv);
@@ -681,15 +686,6 @@ fn alpha_beta<NODE: NodeType>(
             if score >= beta {
                 flag = TTFlag::Lower;
                 break;
-            }
-
-            // Alpha-raise reduction
-            // It is unlikely that multiple moves raise alpha, therefore, if we have already raised
-            // alpha, we can reduce the search depth for the remaining moves.
-            if depth > alpha_raise_min_depth()
-                && depth < alpha_raise_max_depth()
-                && !is_mate_score {
-                depth -= 1;
             }
 
         }
