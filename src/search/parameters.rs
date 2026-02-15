@@ -33,7 +33,7 @@ tunable_params! {
     dynamic_policy_mult         = 8, 0, 20, 2,               true;
     dynamic_policy_min          = -56, -100, 0, 25,          true;
     dynamic_policy_max          = 199, 75, 200, 25,          true;
-    fp_max_depth                = 8, 4, 10, 1,               false;
+    fp_max_depth                = 14, 4, 16, 1,               false;
     fp_base                     = 164, 50, 250, 25,          true;
     fp_scale                    = 87, 50, 200, 10,           true;
     fp_movecount_mult           = 4, 2, 8, 1,                false;
