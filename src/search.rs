@@ -21,7 +21,7 @@ use crate::search::see::see;
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 
@@ -527,30 +527,38 @@ fn alpha_beta<NODE: NodeType>(
         if !root_node
             && !singular_search
             && tt_hit
-            && mv == tt_move
-            && depth >= se_min_depth() + tt_pv as i32
-            && tt_flag != Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && mv == tt_move {
 
-            let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
-            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
+            let se_depth_limit = se_min_depth() + tt_pv as i32;
+            if depth >= se_depth_limit
+                && tt_flag != Upper
+                && tt_depth >= depth - se_tt_depth_offset() {
 
-            td.stack[ply].singular = Some(mv);
-            let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
-            td.stack[ply].singular = None;
+                let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
+                let s_beta = (tt_score - s_beta_mult * se_beta_scale() / 16).max(-Score::MATE + 1);
+                let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
-            if score < s_beta {
+                td.stack[ply].singular = Some(mv);
+                let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+                td.stack[ply].singular = None;
+
+                if score < s_beta {
+                    extension = 1;
+                    extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
+                } else if s_beta >= beta {
+                    return (s_beta * s_depth + beta) / (s_depth + 1);
+                } else if tt_score >= beta {
+                    extension = -3 + pv_node as i32;
+                } else if cut_node {
+                    extension = -2;
+                } else if tt_score <= alpha {
+                    extension = -1;
+                }
+            } else if depth < se_depth_limit
+                && !in_check
+                && static_eval < alpha - 25
+                && tt_flag == Lower {
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_double_ext_margin()) as i32;
-            } else if s_beta >= beta {
-                return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
-                extension = -3 + pv_node as i32;
-            } else if cut_node {
-                extension = -2;
-            } else if tt_score <= alpha {
-                extension = -1;
             }
 
         }
