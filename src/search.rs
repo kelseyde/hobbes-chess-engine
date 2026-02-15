@@ -688,6 +688,15 @@ fn alpha_beta<NODE: NodeType>(
                 break;
             }
 
+            // Alpha-raise reduction
+            // It is unlikely that multiple moves raise alpha, therefore, if we have already raised
+            // alpha, we can reduce the search depth for the remaining moves.
+            if depth > alpha_raise_min_depth()
+                && depth < alpha_raise_max_depth()
+                && !is_mate_score {
+                depth -= 1;
+            }
+
         }
     }
 
