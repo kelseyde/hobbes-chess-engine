@@ -91,16 +91,12 @@ impl Board {
             threats |= attacks::knight(sq);
         }
 
-        for sq in self.bishops(!side) {
+        for sq in self.diags(!side) {
             threats |= attacks::bishop(sq, occ);
         }
 
-        for sq in self.rooks(!side) {
+        for sq in self.orthos(!side) {
             threats |= attacks::rook(sq, occ);
-        }
-
-        for sq in self.queens(!side) {
-            threats |= attacks::queen(sq, occ);
         }
 
         threats |= attacks::pawn_attacks(self.pawns(!side), !side);
@@ -344,6 +340,7 @@ pub fn gen_frc_castle_moves_side(board: &Board, side: Side, kingside: bool, move
             moves.add_move(king_from, rook_from, flag);
         }
     }
+
 }
 
 #[inline(always)]

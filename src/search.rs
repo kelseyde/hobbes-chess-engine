@@ -547,7 +547,7 @@ fn alpha_beta<NODE: NodeType>(
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
-                extension = -3;
+                extension = -3 + pv_node as i32;
             } else if cut_node {
                 extension = -2;
             } else if tt_score <= alpha {
