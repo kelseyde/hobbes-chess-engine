@@ -1,15 +1,15 @@
-use Piece::Knight;
 use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
+use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::thread::ThreadData;
+use Piece::Knight;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::board::piece::Piece::Queen;
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -91,13 +91,17 @@ impl MovePicker {
 
                 let good_noisy = if entry.mv.is_promo() {
                     // Queen and knight promos are treated as good noisies
-                    entry.mv.promo_piece().is_some_and(|p| p == Queen || p == Knight)
+                    entry
+                        .mv
+                        .promo_piece()
+                        .is_some_and(|p| p == Queen || p == Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
                     if !self.split_noisies {
                         true
                     } else {
-                        let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+                        let threshold =
+                            -entry.score / movepick_see_divisor() + movepick_see_offset();
                         match threshold {
                             t if t > see::value(Queen) => false,
                             t if t < -see::value(Queen) => true,
@@ -166,7 +170,9 @@ impl MovePicker {
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
             let victim_value = see::value(victim);
-            let history_score = td.history.capture_history_score(board, mv, attacker, victim);
+            let history_score = td
+                .history
+                .capture_history_score(board, mv, attacker, victim);
             entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet

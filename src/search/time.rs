@@ -1,5 +1,14 @@
 use std::time::Duration;
 
+/// The amount of time the engine chooses to search is split into to two limits: hard and soft. The
+/// hard limit is checked regularly during search, and the search is aborted as soon as it is reached.
+/// The soft limit is checked at the start of each iterative deepening loop, and the engine does not
+/// bother starting a new search if it is reached.
+///
+/// We can then scale the soft limit up or down during search, based on how stable the search is.
+/// 'How stable the search is' can be captured a few ways: how many iterations the best move has
+/// remained the same, how stable the search score has been across iterations, or what portion of
+/// nodes have been spent searching the current best move.
 pub struct SearchLimits {
     pub hard_time: Option<Duration>,
     pub soft_time: Option<Duration>,
@@ -45,25 +54,48 @@ impl SearchLimits {
         }
     }
 
+    /// Scale the soft limit based on how stable we think the search is, and therefore how confident
+    /// we are that the current best move is likely to be correct.
     pub fn scaled_soft_limit(
         &self,
         depth: i32,
         nodes: u64,
         best_move_nodes: u64,
+        best_move_stability: u64,
+        score_stability: u64,
     ) -> Option<Duration> {
         self.soft_time.map(|soft_time| {
-            let scaled =
-                soft_time.as_secs_f32() * self.node_tm_scale(depth, nodes, best_move_nodes);
+            let scaled = soft_time.as_secs_f32()
+                * Self::node_tm_scale(depth, nodes, best_move_nodes)
+                * Self::best_move_stability_scale(best_move_stability)
+                * Self::score_stability_scale(score_stability);
             Duration::from_secs_f32(scaled)
         })
     }
 
-    const fn node_tm_scale(&self, depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
+    /// 'Node TM': scale the soft limit based on the fraction of nodes that have been spent searching
+    /// the current best move. If we've spent a large fraction of our nodes on the current best move,
+    /// then we should be more confident in it and spend less time, and vice versa.
+    const fn node_tm_scale(depth: i32, nodes: u64, best_move_nodes: u64) -> f32 {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
         (1.5 - fraction) * 1.35
+    }
+
+    /// 'Best move stability': scale the soft limit based on how many iterations the best move has
+    /// remained the same. If the best move has been stable for many iterations, then we should be
+    /// more confident in it and spend less time, and vice versa.
+    const fn best_move_stability_scale(stability: u64) -> f32 {
+        (1.8 - 0.1 * (stability as f32)).max(0.9)
+    }
+
+    /// 'Score stability': scale the soft limit based on how stable the search score has been across
+    /// iterations. If the score has been stable for many iterations, then we should be more confident
+    /// in the search score and spend less time, and vice versa.
+    const fn score_stability_scale(stability: u64) -> f32 {
+        (1.2 - 0.04 * stability as f32).max(0.88)
     }
 
     fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
