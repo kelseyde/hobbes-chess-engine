@@ -573,6 +573,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + extension;
+        let gives_check = !board.checkers.is_empty();
 
         let mut score = Score::MIN;
 
@@ -589,6 +590,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
+            r -= lmr_gives_check() * gives_check as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
