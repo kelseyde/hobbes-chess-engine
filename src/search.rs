@@ -446,6 +446,7 @@ fn alpha_beta<NODE: NodeType>(
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
+            + pv_node as i32 * 25
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * 25
