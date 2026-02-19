@@ -230,11 +230,18 @@ fn alpha_beta<NODE: NodeType>(
                 tt_move_noisy = board.is_noisy(&tt_move)
             }
 
+            let correction = if !Score::is_mate(tt_score) {
+                td.correction_history.correction(board, &td.stack, ply)
+            } else {
+                0
+            };
+            let corrected_tt_score = tt_score + correction;
+
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
-                && entry.flag().bounds_match(tt_score, alpha, beta) {
-                return tt_score;
+                && entry.flag().bounds_match(corrected_tt_score, alpha, beta) {
+                return corrected_tt_score;
             }
         }
     }
@@ -864,7 +871,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
-        let score = entry.score(ply) as i32;
+        let raw_score = entry.score(ply) as i32;
+        let correction = if !Score::is_mate(raw_score) {
+            td.correction_history.correction(board, &td.stack, ply)
+        } else {
+            0
+        };
+        let score = raw_score + correction;
 
         if entry.flag().bounds_match(score, alpha, beta) {
             return score;
