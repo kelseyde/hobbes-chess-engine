@@ -38,6 +38,8 @@ tunable_params! {
     fp_scale                    = 87, 50, 200, 10,           true;
     fp_movecount_mult           = 4, 2, 8, 1,                false;
     fp_history_divisor          = 78, 64, 256, 16,           true;
+    fp_killer                   = 25, 0, 100, 10,            true;
+    fp_tt_upper                 = 20, 0, 100, 10,            true;
     lmp_max_depth               = 8, 6, 10, 1,               false;
     lmp_base                    = 2, 1, 5, 1,                false;
     lmp_improving_base          = 3, 1, 5, 1,                false;
