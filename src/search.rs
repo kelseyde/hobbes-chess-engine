@@ -961,7 +961,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
-        if !in_check && !is_killer && !see::see(board, &mv, qs_see_threshold()) {
+        if !in_check
+            && !is_killer
+            && threats.contains(mv.to())
+            && !see::see(board, &mv, qs_see_threshold()) {
             continue;
         }
 
