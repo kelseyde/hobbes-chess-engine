@@ -474,13 +474,12 @@ fn alpha_beta<NODE: NodeType>(
 
         // History Pruning
         // Skip quiet moves that have a bad history score.
-        if !pv_node
-            && !root_node
+        if !root_node
             && !is_mate_score
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth {
+            && history_score < hp_scale() * (depth * depth) + pv_node as i32 {
             move_picker.skip_quiets = true;
             continue
         }
