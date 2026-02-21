@@ -836,15 +836,11 @@ fn alpha_beta<NODE: NodeType>(
 /// Extend the search by searching captures until a quiet position is reached, where there are no
 /// more captures and therefore limited potential for winning tactics that drastically alter the
 /// evaluation. Used to mitigate the 'horizon effect'.
-fn qs(
-    board: &Board,
-    td: &mut ThreadData,
-    mut alpha: i32,
-    beta: i32,
-    ply: usize,
-) -> i32 {
+fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     let pv_node = beta - alpha > 1;
-    let root_node = ply == 0;
+
+    // PV handling might be incorrect if qsearch is called at root
+    debug_assert!(ply > 0);
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -987,9 +983,9 @@ fn qs(
         // Skip moves which lose material once all the pieces are swapped off.
         if !in_check
             && !is_killer
-            && !is_mate_score
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold()) {
+            && !see::see(board, &mv, qs_see_threshold())
+        {
             continue;
         }
 
@@ -1019,10 +1015,6 @@ fn qs(
         td.stack[ply].captured = None;
         td.keys.pop();
         td.nnue.undo();
-
-        if root_node && move_count == 1 {
-            td.pv.update(ply, mv);
-        }
 
         if td.should_stop(Hard) {
             break;
