@@ -9,6 +9,8 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use std::time::Duration;
+
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
@@ -47,6 +49,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
+    let mut bound = TTFlag::Exact;
     let mut delta = asp_delta();
     let mut reduction = 0;
     let mut prev_mv = Move::NONE;
@@ -70,8 +73,18 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             let search_depth = td.depth - reduction;
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
-            if td.main && !td.minimal_output {
-                print_search_info(board, td);
+            bound = if score <= alpha {
+                TTFlag::Upper
+            } else if score >= beta {
+                TTFlag::Lower
+            } else {
+                TTFlag::Exact
+            };
+            let skip_print =
+                bound != TTFlag::Exact && td.start_time.elapsed() < Duration::from_secs(1);
+
+            if td.main && !td.minimal_output && !skip_print {
+                print_search_info(board, td, score.clamp(alpha, beta), bound);
             }
 
             if prev_mv == td.best_move {
@@ -120,7 +133,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     // Print the final search stats
     if td.main {
-        print_search_info(board, td);
+        print_search_info(board, td, score.clamp(alpha, beta), bound);
     }
 
     // If time expired before a best move was found in search, pick the first legal move.
@@ -154,6 +167,12 @@ fn alpha_beta<NODE: NodeType>(
 
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
+
+    
+    // Clear the principal variation for this ply.
+    if pv_node {
+        td.pv.clear(ply);
+    }
 
     // Determine if we are currently in check.
     let threats = board.threats;
@@ -191,11 +210,6 @@ fn alpha_beta<NODE: NodeType>(
     beta = beta.min(Score::mate_in(ply));
     if alpha >= beta {
         return alpha;
-    }
-
-    // Clear the principal variation for this ply.
-    if pv_node {
-        td.pv.clear(ply);
     }
 
     let singular = td.stack[ply].singular;
@@ -651,6 +665,9 @@ fn alpha_beta<NODE: NodeType>(
 
         if root_node {
             td.node_table.add(&mv, td.nodes - initial_nodes);
+            if searched_moves == 1 {
+                td.pv.update(0, mv);
+            }
         }
 
         if td.should_stop(Hard) {
@@ -822,6 +839,9 @@ fn alpha_beta<NODE: NodeType>(
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     let pv_node = beta - alpha > 1;
 
+    // PV handling might be incorrect if qsearch is called at root
+    debug_assert!(ply > 0);
+
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
         return alpha;
@@ -832,14 +852,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.seldepth = ply + 1;
     }
 
-    // If drawn by repetition, insufficient material or fifty move rule, return zero.
-    if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
-    }
-
     // Clear the principal variation for this ply.
     if pv_node {
         td.pv.clear(ply);
+    }
+
+    // If drawn by repetition, insufficient material or fifty move rule, return zero.
+    if ply > 0 && is_draw(td, board) {
+        return Score::DRAW;
     }
 
     // If the maximum depth is reached, return the static evaluation of the position.
@@ -964,7 +984,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check
             && !is_killer
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold()) {
+            && !see::see(board, &mv, qs_see_threshold())
+        {
             continue;
         }
 
@@ -1102,10 +1123,9 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     (base + depth * scale) / 10
 }
 
-fn print_search_info(board: &Board, td: &mut ThreadData) {
+fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
     let depth = td.depth;
     let seldepth = td.seldepth;
-    let best_score = format_score(td.best_score);
     let nodes = td.nodes;
     let time = td.start_time.elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
@@ -1114,26 +1134,24 @@ fn print_search_info(board: &Board, td: &mut ThreadData) {
         0
     };
     let hashfull = td.tt.fill();
+    let bound = match bound {
+        TTFlag::Lower => " lowerbound",
+        TTFlag::Upper => " upperbound",
+        _ => "",
+    };
     print!(
-        "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
-        depth, seldepth, best_score, nodes, time, nps, hashfull
+        "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
+        depth,
+        seldepth,
+        format_score(score),
+        bound,
+        nodes,
+        time,
+        nps,
+        hashfull
     );
-    let mut moves = 0;
-    let mut board = *board;
-    while moves < 24 {
-        let tt_move = td
-            .tt
-            .probe(board.hash())
-            .map(|entry| entry.best_move())
-            .filter(|mv| mv.exists())
-            .filter(|mv| board.is_pseudo_legal(mv) && board.is_legal(mv));
-        if let Some(mv) = tt_move {
-            print!(" {}", mv.to_uci());
-            board.make(&mv);
-            moves += 1;
-        } else {
-            break;
-        }
+    for mv in td.pv.line().iter().take(24) {
+        print!(" {}", mv.to_uci());
     }
     println!();
 }
@@ -1144,7 +1162,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
-    print_search_info(board, td);
+    print_search_info(board, td, static_eval, TTFlag::Exact);
     (td.best_move, td.best_score)
 }
 
