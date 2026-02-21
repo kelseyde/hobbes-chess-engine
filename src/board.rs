@@ -251,7 +251,6 @@ impl Board {
 
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
-
         let king = self.king_sq(side);
         let us = self.side(side);
         let them = self.side(!side);
@@ -320,6 +319,14 @@ impl Board {
 
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
+    }
+    
+    pub fn diags(&self, side: Side) -> Bitboard {
+        self.bishops(side) | self.queens(side)
+    }
+    
+    pub fn orthos(&self, side: Side) -> Bitboard {
+        self.rooks(side) | self.queens(side)
     }
 
     pub fn king(&self, side: Side) -> Bitboard {

@@ -30,7 +30,6 @@ pub struct CorrectionHistories {
 }
 
 impl CorrectionHistories {
-
     #[rustfmt::skip]
     pub fn update_correction_history(
         &mut self,
@@ -48,13 +47,21 @@ impl CorrectionHistories {
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        self.pawn_corrhist.update(us, pawn_hash, depth, static_eval, best_score);
-        self.nonpawn_corrhist[White].update(us, w_nonpawn_hash, depth, static_eval, best_score);
-        self.nonpawn_corrhist[Black].update( us, b_nonpawn_hash, depth, static_eval, best_score);
-        self.major_corrhist.update(us, major_hash, depth, static_eval, best_score);
-        self.minor_corrhist.update(us, minor_hash, depth, static_eval, best_score);
-        self.update_countermove_correction(board, ss, ply, depth, static_eval, best_score);
-        self.update_follow_up_move_correction(board, ss, ply, depth, static_eval, best_score);
+        let diff = best_score - static_eval;
+        let pawn_bonus = pawn_corr_bonus(diff, depth);
+        let nonpawn_bonus = nonpawn_corr_bonus(diff, depth);
+        let major_bonus = major_corr_bonus(diff, depth);
+        let minor_bonus = minor_corr_bonus(diff, depth);
+        let counter_bonus = counter_corr_bonus(diff, depth);
+        let follow_up_bonus = follow_up_corr_bonus(diff, depth);
+
+        self.pawn_corrhist.update(us, pawn_hash, pawn_bonus);
+        self.nonpawn_corrhist[White].update(us, w_nonpawn_hash, nonpawn_bonus);
+        self.nonpawn_corrhist[Black].update( us, b_nonpawn_hash, nonpawn_bonus);
+        self.major_corrhist.update(us, major_hash, major_bonus);
+        self.minor_corrhist.update(us, minor_hash, minor_bonus);
+        self.update_countermove_correction(board, ss, ply, counter_bonus);
+        self.update_follow_up_move_correction(board, ss, ply, follow_up_bonus);
     }
 
     #[rustfmt::skip]
@@ -91,20 +98,12 @@ impl CorrectionHistories {
         board: &Board,
         ss: &NodeStack,
         ply: usize,
-        depth: i32,
-        static_eval: i32,
-        best_score: i32,
+        bonus: i32,
     ) {
         if ply >= 1 {
             if let Some(prev_mv) = ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.countermove_corrhist.update(
-                    board.stm,
-                    encoded_mv,
-                    depth,
-                    static_eval,
-                    best_score,
-                );
+                self.countermove_corrhist.update(board.stm, encoded_mv, bonus);
             }
         }
     }
@@ -114,20 +113,12 @@ impl CorrectionHistories {
         board: &Board,
         ss: &NodeStack,
         ply: usize,
-        depth: i32,
-        static_eval: i32,
-        best_score: i32,
+        bonus: i32,
     ) {
         if ply >= 2 {
             if let Some(prev_mv) = ss[ply - 2].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.follow_up_move_corrhist.update(
-                    board.stm,
-                    encoded_mv,
-                    depth,
-                    static_eval,
-                    best_score,
-                );
+                self.follow_up_move_corrhist.update(board.stm, encoded_mv, bonus);
             }
         }
     }
@@ -183,11 +174,7 @@ impl<const N: usize> CorrectionHistory<N> {
         self.entries[stm][idx]
     }
 
-    pub fn update(&mut self, stm: Side, key: u64, depth: i32, static_eval: i32, score: i32) {
-        let diff = score - static_eval;
-        let bonus = (corr_bonus_mult() * depth * diff / corr_bonus_div())
-            .clamp(corr_bonus_min(), corr_bonus_max());
-
+    pub fn update(&mut self, stm: Side, key: u64, bonus: i32) {
         let idx = self.index(key);
         let entry = &mut self.entries[stm][idx];
         *entry += bonus - bonus.abs() * (*entry) / Self::MAX_HISTORY;
@@ -200,4 +187,74 @@ impl<const N: usize> CorrectionHistory<N> {
     fn index(&self, key: u64) -> usize {
         key as usize & Self::MASK
     }
+}
+
+fn pawn_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_pawn_bonus_mult(),
+        corr_pawn_bonus_div(),
+        corr_pawn_bonus_min(),
+        corr_pawn_bonus_max(),
+    )
+}
+
+fn nonpawn_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_nonpawn_bonus_mult(),
+        corr_nonpawn_bonus_div(),
+        corr_nonpawn_bonus_min(),
+        corr_nonpawn_bonus_max(),
+    )
+}
+
+fn major_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_major_bonus_mult(),
+        corr_major_bonus_div(),
+        corr_major_bonus_min(),
+        corr_major_bonus_max(),
+    )
+}
+
+fn minor_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_minor_bonus_mult(),
+        corr_minor_bonus_div(),
+        corr_minor_bonus_min(),
+        corr_minor_bonus_max(),
+    )
+}
+
+fn counter_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_counter_bonus_mult(),
+        corr_counter_bonus_div(),
+        corr_counter_bonus_min(),
+        corr_counter_bonus_max(),
+    )
+}
+
+fn follow_up_corr_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_follow_up_bonus_mult(),
+        corr_follow_up_bonus_div(),
+        corr_follow_up_bonus_min(),
+        corr_follow_up_bonus_max(),
+    )
+}
+
+fn corr_bonus(diff: i32, depth: i32, mult: i32, div: i32, min: i32, max: i32) -> i32 {
+    (mult * depth * diff / div).clamp(min, max)
 }
