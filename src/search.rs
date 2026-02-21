@@ -9,6 +9,8 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use std::time::Duration;
+
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
@@ -46,6 +48,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
+    let mut bound = TTFlag::Exact;
     let mut delta = asp_delta();
     let mut reduction = 0;
 
@@ -67,8 +70,18 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             let search_depth = td.depth - reduction;
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
-            if td.main && !td.minimal_output {
-                print_search_info(board, td);
+            bound = if score <= alpha {
+                TTFlag::Upper
+            } else if score >= beta {
+                TTFlag::Lower
+            } else {
+                TTFlag::Exact
+            };
+            let skip_print =
+                bound != TTFlag::Exact && td.start_time.elapsed() < Duration::from_secs(1);
+
+            if td.main && !td.minimal_output && !skip_print {
+                print_search_info(board, td, score.clamp(alpha, beta), bound);
             }
 
             if td.should_stop(Hard) || Score::is_mate(score) {
@@ -103,7 +116,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     // Print the final search stats
     if td.main {
-        print_search_info(board, td);
+        print_search_info(board, td, score.clamp(alpha, beta), bound);
     }
 
     // If time expired before a best move was found in search, pick the first legal move.
@@ -156,7 +169,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
-        return qs(board, td, alpha, beta, ply, root_node);
+        return qs(board, td, alpha, beta, ply);
     }
 
     // Ensure depth is not negative
@@ -321,7 +334,7 @@ fn alpha_beta<NODE: NodeType>(
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
         if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
-            return qs(board, td, alpha, beta, ply, root_node);
+            return qs(board, td, alpha, beta, ply);
         }
 
         // Null Move Pruning
@@ -801,9 +814,9 @@ fn qs(
     mut alpha: i32,
     beta: i32,
     ply: usize,
-    root_node: bool,
 ) -> i32 {
     let pv_node = beta - alpha > 1;
+    let root_node = ply == 0;
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -967,7 +980,7 @@ fn qs(
         move_count += 1;
         td.nodes += 1;
 
-        let score = -qs(&board, td, -beta, -alpha, ply + 1, false);
+        let score = -qs(&board, td, -beta, -alpha, ply + 1);
 
         td.stack[ply].mv = None;
         td.stack[ply].pc = None;
@@ -1086,10 +1099,9 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
     (base + depth * scale) / 10
 }
 
-fn print_search_info(_board: &Board, td: &mut ThreadData) {
+fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
     let depth = td.depth;
     let seldepth = td.seldepth;
-    let best_score = format_score(td.best_score);
     let nodes = td.nodes;
     let time = td.start_time.elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
@@ -1098,9 +1110,21 @@ fn print_search_info(_board: &Board, td: &mut ThreadData) {
         0
     };
     let hashfull = td.tt.fill();
+    let bound = match bound {
+        TTFlag::Lower => " lowerbound",
+        TTFlag::Upper => " upperbound",
+        _ => "",
+    };
     print!(
-        "info depth {} seldepth {} score {} nodes {} time {} nps {} hashfull {} pv",
-        depth, seldepth, best_score, nodes, time, nps, hashfull
+        "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
+        depth,
+        seldepth,
+        format_score(score),
+        bound,
+        nodes,
+        time,
+        nps,
+        hashfull
     );
     for mv in td.pv.line().iter().take(24) {
         print!(" {}", mv.to_uci());
@@ -1114,7 +1138,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
-    print_search_info(board, td);
+    print_search_info(board, td, static_eval, TTFlag::Exact);
     (td.best_move, td.best_score)
 }
 
