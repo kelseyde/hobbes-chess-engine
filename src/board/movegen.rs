@@ -223,35 +223,20 @@ fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
 }
 
 #[inline(always)]
+#[rustfmt::skip]
 pub fn gen_standard_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
     let king_sq = board.king_sq(side);
     let occ = board.occ();
     if board.has_kingside_rights(side) {
-        let travel_mask = if side == White {
-            CastleTravel::WKS
-        } else {
-            CastleTravel::BKS
-        };
-        let safety_mask = if side == White {
-            CastleSafety::WKS
-        } else {
-            CastleSafety::BKS
-        };
+        let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
+        let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
         if (occ & travel_mask).is_empty() && !is_attacked(safety_mask, side, occ, board) {
             moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
         }
     }
     if board.has_queenside_rights(side) {
-        let travel_mask = if side == White {
-            CastleTravel::WQS
-        } else {
-            CastleTravel::BQS
-        };
-        let safety_mask = if side == White {
-            CastleSafety::WQS
-        } else {
-            CastleSafety::BQS
-        };
+        let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
+        let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
         if (occ & travel_mask).is_empty() && !is_attacked(safety_mask, side, occ, board) {
             moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
         }
