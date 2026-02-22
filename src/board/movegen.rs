@@ -157,42 +157,28 @@ fn gen_pawn_moves(
 ) {
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
+    // Quiet pawn moves (single and double pushes).
     if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
         for to in single_push(pawns, side, occ) {
-            let from = if side == White {
-                to.minus(8)
-            } else {
-                to.plus(8)
-            };
+            let from = sq_offset(to, side, 8, 8);
             moves.add_move(from, to, MoveFlag::Standard);
         }
 
         for to in double_push(pawns, side, occ) {
-            let from = if side == White {
-                to.minus(16)
-            } else {
-                to.plus(16)
-            };
+            let from = sq_offset(to, side, 16, 16);
             moves.add_move(from, to, MoveFlag::DoublePush);
         }
     }
 
+    // Noisy pawn moves (captures, promos, en passant).
     if filter != MoveFilter::Quiets {
         for to in left_capture(pawns, side, them) {
-            let from = if side == White {
-                to.minus(7)
-            } else {
-                to.plus(9)
-            };
+            let from = sq_offset(to, side, 7, 9);
             moves.add_move(from, to, MoveFlag::Standard);
         }
 
         for to in right_capture(pawns, side, them) {
-            let from = if side == White {
-                to.minus(9)
-            } else {
-                to.plus(7)
-            };
+            let from = sq_offset(to, side, 9, 7);
             moves.add_move(from, to, MoveFlag::Standard);
         }
 
@@ -200,48 +186,28 @@ fn gen_pawn_moves(
             let ep_bb = Bitboard::of_sq(ep_sq);
 
             for to in left_capture(pawns, side, ep_bb) {
-                let from = if side == White {
-                    to.minus(7)
-                } else {
-                    to.plus(9)
-                };
+                let from = sq_offset(to, side, 7, 9);
                 moves.add_move(from, to, MoveFlag::EnPassant);
             }
 
             for to in right_capture(pawns, side, ep_bb) {
-                let from = if side == White {
-                    to.minus(9)
-                } else {
-                    to.plus(7)
-                };
+                let from = sq_offset(to, side, 9, 7);
                 moves.add_move(from, to, MoveFlag::EnPassant);
             }
         }
 
         for to in push_promos(pawns, side, occ) {
-            let from = if side == White {
-                to.minus(8)
-            } else {
-                to.plus(8)
-            };
+            let from = sq_offset(to, side, 8, 8);
             add_promos(moves, from, to);
         }
 
         for to in left_capture_promos(pawns, side, them) {
-            let from = if side == White {
-                to.minus(7)
-            } else {
-                to.plus(9)
-            };
+            let from = sq_offset(to, side, 7, 9);
             add_promos(moves, from, to);
         }
 
         for to in right_capture_promos(pawns, side, them) {
-            let from = if side == White {
-                to.minus(9)
-            } else {
-                to.plus(7)
-            };
+            let from = sq_offset(to, side, 9, 7);
             add_promos(moves, from, to);
         }
     }
@@ -453,4 +419,12 @@ pub fn is_check(board: &Board, side: Side) -> bool {
     let occ = board.occ();
     let king_sq = board.king_sq(side);
     is_sq_attacked(king_sq, side, occ, board)
+}
+
+#[inline(always)]
+const fn sq_offset(sq: Square, side: Side, w: u8, b: u8) -> Square {
+    match side {
+        White => sq.minus(w),
+        _ => sq.plus(b),
+    }
 }
