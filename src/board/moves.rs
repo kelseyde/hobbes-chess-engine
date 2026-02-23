@@ -227,15 +227,21 @@ impl MoveList {
         }
     }
 
+    #[inline(always)]
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
-        self.list.push(MoveListEntry {
-            mv: Move::new(from, to, flag),
-            score: 0,
-        });
+        unsafe {
+            self.list.push_unchecked(MoveListEntry {
+                mv: Move::new(from, to, flag),
+                score: 0,
+            });
+        }
     }
 
+    #[inline(always)]
     pub fn add(&mut self, entry: MoveListEntry) {
-        self.list.push(entry);
+        unsafe {
+            self.list.push_unchecked(entry);
+        }
     }
 
     pub const fn is_empty(&self) -> bool {
