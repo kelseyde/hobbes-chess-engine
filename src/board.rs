@@ -415,8 +415,10 @@ impl Board {
     #[inline(always)]
     pub fn is_noisy(&self, mv: &Move) -> bool {
         let flag = mv.flag();
-        matches!(flag, MoveFlag::PromoQ | MoveFlag::PromoR | MoveFlag::PromoB | MoveFlag::PromoN)
-            || self.captured(mv).is_some()
+        matches!(
+            flag,
+            MoveFlag::PromoQ | MoveFlag::PromoR | MoveFlag::PromoB | MoveFlag::PromoN
+        ) || self.captured(mv).is_some()
     }
 
     pub fn side_at(&self, sq: Square) -> Option<Side> {

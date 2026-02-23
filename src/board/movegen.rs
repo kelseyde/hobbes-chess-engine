@@ -155,19 +155,61 @@ fn gen_pawn_moves(
 
     // Quiet pawn moves (single and double pushes).
     if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-        add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
-        add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
+        add_pawn_moves(
+            single_push(pawns, side, occ),
+            side,
+            8,
+            8,
+            MoveFlag::Standard,
+            moves,
+        );
+        add_pawn_moves(
+            double_push(pawns, side, occ),
+            side,
+            16,
+            16,
+            MoveFlag::DoublePush,
+            moves,
+        );
     }
 
     // Noisy pawn moves (captures, promos, en passant).
     if filter != MoveFilter::Quiets {
-        add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
-        add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
+        add_pawn_moves(
+            left_capture(pawns, side, them),
+            side,
+            7,
+            9,
+            MoveFlag::Standard,
+            moves,
+        );
+        add_pawn_moves(
+            right_capture(pawns, side, them),
+            side,
+            9,
+            7,
+            MoveFlag::Standard,
+            moves,
+        );
 
         if let Some(ep_sq) = board.ep_sq {
             let ep_bb = Bitboard::of_sq(ep_sq);
-            add_pawn_moves(left_capture(pawns, side, ep_bb), side, 7, 9, MoveFlag::EnPassant, moves);
-            add_pawn_moves(right_capture(pawns, side, ep_bb), side, 9, 7, MoveFlag::EnPassant, moves);
+            add_pawn_moves(
+                left_capture(pawns, side, ep_bb),
+                side,
+                7,
+                9,
+                MoveFlag::EnPassant,
+                moves,
+            );
+            add_pawn_moves(
+                right_capture(pawns, side, ep_bb),
+                side,
+                9,
+                7,
+                MoveFlag::EnPassant,
+                moves,
+            );
         }
 
         add_pawn_promos(push_promos(pawns, side, occ), side, 8, 8, moves);
@@ -254,7 +296,6 @@ pub fn gen_frc_castle_moves_side(board: &Board, side: Side, kingside: bool, move
             moves.add_move(king_from, rook_from, flag);
         }
     }
-
 }
 
 #[inline(always)]
@@ -323,7 +364,14 @@ fn add_promos(moves: &mut MoveList, from: Square, to: Square) {
 }
 
 #[inline(always)]
-fn add_pawn_moves(targets: Bitboard, side: Side, w_off: u8, b_off: u8, flag: MoveFlag, moves: &mut MoveList) {
+fn add_pawn_moves(
+    targets: Bitboard,
+    side: Side,
+    w_off: u8,
+    b_off: u8,
+    flag: MoveFlag,
+    moves: &mut MoveList,
+) {
     for to in targets {
         let from = sq_offset(to, side, w_off, b_off);
         moves.add_move(from, to, flag);

@@ -5,10 +5,10 @@ use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
 use crate::search::node::NodeStack;
+use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{Score, MAX_PLY};
-use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 #[cfg(debug_assertions)]
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
@@ -253,7 +253,11 @@ impl LmrTable {
             for move_count in 1..64 {
                 for is_quiet in [true, false] {
                     let base = if is_quiet { quiet_base } else { noisy_base };
-                    let divisor = if is_quiet { quiet_divisor } else { noisy_divisor };
+                    let divisor = if is_quiet {
+                        quiet_divisor
+                    } else {
+                        noisy_divisor
+                    };
                     let ln_depth = (depth as f32).ln();
                     let ln_move_count = (move_count as f32).ln();
                     let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
