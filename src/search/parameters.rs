@@ -34,8 +34,10 @@ tunable_params! {
     dynamic_policy_min          = -59, -100, 0, 25,          true;
     dynamic_policy_max          = 199, 75, 200, 25,          true;
     fp_max_depth                = 8, 4, 10, 1,               false;
-    fp_base                     = 170, 50, 250, 25,          true;
-    fp_scale                    = 93, 50, 200, 10,           true;
+    fp_pv_base                  = 170, 50, 250, 25,          true;
+    fp_nonpv_base               = 85, 50, 250, 25,           true;
+    fp_pv_scale                 = 93, 50, 200, 10,           true;
+    fp_nonpv_scale              = 93, 50, 200, 10,           true;
     fp_movecount_mult           = 4, 2, 8, 1,                false;
     fp_history_divisor          = 76, 64, 256, 16,           true;
     fp_killer                   = 22, 0, 100, 10,            true;

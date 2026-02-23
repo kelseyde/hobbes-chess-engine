@@ -458,8 +458,8 @@ fn alpha_beta<NODE: NodeType>(
 
         // Futility Pruning
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
-        let futility_margin = fp_base()
-            + fp_scale() * lmr_depth
+        let futility_margin = futility_base(pv_node)
+            + futility_scale(pv_node) * lmr_depth
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
@@ -1121,6 +1121,20 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
         lmp_scale()
     };
     (base + depth * scale) / 10
+}
+
+fn futility_base(pv_node: bool) -> i32 {
+    match pv_node { 
+        true => fp_pv_base(),
+        false => fp_nonpv_base(),
+    }
+}
+
+fn futility_scale(pv_node: bool) -> i32 {
+    match pv_node { 
+        true => fp_pv_scale(),
+        false => fp_nonpv_scale(),
+    }
 }
 
 fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
