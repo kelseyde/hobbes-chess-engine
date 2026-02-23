@@ -20,7 +20,7 @@ pub struct MoveListEntry {
     pub score: i32,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFlag {
     Standard = 0,
     DoublePush = 1,

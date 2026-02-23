@@ -147,6 +147,22 @@ impl Board {
 }
 
 #[inline(always)]
+fn add_pawn_moves(targets: Bitboard, side: Side, w_off: u8, b_off: u8, flag: MoveFlag, moves: &mut MoveList) {
+    for to in targets {
+        let from = sq_offset(to, side, w_off, b_off);
+        moves.add_move(from, to, flag);
+    }
+}
+
+#[inline(always)]
+fn add_pawn_promos(targets: Bitboard, side: Side, w_off: u8, b_off: u8, moves: &mut MoveList) {
+    for to in targets {
+        let from = sq_offset(to, side, w_off, b_off);
+        add_promos(moves, from, to);
+    }
+}
+
+#[inline(always)]
 fn gen_pawn_moves(
     board: &Board,
     side: Side,
@@ -159,57 +175,24 @@ fn gen_pawn_moves(
 
     // Quiet pawn moves (single and double pushes).
     if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-        for to in single_push(pawns, side, occ) {
-            let from = sq_offset(to, side, 8, 8);
-            moves.add_move(from, to, MoveFlag::Standard);
-        }
-
-        for to in double_push(pawns, side, occ) {
-            let from = sq_offset(to, side, 16, 16);
-            moves.add_move(from, to, MoveFlag::DoublePush);
-        }
+        add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
+        add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
     }
 
     // Noisy pawn moves (captures, promos, en passant).
     if filter != MoveFilter::Quiets {
-        for to in left_capture(pawns, side, them) {
-            let from = sq_offset(to, side, 7, 9);
-            moves.add_move(from, to, MoveFlag::Standard);
-        }
-
-        for to in right_capture(pawns, side, them) {
-            let from = sq_offset(to, side, 9, 7);
-            moves.add_move(from, to, MoveFlag::Standard);
-        }
+        add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
+        add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
 
         if let Some(ep_sq) = board.ep_sq {
             let ep_bb = Bitboard::of_sq(ep_sq);
-
-            for to in left_capture(pawns, side, ep_bb) {
-                let from = sq_offset(to, side, 7, 9);
-                moves.add_move(from, to, MoveFlag::EnPassant);
-            }
-
-            for to in right_capture(pawns, side, ep_bb) {
-                let from = sq_offset(to, side, 9, 7);
-                moves.add_move(from, to, MoveFlag::EnPassant);
-            }
+            add_pawn_moves(left_capture(pawns, side, ep_bb), side, 7, 9, MoveFlag::EnPassant, moves);
+            add_pawn_moves(right_capture(pawns, side, ep_bb), side, 9, 7, MoveFlag::EnPassant, moves);
         }
 
-        for to in push_promos(pawns, side, occ) {
-            let from = sq_offset(to, side, 8, 8);
-            add_promos(moves, from, to);
-        }
-
-        for to in left_capture_promos(pawns, side, them) {
-            let from = sq_offset(to, side, 7, 9);
-            add_promos(moves, from, to);
-        }
-
-        for to in right_capture_promos(pawns, side, them) {
-            let from = sq_offset(to, side, 9, 7);
-            add_promos(moves, from, to);
-        }
+        add_pawn_promos(push_promos(pawns, side, occ), side, 8, 8, moves);
+        add_pawn_promos(left_capture_promos(pawns, side, them), side, 7, 9, moves);
+        add_pawn_promos(right_capture_promos(pawns, side, them), side, 9, 7, moves);
     }
 }
 
