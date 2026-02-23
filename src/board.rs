@@ -268,8 +268,7 @@ impl Board {
         for attacker in potential_attackers {
             let between = ray::between(king, attacker);
             let maybe_pinned = us & between;
-            // Exactly one piece between king and attacker means it's pinned
-            if !maybe_pinned.is_empty() && maybe_pinned.pop().is_empty() {
+            if maybe_pinned.count() == 1 {
                 pinned |= maybe_pinned;
             }
         }
