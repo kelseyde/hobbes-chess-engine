@@ -14,7 +14,6 @@ pub mod square;
 pub mod zobrist;
 
 use crate::board::castling::Rights;
-use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -128,7 +127,7 @@ impl Board {
         self.pinned = self.calc_both_pinned();
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
         let bb: Bitboard = Bitboard::of_sq(sq);
         self.bb[pc] ^= bb;
@@ -230,16 +229,16 @@ impl Board {
 
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
-        if self.ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(self.ep_sq.unwrap());
+        if let Some(old_ep) = self.ep_sq {
+            self.keys.hash ^= Zobrist::ep(old_ep);
         }
         let ep_sq = if flag == MoveFlag::DoublePush {
             Some(self.ep_capture_sq(sq))
         } else {
             None
         };
-        if ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
+        if let Some(new_ep) = ep_sq {
+            self.keys.hash ^= Zobrist::ep(new_ep);
         }
         ep_sq
     }
@@ -255,8 +254,8 @@ impl Board {
         let us = self.side(side);
         let them = self.side(!side);
 
-        let their_diags = (self.pcs(Queen) | self.pcs(Bishop)) & them;
-        let their_orthos = (self.pcs(Queen) | self.pcs(Piece::Rook)) & them;
+        let their_diags = self.diags(!side);
+        let their_orthos = self.orthos(!side);
 
         if their_diags.is_empty() && their_orthos.is_empty() {
             return Bitboard::empty();
@@ -269,7 +268,8 @@ impl Board {
         for attacker in potential_attackers {
             let between = ray::between(king, attacker);
             let maybe_pinned = us & between;
-            if maybe_pinned.count() == 1 {
+            // Exactly one piece between king and attacker means it's pinned
+            if !maybe_pinned.is_empty() && maybe_pinned.pop().is_empty() {
                 pinned |= maybe_pinned;
             }
         }
@@ -301,78 +301,97 @@ impl Board {
         self.keys.hash
     }
 
+    #[inline(always)]
     pub fn pawns(&self, side: Side) -> Bitboard {
         self.bb[Piece::Pawn] & self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn knights(&self, side: Side) -> Bitboard {
         self.bb[Piece::Knight] & self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn bishops(&self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop] & self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn rooks(&self, side: Side) -> Bitboard {
         self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
     }
-    
+
+    #[inline(always)]
     pub fn diags(&self, side: Side) -> Bitboard {
         self.bishops(side) | self.queens(side)
     }
-    
+
+    #[inline(always)]
     pub fn orthos(&self, side: Side) -> Bitboard {
         self.rooks(side) | self.queens(side)
     }
 
+    #[inline(always)]
     pub fn king(&self, side: Side) -> Bitboard {
         self.bb[Piece::King] & self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn king_sq(&self, side: Side) -> Square {
         self.king(side).lsb()
     }
 
+    #[inline(always)]
     pub fn occ(&self) -> Bitboard {
         self.bb[White.idx()] | self.bb[Black.idx()]
     }
 
+    #[inline(always)]
     pub fn pcs(&self, piece: Piece) -> Bitboard {
         self.bb[piece]
     }
 
+    #[inline(always)]
     pub fn side(&self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
 
+    #[inline(always)]
     pub fn white(&self) -> Bitboard {
         self.bb[White.idx()]
     }
 
+    #[inline(always)]
     pub fn black(&self) -> Bitboard {
         self.bb[Black.idx()]
     }
 
+    #[inline(always)]
     pub fn us(&self) -> Bitboard {
         self.bb[self.stm.idx()]
     }
 
+    #[inline(always)]
     pub fn them(&self) -> Bitboard {
         self.bb[(!self.stm).idx()]
     }
 
+    #[inline(always)]
     pub fn our(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[self.stm.idx()]
     }
 
+    #[inline(always)]
     pub fn their(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[(!self.stm).idx()]
     }
 
+    #[inline(always)]
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
         self.pcs[sq]
     }
@@ -381,18 +400,23 @@ impl Board {
         self.bb[pc]
     }
 
+    #[inline(always)]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
-        if mv.is_castle() {
+        let flag = mv.flag();
+        if matches!(flag, MoveFlag::CastleK | MoveFlag::CastleQ) {
             return None;
         }
-        if mv.is_ep() {
+        if flag == MoveFlag::EnPassant {
             return Some(Piece::Pawn);
         }
         self.piece_at(mv.to())
     }
 
+    #[inline(always)]
     pub fn is_noisy(&self, mv: &Move) -> bool {
-        mv.is_promo() || self.captured(mv).is_some()
+        let flag = mv.flag();
+        matches!(flag, MoveFlag::PromoQ | MoveFlag::PromoR | MoveFlag::PromoB | MoveFlag::PromoN)
+            || self.captured(mv).is_some()
     }
 
     pub fn side_at(&self, sq: Square) -> Option<Side> {
