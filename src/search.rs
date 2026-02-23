@@ -488,13 +488,12 @@ fn alpha_beta<NODE: NodeType>(
 
         // History Pruning
         // Skip quiet moves that have a bad history score.
-        if !pv_node
-            && !root_node
+        if !root_node
             && !is_mate_score
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth {
+            && history_score < history_prune_scale(pv_node) * depth * depth {
             move_picker.skip_quiets = true;
             continue
         }
@@ -1121,6 +1120,14 @@ fn late_move_threshold(depth: i32, improving: bool) -> i32 {
         lmp_scale()
     };
     (base + depth * scale) / 10
+}
+
+fn history_prune_scale(pv_node: bool) -> i32 {
+    if pv_node {
+        hp_pv_scale()
+    } else {
+        hp_nonpv_scale()
+    }
 }
 
 fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
