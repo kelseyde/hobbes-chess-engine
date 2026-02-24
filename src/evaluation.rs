@@ -202,7 +202,9 @@ impl NNUE {
         let us = board.stm;
 
         let new_pc = mv.promo_piece().unwrap_or(pc);
-        let refresh_required = refresh_required(board, *mv, new_pc, us);
+        let mirror_changed = mirror_changed(board, *mv, new_pc);
+        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
+        let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
             self.stack[self.current].needs_refresh[us] = true;
@@ -363,19 +365,31 @@ impl NNUE {
 }
 
 #[inline]
-fn refresh_required(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
+fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
     }
     let prev_king_sq = mv.from();
-    let new_king_sq = if mv.is_castle() && board.is_frc() {
+    let mut new_king_sq = mv.to();
+    if mv.is_castle() && board.is_frc() {
         let kingside = castling::is_kingside(mv.from(), mv.to());
-        castling::king_to(board.stm, kingside)
-    } else {
-        mv.to()
-    };
+        new_king_sq = castling::king_to(board.stm, kingside);
+    }
+    king_bucket(prev_king_sq, side) != king_bucket(new_king_sq, side)
+}
+
+#[inline]
+fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
+    if pc != King {
+        return false;
+    }
+    let prev_king_sq = mv.from();
+    let mut new_king_sq = mv.to();
+    if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        new_king_sq = castling::king_to(board.stm, kingside);
+    }
     should_mirror(prev_king_sq) != should_mirror(new_king_sq)
-        || king_bucket(prev_king_sq, side) != king_bucket(new_king_sq, side)
 }
 
 #[inline(always)]
@@ -389,13 +403,13 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
-#[inline(always)]
+#[inline]
 fn scale_evaluation(board: &Board, eval: i32) -> i32 {
     let phase = material_phase(board);
     eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
 }
 
-#[inline(always)]
+#[inline]
 fn material_phase(board: &Board) -> i32 {
     let knights = board.pieces(Knight).count();
     let bishops = board.pieces(Bishop).count();

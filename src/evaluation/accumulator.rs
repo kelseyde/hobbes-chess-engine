@@ -250,7 +250,7 @@ pub fn apply_update(
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn add(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -274,7 +274,7 @@ pub fn add(
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn sub(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -298,7 +298,7 @@ pub fn sub(
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn add_sub(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -324,7 +324,7 @@ pub fn add_sub(
     }
 }
 
-#[inline(always)]
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_sub_sub(
     input_features: &[i16; HIDDEN],
@@ -354,7 +354,7 @@ pub fn add_sub_sub(
     }
 }
 
-#[inline(always)]
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_add_sub_sub(
     input_features: &[i16; HIDDEN],
@@ -387,7 +387,7 @@ pub fn add_add_sub_sub(
     }
 }
 
-#[inline(always)]
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add_add_add_add(
     input_features: &[i16; HIDDEN],
@@ -420,7 +420,7 @@ pub fn add_add_add_add(
     }
 }
 
-#[inline(always)]
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn sub_sub_sub_sub(
     input_features: &[i16; HIDDEN],

@@ -190,30 +190,36 @@ impl MovePicker {
         } else {
             &mut self.moves
         };
-        let len = moves.len();
         loop {
-            if self.idx >= len {
+            if moves.is_empty() || self.idx >= moves.len() {
                 return None;
             }
             let mut best_index = self.idx;
-            let mut best_score = moves.list[self.idx].score;
-            for j in self.idx + 1..len {
-                let score = moves.list[j].score;
-                if score > best_score {
-                    best_score = score;
-                    best_index = j;
+            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
+            for j in self.idx + 1..moves.len() {
+                if let Some(current) = moves.get(j) {
+                    if current.score > best_score {
+                        best_score = current.score;
+                        best_index = j;
+                    }
+                } else {
+                    break;
                 }
             }
             if best_index != self.idx {
                 moves.list.swap(self.idx, best_index);
             }
 
-            let mv = moves.list[self.idx].mv;
-            self.idx += 1;
-            if mv == self.tt_move {
-                continue;
+            if let Some(best_move) = moves.get(self.idx) {
+                let mv = best_move.mv;
+                if mv == self.tt_move {
+                    self.idx += 1;
+                    continue;
+                }
+                self.idx += 1;
+                return Some(mv);
             }
-            return Some(mv);
+            return None;
         }
     }
 }

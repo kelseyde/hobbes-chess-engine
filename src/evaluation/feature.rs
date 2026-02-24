@@ -18,12 +18,12 @@ const PIECE_OFFSET: usize = 64;
 const SIDE_OFFSET: usize = 64 * 6;
 
 impl Feature {
-    #[inline(always)]
+    #[inline]
     pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
         Feature { pc, sq, side }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
         let sq_index = self.square_index(perspective, mirror);
         let pc_offset = self.pc as usize * PIECE_OFFSET;
@@ -35,7 +35,7 @@ impl Feature {
         side_offset + pc_offset + sq_index
     }
 
-    #[inline(always)]
+    #[inline]
     fn square_index(&self, perspective: Side, mirror: bool) -> usize {
         let mut sq_index = self.sq;
         if perspective != White {
