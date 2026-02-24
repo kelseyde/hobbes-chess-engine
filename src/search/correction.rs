@@ -103,7 +103,8 @@ impl CorrectionHistories {
         if ply >= 1 {
             if let Some(prev_mv) = ss[ply - 1].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.countermove_corrhist.update(board.stm, encoded_mv, bonus);
+                self.countermove_corrhist
+                    .update(board.stm, encoded_mv, bonus);
             }
         }
     }
@@ -118,7 +119,8 @@ impl CorrectionHistories {
         if ply >= 2 {
             if let Some(prev_mv) = ss[ply - 2].mv {
                 let encoded_mv = prev_mv.encoded() as u64;
-                self.follow_up_move_corrhist.update(board.stm, encoded_mv, bonus);
+                self.follow_up_move_corrhist
+                    .update(board.stm, encoded_mv, bonus);
             }
         }
     }

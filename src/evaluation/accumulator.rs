@@ -176,6 +176,7 @@ impl Accumulator {
         }
     }
 
+    #[inline]
     pub fn sub_sub_sub_sub(
         &mut self,
         sub1: Feature,
@@ -209,6 +210,7 @@ impl Accumulator {
     }
 }
 
+#[rustfmt::skip]
 pub fn apply_update(
     input_features: &[i16; HIDDEN],
     output_features: &mut [i16; HIDDEN],
@@ -220,77 +222,30 @@ pub fn apply_update(
     match update.update_type() {
         AccumulatorUpdateType::None => {}
         AccumulatorUpdateType::Add => {
-            if let Some(add1) = update.adds[0] {
-                add(
-                    input_features,
-                    output_features,
-                    add1,
-                    weights,
-                    perspective,
-                    mirror,
-                );
-            }
+            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
+            add(input_features, output_features, add1, weights, perspective, mirror);
         }
         AccumulatorUpdateType::Sub => {
-            if let Some(sub1) = update.subs[0] {
-                sub(
-                    input_features,
-                    output_features,
-                    sub1,
-                    weights,
-                    perspective,
-                    mirror,
-                );
-            }
+            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
+            sub(input_features, output_features, sub1, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddSub => {
-            if let (Some(add1), Some(sub1)) = (update.adds[0], update.subs[0]) {
-                add_sub(
-                    input_features,
-                    output_features,
-                    add1,
-                    sub1,
-                    weights,
-                    perspective,
-                    mirror,
-                );
-            }
+            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
+            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
+            add_sub(input_features, output_features, add1, sub1, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddSubSub => {
-            if let (Some(add), Some(sub1), Some(sub2)) =
-                (update.adds[0], update.subs[0], update.subs[1])
-            {
-                add_sub_sub(
-                    input_features,
-                    output_features,
-                    add,
-                    sub1,
-                    sub2,
-                    weights,
-                    perspective,
-                    mirror,
-                );
-            }
+            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
+            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
+            let sub2 = unsafe { update.subs[1].unwrap_unchecked() };
+            add_sub_sub(input_features, output_features, add1, sub1, sub2, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddAddSubSub => {
-            if let (Some(add1), Some(add2), Some(sub1), Some(sub2)) = (
-                update.adds[0],
-                update.adds[1],
-                update.subs[0],
-                update.subs[1],
-            ) {
-                add_add_sub_sub(
-                    input_features,
-                    output_features,
-                    add1,
-                    add2,
-                    sub1,
-                    sub2,
-                    weights,
-                    perspective,
-                    mirror,
-                );
-            }
+            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
+            let add2 = unsafe { update.adds[1].unwrap_unchecked() };
+            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
+            let sub2 = unsafe { update.subs[1].unwrap_unchecked() };
+            add_add_sub_sub(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
         }
     }
 }
