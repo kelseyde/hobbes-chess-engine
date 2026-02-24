@@ -142,6 +142,7 @@ impl Board {
     }
 }
 
+#[rustfmt::skip]
 #[inline(always)]
 fn gen_pawn_moves(
     board: &Board,
@@ -155,61 +156,19 @@ fn gen_pawn_moves(
 
     // Quiet pawn moves (single and double pushes).
     if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
-        add_pawn_moves(
-            single_push(pawns, side, occ),
-            side,
-            8,
-            8,
-            MoveFlag::Standard,
-            moves,
-        );
-        add_pawn_moves(
-            double_push(pawns, side, occ),
-            side,
-            16,
-            16,
-            MoveFlag::DoublePush,
-            moves,
-        );
+        add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
+        add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
     }
 
     // Noisy pawn moves (captures, promos, en passant).
     if filter != MoveFilter::Quiets {
-        add_pawn_moves(
-            left_capture(pawns, side, them),
-            side,
-            7,
-            9,
-            MoveFlag::Standard,
-            moves,
-        );
-        add_pawn_moves(
-            right_capture(pawns, side, them),
-            side,
-            9,
-            7,
-            MoveFlag::Standard,
-            moves,
-        );
+        add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
+        add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
 
         if let Some(ep_sq) = board.ep_sq {
             let ep_bb = Bitboard::of_sq(ep_sq);
-            add_pawn_moves(
-                left_capture(pawns, side, ep_bb),
-                side,
-                7,
-                9,
-                MoveFlag::EnPassant,
-                moves,
-            );
-            add_pawn_moves(
-                right_capture(pawns, side, ep_bb),
-                side,
-                9,
-                7,
-                MoveFlag::EnPassant,
-                moves,
-            );
+            add_pawn_moves(left_capture(pawns, side, ep_bb), side, 7, 9, MoveFlag::EnPassant, moves);
+            add_pawn_moves(right_capture(pawns, side, ep_bb), side, 9, 7, MoveFlag::EnPassant, moves);
         }
 
         add_pawn_promos(push_promos(pawns, side, occ), side, 8, 8, moves);
