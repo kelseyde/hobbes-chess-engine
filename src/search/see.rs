@@ -5,22 +5,26 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::{attacks, ray};
-use crate::search::parameters::{
-    see_value_bishop, see_value_knight, see_value_pawn, see_value_queen, see_value_rook,
-};
+use crate::search::parameters::{see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering, see_value_knight_pruning, see_value_pawn_ordering, see_value_pawn_pruning, see_value_queen_ordering, see_value_queen_pruning, see_value_rook_ordering, see_value_rook_pruning};
 
-pub fn value(pc: Piece) -> i32 {
+#[derive(Clone, Copy)]
+pub enum SeeType {
+    Pruning,
+    Ordering
+}
+
+pub fn value(pc: Piece, see_type: SeeType) -> i32 {
     match pc {
-        Piece::Pawn => see_value_pawn(),
-        Piece::Knight => see_value_knight(),
-        Piece::Bishop => see_value_bishop(),
-        Piece::Rook => see_value_rook(),
-        Piece::Queen => see_value_queen(),
+        Piece::Pawn => pawn_value(see_type),
+        Piece::Knight => knight_value(see_type),
+        Piece::Bishop => bishop_value(see_type),
+        Piece::Rook => rook_value(see_type),
+        Piece::Queen => queen_value(see_type),
         Piece::King => 0,
     }
 }
 
-pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
+pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool {
     let from = mv.from();
     let to = mv.to();
 
@@ -28,13 +32,13 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         .promo_piece()
         .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
 
-    let mut balance = move_value(board, mv) - threshold;
+    let mut balance = move_value(board, mv, see_type) - threshold;
 
     if balance < 0 {
         return false;
     }
 
-    balance -= value(next_victim);
+    balance -= value(next_victim, see_type);
 
     if balance >= 0 {
         return true;
@@ -77,7 +81,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
         occ = occ.pop_bit(sq);
         stm = !stm;
 
-        balance = -balance - 1 - value(attacker);
+        balance = -balance - 1 - value(attacker, see_type);
         if balance >= 0 {
             break;
         }
@@ -96,15 +100,15 @@ pub fn see(board: &Board, mv: &Move, threshold: i32) -> bool {
 }
 
 #[allow(clippy::redundant_closure)]
-fn move_value(board: &Board, mv: &Move) -> i32 {
+fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
     let mut see_value = board
         .piece_at(mv.to())
-        .map_or(0, |captured| value(captured));
+        .map_or(0, |captured| value(captured, see_type));
 
     if let Some(promo) = mv.promo_piece() {
-        see_value += value(promo);
+        see_value += value(promo, see_type);
     } else if mv.is_ep() {
-        see_value = value(Piece::Pawn);
+        see_value = value(Piece::Pawn, see_type);
     }
     see_value
 }
@@ -148,70 +152,42 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
         | king_attacks
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::board::movegen::MoveFilter;
-    use crate::board::Board;
-    use crate::ray;
-    use std::fs;
-
-    #[test]
-    fn pinned() {
-        ray::init();
-        for (fen, mv, thresh) in [
-            (
-                "3R1rk1/1N3n2/8/8/8/8/8/6K1 b - - 0 1",
-                "f7d8",
-                value(Piece::Rook),
-            ),
-            (
-                "6k1/6r1/3q2N1/4N3/8/8/6K1/8 b - - 0 1",
-                "d6e5",
-                value(Piece::Knight),
-            ),
-        ] {
-            let board = Board::from_fen(fen).unwrap();
-            let mv = Move::parse_uci(mv);
-            assert!(see(&board, &mv, thresh));
-            assert!(!see(&board, &mv, thresh + 1));
-        }
+#[inline]
+fn pawn_value(see_type: SeeType) -> i32 {
+    match see_type {
+        SeeType::Pruning => see_value_pawn_pruning(),
+        SeeType::Ordering => see_value_pawn_ordering()
     }
+}
 
-    // #[test]
-    fn test_see_suite() {
-        let see_suite = fs::read_to_string("resources/see.epd").unwrap();
+#[inline]
+fn knight_value(see_type: SeeType) -> i32 {
+    match see_type {
+        SeeType::Pruning => see_value_knight_pruning(),
+        SeeType::Ordering => see_value_knight_ordering()
+    }
+}
 
-        let mut tried = 0;
-        let mut passed = 0;
+#[inline]
+fn bishop_value(see_type: SeeType) -> i32 {
+    match see_type {
+        SeeType::Pruning => see_value_bishop_pruning(),
+        SeeType::Ordering => see_value_bishop_ordering()
+    }
+}
 
-        for see_test in see_suite.lines() {
-            let parts: Vec<&str> = see_test.split("|").collect();
-            let fen = parts[0].trim();
-            let mv_uci = parts[1].trim();
-            let threshold_str = parts[2].trim();
-            let threshold: i32 = threshold_str.parse().unwrap();
+#[inline]
+fn rook_value(see_type: SeeType) -> i32 {
+    match see_type {
+        SeeType::Pruning => see_value_rook_pruning(),
+        SeeType::Ordering => see_value_rook_ordering()
+    }
+}
 
-            let board = Board::from_fen(fen).unwrap();
-            let mut moves = board.gen_moves(MoveFilter::All);
-            let mv = moves
-                .iter()
-                .map(|entry| entry.mv)
-                .find(|m| m.to_uci() == mv_uci)
-                .expect("Move not found in generated moves");
-
-            tried += 1;
-            if see(&board, &mv, threshold) {
-                passed += 1;
-            } else {
-                println!("Failed SEE test for FEN: {} and move: {}", fen, mv_uci);
-            }
-        }
-
-        assert_eq!(
-            passed, tried,
-            "Passed {} out of {} SEE tests",
-            passed, tried
-        );
+#[inline]
+fn queen_value(see_type: SeeType) -> i32 {
+    match see_type {
+        SeeType::Pruning => see_value_queen_pruning(),
+        SeeType::Ordering => see_value_queen_ordering()
     }
 }

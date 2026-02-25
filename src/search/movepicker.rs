@@ -10,6 +10,7 @@ use crate::search::see;
 use crate::search::thread::ThreadData;
 use Piece::Knight;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use crate::search::see::SeeType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
@@ -103,9 +104,9 @@ impl MovePicker {
                         let threshold =
                             -entry.score / movepick_see_divisor() + movepick_see_offset();
                         match threshold {
-                            t if t > see::value(Queen) => false,
-                            t if t < -see::value(Queen) => true,
-                            _ => see(board, &entry.mv, threshold),
+                            t if t > see::value(Queen, SeeType::Ordering) => false,
+                            t if t < -see::value(Queen, SeeType::Ordering) => true,
+                            _ => see(board, &entry.mv, threshold, SeeType::Ordering),
                         }
                     }
                 };
@@ -169,7 +170,7 @@ impl MovePicker {
         let mv = &entry.mv;
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
-            let victim_value = see::value(victim);
+            let victim_value = see::value(victim, SeeType::Ordering);
             let history_score = td
                 .history
                 .capture_history_score(board, mv, attacker, victim);
