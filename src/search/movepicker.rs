@@ -7,10 +7,10 @@ use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
+use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
 use Piece::Knight;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
-use crate::search::see::SeeType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {

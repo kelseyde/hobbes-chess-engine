@@ -6,6 +6,7 @@ use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::{attacks, ray};
 use crate::search::parameters::{see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering, see_value_knight_pruning, see_value_pawn_ordering, see_value_pawn_pruning, see_value_queen_ordering, see_value_queen_pruning, see_value_rook_ordering, see_value_rook_pruning};
+use SeeType::{Ordering, Pruning};
 
 #[derive(Clone, Copy)]
 pub enum SeeType {
@@ -155,39 +156,39 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 #[inline]
 fn pawn_value(see_type: SeeType) -> i32 {
     match see_type {
-        SeeType::Pruning => see_value_pawn_pruning(),
-        SeeType::Ordering => see_value_pawn_ordering()
+        Pruning => see_value_pawn_pruning(),
+        Ordering => see_value_pawn_ordering()
     }
 }
 
 #[inline]
 fn knight_value(see_type: SeeType) -> i32 {
     match see_type {
-        SeeType::Pruning => see_value_knight_pruning(),
-        SeeType::Ordering => see_value_knight_ordering()
+        Pruning => see_value_knight_pruning(),
+        Ordering => see_value_knight_ordering()
     }
 }
 
 #[inline]
 fn bishop_value(see_type: SeeType) -> i32 {
     match see_type {
-        SeeType::Pruning => see_value_bishop_pruning(),
-        SeeType::Ordering => see_value_bishop_ordering()
+        Pruning => see_value_bishop_pruning(),
+        Ordering => see_value_bishop_ordering()
     }
 }
 
 #[inline]
 fn rook_value(see_type: SeeType) -> i32 {
     match see_type {
-        SeeType::Pruning => see_value_rook_pruning(),
-        SeeType::Ordering => see_value_rook_ordering()
+        Pruning => see_value_rook_pruning(),
+        Ordering => see_value_rook_ordering()
     }
 }
 
 #[inline]
 fn queen_value(see_type: SeeType) -> i32 {
     match see_type {
-        SeeType::Pruning => see_value_queen_pruning(),
-        SeeType::Ordering => see_value_queen_ordering()
+        Pruning => see_value_queen_pruning(),
+        Ordering => see_value_queen_ordering()
     }
 }

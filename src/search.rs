@@ -26,6 +26,7 @@ use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
+use SeeType::{Ordering, Pruning};
 
 pub const MAX_PLY: usize = 256;
 
@@ -530,7 +531,7 @@ fn alpha_beta<NODE: NodeType>(
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
-            && !see(board, &mv, see_threshold, SeeType::Pruning) {
+            && !see(board, &mv, see_threshold, Pruning) {
             continue;
         }
 
@@ -609,10 +610,10 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, SeeType::Ordering) / lmr_mvv_divisor());
+            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
-                && !see::see(original_board, &mv, 0, SeeType::Ordering)) as i32 * lmr_quiet_see();
+                && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
@@ -982,7 +983,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             && !is_mate_score
             && !is_killer
             && futility_margin <= alpha
-            && !see::see(board, &mv, 1, SeeType::Pruning)
+            && !see::see(board, &mv, 1, Pruning)
         {
             if best_score < futility_margin {
                 best_score = futility_margin;
@@ -995,7 +996,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check
             && !is_killer
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold(), SeeType::Pruning)
+            && !see::see(board, &mv, qs_see_threshold(), Pruning)
         {
             continue;
         }
