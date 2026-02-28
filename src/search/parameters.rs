@@ -226,5 +226,10 @@ tunable_params! {
     qs_see_threshold             = -78, -200, 100, 25,        true;
     movepick_see_divisor         = 45, 30, 60, 2,             true;
     movepick_see_offset          = 109, 80, 200, 10,          true;
+    escape_threat_bonus_pawn     = 4000, 0, 20000, 1000,      true;
+    escape_threat_bonus_knight   = 6000, 0, 25000, 3000,      true;
+    escape_threat_bonus_bishop   = 6000, 0, 25000, 3000,      true;
+    escape_threat_bonus_rook     = 10000, 0, 30000, 3000,     true;
+    escape_threat_bonus_queen    = 20000, 0, 40000, 4000,     true;
     score_stability_threshold    = 13, 4, 24, 2,              true;
 }

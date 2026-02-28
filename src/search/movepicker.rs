@@ -5,11 +5,11 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{escape_threat_bonus_bishop, escape_threat_bonus_knight, escape_threat_bonus_pawn, escape_threat_bonus_queen, escape_threat_bonus_rook, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
-use Piece::Knight;
+use Piece::{Bishop, Knight, Pawn, Rook};
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -180,9 +180,29 @@ impl MovePicker {
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
             let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
             let is_killer = td.stack[ply].killer == Some(*mv);
+            let escape_bonus = MovePicker::escape_threats_bonus(board, mv);
+
             let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score + cont_score;
+            entry.score = base + quiet_score + cont_score + escape_bonus;
         }
+    }
+
+    fn escape_threats_bonus(board: &Board, mv: &Move) -> i32 {
+        let mut bonus = 0;
+        let is_escaping = board.threats.contains(mv.from()) && !board.threats.contains(mv.to());
+        if is_escaping {
+            if let Some(pc) = board.piece_at(mv.from()) {
+                bonus += match pc {
+                    Pawn => escape_threat_bonus_pawn(),
+                    Knight => escape_threat_bonus_knight(),
+                    Bishop => escape_threat_bonus_bishop(),
+                    Rook => escape_threat_bonus_rook(),
+                    Queen => escape_threat_bonus_queen(),
+                    _ => 0,
+                }
+            }
+        }
+        bonus
     }
 
     fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
