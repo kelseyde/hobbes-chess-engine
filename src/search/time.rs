@@ -80,8 +80,7 @@ impl SearchLimits {
         if depth < 4 || best_move_nodes == 0 {
             return 1.0;
         }
-        let fraction = best_move_nodes as f32 / nodes as f32;
-        (1.5 - fraction) * 1.35
+        (2.7168 - 2.2669 * (nodes as f32 / best_move_nodes as f32)).max(0.5630_f32)
     }
 
     /// 'Best move stability': scale the soft limit based on how many iterations the best move has
