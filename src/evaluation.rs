@@ -17,7 +17,10 @@ use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
 use crate::evaluation::network::{HIDDEN, NETWORK, QA, QAB, SCALE};
-use crate::search::parameters::{material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn, scale_value_queen, scale_value_rook};
+use crate::search::parameters::{
+    material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
+    scale_value_queen, scale_value_rook,
+};
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;

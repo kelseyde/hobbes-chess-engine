@@ -5,13 +5,18 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::{attacks, ray};
-use crate::search::parameters::{see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering, see_value_knight_pruning, see_value_pawn_ordering, see_value_pawn_pruning, see_value_queen_ordering, see_value_queen_pruning, see_value_rook_ordering, see_value_rook_pruning};
+use crate::search::parameters::{
+    see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering,
+    see_value_knight_pruning, see_value_pawn_ordering, see_value_pawn_pruning,
+    see_value_queen_ordering, see_value_queen_pruning, see_value_rook_ordering,
+    see_value_rook_pruning,
+};
 use SeeType::{Ordering, Pruning};
 
 #[derive(Clone, Copy)]
 pub enum SeeType {
     Pruning,
-    Ordering
+    Ordering,
 }
 
 pub fn value(pc: Piece, see_type: SeeType) -> i32 {
@@ -157,7 +162,7 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 fn pawn_value(see_type: SeeType) -> i32 {
     match see_type {
         Pruning => see_value_pawn_pruning(),
-        Ordering => see_value_pawn_ordering()
+        Ordering => see_value_pawn_ordering(),
     }
 }
 
@@ -165,7 +170,7 @@ fn pawn_value(see_type: SeeType) -> i32 {
 fn knight_value(see_type: SeeType) -> i32 {
     match see_type {
         Pruning => see_value_knight_pruning(),
-        Ordering => see_value_knight_ordering()
+        Ordering => see_value_knight_ordering(),
     }
 }
 
@@ -173,7 +178,7 @@ fn knight_value(see_type: SeeType) -> i32 {
 fn bishop_value(see_type: SeeType) -> i32 {
     match see_type {
         Pruning => see_value_bishop_pruning(),
-        Ordering => see_value_bishop_ordering()
+        Ordering => see_value_bishop_ordering(),
     }
 }
 
@@ -181,7 +186,7 @@ fn bishop_value(see_type: SeeType) -> i32 {
 fn rook_value(see_type: SeeType) -> i32 {
     match see_type {
         Pruning => see_value_rook_pruning(),
-        Ordering => see_value_rook_ordering()
+        Ordering => see_value_rook_ordering(),
     }
 }
 
@@ -189,6 +194,6 @@ fn rook_value(see_type: SeeType) -> i32 {
 fn queen_value(see_type: SeeType) -> i32 {
     match see_type {
         Pruning => see_value_queen_pruning(),
-        Ordering => see_value_queen_ordering()
+        Ordering => see_value_queen_ordering(),
     }
 }
