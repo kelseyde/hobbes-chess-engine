@@ -127,7 +127,6 @@ tunable_params! {
     quiet_fact_ttmove_malus      = 83, 0, 200, 25,            true;
     quiet_fact_malus_max         = 1381, 1000, 1600, 100,     true;
     quiet_hist_lerp_factor       = 44, 0, 100, 5,             true;
-    capt_hist_lerp_factor        = 40, 0, 100, 5,             true;
     capt_hist_bonus_scale        = 258, 80, 280, 40,          true;
     capt_hist_bonus_offset       = 48, 0, 200, 25,            true;
     capt_hist_ttmove_bonus       = 56, 0, 200, 25,            true;
@@ -136,6 +135,15 @@ tunable_params! {
     capt_hist_malus_offset       = 78, 0, 200, 25,            true;
     capt_hist_ttmove_malus       = 68, 0, 200, 25,            true;
     capt_hist_malus_max          = 1283, 1000, 1600, 100,     true;
+    capt_fact_bonus_scale        = 258, 80, 280, 40,          true;
+    capt_fact_bonus_offset       = 48, 0, 200, 25,            true;
+    capt_fact_ttmove_bonus       = 56, 0, 200, 25,            true;
+    capt_fact_bonus_max          = 1514, 1000, 1600, 100,     true;
+    capt_fact_malus_scale        = 135, 80, 280, 40,          true;
+    capt_fact_malus_offset       = 78, 0, 200, 25,            true;
+    capt_fact_ttmove_malus       = 68, 0, 200, 25,            true;
+    capt_fact_malus_max          = 1283, 1000, 1600, 100,     true;
+    capt_hist_lerp_factor        = 40, 0, 100, 5,             true;
     cont_hist_1_bonus_scale      = 133, 80, 280, 40,          true;
     cont_hist_1_bonus_offset     = 194, 0, 200, 25,           true;
     cont_hist_1_cutnode_offset   = 80, 0, 200, 25,            true;
