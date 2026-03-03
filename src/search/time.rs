@@ -1,5 +1,21 @@
 use std::time::Duration;
 
+pub const SOFT_TM_BASE: f64 = 0.024;
+pub const SOFT_TM_SCALE: f64 = 0.042;
+pub const SOFT_TM_INC_SCALE: f64 = 0.75;
+pub const SOFT_TM_FM_SCALE: f64 = 0.045;
+pub const HARD_TM_SCALE: f64 = 0.742;
+pub const HARD_TM_INC_SCALE: f64 = 0.75;
+pub const NODE_TM_BASE: f32 = 1.5;
+pub const NODE_TM_SCALE: f32 = 1.35;
+pub const BEST_MOVE_TM_BASE: f32 = 1.8;
+pub const BEST_MOVE_TM_SCALE: f32 = 0.1;
+pub const BEST_MOVE_TM_MIN: f32 = 0.9;
+pub const SCORE_TM_BASE: f32 = 1.2;
+pub const SCORE_TM_SCALE: f32 = 0.04;
+pub const SCORE_TM_MIN: f32 = 0.88;
+pub const UCI_OVERHEAD_MS: u64 = 50;
+
 /// The amount of time the engine chooses to search is split into to two limits: hard and soft. The
 /// hard limit is checked regularly during search, and the search is aborted as soon as it is reached.
 /// The soft limit is checked at the start of each iterative deepening loop, and the engine does not
@@ -81,30 +97,30 @@ impl SearchLimits {
             return 1.0;
         }
         let fraction = best_move_nodes as f32 / nodes as f32;
-        (1.5 - fraction) * 1.35
+        (NODE_TM_BASE - fraction) * NODE_TM_SCALE
     }
 
     /// 'Best move stability': scale the soft limit based on how many iterations the best move has
     /// remained the same. If the best move has been stable for many iterations, then we should be
     /// more confident in it and spend less time, and vice versa.
     const fn best_move_stability_scale(stability: u64) -> f32 {
-        (1.8 - 0.1 * (stability as f32)).max(0.9)
+        (BEST_MOVE_TM_BASE - BEST_MOVE_TM_SCALE * (stability as f32)).max(BEST_MOVE_TM_MIN)
     }
 
     /// 'Score stability': scale the soft limit based on how stable the search score has been across
     /// iterations. If the score has been stable for many iterations, then we should be more confident
     /// in the search score and spend less time, and vice versa.
     const fn score_stability_scale(stability: u64) -> f32 {
-        (1.2 - 0.04 * stability as f32).max(0.88)
+        (SCORE_TM_BASE - SCORE_TM_SCALE * stability as f32).max(SCORE_TM_MIN)
     }
 
     fn calc_time_limits(fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
-        let (time, inc) = (fischer.0, fischer.1);
-        // Credit to Reckless for this formula for calculating the hard/soft bounds
-        let soft_scale = 0.024 + 0.042 * (1.0 - (-0.045 * fm_clock as f64).exp());
-        let hard_scale = 0.742;
-        let soft_bound = (soft_scale * time.saturating_sub(50) as f64 + 0.75 * inc as f64) as u64;
-        let hard_bound = (hard_scale * time.saturating_sub(50) as f64 + 0.75 * inc as f64) as u64;
+        let (time, inc) = (fischer.0, fischer.1 as f64);
+        let time = time.saturating_sub(UCI_OVERHEAD_MS) as f64;
+        let soft_scale = SOFT_TM_BASE + SOFT_TM_SCALE * (1.0 - (-SOFT_TM_FM_SCALE * fm_clock as f64).exp());
+        let hard_scale = HARD_TM_SCALE;
+        let soft_bound = (soft_scale * time + SOFT_TM_INC_SCALE * inc) as u64;
+        let hard_bound = (hard_scale * time + HARD_TM_INC_SCALE * inc) as u64;
         (
             Duration::from_millis(soft_bound),
             Duration::from_millis(hard_bound),
