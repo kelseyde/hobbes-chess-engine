@@ -101,11 +101,12 @@ impl MovePicker {
                     if !self.split_noisies {
                         true
                     } else {
+                        let ks = board.king_bucket();
                         let threshold =
-                            -entry.score / movepick_see_divisor() + movepick_see_offset();
+                            -entry.score / movepick_see_divisor(ks) + movepick_see_offset(ks);
                         match threshold {
-                            t if t > see::value(Queen, SeeType::Ordering) => false,
-                            t if t < -see::value(Queen, SeeType::Ordering) => true,
+                            t if t > see::value(Queen, SeeType::Ordering, ks) => false,
+                            t if t < -see::value(Queen, SeeType::Ordering, ks) => true,
                             _ => see(board, &entry.mv, threshold, SeeType::Ordering),
                         }
                     }
@@ -168,16 +169,17 @@ impl MovePicker {
         threats: Bitboard,
     ) {
         let mv = &entry.mv;
+        let ks = board.king_bucket();
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
-            let victim_value = see::value(victim, SeeType::Ordering);
+            let victim_value = see::value(victim, SeeType::Ordering, ks);
             let history_score = td
                 .history
-                .capture_history_score(board, mv, attacker, victim);
+                .capture_history_score(board, mv, attacker, victim, ks);
             entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet
-            let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
+            let quiet_score = td.history.quiet_history_score(board, mv, pc, threats, ks);
             let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
             let is_killer = td.stack[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };

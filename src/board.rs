@@ -344,6 +344,13 @@ impl Board {
     pub fn king_sq(&self, side: Side) -> Square {
         self.king(side).lsb()
     }
+    
+    #[inline(always)]
+    pub fn king_bucket(&self) -> usize {
+        let sq = self.king_sq(self.stm);
+        let sq = if self.stm == Black { sq.flip_rank() } else { sq };
+        sq.0 as usize
+    }
 
     #[inline]
     pub fn occ(&self) -> Bitboard {

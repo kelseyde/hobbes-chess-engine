@@ -19,13 +19,13 @@ pub enum SeeType {
     Ordering,
 }
 
-pub fn value(pc: Piece, see_type: SeeType) -> i32 {
+pub fn value(pc: Piece, see_type: SeeType, ks: usize) -> i32 {
     match pc {
-        Piece::Pawn => pawn_value(see_type),
-        Piece::Knight => knight_value(see_type),
-        Piece::Bishop => bishop_value(see_type),
-        Piece::Rook => rook_value(see_type),
-        Piece::Queen => queen_value(see_type),
+        Piece::Pawn => pawn_value(see_type, ks),
+        Piece::Knight => knight_value(see_type, ks),
+        Piece::Bishop => bishop_value(see_type, ks),
+        Piece::Rook => rook_value(see_type, ks),
+        Piece::Queen => queen_value(see_type, ks),
         Piece::King => 0,
     }
 }
@@ -33,18 +33,19 @@ pub fn value(pc: Piece, see_type: SeeType) -> i32 {
 pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool {
     let from = mv.from();
     let to = mv.to();
+    let ks = board.king_bucket();
 
     let next_victim = mv
         .promo_piece()
         .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
 
-    let mut balance = move_value(board, mv, see_type) - threshold;
+    let mut balance = move_value(board, mv, see_type, ks) - threshold;
 
     if balance < 0 {
         return false;
     }
 
-    balance -= value(next_victim, see_type);
+    balance -= value(next_victim, see_type, ks);
 
     if balance >= 0 {
         return true;
@@ -87,7 +88,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
         occ = occ.pop_bit(sq);
         stm = !stm;
 
-        balance = -balance - 1 - value(attacker, see_type);
+        balance = -balance - 1 - value(attacker, see_type, ks);
         if balance >= 0 {
             break;
         }
@@ -106,15 +107,15 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
 }
 
 #[allow(clippy::redundant_closure)]
-fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
+fn move_value(board: &Board, mv: &Move, see_type: SeeType, ks: usize) -> i32 {
     let mut see_value = board
         .piece_at(mv.to())
-        .map_or(0, |captured| value(captured, see_type));
+        .map_or(0, |captured| value(captured, see_type, ks));
 
     if let Some(promo) = mv.promo_piece() {
-        see_value += value(promo, see_type);
+        see_value += value(promo, see_type, ks);
     } else if mv.is_ep() {
-        see_value = value(Piece::Pawn, see_type);
+        see_value = value(Piece::Pawn, see_type, ks);
     }
     see_value
 }
@@ -159,41 +160,41 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 }
 
 #[inline]
-fn pawn_value(see_type: SeeType) -> i32 {
+fn pawn_value(see_type: SeeType, ks: usize) -> i32 {
     match see_type {
-        Pruning => see_value_pawn_pruning(),
-        Ordering => see_value_pawn_ordering(),
+        Pruning => see_value_pawn_pruning(ks),
+        Ordering => see_value_pawn_ordering(ks),
     }
 }
 
 #[inline]
-fn knight_value(see_type: SeeType) -> i32 {
+fn knight_value(see_type: SeeType, ks: usize) -> i32 {
     match see_type {
-        Pruning => see_value_knight_pruning(),
-        Ordering => see_value_knight_ordering(),
+        Pruning => see_value_knight_pruning(ks),
+        Ordering => see_value_knight_ordering(ks),
     }
 }
 
 #[inline]
-fn bishop_value(see_type: SeeType) -> i32 {
+fn bishop_value(see_type: SeeType, ks: usize) -> i32 {
     match see_type {
-        Pruning => see_value_bishop_pruning(),
-        Ordering => see_value_bishop_ordering(),
+        Pruning => see_value_bishop_pruning(ks),
+        Ordering => see_value_bishop_ordering(ks),
     }
 }
 
 #[inline]
-fn rook_value(see_type: SeeType) -> i32 {
+fn rook_value(see_type: SeeType, ks: usize) -> i32 {
     match see_type {
-        Pruning => see_value_rook_pruning(),
-        Ordering => see_value_rook_ordering(),
+        Pruning => see_value_rook_pruning(ks),
+        Ordering => see_value_rook_ordering(ks),
     }
 }
 
 #[inline]
-fn queen_value(see_type: SeeType) -> i32 {
+fn queen_value(see_type: SeeType, ks: usize) -> i32 {
     match see_type {
-        Pruning => see_value_queen_pruning(),
-        Ordering => see_value_queen_ordering(),
+        Pruning => see_value_queen_pruning(ks),
+        Ordering => see_value_queen_ordering(ks),
     }
 }

@@ -77,10 +77,11 @@ impl Histories {
         pc: Piece,
         captured: Option<Piece>,
     ) -> i32 {
+        let ks = board.king_bucket();
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, mv, pc, captured, ks)
         } else {
-            let quiet_score = self.quiet_history_score(board, mv, pc, threats);
+            let quiet_score = self.quiet_history_score(board, mv, pc, threats, ks);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
             let from_score = self.from_history.get(board.stm, mv.from()) as i32;
             let to_score = self.to_history.get(board.stm, mv.to()) as i32;
@@ -94,8 +95,9 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         threats: Bitboard,
+        ks: usize,
     ) -> i32 {
-        self.quiet_history.get(board.stm, *mv, pc, threats) as i32
+        self.quiet_history.get(board.stm, *mv, pc, threats, ks) as i32
     }
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
@@ -119,8 +121,9 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         captured: Piece,
+        ks: usize,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, *mv, captured) as i32
+        self.capture_history.get(board.stm, pc, *mv, captured, ks) as i32
     }
 
     pub fn update_continuation_history(
@@ -221,11 +224,11 @@ impl QuietHistory {
     const BUCKET_MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
+    pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard, ks: usize) -> i16 {
         let threat_idx = ThreatIndex::new(mv, threats);
         let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx) as i32;
         let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx) as i32;
-        lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
+        lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor(ks)) as i16
     }
 
     pub fn update(
@@ -259,10 +262,10 @@ impl CaptureHistory {
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
+    pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece, ks: usize) -> i16 {
         let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
         let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
-        lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
+        lerp(from_to_score, piece_to_score, capt_hist_lerp_factor(ks)) as i16
     }
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
@@ -356,149 +359,149 @@ impl ThreatIndex {
     }
 }
 
-pub fn quiet_history_bonus(depth: i32) -> i16 {
-    let scale = quiet_hist_bonus_scale() as i16;
-    let offset = quiet_hist_bonus_offset() as i16;
-    let max = quiet_hist_bonus_max() as i16;
+pub fn quiet_history_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = quiet_hist_bonus_scale(ks) as i16;
+    let offset = quiet_hist_bonus_offset(ks) as i16;
+    let max = quiet_hist_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn quiet_history_factoriser_bonus(depth: i32) -> i16 {
-    let scale = quiet_fact_bonus_scale() as i16;
-    let offset = quiet_fact_bonus_offset() as i16;
-    let max = quiet_fact_bonus_max() as i16;
+pub fn quiet_history_factoriser_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = quiet_fact_bonus_scale(ks) as i16;
+    let offset = quiet_fact_bonus_offset(ks) as i16;
+    let max = quiet_fact_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn quiet_history_malus(depth: i32) -> i16 {
-    let scale = quiet_hist_malus_scale() as i16;
-    let offset = quiet_hist_malus_offset() as i16;
-    let max = quiet_hist_malus_max() as i16;
+pub fn quiet_history_malus(depth: i32, ks: usize) -> i16 {
+    let scale = quiet_hist_malus_scale(ks) as i16;
+    let offset = quiet_hist_malus_offset(ks) as i16;
+    let max = quiet_hist_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn quiet_history_factoriser_malus(depth: i32) -> i16 {
-    let scale = quiet_fact_malus_scale() as i16;
-    let offset = quiet_fact_malus_offset() as i16;
-    let max = quiet_fact_malus_max() as i16;
+pub fn quiet_history_factoriser_malus(depth: i32, ks: usize) -> i16 {
+    let scale = quiet_fact_malus_scale(ks) as i16;
+    let offset = quiet_fact_malus_offset(ks) as i16;
+    let max = quiet_fact_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn capture_history_bonus(depth: i32) -> i16 {
-    let scale = capt_hist_bonus_scale() as i16;
-    let offset = capt_hist_bonus_offset() as i16;
-    let max = capt_hist_bonus_max() as i16;
+pub fn capture_history_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = capt_hist_bonus_scale(ks) as i16;
+    let offset = capt_hist_bonus_offset(ks) as i16;
+    let max = capt_hist_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn capture_history_malus(depth: i32) -> i16 {
-    let scale = capt_hist_malus_scale() as i16;
-    let offset = capt_hist_malus_offset() as i16;
-    let max = capt_hist_malus_max() as i16;
+pub fn capture_history_malus(depth: i32, ks: usize) -> i16 {
+    let scale = capt_hist_malus_scale(ks) as i16;
+    let offset = capt_hist_malus_offset(ks) as i16;
+    let max = capt_hist_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn cont_history_1_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_1_bonus_scale() as i16;
-    let offset = cont_hist_1_bonus_offset() as i16;
-    let max = cont_hist_1_bonus_max() as i16;
+pub fn cont_history_1_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = cont_hist_1_bonus_scale(ks) as i16;
+    let offset = cont_hist_1_bonus_offset(ks) as i16;
+    let max = cont_hist_1_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn cont_history_1_malus(depth: i32) -> i16 {
-    let scale = cont_hist_1_malus_scale() as i16;
-    let offset = cont_hist_1_malus_offset() as i16;
-    let max = cont_hist_1_malus_max() as i16;
+pub fn cont_history_1_malus(depth: i32, ks: usize) -> i16 {
+    let scale = cont_hist_1_malus_scale(ks) as i16;
+    let offset = cont_hist_1_malus_offset(ks) as i16;
+    let max = cont_hist_1_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn cont_history_2_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_2_bonus_scale() as i16;
-    let offset = cont_hist_2_bonus_offset() as i16;
-    let max = cont_hist_2_bonus_max() as i16;
+pub fn cont_history_2_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = cont_hist_2_bonus_scale(ks) as i16;
+    let offset = cont_hist_2_bonus_offset(ks) as i16;
+    let max = cont_hist_2_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn cont_history_2_malus(depth: i32) -> i16 {
-    let scale = cont_hist_2_malus_scale() as i16;
-    let offset = cont_hist_2_malus_offset() as i16;
-    let max = cont_hist_2_malus_max() as i16;
+pub fn cont_history_2_malus(depth: i32, ks: usize) -> i16 {
+    let scale = cont_hist_2_malus_scale(ks) as i16;
+    let offset = cont_hist_2_malus_offset(ks) as i16;
+    let max = cont_hist_2_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn prior_countermove_bonus(depth: i32) -> i16 {
-    let scale = pcm_bonus_scale() as i16;
-    let offset = pcm_bonus_offset() as i16;
-    let max = pcm_bonus_max() as i16;
+pub fn prior_countermove_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = pcm_bonus_scale(ks) as i16;
+    let offset = pcm_bonus_offset(ks) as i16;
+    let max = pcm_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn from_history_bonus(depth: i32) -> i16 {
-    let scale = from_hist_bonus_scale() as i16;
-    let offset = from_hist_bonus_offset() as i16;
-    let max = from_hist_bonus_max() as i16;
+pub fn from_history_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = from_hist_bonus_scale(ks) as i16;
+    let offset = from_hist_bonus_offset(ks) as i16;
+    let max = from_hist_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn from_history_malus(depth: i32) -> i16 {
-    let scale = from_hist_malus_scale() as i16;
-    let offset = from_hist_malus_offset() as i16;
-    let max = from_hist_malus_max() as i16;
+pub fn from_history_malus(depth: i32, ks: usize) -> i16 {
+    let scale = from_hist_malus_scale(ks) as i16;
+    let offset = from_hist_malus_offset(ks) as i16;
+    let max = from_hist_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn to_history_bonus(depth: i32) -> i16 {
-    let scale = to_hist_bonus_scale() as i16;
-    let offset = to_hist_bonus_offset() as i16;
-    let max = to_hist_bonus_max() as i16;
+pub fn to_history_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = to_hist_bonus_scale(ks) as i16;
+    let offset = to_hist_bonus_offset(ks) as i16;
+    let max = to_hist_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn to_history_malus(depth: i32) -> i16 {
-    let scale = to_hist_malus_scale() as i16;
-    let offset = to_hist_malus_offset() as i16;
-    let max = to_hist_malus_max() as i16;
+pub fn to_history_malus(depth: i32, ks: usize) -> i16 {
+    let scale = to_hist_malus_scale(ks) as i16;
+    let offset = to_hist_malus_offset(ks) as i16;
+    let max = to_hist_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn qs_capthist_bonus(depth: i32) -> i16 {
-    let scale = qs_capt_hist_bonus_scale() as i16;
-    let offset = qs_capt_hist_bonus_offset() as i16;
-    let max = qs_capt_hist_bonus_max() as i16;
+pub fn qs_capthist_bonus(depth: i32, ks: usize) -> i16 {
+    let scale = qs_capt_hist_bonus_scale(ks) as i16;
+    let offset = qs_capt_hist_bonus_offset(ks) as i16;
+    let max = qs_capt_hist_bonus_max(ks) as i16;
     history_bonus(depth, scale, offset, max)
 }
 
-pub fn qs_capthist_malus(depth: i32) -> i16 {
-    let scale = qs_capt_hist_malus_scale() as i16;
-    let offset = qs_capt_hist_malus_offset() as i16;
-    let max = qs_capt_hist_malus_max() as i16;
+pub fn qs_capthist_malus(depth: i32, ks: usize) -> i16 {
+    let scale = qs_capt_hist_malus_scale(ks) as i16;
+    let offset = qs_capt_hist_malus_offset(ks) as i16;
+    let max = qs_capt_hist_malus_max(ks) as i16;
     history_malus(depth, scale, offset, max)
 }
 
-pub fn lmr_conthist_1_bonus(depth: i32, good: bool) -> i16 {
+pub fn lmr_conthist_1_bonus(depth: i32, good: bool, ks: usize) -> i16 {
     if good {
-        let scale = lmr_cont_hist_1_bonus_scale() as i16;
-        let offset = lmr_cont_hist_1_bonus_offset() as i16;
-        let max = lmr_cont_hist_1_bonus_max() as i16;
+        let scale = lmr_cont_hist_1_bonus_scale(ks) as i16;
+        let offset = lmr_cont_hist_1_bonus_offset(ks) as i16;
+        let max = lmr_cont_hist_1_bonus_max(ks) as i16;
         history_bonus(depth, scale, offset, max)
     } else {
-        let scale = lmr_cont_hist_1_malus_scale() as i16;
-        let offset = lmr_cont_hist_1_malus_offset() as i16;
-        let max = lmr_cont_hist_1_malus_max() as i16;
+        let scale = lmr_cont_hist_1_malus_scale(ks) as i16;
+        let offset = lmr_cont_hist_1_malus_offset(ks) as i16;
+        let max = lmr_cont_hist_1_malus_max(ks) as i16;
         history_malus(depth, scale, offset, max)
     }
 }
 
-pub fn lmr_conthist_2_bonus(depth: i32, good: bool) -> i16 {
+pub fn lmr_conthist_2_bonus(depth: i32, good: bool, ks: usize) -> i16 {
     if good {
-        let scale = lmr_cont_hist_2_bonus_scale() as i16;
-        let offset = lmr_cont_hist_2_bonus_offset() as i16;
-        let max = lmr_cont_hist_2_bonus_max() as i16;
+        let scale = lmr_cont_hist_2_bonus_scale(ks) as i16;
+        let offset = lmr_cont_hist_2_bonus_offset(ks) as i16;
+        let max = lmr_cont_hist_2_bonus_max(ks) as i16;
         history_bonus(depth, scale, offset, max)
     } else {
-        let scale = lmr_cont_hist_2_malus_scale() as i16;
-        let offset = lmr_cont_hist_2_malus_offset() as i16;
-        let max = lmr_cont_hist_2_malus_max() as i16;
+        let scale = lmr_cont_hist_2_malus_scale(ks) as i16;
+        let offset = lmr_cont_hist_2_malus_offset(ks) as i16;
+        let max = lmr_cont_hist_2_malus_max(ks) as i16;
         history_malus(depth, scale, offset, max)
     }
 }
