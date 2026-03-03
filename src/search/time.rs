@@ -14,7 +14,7 @@ pub const BEST_MOVE_TM_MIN: f32 = 0.9;
 pub const SCORE_TM_BASE: f32 = 1.2;
 pub const SCORE_TM_SCALE: f32 = 0.04;
 pub const SCORE_TM_MIN: f32 = 0.88;
-pub const UCI_OVERHEAD_MS: u64 = 50;
+pub const UCI_OVERHEAD_MS: u64 = 100;
 
 /// The amount of time the engine chooses to search is split into to two limits: hard and soft. The
 /// hard limit is checked regularly during search, and the search is aborted as soon as it is reached.
