@@ -11,6 +11,7 @@ tunable_params! {
     rfp_base                     = 13, -50, 50, 10,           true;
     rfp_scale                    = 61, 40, 100, 10,           true;
     rfp_improving_scale          = 60, 40, 100, 10,           true;
+    rfp_correction_div           = 1024, 512, 2048, 256,      true;
     rfp_tt_move_noisy_scale      = 6, 0, 70, 10,              true;
     razor_base                   = 296, 200, 500, 25,         true;
     razor_scale                  = 261, 100, 400, 25,         true;
