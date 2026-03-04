@@ -832,7 +832,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        td.correction_history.update_correction(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
@@ -1062,6 +1062,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if best_score >= beta && Score::is_defined(best_score) {
         best_score = (best_score + beta) / 2;
+    }
+
+    // Update static eval correction history.
+    if !in_check
+        && flag.bounds_match(best_score, static_eval, static_eval)
+        && (!best_move.exists() 
+            || !board.is_noisy(&best_move) 
+            || !see::see(board, &best_move, 0, Pruning)) {
+        td.correction_history.update_correction(board, &td.stack, 1, ply, static_eval, best_score);
     }
 
     // Write to transposition table

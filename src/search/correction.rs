@@ -31,7 +31,7 @@ pub struct CorrectionHistories {
 
 impl CorrectionHistories {
     #[rustfmt::skip]
-    pub fn update_correction_history(
+    pub fn update_correction(
         &mut self,
         board: &Board,
         ss: &NodeStack,
