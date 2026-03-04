@@ -15,7 +15,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
-use crate::search::movepicker::MovePicker;
+use crate::search::movepicker::{MovePicker, Stage};
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
@@ -27,6 +27,7 @@ use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
+use Stage::GoodNoisies;
 
 pub const MAX_PLY: usize = 256;
 
@@ -425,7 +426,8 @@ fn alpha_beta<NODE: NodeType>(
     let mut flag = Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
-    let mut captures = ArrayVec::<Move, 32>::new();
+    let mut good_captures = ArrayVec::<Move, 32>::new();
+    let mut bad_captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -656,7 +658,20 @@ fn alpha_beta<NODE: NodeType>(
             quiets.push(mv);
             quiet_count += 1;
         } else if captured.is_some() && capture_count < 32 {
-            captures.push(mv);
+            let good_capture = match move_picker.stage {
+                GoodNoisies => true,
+                BadNoisies => false,
+                _ => see::see(&original_board, &mv, 0, Ordering),
+            };
+            match good_capture {
+                true if good_captures.len() < 32 => {
+                    good_captures.push(mv);
+                },
+                false => if bad_captures.len() < 32 {
+                    bad_captures.push(mv);
+                }
+                _ => {}
+            }
             capture_count += 1;
         }
 
@@ -779,7 +794,9 @@ fn alpha_beta<NODE: NodeType>(
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
-            for mv in quiets.iter() {
+            // We also treat bad captures as quiets for the purpose of history updates.
+            let quiets_and_bad_captures = quiets.iter().chain(bad_captures.iter());
+            for mv in quiets_and_bad_captures {
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
@@ -792,7 +809,8 @@ fn alpha_beta<NODE: NodeType>(
         }
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
-        for mv in captures.iter() {
+        let all_captures = good_captures.iter().chain(bad_captures.iter());
+        for mv in all_captures {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
                     td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
