@@ -446,7 +446,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
-        let lmr_depth = depth.saturating_sub(base_reduction + tt_pv as i32);
+        let lmr_depth = depth.saturating_sub(base_reduction + !tt_pv as i32);
 
         let mut extension = 0;
 
