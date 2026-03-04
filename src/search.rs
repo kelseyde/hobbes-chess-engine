@@ -27,6 +27,7 @@ use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
+use TTFlag::Lower;
 
 pub const MAX_PLY: usize = 256;
 
@@ -75,9 +76,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
             bound = if score <= alpha {
-                TTFlag::Upper
+                Upper
             } else if score >= beta {
-                TTFlag::Lower
+                Lower
             } else {
                 TTFlag::Exact
             };
@@ -221,7 +222,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_score = Score::MIN;
     let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
-    let mut tt_flag = TTFlag::Lower;
+    let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
 
@@ -259,6 +260,7 @@ fn alpha_beta<NODE: NodeType>(
     // extensions, reductions and pruning.
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut estimated_score = Score::MIN;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -273,6 +275,19 @@ fn alpha_beta<NODE: NodeType>(
         }
         let correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
+
+        // Use the search score from the TT as a more accurate static evaluation, when its bounds
+        // fall within the current alpha-beta window.
+        if !singular_search
+            && Score::is_defined(tt_score)
+            && match tt_flag {
+                Upper => tt_score < static_eval,
+                Lower => tt_score > static_eval,
+                _ => true,
+            } {
+            estimated_score = tt_score;
+        }
+
     }
 
     td.stack[ply].raw_eval = raw_eval;
@@ -357,7 +372,7 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && estimated_score >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
@@ -700,7 +715,7 @@ fn alpha_beta<NODE: NodeType>(
             // won't let us get here assuming perfect play. There is therefore no point searching
             // further, and we can cut off the search.
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
 
@@ -1050,7 +1065,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             }
 
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
         }
@@ -1176,8 +1191,8 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     };
     let hashfull = td.tt.fill();
     let bound = match bound {
-        TTFlag::Lower => " lowerbound",
-        TTFlag::Upper => " upperbound",
+        Lower => " lowerbound",
+        Upper => " upperbound",
         _ => "",
     };
     print!(
