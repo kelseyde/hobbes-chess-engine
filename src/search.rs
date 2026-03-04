@@ -831,7 +831,7 @@ fn alpha_beta<NODE: NodeType>(
     if !in_check
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
-        && (!best_move.exists() || !board.is_noisy(&best_move)) {
+        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
         td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
