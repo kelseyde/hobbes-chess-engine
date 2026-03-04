@@ -275,6 +275,7 @@ fn alpha_beta<NODE: NodeType>(
         }
         let correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
+        estimated_score = static_eval;
 
         // Use the search score from the TT as a more accurate static evaluation, when its bounds
         // fall within the current alpha-beta window.
