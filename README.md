@@ -19,9 +19,11 @@ A strong chess engine written in Rust, with NNUE evaluation trained from zero kn
 
 Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches) towards turning Hobbes into a strong engine. 
 
-## Strength
+## Strength 
 
-Hobbes is not yet officially released. The current strength is approximately 3640 elo CCRL blitz.
+|                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
+|:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
+| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     -      |     -      |     -      |
 
 ## Search
 
