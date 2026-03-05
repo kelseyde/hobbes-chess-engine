@@ -48,6 +48,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download network
+        shell: bash
+        run: |
+          NET_NAME=$(cat network.txt)
+          echo "Downloading ${NET_NAME}.nnue"
+          curl -sL -o hobbes.nnue "https://github.com/kelseyde/hobbes-networks/releases/download/${NET_NAME}/${NET_NAME}.nnue"
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
