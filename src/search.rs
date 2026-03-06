@@ -248,6 +248,14 @@ fn alpha_beta<NODE: NodeType>(
                 && !pv_node
                 && tt_depth >= depth
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
+                // Update static eval correction history.
+                let static_eval = tt_eval + td.correction_history.correction(board, &td.stack, ply);
+                if !in_check
+                    && !singular_search
+                    && tt_flag.bounds_match(tt_score, static_eval, static_eval)
+                    && (!tt_move.exists() || !board.is_noisy(&tt_move) || !see::see(board, &tt_move, 0, Pruning)) {
+                    td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, tt_score);
+                }
                 return tt_score;
             }
         }
