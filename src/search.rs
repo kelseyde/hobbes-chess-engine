@@ -483,7 +483,6 @@ fn alpha_beta<NODE: NodeType>(
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
             move_picker.skip_quiets = true;
-            continue;
         }
 
         // History Pruning
