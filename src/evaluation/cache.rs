@@ -1,6 +1,7 @@
+use hobbes_nnue_arch::{L1_SIZE, NUM_BUCKETS};
 use crate::board::bitboard::Bitboard;
 use crate::board::side::Side;
-use crate::evaluation::arch::{L1_SIZE, NETWORK, NUM_BUCKETS};
+use crate::evaluation::NETWORK;
 
 /// Whenever the king changes bucket, a costly full refresh of the accumulator is required. This
 /// service implements a technique to improve the performance of this refresh known as 'Finny tables'.

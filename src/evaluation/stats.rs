@@ -1,8 +1,8 @@
 use crate::board::{movegen, Board};
-use crate::evaluation::arch::SCALE;
 use crate::search::thread::ThreadData;
 use std::fs;
 use std::path::Path;
+use hobbes_nnue_arch::SCALE;
 
 // Implementation yoinked from Viridithas
 pub fn eval_stats(td: &mut ThreadData, input: &Path) {

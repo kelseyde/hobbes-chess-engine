@@ -1,7 +1,8 @@
+use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::arch::{FeatureWeights, L1_SIZE, NETWORK};
+use crate::evaluation::NETWORK;
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]

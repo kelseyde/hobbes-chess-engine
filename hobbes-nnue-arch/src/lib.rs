@@ -19,8 +19,6 @@ pub const L0_BUCKET_COUNT: usize = 16;
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
 pub const L1_SIZE: usize = 2048;
-
-// ceil(log2(127 * 128 / 64)) = 8
 pub const L1_SHIFT: usize = 8;
 pub const L1_QUANT: usize = 128;
 
@@ -29,9 +27,6 @@ pub const L3_SIZE: usize = 32;
 
 pub const Q: i64 = 64;
 pub const SCALE: i64 = 400;
-
-pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../hobbes.nnue")) };
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
@@ -50,7 +45,6 @@ pub struct Network {
 pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     let mut max = 0;
     let mut i = 0;
-
     while i < N {
         if arr[i] > max {
             max = arr[i];
@@ -59,3 +53,4 @@ pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     }
     max + 1
 }
+

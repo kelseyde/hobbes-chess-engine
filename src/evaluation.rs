@@ -1,7 +1,6 @@
 pub mod accumulator;
 pub mod cache;
 pub mod feature;
-pub mod arch;
 pub mod stats;
 
 mod forward {
@@ -45,7 +44,6 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
-use crate::evaluation::arch::{NETWORK, OUTPUT_BUCKET_COUNT, Q, SCALE};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
@@ -53,8 +51,12 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
+use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
+
+pub(crate) static NETWORK: Network =
+    unsafe { std::mem::transmute(*include_bytes!(env!("PERMUTED_NET_PATH"))) };
 
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
@@ -386,7 +388,7 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
 #[inline(always)]
 fn king_bucket(sq: Square, side: Side) -> usize {
     let sq = if side == White { sq } else { sq.flip_rank() };
-    arch::BUCKETS[sq]
+    BUCKETS[sq]
 }
 
 fn get_output_bucket(board: &Board) -> usize {
