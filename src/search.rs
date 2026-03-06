@@ -322,7 +322,7 @@ fn alpha_beta<NODE: NodeType>(
     // If we reduced depth in the parent node, and now the static eval confirms the position is
     // improving, we affirm the parent node's reduction 'in hindsight' by reducing even further.
     if !root_node
-        && !pv_node
+        && !tt_pv
         && !in_check
         && !singular_search
         && depth >= hindsight_red_min_depth()
