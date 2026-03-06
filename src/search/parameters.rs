@@ -32,7 +32,7 @@ tunable_params! {
     hindsight_red_eval_diff      = 47, 0, 120, 20,            true;
     dynamic_policy_mult          = 8, 0, 20, 2,               true;
     dynamic_policy_min           = -62, -100, 0, 25,          true;
-    dynamic_policy_max           = 199, 75, 200, 25,          true;
+    dynamic_policy_max           = 199, 75, 300, 25,          true;
     fp_max_depth                 = 8, 4, 10, 1,               false;
     fp_base                      = 165, 50, 250, 25,          true;
     fp_scale                     = 98, 50, 200, 10,           true;
