@@ -33,12 +33,10 @@ jobs:
           - os: windows-latest
             name: hobbes-windows-avx2
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--stack,8388608"
-            sde_flag: -bdw
 
           - os: windows-latest
             name: hobbes-windows-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--stack,8388608"
-            sde_flag: -skx
 
           - os: macos-latest
             name: hobbes-macos
