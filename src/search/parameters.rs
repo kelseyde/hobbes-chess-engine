@@ -177,6 +177,13 @@ tunable_params! {
     qs_capt_hist_malus_scale     = 159, 80, 280, 40,          true;
     qs_capt_hist_malus_offset    = 94, 0, 200, 25,            true;
     qs_capt_hist_malus_max       = 1177, 1000, 1600, 100,     true;
+    moveloop_fp_malus_scale      = 150, 80, 280, 40,          true;
+    moveloop_fp_malus_offset     = 100, 0, 200, 25,           true;
+    moveloop_fp_malus_max        = 1000, 500, 1600, 100,      true;
+    moveloop_lmp_malus_scale     = 150, 80, 280, 40,          true;
+    moveloop_see_malus_scale     = 150, 80, 280, 40,          true;
+    moveloop_see_malus_offset    = 100, 0, 200, 25,           true;
+    moveloop_see_malus_max       = 1000, 500, 1600, 100,      true;
     corr_pawn_bonus_mult         = 220, 100, 300, 25,         true;
     corr_pawn_bonus_div          = 107, 64, 256, 16,          true;
     corr_pawn_bonus_min          = -4656, -6000, -2000, 500,  true;
