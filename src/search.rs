@@ -472,6 +472,8 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mate_score
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
+            let (malus, fact_malus) = (moveloop_fp_malus(depth), moveloop_fp_fact_malus(depth));
+            td.history.quiet_history.update(board.stm, &mv, pc, threats, malus, fact_malus);
             continue;
         }
 
@@ -483,6 +485,8 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
+            let (malus, fact_malus) = (moveloop_lmp_malus(depth), moveloop_lmp_fact_malus(depth));
+            td.history.quiet_history.update(board.stm, &mv, pc, threats, malus, fact_malus);
             move_picker.skip_quiets = true;
         }
 
@@ -495,6 +499,8 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && depth <= hp_max_depth()
             && history_score < hp_scale() * depth * depth {
+            let (malus, fact_malus) = (moveloop_hp_malus(depth), moveloop_hp_fact_malus(depth));
+            td.history.quiet_history.update(board.stm, &mv, pc, threats, malus, fact_malus);
             move_picker.skip_quiets = true;
             continue
         }
@@ -531,6 +537,10 @@ fn alpha_beta<NODE: NodeType>(
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
+            if is_quiet {
+                let (malus, fact_malus) = (moveloop_see_malus(depth), moveloop_see_fact_malus(depth));
+                td.history.quiet_history.update(board.stm, &mv, pc, threats, malus, fact_malus);
+            }
             continue;
         }
 
