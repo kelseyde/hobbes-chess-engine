@@ -315,7 +315,7 @@ fn alpha_beta<NODE: NodeType>(
         && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
         && Score::is_defined(td.stack[ply - 1].static_eval)
         && static_eval + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
-        depth += 1;
+        depth += 1 + !tt_pv as i32;
     }
 
     // Hindsight reduction
