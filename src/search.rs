@@ -177,6 +177,7 @@ fn alpha_beta<NODE: NodeType>(
     // Determine if we are currently in check.
     let threats = board.threats;
     let in_check = threats.contains(board.king_sq(board.stm));
+    let no_threats = (threats & board.us()).is_empty();
     td.stack[ply].threats = threats;
 
     // Update the selective search depth
@@ -342,7 +343,7 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
-            - 64 * (threats & board.us()).is_empty() as i32;
+            - rfp_no_threats_scale() * no_threats as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
             && tt_flag != Upper {
