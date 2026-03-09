@@ -371,6 +371,7 @@ fn alpha_beta<NODE: NodeType>(
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
+            td.tt.prefetch(board.hash());
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -483,7 +484,6 @@ fn alpha_beta<NODE: NodeType>(
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
             move_picker.skip_quiets = true;
-            continue;
         }
 
         // History Pruning
