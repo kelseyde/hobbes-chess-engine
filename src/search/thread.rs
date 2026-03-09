@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -14,6 +16,7 @@ use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct ThreadData {
+    pub abort: Arc<AtomicBool>,
     pub id: usize,
     pub main: bool,
     pub minimal_output: bool,
@@ -45,6 +48,7 @@ pub struct ThreadData {
 impl Default for ThreadData {
     fn default() -> Self {
         ThreadData {
+            abort: Arc::new(AtomicBool::new(false)),
             id: 0,
             main: true,
             minimal_output: false,
@@ -147,6 +151,10 @@ impl ThreadData {
         // Only check hard limits every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;
+        }
+
+        if self.abort.load(Ordering::Relaxed) {
+            return true;
         }
 
         if let Some(hard_time) = self.limits.hard_time {

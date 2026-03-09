@@ -15,12 +15,17 @@ use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
     pub td: Box<ThreadData>,
     pub frc: bool,
+    pub abort: Arc<AtomicBool>,
+    pub search_thread: Option<JoinHandle<(Move, i32, Box<ThreadData>)>>,
 }
 
 impl Default for UCI {
@@ -31,10 +36,15 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let abort = Arc::new(AtomicBool::new(false));
+        let mut td = Box::new(ThreadData::default());
+        td.abort = abort.clone();
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            td,
             frc: false,
+            abort,
+            search_thread: None,
         }
     }
 
@@ -196,6 +206,7 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
+        self.wait_for_search();
         self.td.clear();
     }
 
@@ -267,6 +278,9 @@ impl UCI {
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
+        // Wait for any previous search to complete before starting a new one
+        self.wait_for_search();
+
         self.td.reset();
         self.td.start_time = Instant::now();
         self.td.tt.birthday();
@@ -374,11 +388,37 @@ impl UCI {
             self.board.fm as usize,
         );
 
-        // Perform the search
-        search(&self.board, &mut self.td);
+        // Prepare search thread data
+        let board = self.board.clone();
+        let mut td = std::mem::replace(&mut self.td, Box::new(ThreadData::default()));
+        self.abort.store(false, Ordering::SeqCst);
+        td.abort = self.abort.clone();
+        self.td.abort = self.abort.clone();
 
-        // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+        // Spawn the search thread
+        let handle = thread::spawn(move || {
+            search(&board, &mut td);
+            let best_move = td.best_move;
+            let best_score = td.best_score;
+            println!("bestmove {}", best_move.to_uci());
+            (best_move, best_score, td)
+        });
+
+        self.search_thread = Some(handle);
+    }
+
+    /// Wait for the current search to finish
+    fn wait_for_search(&mut self) {
+        if let Some(handle) = self.search_thread.take() {
+            match handle.join() {
+                Ok((_best_move, _best_score, td)) => {
+                    self.td = td;
+                }
+                Err(_) => {
+                    println!("info error: search thread panicked");
+                }
+            }
+        }
     }
 
     fn handle_eval(&mut self) {
@@ -447,7 +487,8 @@ impl UCI {
     }
 
     fn handle_stop(&mut self) {
-        //self.td.cancelled = true;
+        self.abort.store(true, Ordering::SeqCst);
+        self.wait_for_search();
     }
 
     fn handle_help(&self) {
