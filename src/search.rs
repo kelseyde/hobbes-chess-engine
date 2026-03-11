@@ -557,10 +557,10 @@ fn alpha_beta<NODE: NodeType>(
 
             if score < s_beta {
                 extension = 1;
-                let double_ext_margin = (se_dext_margin(is_quiet) - 10 * is_killer as i32).max(0);
+                let double_ext_margin = (se_dext_margin(is_quiet) + 10 * is_killer as i32).max(0);
                 extension += (!pv_node && score < s_beta - double_ext_margin) as i32;
 
-                let triple_ext_margin = (se_text_margin(is_quiet) - 10 * is_killer as i32).max(0);
+                let triple_ext_margin = (se_text_margin(is_quiet) + 10 * is_killer as i32).max(0);
                 extension += (!pv_node && is_quiet && score < s_beta - triple_ext_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
