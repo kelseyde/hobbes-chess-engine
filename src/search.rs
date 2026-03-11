@@ -562,7 +562,7 @@ fn alpha_beta<NODE: NodeType>(
             } else if s_beta >= beta {
                 best_score = (s_beta * s_depth + beta) / (s_depth + 1);
                 update_correction_history(
-                    td, board, depth, ply, static_eval, best_score, best_move, in_check, singular_search, TTFlag::Lower
+                    td, board, depth, ply, static_eval, best_score, mv, in_check, singular_search, TTFlag::Lower
                 );
                 return best_score;
             } else if tt_score >= beta {
