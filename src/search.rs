@@ -943,13 +943,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let filter = if in_check && pv_node && !tt_move_noisy && tt_flag != Upper {
-        MoveFilter::All
-    } else {
-        MoveFilter::Captures
-    };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
-
     let mut move_count = 0;
 
     let futility_margin = static_eval + qs_futility_threshold();
@@ -959,6 +952,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut flag = Upper;
     let mut captures = ArrayVec::<Move, 32>::new();
     let mut capture_count = 0;
+
+    let skip_quiets = (!in_check || !Score::is_mated(best_score)) && (pv_node || tt_move_noisy || tt_flag == Upper);
+    let filter = match skip_quiets {
+        true => MoveFilter::Captures,
+        false => MoveFilter::All,
+    };
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
     while let Some(mv) = move_picker.next(board, td) {
         if !board.is_legal(&mv) {

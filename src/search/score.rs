@@ -11,6 +11,10 @@ impl Score {
     pub const fn is_mate(score: i32) -> bool {
         score.abs() >= Score::MATE - MAX_PLY as i32
     }
+    
+    pub const fn is_mated(score: i32) -> bool {
+        score <= -Score::MATE + MAX_PLY as i32
+    }
 
     pub const fn is_defined(score: i32) -> bool {
         score >= -Score::MATE && score <= Score::MATE
