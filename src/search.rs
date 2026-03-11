@@ -362,10 +362,10 @@ fn alpha_beta<NODE: NodeType>(
             && board.has_non_pawns()
             && tt_flag != Upper {
 
-            let r = nmp_base_reduction()
-                + depth / nmp_depth_divisor()
-                + ((static_eval - beta) / nmp_eval_divisor()).min(nmp_eval_max_reduction())
-                + tt_move_noisy as i32;
+            let r = (nmp_red_base()
+                + nmp_red_depth_mult() * depth
+                + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
+                / 1024;
 
             let mut board = *board;
             board.make_null_move();
@@ -461,6 +461,7 @@ fn alpha_beta<NODE: NodeType>(
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
         let futility_margin = fp_base()
             + fp_scale() * lmr_depth
+            + pv_node as i32 * fp_pv_node()
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
