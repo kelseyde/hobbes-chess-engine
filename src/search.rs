@@ -522,12 +522,11 @@ fn alpha_beta<NODE: NodeType>(
         } else {
             (see_noisy_mult1() * depth * depth
                 - see_noisy_mult2() * depth
-                - history_score / see_quiet_history_div()
+                - history_score / see_noisy_history_div()
                 - tt_pv as i32 * lmr_depth * see_noisy_ttpv_scale()
                 + see_noisy_offset()).min(0)
         };
-        if !pv_node
-            && depth <= see_max_depth()
+        if depth <= see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)

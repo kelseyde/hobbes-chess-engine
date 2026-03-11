@@ -59,7 +59,7 @@ tunable_params! {
     see_noisy_mult2              = 36, 16, 48, 8,             true;
     see_noisy_offset             = 13, 0, 30, 4,              true;
     see_quiet_history_div        = 237, 164, 388, 25,         true;
-    see_noisy_history_div        = 210, 164, 388, 25,         true;
+    see_noisy_history_div        = 237, 164, 388, 25,         true;
     see_quiet_ttpv_scale         = 25, 0, 36, 6,              true;
     see_noisy_ttpv_scale         = 24, 0, 36, 6,              true;
     se_min_depth                 = 6, 6, 10, 1,               false;
