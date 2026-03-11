@@ -560,7 +560,11 @@ fn alpha_beta<NODE: NodeType>(
                 extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
                 extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
-                return (s_beta * s_depth + beta) / (s_depth + 1);
+                best_score = (s_beta * s_depth + beta) / (s_depth + 1);
+                update_correction_history(
+                    td, board, depth, ply, static_eval, best_score, best_move, in_check, singular_search, TTFlag::Lower
+                );
+                return best_score;
             } else if tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
@@ -829,12 +833,9 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Update static eval correction history.
-    if !in_check
-        && !singular_search
-        && flag.bounds_match(best_score, static_eval, static_eval)
-        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
-    }
+    update_correction_history(
+        td, board, depth, ply, static_eval, best_score, best_move, in_check, singular_search, flag
+    );
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
@@ -1080,6 +1081,26 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     best_score
+}
+
+fn update_correction_history(
+    td: &mut ThreadData,
+    board: &Board,
+    depth: i32,
+    ply: usize,
+    static_eval: i32,
+    best_score: i32,
+    best_move: Move,
+    in_check: bool,
+    singular_search: bool,
+    flag: TTFlag,
+) {
+    if !in_check
+        && !singular_search
+        && flag.bounds_match(best_score, static_eval, static_eval)
+        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
+        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+    }
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
