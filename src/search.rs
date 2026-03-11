@@ -953,7 +953,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut captures = ArrayVec::<Move, 32>::new();
     let mut capture_count = 0;
 
-    let skip_quiets = (!in_check || !Score::is_mated(best_score)) && (pv_node || tt_move_noisy || tt_flag == Upper);
+    let skip_quiets = !in_check && (pv_node || !tt_move.exists() || tt_move_noisy || tt_flag == Upper);
     let filter = match skip_quiets {
         true => MoveFilter::Captures,
         false => MoveFilter::All,
