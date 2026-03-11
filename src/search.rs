@@ -443,7 +443,7 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_mate_score = Score::is_mate(best_score);
+        let is_mated = Score::is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
@@ -470,7 +470,7 @@ fn alpha_beta<NODE: NodeType>(
             && !in_check
             && is_quiet
             && lmr_depth < fp_max_depth()
-            && !is_mate_score
+            && !is_mated
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
             continue;
@@ -480,7 +480,7 @@ fn alpha_beta<NODE: NodeType>(
         // Skip quiet moves ordered very late in the list.
         if !pv_node
             && !root_node
-            && !is_mate_score
+            && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improving) {
@@ -491,7 +491,7 @@ fn alpha_beta<NODE: NodeType>(
         // Skip quiet moves that have a bad history score.
         if !pv_node
             && !root_node
-            && !is_mate_score
+            && !is_mated
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
@@ -710,7 +710,7 @@ fn alpha_beta<NODE: NodeType>(
             // alpha, we can reduce the search depth for the remaining moves.
             if depth > alpha_raise_min_depth()
                 && depth < alpha_raise_max_depth()
-                && !is_mate_score {
+                && !is_mated {
                 depth -= 1;
             }
 
