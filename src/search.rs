@@ -541,14 +541,14 @@ fn alpha_beta<NODE: NodeType>(
         // only good move), and extend the search depth.
         if !root_node
             && !singular_search
-            && tt_hit
-            && mv == tt_move
+            && ((tt_hit && mv == tt_move) || legal_moves == 1 && history_score > 26000)
             && depth >= se_min_depth() + tt_pv as i32
             && tt_flag != Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && (!tt_hit || tt_depth >= depth - se_tt_depth_offset()) {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale(is_quiet) / 16).max(-Score::MATE + 1);
+            let s_beta_base = if tt_hit { tt_score } else { static_eval };
+            let s_beta = (s_beta_base - s_beta_mult * se_beta_scale(is_quiet) / 16).max(-Score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.stack[ply].singular = Some(mv);
@@ -561,11 +561,11 @@ fn alpha_beta<NODE: NodeType>(
                 extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
+            } else if tt_hit && tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
                 extension = -2;
-            } else if tt_score <= alpha {
+            } else if tt_hit && tt_score <= alpha {
                 extension = -1;
             }
 
