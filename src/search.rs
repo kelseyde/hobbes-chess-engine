@@ -564,9 +564,9 @@ fn alpha_beta<NODE: NodeType>(
             } else if tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
-                extension = -2 + tt_pv as i32;
+                extension = -2;
             } else if tt_score <= alpha {
-                extension = -1;
+                extension = -1 + !tt_pv as i32;
             }
 
         }
