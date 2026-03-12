@@ -451,11 +451,19 @@ impl Board {
             return true;
         }
 
-        if knights.is_empty() && !bishops.is_empty() && (bishops & self.white()).count() == 2
-            || (bishops & self.black()).count() == 2
-        {
+        let white_bishops = bishops & self.white();
+        let black_bishops = bishops & self.black();
+        if white_bishops.count() >= 2 || black_bishops.count() >= 2 {
             return false;
         }
+
+        let white_knights = knights & self.white();
+        let black_knights = knights & self.black();
+        if (!white_knights.is_empty() && !white_bishops.is_empty())
+            || (!black_knights.is_empty() && !black_bishops.is_empty()) {
+            return false;
+        }
+
         minor_count <= 3
     }
 
