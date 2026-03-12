@@ -451,11 +451,16 @@ impl Board {
             return true;
         }
 
-        if knights.is_empty() && !bishops.is_empty() && (bishops & self.white()).count() == 2
-            || (bishops & self.black()).count() == 2
-        {
+        let white_bishops = bishops & self.white();
+        let black_bishops = bishops & self.black();
+        if white_bishops.count() >= 2 || black_bishops.count() >= 2 {
             return false;
         }
+
+        if !knights.is_empty() && !bishops.is_empty() {
+            return false;
+        }
+
         minor_count <= 3
     }
 
@@ -598,6 +603,9 @@ mod tests {
             .unwrap()
             .is_insufficient_material());
         assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1")
+            .unwrap()
+            .is_insufficient_material());
+        assert!(!Board::from_fen("8/1k6/8/8/8/5BN1/6K1/8 w - - 0 1")
             .unwrap()
             .is_insufficient_material());
     }
