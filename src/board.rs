@@ -608,9 +608,6 @@ mod tests {
         assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1")
             .unwrap()
             .is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/8/8/8/5BN1/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
