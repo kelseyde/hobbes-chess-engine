@@ -969,18 +969,18 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
-        let is_mate_score = Score::is_mate(best_score);
+        let is_mated = Score::is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
+        if !in_check && !is_recapture && !is_killer && !is_mated && move_count >= 2 {
             break;
         }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
         if !in_check
-            && !is_mate_score
+            && !is_mated
             && !is_killer
             && futility_margin <= alpha
             && !see::see(board, &mv, 1, Pruning)
@@ -1003,7 +1003,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+        if in_check && move_count > 1 && is_quiet && !is_mated {
             break;
         }
 
