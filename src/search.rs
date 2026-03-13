@@ -1004,7 +1004,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
         if in_check && move_count > 1 && is_quiet && !is_mate_score {
-            break;
+            move_picker.skip_quiets = true;
         }
 
         let mut board = *board;
