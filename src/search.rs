@@ -561,11 +561,11 @@ fn alpha_beta<NODE: NodeType>(
                 extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if s_beta_base >= beta {
+            } else if tt_hit && tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
                 extension = -2;
-            } else if s_beta_base <= alpha {
+            } else if tt_hit && tt_score <= alpha {
                 extension = -1;
             }
 
