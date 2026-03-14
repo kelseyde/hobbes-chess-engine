@@ -285,6 +285,13 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
+    // Do we have a potentially singular TT move?
+    let maybe_singular = depth >= se_min_depth() + tt_pv as i32
+        && tt_depth >= depth - se_tt_depth_offset()
+        && tt_flag != Upper
+        && Score::is_defined(tt_score)
+        && !Score::is_mate(tt_score);
+
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
@@ -359,6 +366,7 @@ fn alpha_beta<NODE: NodeType>(
         if depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
+            && !maybe_singular
             && board.has_non_pawns()
             && tt_flag != Upper {
 
@@ -540,12 +548,10 @@ fn alpha_beta<NODE: NodeType>(
         // some margin doesn't beat the TT score, we assume the TT move is 'singular' (i.e. the
         // only good move), and extend the search depth.
         if !root_node
+            && maybe_singular
             && !singular_search
             && tt_hit
-            && mv == tt_move
-            && depth >= se_min_depth() + tt_pv as i32
-            && tt_flag != Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
+            && mv == tt_move {
 
             let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
             let s_beta = (tt_score - s_beta_mult * se_beta_scale(is_quiet) / 16).max(-Score::MATE + 1);
