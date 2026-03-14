@@ -48,7 +48,8 @@ tunable_params! {
     lmp_scale                    = 11, 10, 100, 20,           true;
     lmp_improving_scale          = 86, 10, 100, 20,           true;
     hp_max_depth                 = 4, 4, 8, 1,                false;
-    hp_scale                     = -2264, -3072, -1024, 128,  true;
+    hp_nonpv_scale               = -2264, -3072, -1024, 128,  true;
+    hp_pv_scale                  = -2700, -3072, -1024, 128,  true;
     bnp_max_depth                = 6, 4, 10, 1,               false;
     bnp_scale                    = 143, 64, 256, 16,          true;
     see_max_depth                = 8, 6, 10, 1,               false;
