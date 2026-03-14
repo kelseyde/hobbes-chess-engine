@@ -259,6 +259,7 @@ fn alpha_beta<NODE: NodeType>(
     // extensions, reductions and pruning.
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -271,7 +272,7 @@ fn alpha_beta<NODE: NodeType>(
         if !tt_hit {
             td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        let correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
     }
 
@@ -833,7 +834,14 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        let confidence = match correction {
+            0..50 => 2,
+            50..=100 => 1,
+            _ => 0
+        };
+        let corr_update_depth = depth + confidence;
+        td.correction_history
+            .update_correction_history(board, &td.stack, corr_update_depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
