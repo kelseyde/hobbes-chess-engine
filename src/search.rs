@@ -27,6 +27,7 @@ use crate::search::tt::TTFlag::Upper;
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
+use TTFlag::Lower;
 
 pub const MAX_PLY: usize = 256;
 
@@ -75,9 +76,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
             bound = if score <= alpha {
-                TTFlag::Upper
+                Upper
             } else if score >= beta {
-                TTFlag::Lower
+                Lower
             } else {
                 TTFlag::Exact
             };
@@ -221,7 +222,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_score = Score::MIN;
     let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
-    let mut tt_flag = TTFlag::Lower;
+    let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
 
@@ -247,7 +248,11 @@ fn alpha_beta<NODE: NodeType>(
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
-                && entry.flag().bounds_match(tt_score, alpha, beta) {
+                && match tt_flag {
+                Upper => tt_score <= alpha && (!cut_node || depth > 5),
+                Lower => tt_score >= beta && (cut_node || depth > 5),
+                _ => true,
+            } {
                 return tt_score;
             }
         }
@@ -701,7 +706,7 @@ fn alpha_beta<NODE: NodeType>(
             // won't let us get here assuming perfect play. There is therefore no point searching
             // further, and we can cut off the search.
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
 
@@ -1051,7 +1056,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             }
 
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
         }
@@ -1177,8 +1182,8 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     };
     let hashfull = td.tt.fill();
     let bound = match bound {
-        TTFlag::Lower => " lowerbound",
-        TTFlag::Upper => " upperbound",
+        Lower => " lowerbound",
+        Upper => " upperbound",
         _ => "",
     };
     print!(
