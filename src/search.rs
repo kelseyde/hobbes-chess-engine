@@ -454,7 +454,7 @@ fn alpha_beta<NODE: NodeType>(
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
         if in_check {
-            extension = check_ext() * is_quiet as i32;
+            extension += check_ext() * is_quiet as i32;
         }
 
         // Futility Pruning
@@ -556,17 +556,21 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].singular = None;
 
             if score < s_beta {
-                extension = se_ext();
+                extension += se_ext();
                 extension += se_dext() * (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
                 extension += se_text() * (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
-                extension = se_tt_beta_negext() + se_tt_beta_negext_cutnode() * pv_node as i32;
-            } else if cut_node {
-                extension = se_cutnode_negext();
-            } else if tt_score <= alpha {
-                extension = se_tt_alpha_negext();
+            } else {
+                if tt_score >= beta {
+                    extension += se_tt_beta_negext() + se_tt_beta_negext_cutnode() * pv_node as i32;
+                }
+                if cut_node {
+                    extension += se_cutnode_negext();
+                }
+                if tt_score <= alpha {
+                    extension += se_tt_alpha_negext();
+                }
             }
 
         }
@@ -589,6 +593,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + (extension / 1024);
+        //td.debug_stats.insert(String::from("extension"), extension as i64);
 
         let mut score = Score::MIN;
 
