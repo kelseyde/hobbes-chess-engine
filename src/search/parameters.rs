@@ -34,6 +34,7 @@ tunable_params! {
     dynamic_policy_mult          = 8, 0, 20, 2,               true;
     dynamic_policy_min           = -60, -100, 0, 25,          true;
     dynamic_policy_max           = 208, 75, 300, 25,          true;
+    check_ext                    = 1024, 0, 2048, 256,        true;
     fp_max_depth                 = 8, 4, 10, 1,               false;
     fp_base                      = 171, 50, 250, 25,          true;
     fp_scale                     = 101, 50, 200, 10,          true;
@@ -72,6 +73,13 @@ tunable_params! {
     se_beta_noisy_scale          = 19, 16, 48, 6,             true;
     se_dext_noisy_margin         = 10, 0, 30, 5,              true;
     se_text_noisy_margin         = 53, 20, 120, 10,           true;
+    se_ext                       = 1024, 0, 2048, 256,        true;
+    se_dext                      = 1024, 0, 2048, 256,        true;
+    se_text                      = 1024, 0, 2045, 256,        true;
+    se_tt_beta_negext            = -3072, -4096, 0, 256,      true;
+    se_tt_beta_negext_cutnode    = 1024, 0, 2048, 256,        true;
+    se_cutnode_negext            = -2048, -3072, 0, 256,      true;
+    se_tt_alpha_negext           = -1024, -2048, 0, 256,      true;
     lmr_min_depth                = 2, 1, 5, 1,                false;
     lmr_min_moves                = 2, 1, 4, 1,                false;
     lmr_quiet_base               = 94, 50, 150, 10,           true;
