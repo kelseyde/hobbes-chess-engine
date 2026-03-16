@@ -593,7 +593,6 @@ fn alpha_beta<NODE: NodeType>(
 
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + (extension / 1024);
-        //td.debug_stats.insert(String::from("extension"), extension as i64);
 
         let mut score = Score::MIN;
 
