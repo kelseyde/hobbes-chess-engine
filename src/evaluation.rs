@@ -56,7 +56,7 @@ use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
 pub(crate) static NETWORK: Network =
-    unsafe { std::mem::transmute(*include_bytes!(env!("PERMUTED_NET_PATH"))) };
+    unsafe { std::mem::transmute(*include_bytes!(env!("NETWORK_PATH"))) };
 
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,

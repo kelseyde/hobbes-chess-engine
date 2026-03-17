@@ -49,12 +49,6 @@ pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> int8x16_t {
     vreinterpretq_s8_u8(vcombine_u8(a_u8, b_u8))
 }
 
-/// No permute needed for NEON as the pack operation already arranges bytes correctly.
-#[inline(always)]
-pub unsafe fn permute(a: int8x16_t) -> int8x16_t {
-    a
-}
-
 #[inline(always)]
 pub unsafe fn mul_add_i32(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
     vmlaq_s32(c, a, b)
