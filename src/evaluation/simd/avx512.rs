@@ -71,3 +71,18 @@ pub unsafe fn horizontal_sum_i32(a: [__m512i; 8]) -> i32 {
 pub unsafe fn horizontal_sum_i32_single(a: __m512i) -> i32 {
     _mm512_reduce_add_epi32(a)
 }
+
+#[inline(always)]
+pub unsafe fn add_i32(a: __m512i, b: __m512i) -> __m512i {
+    _mm512_add_epi32(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: __m512i) -> __m512i {
+    _mm512_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn mul_i32(a: __m512i, b: __m512i) -> __m512i {
+    _mm512_mullo_epi32(a, b)
+}

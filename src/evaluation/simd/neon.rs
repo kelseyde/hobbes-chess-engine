@@ -128,3 +128,14 @@ pub unsafe fn store_i32(ptr: *mut i32, v: int32x4_t) {
 pub unsafe fn add_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vaddq_s32(a, b)
 }
+
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshrq_n_s32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn mul_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
+    vmulq_s32(a, b)
+}
+

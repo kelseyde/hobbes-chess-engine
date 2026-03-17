@@ -45,40 +45,51 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
 pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE] {
     let biases = &NETWORK.l1_biases[output_bucket];
 
-    let mut intermediate = [0i32; L2_SIZE];
+    let mut output = [0i32; L2_SIZE];
+
+    const STRIDE: usize = simd::I32_LANES * 4; // bytes per dpbusd
 
     for output_idx in 0..L2_SIZE {
         let weight_row = &NETWORK.l1_weights[output_bucket][output_idx];
-        let mut acc = simd::splat_i32(0);
 
-        for i in (0..L1_SIZE).step_by(simd::I32_LANES * 4) {
+        let mut acc0 = simd::splat_i32(0);
+        let mut acc1 = simd::splat_i32(0);
+        let mut acc2 = simd::splat_i32(0);
+        let mut acc3 = simd::splat_i32(0);
+
+        let mut i = 0;
+        while i + 4 * STRIDE <= L1_SIZE {
+            let inp0 = *(input.as_ptr().add(i) as *const _);
+            let w0 = *(weight_row.as_ptr().add(i) as *const _);
+            acc0 = simd::dpbusd(acc0, inp0, w0);
+
+            let inp1 = *(input.as_ptr().add(i + STRIDE) as *const _);
+            let w1 = *(weight_row.as_ptr().add(i + STRIDE) as *const _);
+            acc1 = simd::dpbusd(acc1, inp1, w1);
+
+            let inp2 = *(input.as_ptr().add(i + 2 * STRIDE) as *const _);
+            let w2 = *(weight_row.as_ptr().add(i + 2 * STRIDE) as *const _);
+            acc2 = simd::dpbusd(acc2, inp2, w2);
+
+            let inp3 = *(input.as_ptr().add(i + 3 * STRIDE) as *const _);
+            let w3 = *(weight_row.as_ptr().add(i + 3 * STRIDE) as *const _);
+            acc3 = simd::dpbusd(acc3, inp3, w3);
+
+            i += 4 * STRIDE;
+        }
+        while i < L1_SIZE {
             let inp = *(input.as_ptr().add(i) as *const _);
             let w = *(weight_row.as_ptr().add(i) as *const _);
-            acc = simd::dpbusd(acc, inp, w);
+            acc0 = simd::dpbusd(acc0, inp, w);
+            i += STRIDE;
         }
 
-        intermediate[output_idx] = simd::horizontal_sum_i32_single(acc);
-    }
+        let combined = simd::add_i32(simd::add_i32(acc0, acc1), simd::add_i32(acc2, acc3));
+        let raw = simd::horizontal_sum_i32_single(combined);
 
-    // Re-quantise, add biases and activate L1 outputs
-    let mut output: [i32; L2_SIZE] = [0; L2_SIZE];
-    for i in 0..L2_SIZE {
-        let bias: i32 = biases[i];
-        let mut out: i32 = intermediate[i];
-
-        // Down-shift into L1 Q space
-        out >>= L1_SHIFT;
-
-        // Add the bias
-        out += bias;
-
-        // Squared Clipped ReLU activation
-        // Clamp to [0, Q]
-        let clamped: i32 = out.clamp(0, Q as i32);
-        // Square the clamped value, moving to [0, Q*Q]
-        let activated = clamped * clamped;
-
-        output[i] = activated;
+        let out = (raw >> L1_SHIFT) + biases[output_idx];
+        let clamped = out.clamp(0, Q as i32);
+        output[output_idx] = clamped * clamped;
     }
 
 
@@ -89,23 +100,24 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
     const LANES: usize = L3_SIZE / simd::I32_LANES;
     let weights = &NETWORK.l2_weights[output_bucket];
-    let mut out = NETWORK.l2_biases[output_bucket];
+    let biases = &NETWORK.l2_biases[output_bucket];
 
     let mut acc = [simd::splat_i32(0); LANES];
     for (v, vec) in acc.iter_mut().enumerate() {
-        *vec = simd::load_i32(out.as_ptr().add(v * simd::I32_LANES));
+        *vec = simd::load_i32(biases.as_ptr().add(v * simd::I32_LANES));
     }
 
     for input_idx in 0..L2_SIZE {
         let x = simd::splat_i32(input[input_idx]);
         let base = input_idx * L3_SIZE;
 
-        for v in 0..acc.len() {
+        for v in 0..LANES {
             let w = simd::load_i32(weights.as_ptr().add(base + v * simd::I32_LANES));
             acc[v] = simd::mul_add_i32(w, x, acc[v]);
         }
     }
 
+    let mut out = [0i32; L3_SIZE];
     for (v, vec) in acc.into_iter().enumerate() {
         simd::store_i32(out.as_mut_ptr().add(v * simd::I32_LANES), vec);
     }
@@ -117,23 +129,20 @@ pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32
 pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
     const LANES: usize = L3_SIZE / simd::I32_LANES;
 
-    let input_ptr = input.as_ptr();
-    let weights = &NETWORK.l3_weights[output_bucket].as_ptr();
+    let weights = NETWORK.l3_weights[output_bucket].as_ptr();
     let bias = NETWORK.l3_biases[output_bucket];
 
     let lo = simd::splat_i32(0);
     let hi = simd::splat_i32((Q * Q * Q) as i32);
 
-    let mut output = [simd::splat_i32(0); LANES];
-    for (lane, result) in output.iter_mut().enumerate() {
-        for i in (0..L3_SIZE).step_by(LANES * simd::I32_LANES) {
-            let w = *weights.add(i + lane * simd::I32_LANES).cast();
-            let b = *input_ptr.add(i + lane * simd::I32_LANES).cast();
-            let b_clamped = simd::clamp_i32(b, lo, hi);
-
-            *result = simd::mul_add_i32(w, b_clamped, *result);
-        }
+    let mut acc = [simd::splat_i32(0); LANES];
+    for v in 0..LANES {
+        let off = v * simd::I32_LANES;
+        let w = simd::load_i32(weights.add(off));
+        let b = simd::load_i32(input.as_ptr().add(off));
+        let b_clamped = simd::clamp_i32(b, lo, hi);
+        acc[v] = simd::mul_add_i32(w, b_clamped, acc[v]);
     }
-    simd::horizontal_sum_i32(output) + bias
 
+    simd::horizontal_sum_i32(acc) + bias
 }

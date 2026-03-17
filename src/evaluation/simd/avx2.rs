@@ -78,3 +78,19 @@ pub unsafe fn horizontal_sum_i32_single(a: __m256i) -> i32 {
     let sum32 = _mm_add_epi32(sum64, hi32);
     _mm_cvtsi128_si32(sum32)
 }
+
+#[inline(always)]
+pub unsafe fn add_i32(a: __m256i, b: __m256i) -> __m256i {
+    _mm256_add_epi32(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
+    _mm256_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn mul_i32(a: __m256i, b: __m256i) -> __m256i {
+    _mm256_mullo_epi32(a, b)
+}
+
