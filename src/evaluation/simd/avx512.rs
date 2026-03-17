@@ -56,15 +56,12 @@ pub unsafe fn store_i32(ptr: *mut i32, v: __m512i) {
 }
 
 #[inline(always)]
-pub unsafe fn horizontal_sum_i32(a: [__m512i; 8]) -> i32 {
-    let sum01 = _mm512_add_epi32(a[0], a[1]);
-    let sum23 = _mm512_add_epi32(a[2], a[3]);
-    let sum45 = _mm512_add_epi32(a[4], a[5]);
-    let sum67 = _mm512_add_epi32(a[6], a[7]);
-    let sum0123 = _mm512_add_epi32(sum01, sum23);
-    let sum4567 = _mm512_add_epi32(sum45, sum67);
-    let sum_all = _mm512_add_epi32(sum0123, sum4567);
-    horizontal_sum_i32_single(sum_all)
+pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m512i; N]) -> i32 {
+    let mut acc = a[0];
+    for i in 1..N {
+        acc = _mm512_add_epi32(acc, a[i]);
+    }
+    horizontal_sum_i32_single(acc)
 }
 
 #[inline(always)]

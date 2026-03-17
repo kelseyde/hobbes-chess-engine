@@ -3,9 +3,6 @@ use std::{arch::aarch64::*, mem::size_of};
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
-// For dpbusd-style L1 matmul
-pub const I8_LANES: usize = size_of::<int8x16_t>() / size_of::<i8>();
-
 #[inline(always)]
 pub unsafe fn splat_i16(a: i16) -> int16x8_t {
     vdupq_n_s16(a)
@@ -58,20 +55,12 @@ pub unsafe fn mul_add_i32(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t
 }
 
 #[inline(always)]
-pub unsafe fn horizontal_sum_i32(a: [int32x4_t; 8]) -> i32 {
-    let sum01 = vaddq_s32(a[0], a[1]);
-    let sum23 = vaddq_s32(a[2], a[3]);
-    let sum45 = vaddq_s32(a[4], a[5]);
-    let sum67 = vaddq_s32(a[6], a[7]);
-
-    let sum0123 = vaddq_s32(sum01, sum23);
-    let sum4567 = vaddq_s32(sum45, sum67);
-    let sum = vaddq_s32(sum0123, sum4567);
-
-    let pair = vpadd_s32(vget_low_s32(sum), vget_high_s32(sum));
-    let final_sum = vpadd_s32(pair, pair);
-
-    vget_lane_s32::<0>(final_sum)
+pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
+    let mut acc = a[0];
+    for i in 1..N {
+        acc = vaddq_s32(acc, a[i]);
+    }
+    horizontal_sum_i32_single(acc)
 }
 
 #[inline(always)]
