@@ -23,7 +23,7 @@ Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyd
 
 |                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
 |:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
-| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     -      |     -      |     -      |
+| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      |     -      |     -      |
 
 ## Search
 
