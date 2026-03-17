@@ -723,49 +723,60 @@ fn alpha_beta<NODE: NodeType>(
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
+        let is_beta_cutoff = flag == TTFlag::Lower;
 
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+            + capture_count as i16 * quiet_hist_capture_mult() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let quiet_malus = quiet_history_malus(depth)
-            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
+            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let quiet_factoriser_bonus = quiet_history_factoriser_bonus(depth)
             - cut_node as i16 * quiet_fact_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_fact_capture_mult() as i16;
+            + capture_count as i16 * quiet_fact_capture_mult() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let quiet_factoriser_malus = quiet_history_factoriser_malus(depth)
-            + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
+            + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let capt_bonus = capture_history_bonus(depth)
-            + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
+            + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let capt_malus = capture_history_malus(depth)
-            + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
+            + new_tt_move as i16 * capt_hist_ttmove_malus() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let cont_1_bonus = cont_history_1_bonus(depth)
             - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_1_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_1_capture_mult() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let cont_1_malus = cont_history_1_malus(depth)
-            + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
+            + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16
+            + is_beta_cutoff as i16 * 50;
         
         let cont_2_bonus = cont_history_2_bonus(depth)
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_2_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_2_capture_mult() as i16
+            + is_beta_cutoff as i16 * 50;
 
         let cont_2_malus = cont_history_2_malus(depth)
-            + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
+            + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16
+            + is_beta_cutoff as i16 * 50;
 
-        let from_bonus = from_history_bonus(depth);
-        let from_malus = from_history_malus(depth);
-        let to_bonus = to_history_bonus(depth);
-        let to_malus = to_history_malus(depth);
+        let from_bonus = from_history_bonus(depth) + is_beta_cutoff as i16 * 50;
+        let from_malus = from_history_malus(depth) + is_beta_cutoff as i16 * 50;
+        let to_bonus = to_history_bonus(depth) + is_beta_cutoff as i16 * 50;
+        let to_malus = to_history_malus(depth) + is_beta_cutoff as i16 * 50;
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
