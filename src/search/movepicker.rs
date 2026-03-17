@@ -177,8 +177,9 @@ impl MovePicker {
             entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet
+            let in_check = threats.contains(board.king_sq(board.stm));
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
-            let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+            let cont_score = td.history.cont_history_score(board, in_check, &td.stack, mv, ply);
             let is_killer = td.stack[ply].killer == Some(*mv);
             let base = if is_killer { 10000000 } else { 0 };
             entry.score = base + quiet_score + cont_score;
