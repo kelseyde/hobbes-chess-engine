@@ -135,18 +135,15 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     const LANES: usize = L3_SIZE / simd::I32_LANES;
 
     let weights = NETWORK.l3_weights[output_bucket].as_ptr();
-    let bias = NETWORK.l3_biases[output_bucket];
-
-    let lo = simd::splat_i32(0);
-    let hi = simd::splat_i32((Q * Q * Q) as i32);
+    let bias    = NETWORK.l3_biases[output_bucket];
+    let lo      = simd::splat_i32(0);
+    let hi      = simd::splat_i32((Q * Q * Q) as i32);
 
     let mut acc = [simd::splat_i32(0); LANES];
     for v in 0..LANES {
-        let off = v * simd::I32_LANES;
-        let w = simd::load_i32(weights.add(off));
-        let b = simd::load_i32(input.as_ptr().add(off));
-        let b_clamped = simd::clamp_i32(b, lo, hi);
-        acc[v] = simd::mul_add_i32(w, b_clamped, acc[v]);
+        let off       = v * simd::I32_LANES;
+        let b_clamped = simd::clamp_i32(simd::load_i32(input.as_ptr().add(off)), lo, hi);
+        acc[v]        = simd::mul_i32(simd::load_i32(weights.add(off)), b_clamped);
     }
 
     simd::horizontal_sum_i32(acc) + bias

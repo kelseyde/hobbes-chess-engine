@@ -113,19 +113,16 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
 
 #[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
-    let pair = vpadd_s32(vget_low_s32(a), vget_high_s32(a));
-    let final_sum = vpadd_s32(pair, pair);
-    vget_lane_s32::<0>(final_sum)
+    vaddvq_s32(a)
 }
 
-
-
 #[inline(always)]
-pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
+pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
+    // u8s values are in [0, 127] after SCReLU, so signed multiply is safe
     let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
     let hi = vmull_high_s8(u8s, i8s);
     let pairwise = vpaddq_s16(lo, hi);
-    vpadalq_s16(i32s, pairwise)
+    vpadalq_s16(acc, pairwise)
 }
 
 #[inline(always)]
@@ -141,4 +138,14 @@ pub unsafe fn store_i32(ptr: *mut i32, v: int32x4_t) {
 #[inline(always)]
 pub unsafe fn add_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vaddq_s32(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshrq_n_s32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn mul_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
+    vmulq_s32(a, b)
 }
