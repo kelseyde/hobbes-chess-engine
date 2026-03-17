@@ -635,7 +635,10 @@ fn alpha_beta<NODE: NodeType>(
                     if is_quiet && (score <= alpha || score >= beta) {
                         let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta);
                         let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta);
-                        td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
+                        let bonus_4 = lmr_conthist_4_bonus(depth, score >= beta);
+                        let bonus_6 = lmr_conthist_6_bonus(depth, score >= beta);
+                        td.history.update_continuation_history(
+                            original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2, bonus_4, bonus_6]);
                     }
                 }
             }
@@ -762,6 +765,22 @@ fn alpha_beta<NODE: NodeType>(
         let cont_2_malus = cont_history_2_malus(depth)
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
 
+        let cont_4_bonus = cont_history_4_bonus(depth)
+            - cut_node as i16 * cont_hist_4_cutnode_offset() as i16
+            + new_tt_move as i16 * cont_hist_4_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_4_capture_mult() as i16;
+
+        let cont_4_malus = cont_history_4_malus(depth)
+            + new_tt_move as i16 * cont_hist_4_ttmove_malus() as i16;
+
+        let cont_6_bonus = cont_history_6_bonus(depth)
+            - cut_node as i16 * cont_hist_6_cutnode_offset() as i16
+            + new_tt_move as i16 * cont_hist_6_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_6_capture_mult() as i16;
+
+        let cont_6_malus = cont_history_6_malus(depth)
+            + new_tt_move as i16 * cont_hist_6_ttmove_malus() as i16;
+
         let from_bonus = from_history_bonus(depth);
         let from_malus = from_history_malus(depth);
         let to_bonus = to_history_bonus(depth);
@@ -775,7 +794,8 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
-            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &[cont_1_bonus, cont_2_bonus]);
+            td.history.update_continuation_history(
+                board, &td.stack, ply, &best_move, pc, &[cont_1_bonus, cont_2_bonus, cont_4_bonus, cont_6_bonus]);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
@@ -785,7 +805,8 @@ fn alpha_beta<NODE: NodeType>(
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
                         .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
-                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &[cont_1_malus, cont_2_malus]);
+                    td.history.update_continuation_history(
+                        board, &td.stack, ply, mv, pc, &[cont_1_malus, cont_2_malus, cont_4_malus, cont_6_malus]);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
