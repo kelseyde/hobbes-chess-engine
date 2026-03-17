@@ -28,28 +28,48 @@ pub unsafe fn mul_high_i16(a: __m512i, b: __m512i) -> __m512i {
     _mm512_mulhi_epi16(a, b)
 }
 
+#[inline(always)]
+pub unsafe fn shift_left_mul_high_i16<const SHIFT_MINUS_ONE: u32>(a: __m512i, b: __m512i) -> __m512i {
+    _mm512_mulhi_epi16(_mm512_slli_epi16::<1>(_mm512_slli_epi16::<SHIFT_MINUS_ONE>(a)), b)
+}
+
 pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
     _mm512_packus_epi16(a, b)
 }
 
 #[inline(always)]
 pub unsafe fn load_i16(ptr: *const i16) -> __m512i {
-    _mm512_loadu_si512(ptr as *const i32)
+    _mm512_loadu_si512(ptr as *const __m512i)
+}
+
+#[inline(always)]
+pub unsafe fn store_i16(ptr: *mut i16, v: __m512i) {
+    _mm512_storeu_si512(ptr as *mut __m512i, v)
+}
+
+#[inline(always)]
+pub unsafe fn add_i16(a: __m512i, b: __m512i) -> __m512i {
+    _mm512_add_epi16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn sub_i16(a: __m512i, b: __m512i) -> __m512i {
+    _mm512_sub_epi16(a, b)
 }
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
-    _mm512_loadu_si512(ptr as *const i32)
+    _mm512_loadu_si512(ptr as *const __m512i)
 }
 
 #[inline(always)]
 pub unsafe fn load_i8(ptr: *const i8) -> __m512i {
-    _mm512_loadu_si512(ptr as *const i32)
+    _mm512_loadu_si512(ptr as *const __m512i)
 }
 
 #[inline(always)]
 pub unsafe fn store_i8(ptr: *mut u8, v: __m512i) {
-    _mm512_storeu_si512(ptr as *mut i32, v)
+    _mm512_storeu_si512(ptr as *mut __m512i, v)
 }
 
 #[inline(always)]
@@ -67,12 +87,12 @@ pub unsafe fn mul_add_i32(a: __m512i, b: __m512i, c: __m512i) -> __m512i {
 
 #[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> __m512i {
-    _mm512_loadu_si512(ptr as *const i32)
+    _mm512_loadu_si512(ptr as *const __m512i)
 }
 
 #[inline(always)]
 pub unsafe fn store_i32(ptr: *mut i32, v: __m512i) {
-    _mm512_storeu_si512(ptr as *mut i32, v)
+    _mm512_storeu_si512(ptr as *mut __m512i, v)
 }
 
 #[inline(always)]

@@ -2,7 +2,7 @@ use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::NETWORK;
+use crate::evaluation::{simd, NETWORK};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
@@ -260,18 +260,16 @@ pub fn add(
     perspective: Side,
     mirror: bool,
 ) {
-    let idx = add.index(perspective, mirror);
-    let weight_offset = idx * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            let weight = *weights.get_unchecked(i + weight_offset);
-            *out_feat_ptr = in_feat_ptr.wrapping_add(weight);
+    let w = unsafe { weights.as_ptr().add(add.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            simd::store_i16(output_features.as_mut_ptr().add(i),                       simd::add_i16(simd::load_i16(input_features.as_ptr().add(i)),                       simd::load_i16(w.add(i))));
+            simd::store_i16(output_features.as_mut_ptr().add(i +   simd::I16_LANES),   simd::add_i16(simd::load_i16(input_features.as_ptr().add(i +   simd::I16_LANES)),   simd::load_i16(w.add(i +   simd::I16_LANES))));
+            simd::store_i16(output_features.as_mut_ptr().add(i + 2*simd::I16_LANES),   simd::add_i16(simd::load_i16(input_features.as_ptr().add(i + 2*simd::I16_LANES)),   simd::load_i16(w.add(i + 2*simd::I16_LANES))));
+            simd::store_i16(output_features.as_mut_ptr().add(i + 3*simd::I16_LANES),   simd::add_i16(simd::load_i16(input_features.as_ptr().add(i + 3*simd::I16_LANES)),   simd::load_i16(w.add(i + 3*simd::I16_LANES))));
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -284,18 +282,16 @@ pub fn sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let idx = sub.index(perspective, mirror);
-    let weight_offset = idx * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            let weight = *weights.get_unchecked(i + weight_offset);
-            *out_feat_ptr = in_feat_ptr.wrapping_sub(weight);
+    let w = unsafe { weights.as_ptr().add(sub.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            simd::store_i16(output_features.as_mut_ptr().add(i),                       simd::sub_i16(simd::load_i16(input_features.as_ptr().add(i)),                       simd::load_i16(w.add(i))));
+            simd::store_i16(output_features.as_mut_ptr().add(i +   simd::I16_LANES),   simd::sub_i16(simd::load_i16(input_features.as_ptr().add(i +   simd::I16_LANES)),   simd::load_i16(w.add(i +   simd::I16_LANES))));
+            simd::store_i16(output_features.as_mut_ptr().add(i + 2*simd::I16_LANES),   simd::sub_i16(simd::load_i16(input_features.as_ptr().add(i + 2*simd::I16_LANES)),   simd::load_i16(w.add(i + 2*simd::I16_LANES))));
+            simd::store_i16(output_features.as_mut_ptr().add(i + 3*simd::I16_LANES),   simd::sub_i16(simd::load_i16(input_features.as_ptr().add(i + 3*simd::I16_LANES)),   simd::load_i16(w.add(i + 3*simd::I16_LANES))));
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -309,19 +305,19 @@ pub fn add_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let add_offset = add.index(perspective, mirror) * L1_SIZE;
-    let sub_offset = sub.index(perspective, mirror) * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            *out_feat_ptr = in_feat_ptr
-                .wrapping_add(*weights.get_unchecked(i + add_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub_offset));
+    let wa = unsafe { weights.as_ptr().add(add.index(perspective, mirror) * L1_SIZE) };
+    let ws = unsafe { weights.as_ptr().add(sub.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            for k in 0..4usize {
+                let off = i + k * simd::I16_LANES;
+                let f = simd::load_i16(input_features.as_ptr().add(off));
+                simd::store_i16(output_features.as_mut_ptr().add(off),
+                    simd::sub_i16(simd::add_i16(f, simd::load_i16(wa.add(off))), simd::load_i16(ws.add(off))));
+            }
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -337,21 +333,20 @@ pub fn add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let add_offset = add.index(perspective, mirror) * L1_SIZE;
-    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
-    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            *out_feat_ptr = in_feat_ptr
-                .wrapping_add(*weights.get_unchecked(i + add_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub2_offset));
+    let wa  = unsafe { weights.as_ptr().add(add.index(perspective, mirror)  * L1_SIZE) };
+    let ws1 = unsafe { weights.as_ptr().add(sub1.index(perspective, mirror) * L1_SIZE) };
+    let ws2 = unsafe { weights.as_ptr().add(sub2.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            for k in 0..4usize {
+                let off = i + k * simd::I16_LANES;
+                let f = simd::load_i16(input_features.as_ptr().add(off));
+                simd::store_i16(output_features.as_mut_ptr().add(off),
+                    simd::sub_i16(simd::sub_i16(simd::add_i16(f, simd::load_i16(wa.add(off))), simd::load_i16(ws1.add(off))), simd::load_i16(ws2.add(off))));
+            }
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -368,23 +363,21 @@ pub fn add_add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
-    let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
-    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
-    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            *out_feat_ptr = in_feat_ptr
-                .wrapping_add(*weights.get_unchecked(i + add1_offset))
-                .wrapping_add(*weights.get_unchecked(i + add2_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub2_offset));
+    let wa1 = unsafe { weights.as_ptr().add(add1.index(perspective, mirror) * L1_SIZE) };
+    let wa2 = unsafe { weights.as_ptr().add(add2.index(perspective, mirror) * L1_SIZE) };
+    let ws1 = unsafe { weights.as_ptr().add(sub1.index(perspective, mirror) * L1_SIZE) };
+    let ws2 = unsafe { weights.as_ptr().add(sub2.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            for k in 0..4usize {
+                let off = i + k * simd::I16_LANES;
+                let f = simd::load_i16(input_features.as_ptr().add(off));
+                simd::store_i16(output_features.as_mut_ptr().add(off),
+                    simd::sub_i16(simd::sub_i16(simd::add_i16(simd::add_i16(f, simd::load_i16(wa1.add(off))), simd::load_i16(wa2.add(off))), simd::load_i16(ws1.add(off))), simd::load_i16(ws2.add(off))));
+            }
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -401,23 +394,21 @@ pub fn add_add_add_add(
     perspective: Side,
     mirror: bool,
 ) {
-    let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
-    let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
-    let add3_offset = add3.index(perspective, mirror) * L1_SIZE;
-    let add4_offset = add4.index(perspective, mirror) * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            *out_feat_ptr = in_feat_ptr
-                .wrapping_add(*weights.get_unchecked(i + add1_offset))
-                .wrapping_add(*weights.get_unchecked(i + add2_offset))
-                .wrapping_add(*weights.get_unchecked(i + add3_offset))
-                .wrapping_add(*weights.get_unchecked(i + add4_offset));
+    let wa1 = unsafe { weights.as_ptr().add(add1.index(perspective, mirror) * L1_SIZE) };
+    let wa2 = unsafe { weights.as_ptr().add(add2.index(perspective, mirror) * L1_SIZE) };
+    let wa3 = unsafe { weights.as_ptr().add(add3.index(perspective, mirror) * L1_SIZE) };
+    let wa4 = unsafe { weights.as_ptr().add(add4.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            for k in 0..4usize {
+                let off = i + k * simd::I16_LANES;
+                let f = simd::load_i16(input_features.as_ptr().add(off));
+                simd::store_i16(output_features.as_mut_ptr().add(off),
+                    simd::add_i16(simd::add_i16(simd::add_i16(simd::add_i16(f, simd::load_i16(wa1.add(off))), simd::load_i16(wa2.add(off))), simd::load_i16(wa3.add(off))), simd::load_i16(wa4.add(off))));
+            }
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }
 
@@ -434,22 +425,20 @@ pub fn sub_sub_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
-    let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
-    let sub3_offset = sub3.index(perspective, mirror) * L1_SIZE;
-    let sub4_offset = sub4.index(perspective, mirror) * L1_SIZE;
-
-    let mut i = 0;
-    while i < L1_SIZE {
-        unsafe {
-            let in_feat_ptr = input_features.get_unchecked(i);
-            let out_feat_ptr = output_features.get_unchecked_mut(i);
-            *out_feat_ptr = in_feat_ptr
-                .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub2_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub3_offset))
-                .wrapping_sub(*weights.get_unchecked(i + sub4_offset));
+    let ws1 = unsafe { weights.as_ptr().add(sub1.index(perspective, mirror) * L1_SIZE) };
+    let ws2 = unsafe { weights.as_ptr().add(sub2.index(perspective, mirror) * L1_SIZE) };
+    let ws3 = unsafe { weights.as_ptr().add(sub3.index(perspective, mirror) * L1_SIZE) };
+    let ws4 = unsafe { weights.as_ptr().add(sub4.index(perspective, mirror) * L1_SIZE) };
+    unsafe {
+        let mut i = 0;
+        while i + 4 * simd::I16_LANES <= L1_SIZE {
+            for k in 0..4usize {
+                let off = i + k * simd::I16_LANES;
+                let f = simd::load_i16(input_features.as_ptr().add(off));
+                simd::store_i16(output_features.as_mut_ptr().add(off),
+                    simd::sub_i16(simd::sub_i16(simd::sub_i16(simd::sub_i16(f, simd::load_i16(ws1.add(off))), simd::load_i16(ws2.add(off))), simd::load_i16(ws3.add(off))), simd::load_i16(ws4.add(off))));
+            }
+            i += 4 * simd::I16_LANES;
         }
-        i += 1;
     }
 }

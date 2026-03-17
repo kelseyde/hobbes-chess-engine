@@ -28,6 +28,13 @@ pub unsafe fn mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
     _mm256_mulhi_epi16(a, b)
 }
 
+#[inline(always)]
+pub unsafe fn shift_left_mul_high_i16<const SHIFT_MINUS_ONE: i32>(a: __m256i, b: __m256i) -> __m256i {
+    // No doubling mulhi on x86, so do the full shift (SHIFT_MINUS_ONE + 1) then mulhi.
+    // Can't compute SHIFT_MINUS_ONE+1 in const position, so shift by SHIFT_MINUS_ONE then 1.
+    _mm256_mulhi_epi16(_mm256_slli_epi16::<1>(_mm256_slli_epi16::<SHIFT_MINUS_ONE>(a)), b)
+}
+
 pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
     _mm256_packus_epi16(a, b)
 }
@@ -35,6 +42,21 @@ pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
 #[inline(always)]
 pub unsafe fn load_i16(ptr: *const i16) -> __m256i {
     _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+#[inline(always)]
+pub unsafe fn store_i16(ptr: *mut i16, v: __m256i) {
+    _mm256_storeu_si256(ptr as *mut __m256i, v)
+}
+
+#[inline(always)]
+pub unsafe fn add_i16(a: __m256i, b: __m256i) -> __m256i {
+    _mm256_add_epi16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn sub_i16(a: __m256i, b: __m256i) -> __m256i {
+    _mm256_sub_epi16(a, b)
 }
 
 #[inline(always)]

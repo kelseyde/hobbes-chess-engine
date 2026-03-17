@@ -1,4 +1,5 @@
 use std::{arch::aarch64::*, mem::size_of};
+use hobbes_nnue_arch::L0_SHIFT;
 
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
@@ -42,11 +43,19 @@ pub unsafe fn mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     vuzp2q_s16(low_i16, high_i16)
 }
 
+/// Fused shift-left + multiply-high using NEON's vqdmulhq_s16 (doubling multiply high).
 #[inline(always)]
-pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> int8x16_t {
+pub unsafe fn shift_left_mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
+    // vqdmulhq doubles the product, so we shift by one less than intended
+    const SHIFT: i32 = 16 - L0_SHIFT as i32 - 1;
+    vqdmulhq_s16(vshlq_n_s16::<SHIFT>(a), b)
+}
+
+#[inline(always)]
+pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> uint8x16_t {
     let a_u8 = vqmovun_s16(a);
     let b_u8 = vqmovun_s16(b);
-    vreinterpretq_s8_u8(vcombine_u8(a_u8, b_u8))
+    vcombine_u8(a_u8, b_u8)
 }
 
 #[inline(always)]
@@ -55,8 +64,23 @@ pub unsafe fn load_i16(ptr: *const i16) -> int16x8_t {
 }
 
 #[inline(always)]
-pub unsafe fn load_u8(ptr: *const u8) -> int32x4_t {
-    vreinterpretq_s32_u8(vld1q_u8(ptr))
+pub unsafe fn store_i16(ptr: *mut i16, v: int16x8_t) {
+    vst1q_s16(ptr, v)
+}
+
+#[inline(always)]
+pub unsafe fn add_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
+    vaddq_s16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn sub_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
+    vsubq_s16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
+    vreinterpretq_s8_u8(vld1q_u8(ptr))
 }
 
 #[inline(always)]
@@ -67,6 +91,10 @@ pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
 #[inline(always)]
 pub unsafe fn store_i8(ptr: *mut u8, v: int8x16_t) {
     vst1q_u8(ptr, vreinterpretq_u8_s8(v))
+}
+
+pub unsafe fn store_u8(ptr: *mut u8, v: uint8x16_t) {
+    vst1q_u8(ptr, v)
 }
 
 #[inline(always)]
@@ -91,35 +119,12 @@ pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
 }
 
 
-#[inline(always)]
-pub unsafe fn load_i8x16(ptr: *const i8) -> int8x16_t {
-    vld1q_s8(ptr)
-}
 
 #[inline(always)]
-pub unsafe fn load_u8x16_as_i32x4(ptr: *const u8) -> int32x4_t {
-    vld1q_s32(ptr.cast())
-}
-
-#[inline(always)]
-pub unsafe fn extract_lane_i32(v: int32x4_t, lane: i32) -> i32 {
-    match lane {
-        0 => vgetq_lane_s32::<0>(v),
-        1 => vgetq_lane_s32::<1>(v),
-        2 => vgetq_lane_s32::<2>(v),
-        3 => vgetq_lane_s32::<3>(v),
-        _ => core::hint::unreachable_unchecked(),
-    }
-}
-
-
-#[inline(always)]
-pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
-    let u_i8 = vreinterpretq_s8_s32(u8s);
-    let lo = vmull_s8(vget_low_s8(u_i8), vget_low_s8(i8s));
-    let hi = vmull_high_s8(u_i8, i8s);
+pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
+    let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
+    let hi = vmull_high_s8(u8s, i8s);
     let pairwise = vpaddq_s16(lo, hi);
-    // sadalp: accumulate pairwise i16 sums into existing i32 accumulator
     vpadalq_s16(i32s, pairwise)
 }
 
@@ -137,14 +142,3 @@ pub unsafe fn store_i32(ptr: *mut i32, v: int32x4_t) {
 pub unsafe fn add_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vaddq_s32(a, b)
 }
-
-#[inline(always)]
-pub unsafe fn shr_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
-    vshrq_n_s32::<SHIFT>(a)
-}
-
-#[inline(always)]
-pub unsafe fn mul_i32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
-    vmulq_s32(a, b)
-}
-

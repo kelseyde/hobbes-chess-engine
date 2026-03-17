@@ -23,14 +23,11 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
             let right1_clipped = simd::clamp_i16(right1, lo, hi);
             let right2_clipped = simd::clamp_i16(right2, lo, hi);
 
-            let shifted1 = simd::shift_left_i16::<{ 16 - L0_SHIFT as i32 }>(left1_clipped);
-            let shifted2 = simd::shift_left_i16::<{ 16 - L0_SHIFT as i32 }>(left2_clipped);
-
-            let product1 = simd::mul_high_i16(shifted1, right1_clipped);
-            let product2 = simd::mul_high_i16(shifted2, right2_clipped);
+            let product1 = simd::shift_left_mul_high_i16(left1_clipped, right1_clipped);
+            let product2 = simd::shift_left_mul_high_i16(left2_clipped, right2_clipped);
 
             let packed = simd::packus(product1, product2);
-            simd::store_i8(output.as_mut_ptr().add(i + base), packed);
+            simd::store_u8(output.as_mut_ptr().add(i + base), packed);
         }
 
     }
