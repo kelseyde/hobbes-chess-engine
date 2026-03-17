@@ -71,6 +71,13 @@ pub unsafe fn horizontal_sum_i32(a: [int32x4_t; 8]) -> i32 {
     vget_lane_s32::<0>(final_sum)
 }
 
+#[inline(always)]
+pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
+    let pair = vpadd_s32(vget_low_s32(a), vget_high_s32(a));
+    let final_sum = vpadd_s32(pair, pair);
+    vget_lane_s32::<0>(final_sum)
+}
+
 
 #[inline(always)]
 pub unsafe fn load_i8x16(ptr: *const i8) -> int8x16_t {

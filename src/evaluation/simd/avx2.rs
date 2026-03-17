@@ -71,9 +71,13 @@ pub unsafe fn horizontal_sum_i32(a: [__m256i; 8]) -> i32 {
     let sum0123 = _mm256_add_epi32(sum01, sum23);
     let sum4567 = _mm256_add_epi32(sum45, sum67);
     let sum_all = _mm256_add_epi32(sum0123, sum4567);
+    horizontal_sum_i32_single(sum_all)
+}
 
-    let hi128 = _mm256_extracti128_si256::<1>(sum_all);
-    let lo128 = _mm256_castsi256_si128(sum_all);
+#[inline(always)]
+pub unsafe fn horizontal_sum_i32_single(a: __m256i) -> i32 {
+    let hi128 = _mm256_extracti128_si256::<1>(a);
+    let lo128 = _mm256_castsi256_si128(a);
     let sum128 = _mm_add_epi32(lo128, hi128);
     let hi64 = _mm_unpackhi_epi64(sum128, sum128);
     let sum64 = _mm_add_epi32(sum128, hi64);

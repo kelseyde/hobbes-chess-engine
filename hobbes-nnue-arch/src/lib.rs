@@ -1,4 +1,4 @@
 pub mod arch;
-pub mod permute;
+pub mod preprocess;
 
 pub use arch::*;

@@ -41,51 +41,23 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
     output
 }
 
-/// L1 propagation using dpbusd (dot-product of u8 inputs × i8 weights → i32)
-///
-/// The L1 weights are stored in input-major order: `weights[input_idx * L2_SIZE + output_idx]`.
-/// We group 4 consecutive inputs (one dpbusd's worth) and process `L2_SIZE / I32_LANES`
-/// accumulator registers in parallel, each holding I32_LANES output neurons.
-///
-/// For 4 consecutive inputs i..i+3 and I32_LANES consecutive outputs o..o+I32_LANES-1,
-/// we broadcast the 4 input u8s into every 32-bit lane, and pack the corresponding
-/// `I32_LANES × 4` weights so that each 32-bit lane holds the 4 weights for one output.
-/// dpbusd then computes the partial dot-product for I32_LANES outputs in one instruction.
+/// L1 propagation using dpbusd (dot-product of u8 inputs × i8 weights -> i32)
 pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE] {
-    let weights = &NETWORK.l1_weights[output_bucket];
     let biases = &NETWORK.l1_biases[output_bucket];
 
-    const NUM_ACC: usize = L2_SIZE / simd::I32_LANES;
-    let mut acc = [simd::splat_i32(0); NUM_ACC];
-
-    // Process 4 inputs at a time (one dpbusd group)
-    for i in (0..L1_SIZE).step_by(4) {
-        // Broadcast the 4 input bytes into every 32-bit lane:
-        // each lane = [input[i], input[i+1], input[i+2], input[i+3]]
-        let inp_bytes = u32::from_le_bytes([input[i], input[i + 1], input[i + 2], input[i + 3]]);
-        let inp = simd::splat_i32(inp_bytes as i32);
-
-        // For each group of I32_LANES output neurons, pack the weights and accumulate via dpbusd
-        for a in 0..NUM_ACC {
-            let o_base = a * simd::I32_LANES;
-            // Pack weights: lane j gets [w[i,o], w[i+1,o], w[i+2,o], w[i+3,o]]
-            let mut weight_bytes = [0i8; 64]; // max I32_LANES * 4 across platforms
-            for j in 0..simd::I32_LANES {
-                let o = o_base + j;
-                weight_bytes[j * 4]     = weights[(i)     * L2_SIZE + o];
-                weight_bytes[j * 4 + 1] = weights[(i + 1) * L2_SIZE + o];
-                weight_bytes[j * 4 + 2] = weights[(i + 2) * L2_SIZE + o];
-                weight_bytes[j * 4 + 3] = weights[(i + 3) * L2_SIZE + o];
-            }
-            let w = *(weight_bytes.as_ptr() as *const _);
-            acc[a] = simd::dpbusd(acc[a], inp, w);
-        }
-    }
-
-    // Store accumulators to output
     let mut intermediate = [0i32; L2_SIZE];
-    for a in 0..NUM_ACC {
-        simd::store_i32(intermediate.as_mut_ptr().add(a * simd::I32_LANES), acc[a]);
+
+    for output_idx in 0..L2_SIZE {
+        let weight_row = &NETWORK.l1_weights[output_bucket][output_idx];
+        let mut acc = simd::splat_i32(0);
+
+        for i in (0..L1_SIZE).step_by(simd::I32_LANES * 4) {
+            let inp = *(input.as_ptr().add(i) as *const _);
+            let w = *(weight_row.as_ptr().add(i) as *const _);
+            acc = simd::dpbusd(acc, inp, w);
+        }
+
+        intermediate[output_idx] = simd::horizontal_sum_i32_single(acc);
     }
 
     // Re-quantise, add biases and activate L1 outputs

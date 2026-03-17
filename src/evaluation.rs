@@ -58,6 +58,7 @@ pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!(env!("NETWORK_PATH"))) };
 
+
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
     pub cache: InputBucketCache,

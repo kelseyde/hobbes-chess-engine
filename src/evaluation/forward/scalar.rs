@@ -1,4 +1,5 @@
-use crate::evaluation::arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, NETWORK, Q};
+use hobbes_nnue_arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q};
+use crate::evaluation::NETWORK;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
@@ -37,12 +38,10 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
     let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
 
     // L1 matrix multiplication
-    for input_idx in 0..L1_SIZE {
-        let input: i32 = input[input_idx] as i32;
-        for output_idx in 0..L2_SIZE {
-            let w_idx = input_idx * L2_SIZE + output_idx;
-            let weight: i32 = weights[w_idx] as i32;
-            intermediate[output_idx] += input * weight;
+    for output_idx in 0..L2_SIZE {
+        for input_idx in 0..L1_SIZE {
+            let weight: i32 = weights[output_idx][input_idx] as i32;
+            intermediate[output_idx] += input[input_idx] as i32 * weight;
         }
     }
 
