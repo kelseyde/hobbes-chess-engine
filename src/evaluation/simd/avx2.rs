@@ -33,6 +33,26 @@ pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub unsafe fn load_i16(ptr: *const i16) -> __m256i {
+    _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+#[inline(always)]
+pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
+    _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+#[inline(always)]
+pub unsafe fn load_i8(ptr: *const i8) -> __m256i {
+    _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+#[inline(always)]
+pub unsafe fn store_i8(ptr: *mut u8, v: __m256i) {
+    _mm256_storeu_si256(ptr as *mut __m256i, v)
+}
+
+#[inline(always)]
 pub unsafe fn dpbusd(acc: __m256i, u8s: __m256i, i8s: __m256i) -> __m256i {
     let products = _mm256_maddubs_epi16(u8s, i8s);
     let ones = _mm256_set1_epi16(1);
@@ -47,12 +67,17 @@ pub unsafe fn mul_add_i32(a: __m256i, b: __m256i, c: __m256i) -> __m256i {
 
 #[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> __m256i {
+    _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+#[inline(always)]
+pub unsafe fn load_i32_aligned(ptr: *const i32) -> __m256i {
     _mm256_load_si256(ptr as *const __m256i)
 }
 
 #[inline(always)]
 pub unsafe fn store_i32(ptr: *mut i32, v: __m256i) {
-    _mm256_store_si256(ptr as *mut __m256i, v)
+    _mm256_storeu_si256(ptr as *mut __m256i, v)
 }
 
 #[inline(always)]
@@ -90,4 +115,3 @@ pub unsafe fn shr_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
 pub unsafe fn mul_i32(a: __m256i, b: __m256i) -> __m256i {
     _mm256_mullo_epi32(a, b)
 }
-

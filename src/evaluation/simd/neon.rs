@@ -50,6 +50,26 @@ pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> int8x16_t {
 }
 
 #[inline(always)]
+pub unsafe fn load_i16(ptr: *const i16) -> int16x8_t {
+    vld1q_s16(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn load_u8(ptr: *const u8) -> int32x4_t {
+    vreinterpretq_s32_u8(vld1q_u8(ptr))
+}
+
+#[inline(always)]
+pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
+    vld1q_s8(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn store_i8(ptr: *mut u8, v: int8x16_t) {
+    vst1q_u8(ptr, vreinterpretq_u8_s8(v))
+}
+
+#[inline(always)]
 pub unsafe fn mul_add_i32(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
     vmlaq_s32(c, a, b)
 }

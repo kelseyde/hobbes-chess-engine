@@ -4,7 +4,7 @@ use crate::evaluation::{simd, NETWORK};
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
 pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
-    let mut output = [0; L1_SIZE];
+    let mut output = [0u8; L1_SIZE];
 
     let lo = simd::splat_i16(0);
     let hi = simd::splat_i16(L0_QUANT as i16);
@@ -13,15 +13,13 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
         let base = side * (L1_SIZE / 2);
 
         for i in (0..L1_SIZE / 2).step_by(2 * simd::I16_LANES) {
-            let left1 = *feats.as_ptr().add(i).cast();
-            let left2 = *feats.as_ptr().add(i + simd::I16_LANES).cast();
-
-            let right1 = *feats.as_ptr().add(i + L1_SIZE / 2).cast();
-            let right2 = *feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES).cast();
+            let left1 = simd::load_i16(feats.as_ptr().add(i));
+            let left2 = simd::load_i16(feats.as_ptr().add(i + simd::I16_LANES));
+            let right1 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2));
+            let right2 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
 
             let left1_clipped = simd::clamp_i16(left1, lo, hi);
             let left2_clipped = simd::clamp_i16(left2, lo, hi);
-
             let right1_clipped = simd::clamp_i16(right1, lo, hi);
             let right2_clipped = simd::clamp_i16(right2, lo, hi);
 
@@ -32,8 +30,7 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
             let product2 = simd::mul_high_i16(shifted2, right2_clipped);
 
             let packed = simd::packus(product1, product2);
-
-            *output.as_mut_ptr().add(i + base).cast() = packed;
+            simd::store_i8(output.as_mut_ptr().add(i + base), packed);
         }
 
     }
@@ -59,27 +56,27 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
         let mut i = 0;
         while i + 4 * STRIDE <= L1_SIZE {
-            let inp0 = *(input.as_ptr().add(i) as *const _);
-            let w0 = *(weight_row.as_ptr().add(i) as *const _);
+            let inp0 = simd::load_u8(input.as_ptr().add(i));
+            let w0   = simd::load_i8(weight_row.as_ptr().add(i));
             acc0 = simd::dpbusd(acc0, inp0, w0);
 
-            let inp1 = *(input.as_ptr().add(i + STRIDE) as *const _);
-            let w1 = *(weight_row.as_ptr().add(i + STRIDE) as *const _);
+            let inp1 = simd::load_u8(input.as_ptr().add(i + STRIDE));
+            let w1   = simd::load_i8(weight_row.as_ptr().add(i + STRIDE));
             acc1 = simd::dpbusd(acc1, inp1, w1);
 
-            let inp2 = *(input.as_ptr().add(i + 2 * STRIDE) as *const _);
-            let w2 = *(weight_row.as_ptr().add(i + 2 * STRIDE) as *const _);
+            let inp2 = simd::load_u8(input.as_ptr().add(i + 2 * STRIDE));
+            let w2   = simd::load_i8(weight_row.as_ptr().add(i + 2 * STRIDE));
             acc2 = simd::dpbusd(acc2, inp2, w2);
 
-            let inp3 = *(input.as_ptr().add(i + 3 * STRIDE) as *const _);
-            let w3 = *(weight_row.as_ptr().add(i + 3 * STRIDE) as *const _);
+            let inp3 = simd::load_u8(input.as_ptr().add(i + 3 * STRIDE));
+            let w3   = simd::load_i8(weight_row.as_ptr().add(i + 3 * STRIDE));
             acc3 = simd::dpbusd(acc3, inp3, w3);
 
             i += 4 * STRIDE;
         }
         while i < L1_SIZE {
-            let inp = *(input.as_ptr().add(i) as *const _);
-            let w = *(weight_row.as_ptr().add(i) as *const _);
+            let inp = simd::load_u8(input.as_ptr().add(i));
+            let w   = simd::load_i8(weight_row.as_ptr().add(i));
             acc0 = simd::dpbusd(acc0, inp, w);
             i += STRIDE;
         }

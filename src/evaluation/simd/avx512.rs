@@ -33,6 +33,26 @@ pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
 }
 
 #[inline(always)]
+pub unsafe fn load_i16(ptr: *const i16) -> __m512i {
+    _mm512_loadu_si512(ptr as *const i32)
+}
+
+#[inline(always)]
+pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
+    _mm512_loadu_si512(ptr as *const i32)
+}
+
+#[inline(always)]
+pub unsafe fn load_i8(ptr: *const i8) -> __m512i {
+    _mm512_loadu_si512(ptr as *const i32)
+}
+
+#[inline(always)]
+pub unsafe fn store_i8(ptr: *mut u8, v: __m512i) {
+    _mm512_storeu_si512(ptr as *mut i32, v)
+}
+
+#[inline(always)]
 pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
     let products = _mm512_maddubs_epi16(u8s, i8s);
     let ones = _mm512_set1_epi16(1);
@@ -47,12 +67,12 @@ pub unsafe fn mul_add_i32(a: __m512i, b: __m512i, c: __m512i) -> __m512i {
 
 #[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> __m512i {
-    _mm512_load_si512(ptr as *const i32)
+    _mm512_loadu_si512(ptr as *const i32)
 }
 
 #[inline(always)]
 pub unsafe fn store_i32(ptr: *mut i32, v: __m512i) {
-    _mm512_store_si512(ptr as *mut i32, v)
+    _mm512_storeu_si512(ptr as *mut i32, v)
 }
 
 #[inline(always)]
