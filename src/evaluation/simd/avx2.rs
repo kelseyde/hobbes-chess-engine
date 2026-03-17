@@ -32,15 +32,9 @@ pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
     _mm256_packus_epi16(a, b)
 }
 
-/// Emulate vpdpbusd: dot-product of unsigned u8 × signed i8, accumulated into i32.
-/// For each 32-bit lane: acc += u8[0]*i8[0] + u8[1]*i8[1] + u8[2]*i8[2] + u8[3]*i8[3]
 #[inline(always)]
 pub unsafe fn dpbusd(acc: __m256i, u8s: __m256i, i8s: __m256i) -> __m256i {
-    // Treat i8s as two interleaved halves for maddubs:
-    // maddubs(a, b) interprets a as u8 and b as i8, then does:
-    //   for each pair of adjacent bytes: u8[2k]*i8[2k] + u8[2k+1]*i8[2k+1] → i16
     let products = _mm256_maddubs_epi16(u8s, i8s);
-    // Now reduce pairs of i16 → i32 by multiplying with 1s
     let ones = _mm256_set1_epi16(1);
     let summed = _mm256_madd_epi16(products, ones);
     _mm256_add_epi32(acc, summed)
@@ -48,7 +42,6 @@ pub unsafe fn dpbusd(acc: __m256i, u8s: __m256i, i8s: __m256i) -> __m256i {
 
 #[inline(always)]
 pub unsafe fn mul_add_i32(a: __m256i, b: __m256i, c: __m256i) -> __m256i {
-    // No FMA for integers; just multiply and add
     _mm256_add_epi32(_mm256_mullo_epi32(a, b), c)
 }
 

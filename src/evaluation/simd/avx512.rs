@@ -32,8 +32,6 @@ pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
     _mm512_packus_epi16(a, b)
 }
 
-/// vpdpbusd: dot-product of unsigned u8 × signed i8, accumulated into i32.
-/// For each 32-bit lane: acc += u8[0]*i8[0] + u8[1]*i8[1] + u8[2]*i8[2] + u8[3]*i8[3]
 #[inline(always)]
 pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
     let products = _mm512_maddubs_epi16(u8s, i8s);
