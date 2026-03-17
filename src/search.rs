@@ -483,7 +483,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improving) {
+            && searched_moves > late_move_threshold(depth, improvement) {
             move_picker.skip_quiets = true;
         }
 
@@ -1124,18 +1124,12 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
 }
 
 #[inline]
-fn late_move_threshold(depth: i32, improving: bool) -> i32 {
-    let base = if improving {
-        lmp_improving_base()
-    } else {
-        lmp_base()
-    };
-    let scale = if improving {
-        lmp_improving_scale()
-    } else {
-        lmp_scale()
-    };
-    (base + depth * scale) / 10
+fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
+    let adjust = improvement.clamp(lmp_improvement_min(), lmp_improvement_max());
+    let factor0 = lmp_factor0_base() + lmp_factor0_scale() * adjust / 16;
+    let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
+
+    (factor0 + factor1 * depth * depth) / 1024
 }
 
 #[inline]
