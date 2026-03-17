@@ -33,13 +33,16 @@ pub unsafe fn shift_left_i16<const SHIFT: i32>(a: int16x8_t) -> int16x8_t {
 
 #[inline(always)]
 pub unsafe fn mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
+    // smull/smull2: widen low/high 4 i16 pairs to i32
     let low = vmull_s16(vget_low_s16(a), vget_low_s16(b));
-    let high = vmull_s16(vget_high_s16(a), vget_high_s16(b));
+    let high = vmull_high_s16(a, b);
 
-    let low_hi = vshrn_n_s32::<16>(low);
-    let high_hi = vshrn_n_s32::<16>(high);
+    // Reinterpret as i16x8 so uzp2 can extract the high 16 bits of each i32 lane
+    let low_i16 = vreinterpretq_s16_s32(low);
+    let high_i16 = vreinterpretq_s16_s32(high);
 
-    vcombine_s16(low_hi, high_hi)
+    // uzp2: extract odd (high) 16-bit elements -> upper 16 bits of each product
+    vuzp2q_s16(low_i16, high_i16)
 }
 
 #[inline(always)]
@@ -100,28 +103,15 @@ pub unsafe fn extract_lane_i32(v: int32x4_t, lane: i32) -> i32 {
     }
 }
 
-#[inline(always)]
-unsafe fn dot_bytes(u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
-    let u8s = vreinterpretq_u8_s32(u8s);
-
-    let products_low = vmulq_s16(
-        vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u8s))),
-        vmovl_s8(vget_low_s8(i8s)),
-    );
-    let products_high = vmulq_s16(
-        vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(u8s))),
-        vmovl_s8(vget_high_s8(i8s)),
-    );
-
-    let sums_low = vpaddlq_s16(products_low);
-    let sums_high = vpaddlq_s16(products_high);
-
-    vpaddq_s32(sums_low, sums_high)
-}
 
 #[inline(always)]
 pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
-    vaddq_s32(i32s, dot_bytes(u8s, i8s))
+    let u_i8 = vreinterpretq_s8_s32(u8s);
+    let lo = vmull_s8(vget_low_s8(u_i8), vget_low_s8(i8s));
+    let hi = vmull_high_s8(u_i8, i8s);
+    let pairwise = vpaddq_s16(lo, hi);
+    // sadalp: accumulate pairwise i16 sums into existing i32 accumulator
+    vpadalq_s16(i32s, pairwise)
 }
 
 #[inline(always)]
