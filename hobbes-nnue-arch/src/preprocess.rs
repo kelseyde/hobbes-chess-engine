@@ -1,15 +1,5 @@
 use crate::{Network, UntransposedNetwork, L1_SIZE, L2_SIZE, OUTPUT_BUCKET_COUNT};
 
-/// Returns the permutation order needed to counteract the cross-lane behaviour
-/// of the `packus` SIMD instruction.
-///
-/// - AVX-512: `packus` operates on 128-bit lanes within a 512-bit register,
-///   producing output in order `[0, 2, 4, 6, 1, 3, 5, 7]`.
-/// - AVX-2: `packus` operates on 128-bit lanes within a 256-bit register,
-///   producing output in order `[0, 2, 1, 3]`.
-/// - NEON: 128-bit only, no cross-lane permutation needed.
-/// - Scalar: no permutation needed.
-
 pub struct PermuteConfig {
     pub needs_permuting: bool,
     pub order: &'static [u8],

@@ -30,8 +30,6 @@ pub const SCALE: i64 = 400;
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
-/// The raw on-disk network format, as stored in `hobbes.nnue`.
-/// L1 weights are in input-major order: `weights[input * L2_SIZE + output]`.
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],
@@ -44,8 +42,6 @@ pub struct UntransposedNetwork {
     pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
 }
 
-/// The runtime network format, with L0 weights/biases permuted for SIMD `packus`,
-/// and L1 weights transposed to output-major order for dpbusd.
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],
