@@ -94,26 +94,37 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
     const LANES: usize = L3_SIZE / simd::I32_LANES;
     let weights = &NETWORK.l2_weights[output_bucket];
-    let biases = &NETWORK.l2_biases[output_bucket];
+    let biases  = &NETWORK.l2_biases[output_bucket];
 
+    // Load biases into accumulators
     let mut acc = [simd::splat_i32(0); LANES];
-    for (v, vec) in acc.iter_mut().enumerate() {
-        *vec = simd::load_i32(biases.as_ptr().add(v * simd::I32_LANES));
+    for v in 0..LANES {
+        acc[v] = simd::load_i32(biases.as_ptr().add(v * simd::I32_LANES));
     }
 
     for input_idx in 0..L2_SIZE {
-        let x = simd::splat_i32(input[input_idx]);
+        let x    = simd::splat_i32(input[input_idx]);
         let base = input_idx * L3_SIZE;
+        let w    = weights.as_ptr().add(base);
 
-        for v in 0..LANES {
-            let w = simd::load_i32(weights.as_ptr().add(base + v * simd::I32_LANES));
-            acc[v] = simd::mul_add_i32(w, x, acc[v]);
+        let mut v = 0;
+        while v + 4 <= LANES {
+            let off = v * simd::I32_LANES;
+            acc[v]     = simd::mul_add_i32(simd::load_i32(w.add(off)),                       x, acc[v]);
+            acc[v + 1] = simd::mul_add_i32(simd::load_i32(w.add(off +   simd::I32_LANES)),   x, acc[v + 1]);
+            acc[v + 2] = simd::mul_add_i32(simd::load_i32(w.add(off + 2*simd::I32_LANES)),   x, acc[v + 2]);
+            acc[v + 3] = simd::mul_add_i32(simd::load_i32(w.add(off + 3*simd::I32_LANES)),   x, acc[v + 3]);
+            v += 4;
+        }
+        while v < LANES {
+            acc[v] = simd::mul_add_i32(simd::load_i32(w.add(v * simd::I32_LANES)), x, acc[v]);
+            v += 1;
         }
     }
 
     let mut out = [0i32; L3_SIZE];
-    for (v, vec) in acc.into_iter().enumerate() {
-        simd::store_i32(out.as_mut_ptr().add(v * simd::I32_LANES), vec);
+    for v in 0..LANES {
+        simd::store_i32(out.as_mut_ptr().add(v * simd::I32_LANES), acc[v]);
     }
 
     out
