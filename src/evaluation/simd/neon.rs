@@ -101,6 +101,7 @@ pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> uint8x16_t {
 pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
     #[cfg(target_feature = "dotprod")]
     {
+        // NEON dotprod is unstable, so for now we use inline ASM.
         let mut result = acc;
         std::arch::asm!(
             "sdot {0:v}.4s, {1:v}.16b, {2:v}.16b",
