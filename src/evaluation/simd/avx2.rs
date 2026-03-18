@@ -3,7 +3,7 @@ use std::{arch::x86_64::*, mem::size_of};
 
 pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
-pub const I8_LANES:  usize = size_of::<__m256i>() / size_of::<i8>();
+pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
@@ -99,8 +99,8 @@ pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
 #[inline(always)]
 pub unsafe fn dpbusd(acc: __m256i, u8s: __m256i, i8s: __m256i) -> __m256i {
     let products = _mm256_maddubs_epi16(u8s, i8s);
-    let ones     = _mm256_set1_epi16(1);
-    let summed   = _mm256_madd_epi16(products, ones);
+    let ones = _mm256_set1_epi16(1);
+    let summed = _mm256_madd_epi16(products, ones);
     _mm256_add_epi32(acc, summed)
 }
 
@@ -109,10 +109,10 @@ pub unsafe fn horizontal_sum_i32_single(a: __m256i) -> i32 {
     let hi128 = _mm256_extracti128_si256::<1>(a);
     let lo128 = _mm256_castsi256_si128(a);
     let sum128 = _mm_add_epi32(lo128, hi128);
-    let hi64   = _mm_unpackhi_epi64(sum128, sum128);
-    let sum64  = _mm_add_epi32(sum128, hi64);
-    let hi32   = _mm_shuffle_epi32::<0b00_00_00_01>(sum64);
-    let sum32  = _mm_add_epi32(sum64, hi32);
+    let hi64 = _mm_unpackhi_epi64(sum128, sum128);
+    let sum64 = _mm_add_epi32(sum128, hi64);
+    let hi32 = _mm_shuffle_epi32::<0b00_00_00_01>(sum64);
+    let sum32 = _mm_add_epi32(sum64, hi32);
     _mm_cvtsi128_si32(sum32)
 }
 

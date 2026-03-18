@@ -113,8 +113,8 @@ pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_
     }
     #[cfg(not(target_feature = "dotprod"))]
     {
-        let lo       = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
-        let hi       = vmull_high_s8(u8s, i8s);
+        let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
+        let hi = vmull_high_s8(u8s, i8s);
         let pairwise = vpaddq_s16(lo, hi);
         vpadalq_s16(acc, pairwise)
     }

@@ -1,9 +1,9 @@
-use std::{arch::x86_64::*, mem::size_of};
 use hobbes_nnue_arch::L0_SHIFT;
+use std::{arch::x86_64::*, mem::size_of};
 
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
-pub const I8_LANES:  usize = size_of::<__m512i>() / size_of::<i8>();
+pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
@@ -100,8 +100,8 @@ pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
 #[inline(always)]
 pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
     let products = _mm512_maddubs_epi16(u8s, i8s);
-    let ones     = _mm512_set1_epi16(1);
-    let summed   = _mm512_madd_epi16(products, ones);
+    let ones = _mm512_set1_epi16(1);
+    let summed = _mm512_madd_epi16(products, ones);
     _mm512_add_epi32(acc, summed)
 }
 
