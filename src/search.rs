@@ -340,7 +340,7 @@ fn alpha_beta<NODE: NodeType>(
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
             + rfp_scale() * depth
-            - (improvement / rfp_improvement_div()).clamp(rfp_improvement_min(), rfp_improvement_max())
+            - (improvement / rfp_improvement_div()).clamp(0, rfp_improvement_max())
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
