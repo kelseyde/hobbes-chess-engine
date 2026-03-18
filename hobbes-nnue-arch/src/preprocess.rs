@@ -23,7 +23,7 @@ pub const fn permute_config() -> PermuteConfig {
 /// format for inference).
 ///
 /// This performs two transformations:
-/// 1. Permutes the L0 weights and biases to counteract the cross-lane behaviour of packus.
+/// 1. Permutes the L0 weights and biases to cancel out the cross-lane behaviour of packus.
 /// 2. Transposes the L1 weights from input-major order (`weights[input * L2_SIZE + output]`) to
 /// output-major order (`weights[output][input]`) for more efficient access during L1 propagation.
 ///

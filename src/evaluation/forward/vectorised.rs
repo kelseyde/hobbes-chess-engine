@@ -34,7 +34,7 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
     output
 }
 
-/// L1 propagation using dpbusd (dot-product of u8 inputs × i8 weights -> i32)
+/// L1 propagation
 pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE] {
     let biases = &NETWORK.l1_biases[output_bucket];
 

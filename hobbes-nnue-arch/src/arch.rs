@@ -1,3 +1,6 @@
+/// Represents the architecture of Hobbes' neural network, defining constants for the size of each
+/// layer, the input bucket layout, output bucket count, quantisation factors, and the eval scale.
+
 #[rustfmt::skip]
 pub const BUCKETS: [usize; 64] = [
      0,  1,  2,  3, 3, 2,  1,  0,
@@ -9,13 +12,12 @@ pub const BUCKETS: [usize; 64] = [
     14, 14, 15, 15, 15, 15, 14, 14,
     14, 14, 15, 15, 15, 15, 14, 14,
 ];
-pub const NUM_BUCKETS: usize = get_num_buckets(&BUCKETS);
 
 pub const L0_SIZE: usize = 768;
 pub const L0_QUANT: usize = 255;
 pub const L0_SHIFT: usize = 9;
-pub const L0_BUCKET_COUNT: usize = 16;
 
+pub const INPUT_BUCKET_COUNT: usize = get_num_buckets(&BUCKETS);
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
 pub const L1_SIZE: usize = 2048;
@@ -32,7 +34,7 @@ pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
-    pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],
+    pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[i8; L1_SIZE * L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
@@ -44,7 +46,7 @@ pub struct UntransposedNetwork {
 
 #[repr(C, align(64))]
 pub struct Network {
-    pub l0_weights: [FeatureWeights; L0_BUCKET_COUNT],
+    pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],

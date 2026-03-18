@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::side::Side;
 use crate::evaluation::NETWORK;
-use hobbes_nnue_arch::{L1_SIZE, NUM_BUCKETS};
+use hobbes_nnue_arch::{L1_SIZE, INPUT_BUCKET_COUNT};
 
 /// Whenever the king changes bucket, a costly full refresh of the accumulator is required. This
 /// service implements a technique to improve the performance of this refresh known as 'Finny tables'.
@@ -13,7 +13,7 @@ use hobbes_nnue_arch::{L1_SIZE, NUM_BUCKETS};
 #[derive(Clone, Default)]
 #[repr(align(64))]
 pub struct InputBucketCache {
-    entries: Box<[[[CacheEntry; NUM_BUCKETS]; 2]; 2]>,
+    entries: Box<[[[CacheEntry; INPUT_BUCKET_COUNT]; 2]; 2]>,
 }
 
 #[derive(Clone)]
