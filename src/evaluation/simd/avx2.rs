@@ -105,6 +105,29 @@ pub unsafe fn dpbusd(acc: __m256i, u8s: __m256i, i8s: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub unsafe fn dpbusd_x4(
+    a0: __m256i,
+    a1: __m256i,
+    a2: __m256i,
+    a3: __m256i,
+    u0: __m256i,
+    u1: __m256i,
+    u2: __m256i,
+    u3: __m256i,
+    w0: __m256i,
+    w1: __m256i,
+    w2: __m256i,
+    w3: __m256i,
+) -> (__m256i, __m256i, __m256i, __m256i) {
+    (
+        dpbusd(a0, u0, w0),
+        dpbusd(a1, u1, w1),
+        dpbusd(a2, u2, w2),
+        dpbusd(a3, u3, w3),
+    )
+}
+
+#[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: __m256i) -> i32 {
     let hi128 = _mm256_extracti128_si256::<1>(a);
     let lo128 = _mm256_castsi256_si128(a);

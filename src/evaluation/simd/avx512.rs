@@ -112,6 +112,29 @@ pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
 }
 
 #[inline(always)]
+pub unsafe fn dpbusd_x4(
+    a0: __m512i,
+    a1: __m512i,
+    a2: __m512i,
+    a3: __m512i,
+    u0: __m512i,
+    u1: __m512i,
+    u2: __m512i,
+    u3: __m512i,
+    w0: __m512i,
+    w1: __m512i,
+    w2: __m512i,
+    w3: __m512i,
+) -> (__m512i, __m512i, __m512i, __m512i) {
+    (
+        dpbusd(a0, u0, w0),
+        dpbusd(a1, u1, w1),
+        dpbusd(a2, u2, w2),
+        dpbusd(a3, u3, w3),
+    )
+}
+
+#[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: __m512i) -> i32 {
     _mm512_reduce_add_epi32(a)
 }

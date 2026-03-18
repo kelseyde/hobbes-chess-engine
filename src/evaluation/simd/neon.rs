@@ -15,11 +15,6 @@ pub unsafe fn store_u8(ptr: *mut u8, v: uint8x16_t) {
 }
 
 #[inline(always)]
-pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
-    vld1q_s8(ptr)
-}
-
-#[inline(always)]
 pub unsafe fn splat_i16(a: i16) -> int16x8_t {
     vdupq_n_s16(a)
 }
@@ -125,6 +120,29 @@ pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_
         let pairwise = vpaddq_s16(lo, hi);
         vpadalq_s16(acc, pairwise)
     }
+}
+
+#[inline(always)]
+pub unsafe fn dpbusd_x4(
+    a0: int32x4_t,
+    a1: int32x4_t,
+    a2: int32x4_t,
+    a3: int32x4_t,
+    u0: int8x16_t,
+    u1: int8x16_t,
+    u2: int8x16_t,
+    u3: int8x16_t,
+    w0: int8x16_t,
+    w1: int8x16_t,
+    w2: int8x16_t,
+    w3: int8x16_t,
+) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
+    (
+        dpbusd(a0, u0, w0),
+        dpbusd(a1, u1, w1),
+        dpbusd(a2, u2, w2),
+        dpbusd(a3, u3, w3),
+    )
 }
 
 #[inline(always)]
