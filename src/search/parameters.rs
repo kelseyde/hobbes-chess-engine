@@ -43,10 +43,12 @@ tunable_params! {
     fp_killer                    = 17, 0, 100, 10,            true;
     fp_tt_upper                  = 19, 0, 100, 10,            true;
     lmp_max_depth                = 8, 6, 10, 1,               false;
-    lmp_base                     = 2, 1, 5, 1,                false;
-    lmp_improving_base           = 3, 1, 5, 1,                false;
-    lmp_scale                    = 11, 10, 100, 20,           true;
-    lmp_improving_scale          = 86, 10, 100, 20,           true;
+    lmp_factor0_base             = 2515, 2000, 3000, 100,     true;
+    lmp_factor0_scale            = 130, 50, 200, 25,          true;
+    lmp_factor1_base             = 946, 500, 1500, 100,       true;
+    lmp_factor1_scale            = 79, 50, 200, 25,           true;
+    lmp_improvement_min          = -100, -300, 0, 25,         true;
+    lmp_improvement_max          = 218, 0, 500, 25,           true;
     hp_max_depth                 = 4, 4, 8, 1,                false;
     hp_scale                     = -2264, -3072, -1024, 128,  true;
     bnp_max_depth                = 6, 4, 10, 1,               false;
