@@ -56,6 +56,12 @@ pub unsafe fn splat_i32(a: i32) -> __m512i {
 }
 
 #[inline(always)]
+pub unsafe fn splat_i32_x4(a: i32) -> (__m512i, __m512i, __m512i, __m512i) {
+    let v = _mm512_set1_epi32(a);
+    (v, v, v, v)
+}
+
+#[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> __m512i {
     _mm512_loadu_si512(ptr as *const __m512i)
 }

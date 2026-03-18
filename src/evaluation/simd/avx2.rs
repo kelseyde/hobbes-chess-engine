@@ -134,3 +134,9 @@ pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> ( __m256i, __m256i, __
         _mm256_loadu_si256(ptr.add(3 * stride) as *const __m256i),
     )
 }
+
+#[inline(always)]
+pub unsafe fn splat_i32_x4(a: i32) -> (__m256i, __m256i, __m256i, __m256i) {
+    let v = _mm256_set1_epi32(a);
+    (v, v, v, v)
+}

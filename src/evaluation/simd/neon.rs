@@ -55,6 +55,12 @@ pub unsafe fn splat_i32(a: i32) -> int32x4_t {
 }
 
 #[inline(always)]
+pub unsafe fn splat_i32_x4(a: i32) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
+    let v = vdupq_n_s32(a);
+    (v, v, v, v)
+}
+
+#[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> int32x4_t {
     vld1q_s32(ptr)
 }
