@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::{arch::aarch64::*, mem::size_of};
 use hobbes_nnue_arch::L0_SHIFT;
 
@@ -118,11 +119,26 @@ pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
 
 #[inline(always)]
 pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
-    // u8s values are in [0, 127] after SCReLU, so signed multiply is safe
-    let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
-    let hi = vmull_high_s8(u8s, i8s);
-    let pairwise = vpaddq_s16(lo, hi);
-    vpadalq_s16(acc, pairwise)
+    #[cfg(target_feature = "dotprod")]
+    {
+        // neon dotprod is unstable, so we have to use inline asm for now.
+        let mut result = acc;
+        std::arch::asm!(
+            "sdot {0:v}.4s, {1:v}.16b, {2:v}.16b",
+            inlateout(vreg) result,
+            in(vreg) u8s,
+            in(vreg) i8s,
+            options(pure, nomem, nostack),
+        );
+        result
+    }
+    #[cfg(not(target_feature = "dotprod"))]
+    {
+        let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
+        let hi = vmull_high_s8(u8s, i8s);
+        let pairwise = vpaddq_s16(lo, hi);
+        vpadalq_s16(acc, pairwise)
+    }
 }
 
 #[inline(always)]

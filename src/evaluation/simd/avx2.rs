@@ -1,40 +1,48 @@
 use std::{arch::x86_64::*, mem::size_of};
+use hobbes_nnue_arch::L0_SHIFT;
 
 pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
+#[inline(always)]
 pub unsafe fn splat_i16(a: i16) -> __m256i {
     _mm256_set1_epi16(a)
 }
 
+#[inline(always)]
 pub unsafe fn splat_i32(a: i32) -> __m256i {
     _mm256_set1_epi32(a)
 }
 
+#[inline(always)]
 pub unsafe fn clamp_i16(x: __m256i, min: __m256i, max: __m256i) -> __m256i {
     _mm256_max_epi16(_mm256_min_epi16(x, max), min)
 }
 
+#[inline(always)]
 pub unsafe fn clamp_i32(x: __m256i, min: __m256i, max: __m256i) -> __m256i {
     _mm256_max_epi32(_mm256_min_epi32(x, max), min)
 }
 
+#[inline(always)]
 pub unsafe fn shift_left_i16<const SHIFT: i32>(a: __m256i) -> __m256i {
     _mm256_slli_epi16::<SHIFT>(a)
 }
 
+#[inline(always)]
 pub unsafe fn mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
     _mm256_mulhi_epi16(a, b)
 }
 
 #[inline(always)]
-pub unsafe fn shift_left_mul_high_i16<const SHIFT_MINUS_ONE: i32>(a: __m256i, b: __m256i) -> __m256i {
-    // No doubling mulhi on x86, so do the full shift (SHIFT_MINUS_ONE + 1) then mulhi.
-    // Can't compute SHIFT_MINUS_ONE+1 in const position, so shift by SHIFT_MINUS_ONE then 1.
-    _mm256_mulhi_epi16(_mm256_slli_epi16::<1>(_mm256_slli_epi16::<SHIFT_MINUS_ONE>(a)), b)
+pub unsafe fn shift_left_mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
+    const SHIFT: i32 = 16 - L0_SHIFT as i32;
+    let shifted = _mm256_slli_epi16::<SHIFT>(a);
+    _mm256_mulhi_epi16(shifted, b)
 }
 
+#[inline(always)]
 pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
     _mm256_packus_epi16(a, b)
 }

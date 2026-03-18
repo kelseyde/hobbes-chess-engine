@@ -4,35 +4,44 @@ pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
+#[inline(always)]
 pub unsafe fn splat_i16(a: i16) -> __m512i {
     _mm512_set1_epi16(a)
 }
 
+#[inline(always)]
 pub unsafe fn splat_i32(a: i32) -> __m512i {
     _mm512_set1_epi32(a)
 }
 
+#[inline(always)]
 pub unsafe fn clamp_i16(x: __m512i, min: __m512i, max: __m512i) -> __m512i {
     _mm512_max_epi16(_mm512_min_epi16(x, max), min)
 }
 
+#[inline(always)]
 pub unsafe fn clamp_i32(x: __m512i, min: __m512i, max: __m512i) -> __m512i {
     _mm512_max_epi32(_mm512_min_epi32(x, max), min)
 }
 
+#[inline(always)]
 pub unsafe fn shift_left_i16<const SHIFT: u32>(a: __m512i) -> __m512i {
     _mm512_slli_epi16::<SHIFT>(a)
 }
 
+#[inline(always)]
 pub unsafe fn mul_high_i16(a: __m512i, b: __m512i) -> __m512i {
     _mm512_mulhi_epi16(a, b)
 }
 
 #[inline(always)]
-pub unsafe fn shift_left_mul_high_i16<const SHIFT_MINUS_ONE: u32>(a: __m512i, b: __m512i) -> __m512i {
-    _mm512_mulhi_epi16(_mm512_slli_epi16::<1>(_mm512_slli_epi16::<SHIFT_MINUS_ONE>(a)), b)
+pub unsafe fn shift_left_mul_high_i16(a: __m512i, b: __m512i) -> __m512i {
+    const SHIFT: u32 = 16 - L0_SHIFT as u32;
+    let shifted = _mm512_slli_epi16::<SHIFT>(a);
+    _mm512_mulhi_epi16(shifted, b)
 }
 
+#[inline(always)]
 pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
     _mm512_packus_epi16(a, b)
 }

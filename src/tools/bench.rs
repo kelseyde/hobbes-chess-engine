@@ -90,18 +90,5 @@ pub fn bench(td: &mut ThreadData) {
     println!("{:.4} seconds\n", seconds);
 
     let nps = (nodes / time) * 1000;
-
-    #[cfg(target_feature = "avx512f")]
-    println!("AVX512F");
-
-    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-    println!("AVX2");
-
-    #[cfg(target_feature = "neon")]
-    println!("NEON");
-
-    #[cfg(not(any(target_feature = "avx512f", target_feature = "avx2", target_feature = "neon")))]
-    println!("Scalar");
-
     println!("{} nodes {} nps", nodes, nps);
 }
