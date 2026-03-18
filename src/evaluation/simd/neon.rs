@@ -123,6 +123,7 @@ pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_
 }
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub unsafe fn dpbusd_x4(
     a0: int32x4_t,
     a1: int32x4_t,

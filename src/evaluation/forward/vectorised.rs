@@ -46,7 +46,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
     let mut out_idx = 0;
     while out_idx + OUT_UNROLL <= L2_SIZE {
-        let mut w0 = NETWORK.l1_weights[output_bucket][out_idx + 0].as_ptr();
+        let mut w0 = NETWORK.l1_weights[output_bucket][out_idx].as_ptr();
         let mut w1 = NETWORK.l1_weights[output_bucket][out_idx + 1].as_ptr();
         let mut w2 = NETWORK.l1_weights[output_bucket][out_idx + 2].as_ptr();
         let mut w3 = NETWORK.l1_weights[output_bucket][out_idx + 3].as_ptr();
@@ -144,9 +144,9 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
         let combined0 = simd::add_i32(simd::add_i32(acc00, acc01), simd::add_i32(acc02, acc03));
         let raw0 = simd::horizontal_sum_i32_single(combined0);
-        let shifted0 = (raw0 >> L1_SHIFT) + biases[out_idx + 0];
+        let shifted0 = (raw0 >> L1_SHIFT) + biases[out_idx];
         let clamped0 = shifted0.clamp(0, Q as i32);
-        output[out_idx + 0] = clamped0 * clamped0;
+        output[out_idx] = clamped0 * clamped0;
 
         let combined1 = simd::add_i32(simd::add_i32(acc10, acc11), simd::add_i32(acc12, acc13));
         let raw1 = simd::horizontal_sum_i32_single(combined1);
