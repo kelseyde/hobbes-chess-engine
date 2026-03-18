@@ -128,8 +128,8 @@ pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
 #[inline(always)]
 pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
     let mut acc = a[0];
-    for i in 1..N {
-        acc = vaddq_s32(acc, a[i]);
+    for &lane in a.iter().skip(1) {
+        acc = vaddq_s32(acc, lane);
     }
     horizontal_sum_i32_single(acc)
 }

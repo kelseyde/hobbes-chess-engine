@@ -93,12 +93,12 @@ pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32
     let biases = &NETWORK.l2_biases[output_bucket];
 
     let mut acc = [simd::splat_i32(0); LANES];
-    for lane in 0..LANES {
-        acc[lane] = simd::load_i32(biases.as_ptr().add(lane * simd::I32_LANES));
+    for (lane, acc_lane) in acc.iter_mut().enumerate() {
+        *acc_lane = simd::load_i32(biases.as_ptr().add(lane * simd::I32_LANES));
     }
 
-    for input_neuron in 0..L2_SIZE {
-        let input_val = simd::splat_i32(input[input_neuron]);
+    for (input_neuron, &input_val_scalar) in input.iter().enumerate() {
+        let input_val = simd::splat_i32(input_val_scalar);
         let weight_row = weights.as_ptr().add(input_neuron * L3_SIZE);
 
         let mut lane = 0;
@@ -122,8 +122,8 @@ pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32
     }
 
     let mut output = [0i32; L3_SIZE];
-    for lane in 0..LANES {
-        simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), acc[lane]);
+    for (lane, acc_lane) in acc.iter().enumerate() {
+        simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), *acc_lane);
     }
     output
 }
@@ -138,12 +138,12 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     let hi = simd::splat_i32((Q * Q * Q) as i32);
 
     let mut acc = [simd::splat_i32(0); LANES];
-    for lane in 0..LANES {
+    for (lane, acc_lane) in acc.iter_mut().enumerate() {
         let off = lane * simd::I32_LANES;
         let input_chunk = simd::load_i32(input.as_ptr().add(off));
         let weight_chunk = simd::load_i32(weights.add(off));
         let clamped = simd::clamp_i32(input_chunk, lo, hi);
-        acc[lane] = simd::mul_i32(weight_chunk, clamped);
+        *acc_lane = simd::mul_i32(weight_chunk, clamped);
     }
 
     simd::horizontal_sum_i32(acc) + bias
