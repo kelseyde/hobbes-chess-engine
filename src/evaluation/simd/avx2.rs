@@ -124,3 +124,13 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m256i; N]) -> i32 {
     }
     horizontal_sum_i32_single(acc)
 }
+
+#[inline(always)]
+pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> ( __m256i, __m256i, __m256i, __m256i) {
+    (
+        _mm256_loadu_si256(ptr as *const __m256i),
+        _mm256_loadu_si256(ptr.add(stride) as *const __m256i),
+        _mm256_loadu_si256(ptr.add(2 * stride) as *const __m256i),
+        _mm256_loadu_si256(ptr.add(3 * stride) as *const __m256i),
+    )
+}

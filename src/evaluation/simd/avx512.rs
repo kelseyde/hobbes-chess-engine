@@ -118,3 +118,13 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m512i; N]) -> i32 {
     }
     horizontal_sum_i32_single(acc)
 }
+
+#[inline(always)]
+pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> ( __m512i, __m512i, __m512i, __m512i) {
+    (
+        _mm512_loadu_si512(ptr as *const __m512i),
+        _mm512_loadu_si512(ptr.add(stride) as *const __m512i),
+        _mm512_loadu_si512(ptr.add(2 * stride) as *const __m512i),
+        _mm512_loadu_si512(ptr.add(3 * stride) as *const __m512i),
+    )
+}
