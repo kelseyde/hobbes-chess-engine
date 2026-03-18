@@ -26,11 +26,16 @@ mod simd {
     #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     pub use avx2::*;
 
-    #[cfg(all(target_feature = "neon", not(any(target_feature = "avx2", target_feature = "avx512f"))))]
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
     mod neon;
-    #[cfg(all(target_feature = "neon", not(any(target_feature = "avx2", target_feature = "avx512f"))))]
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
     pub use neon::*;
-
 }
 
 use crate::board::file::File;
@@ -58,7 +63,6 @@ pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!(env!("NETWORK_PATH"))) };
 
-
 pub struct NNUE {
     pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
     pub cache: InputBucketCache,
@@ -80,7 +84,6 @@ impl Default for NNUE {
 }
 
 impl NNUE {
-
     /// Forward pass through the neural network. We apply any pending accumulator updates and end up
     /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
     /// through L1, L2, and L3 to get the final output.
@@ -99,7 +102,7 @@ impl NNUE {
 
         let output_bucket = get_output_bucket(board);
         let mut output: i64;
-        unsafe  {
+        unsafe {
             let l0_outputs = forward::activate_l0(us, them);
             let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
             let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
@@ -110,7 +113,6 @@ impl NNUE {
         output /= Q * Q * Q * Q;
         output = scale_evaluation(board, output as i32) as i64;
         output as i32
-
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -244,9 +246,7 @@ impl NNUE {
             // Scan backwards to find the nearest parent accumulator that is computed for this
             // perspective, or requires a refresh.
             let mut curr = self.current - 1;
-            while !self.stack[curr].computed[side]
-                && !self.stack[curr].needs_refresh[side]
-            {
+            while !self.stack[curr].computed[side] && !self.stack[curr].needs_refresh[side] {
                 if curr == 0 {
                     break;
                 }

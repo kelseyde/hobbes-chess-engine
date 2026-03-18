@@ -1,9 +1,9 @@
+use hobbes_nnue_arch::{preprocess, Network, UntransposedNetwork};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::env;
 use std::fs;
 use std::mem::size_of;
 use std::path::PathBuf;
-use hobbes_nnue_arch::{Network, UntransposedNetwork, preprocess};
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -45,4 +45,3 @@ fn main() {
     println!("cargo:rustc-env=NETWORK_PATH={}", network_path.display());
     println!("cargo:rerun-if-changed=hobbes.nnue");
 }
-
