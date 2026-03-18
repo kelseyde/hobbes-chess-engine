@@ -161,7 +161,10 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
 }
 
 #[inline(always)]
-pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (int8x16_t, int8x16_t, int8x16_t, int8x16_t) {
+pub unsafe fn load_i8x4(
+    ptr: *const i8,
+    stride: usize,
+) -> (int8x16_t, int8x16_t, int8x16_t, int8x16_t) {
     (
         vld1q_s8(ptr),
         vld1q_s8(ptr.add(stride)),

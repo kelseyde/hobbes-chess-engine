@@ -75,58 +75,42 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
             let (w0_0, w0_1, w0_2, w0_3) = simd::load_i8x4(w0, STRIDE);
             (acc00, acc01, acc02, acc03) = simd::dpbusd_x4(
-                acc00, acc01, acc02, acc03,
-                in0, in1, in2, in3,
-                w0_0, w0_1, w0_2, w0_3,
+                acc00, acc01, acc02, acc03, in0, in1, in2, in3, w0_0, w0_1, w0_2, w0_3,
             );
 
             let (w1_0, w1_1, w1_2, w1_3) = simd::load_i8x4(w1, STRIDE);
             (acc10, acc11, acc12, acc13) = simd::dpbusd_x4(
-                acc10, acc11, acc12, acc13,
-                in0, in1, in2, in3,
-                w1_0, w1_1, w1_2, w1_3,
+                acc10, acc11, acc12, acc13, in0, in1, in2, in3, w1_0, w1_1, w1_2, w1_3,
             );
 
             let (w2_0, w2_1, w2_2, w2_3) = simd::load_i8x4(w2, STRIDE);
             (acc20, acc21, acc22, acc23) = simd::dpbusd_x4(
-                acc20, acc21, acc22, acc23,
-                in0, in1, in2, in3,
-                w2_0, w2_1, w2_2, w2_3,
+                acc20, acc21, acc22, acc23, in0, in1, in2, in3, w2_0, w2_1, w2_2, w2_3,
             );
 
             let (w3_0, w3_1, w3_2, w3_3) = simd::load_i8x4(w3, STRIDE);
             (acc30, acc31, acc32, acc33) = simd::dpbusd_x4(
-                acc30, acc31, acc32, acc33,
-                in0, in1, in2, in3,
-                w3_0, w3_1, w3_2, w3_3,
+                acc30, acc31, acc32, acc33, in0, in1, in2, in3, w3_0, w3_1, w3_2, w3_3,
             );
 
             let (w4_0, w4_1, w4_2, w4_3) = simd::load_i8x4(w4, STRIDE);
             (acc40, acc41, acc42, acc43) = simd::dpbusd_x4(
-                acc40, acc41, acc42, acc43,
-                in0, in1, in2, in3,
-                w4_0, w4_1, w4_2, w4_3,
+                acc40, acc41, acc42, acc43, in0, in1, in2, in3, w4_0, w4_1, w4_2, w4_3,
             );
 
             let (w5_0, w5_1, w5_2, w5_3) = simd::load_i8x4(w5, STRIDE);
             (acc50, acc51, acc52, acc53) = simd::dpbusd_x4(
-                acc50, acc51, acc52, acc53,
-                in0, in1, in2, in3,
-                w5_0, w5_1, w5_2, w5_3,
+                acc50, acc51, acc52, acc53, in0, in1, in2, in3, w5_0, w5_1, w5_2, w5_3,
             );
 
             let (w6_0, w6_1, w6_2, w6_3) = simd::load_i8x4(w6, STRIDE);
             (acc60, acc61, acc62, acc63) = simd::dpbusd_x4(
-                acc60, acc61, acc62, acc63,
-                in0, in1, in2, in3,
-                w6_0, w6_1, w6_2, w6_3,
+                acc60, acc61, acc62, acc63, in0, in1, in2, in3, w6_0, w6_1, w6_2, w6_3,
             );
 
             let (w7_0, w7_1, w7_2, w7_3) = simd::load_i8x4(w7, STRIDE);
             (acc70, acc71, acc72, acc73) = simd::dpbusd_x4(
-                acc70, acc71, acc72, acc73,
-                in0, in1, in2, in3,
-                w7_0, w7_1, w7_2, w7_3,
+                acc70, acc71, acc72, acc73, in0, in1, in2, in3, w7_0, w7_1, w7_2, w7_3,
             );
 
             in_ptr = in_ptr.add(4 * STRIDE);
