@@ -1,0 +1,151 @@
+name: Hobbes Releases
+
+on: [workflow_dispatch]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: hobbes-linux-generic
+            rustflags: "-C target-cpu=x86-64"
+
+          - os: ubuntu-latest
+            name: hobbes-linux-avx2
+            rustflags: "-C target-cpu=x86-64-v3"
+            sde_flag: -bdw
+
+          - os: ubuntu-latest
+            name: hobbes-linux-avx512
+            rustflags: "-C target-cpu=x86-64-v4"
+            sde_flag: -skx
+
+          - os: windows-latest
+            name: hobbes-windows-generic
+            rustflags: "-C target-cpu=x86-64 -C link-arg=-Wl,--stack,8388608"
+
+          - os: windows-latest
+            name: hobbes-windows-avx2
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--stack,8388608"
+            sde_flag: -hsw
+
+          - os: windows-latest
+            name: hobbes-windows-avx512
+            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--stack,8388608"
+            sde_flag: -skx
+
+          - os: macos-latest
+            name: hobbes-macos
+            rustflags: "-C target-cpu=native"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download network
+        shell: bash
+        run: |
+          NET_NAME=$(cat network.txt)
+          echo "Downloading ${NET_NAME}.nnue"
+          curl -sL -o hobbes.nnue "https://github.com/kelseyde/hobbes-networks/releases/download/${NET_NAME}/${NET_NAME}.nnue"
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          rustup component add llvm-tools
+          cargo install cargo-pgo
+
+      - name: Setup Intel SDE
+        if: matrix.name != 'hobbes-macos' && matrix.name != 'hobbes-linux-generic' && matrix.name != 'hobbes-windows-generic'
+        uses: petarpetrovt/setup-sde@08ea32f9214634afad4f33b74841782e71768e52
+        with:
+          sdeVersion: "9.58.0"
+          environmentVariableName: SDE_PATH
+
+      - name: Instrument build for PGO
+        run: |
+          cargo pgo instrument
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks (Linux AVX2/AVX512)
+        if: matrix.name == 'hobbes-linux-avx2' || matrix.name == 'hobbes-linux-avx512'
+        run: |
+          "$SDE_PATH/sde64" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks (Windows AVX2/AVX512)
+        if: matrix.name == 'hobbes-windows-avx2' || matrix.name == 'hobbes-windows-avx512'
+        shell: cmd
+        run: |
+          "%SDE_PATH%\sde.exe" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks (native)
+        if: matrix.name == 'hobbes-macos' || matrix.name == 'hobbes-linux-generic' || matrix.name == 'hobbes-windows-generic'
+        run: |
+          cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Optimize build with PGO
+        run: |
+          cargo pgo optimize
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Rename binary with platform suffix
+        shell: bash
+        run: |
+          tuple=$(rustc --print host-tuple)
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{ matrix.name }}.exe
+          else
+            mv target/$tuple/release/hobbes-chess-engine ${{ matrix.name }}
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}
+            ${{ matrix.name }}.exe
+          retention-days: 1
+
+  release:
+    name: Development release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get short SHA hash
+        id: hash
+        run: echo "COMMIT_SHA=$(git rev-parse HEAD | cut -c 1-8)" >> $GITHUB_ENV
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6.0.0
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.4.1
+        with:
+          name: Hobbes 1.0-dev-${{ env.COMMIT_SHA }}
+          draft: true
+          prerelease: true
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

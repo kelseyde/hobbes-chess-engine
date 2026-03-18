@@ -2,11 +2,14 @@ use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, MoveListEntry};
 use crate::board::piece::Piece;
+use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::movepick_see_threshold;
+use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
+use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
+use Piece::Knight;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,7 +32,7 @@ pub struct MovePicker {
     ply: usize,
     threats: Bitboard,
     pub skip_quiets: bool,
-    see_threshold: Option<i32>,
+    split_noisies: bool,
     bad_noisies: MoveList,
 }
 
@@ -49,7 +52,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: false,
-            see_threshold: Some(movepick_see_threshold()),
+            split_noisies: true,
             bad_noisies: MoveList::new(),
         }
     }
@@ -69,7 +72,7 @@ impl MovePicker {
             ply,
             threats,
             skip_quiets: true,
-            see_threshold: None,
+            split_noisies: false,
             bad_noisies: MoveList::new(),
         }
     }
@@ -92,12 +95,20 @@ impl MovePicker {
                     entry
                         .mv
                         .promo_piece()
-                        .is_some_and(|p| p == Piece::Queen || p == Piece::Knight)
+                        .is_some_and(|p| p == Queen || p == Knight)
                 } else {
                     // Captures are sorted based on whether they pass a SEE threshold
-                    self.see_threshold
-                        .map(|threshold| see(board, &entry.mv, threshold))
-                        .unwrap_or(true)
+                    if !self.split_noisies {
+                        true
+                    } else {
+                        let threshold =
+                            -entry.score / movepick_see_divisor() + movepick_see_offset();
+                        match threshold {
+                            t if t > see::value(Queen, SeeType::Ordering) => false,
+                            t if t < -see::value(Queen, SeeType::Ordering) => true,
+                            _ => see(board, &entry.mv, threshold, SeeType::Ordering),
+                        }
+                    }
                 };
 
                 if good_noisy {
@@ -159,11 +170,11 @@ impl MovePicker {
         let mv = &entry.mv;
         if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
             // Score capture
-            let victim_value = see::value(victim);
+            let victim_value = see::value(victim, SeeType::Ordering);
             let history_score = td
                 .history
                 .capture_history_score(board, mv, attacker, victim);
-            entry.score = victim_value + history_score;
+            entry.score = 16 * victim_value + history_score;
         } else if let Some(pc) = board.piece_at(mv.from()) {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);

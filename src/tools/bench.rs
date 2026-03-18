@@ -4,7 +4,7 @@ use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
 use std::time::Instant;
 
-const BENCH_DEPTH: u64 = 12;
+const BENCH_DEPTH: u64 = 13;
 
 const FENS: [&str; 50] = [
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -64,19 +64,31 @@ pub fn bench(td: &mut ThreadData) {
     let mut time: u64 = 0;
     td.clear();
     td.limits = SearchLimits::new(None, None, None, None, Some(BENCH_DEPTH), 0);
+    let minimal_enabled = td.minimal_output;
+    td.minimal_output = true;
+    let start = Instant::now();
 
     for fen in FENS {
+        println!("fen: {}", fen);
         let board = Board::from_fen(fen).unwrap();
         td.reset();
         td.start_time = Instant::now();
         search(&board, td);
+        println!("bestmove {}\n", td.best_move.to_uci());
         nodes += td.nodes;
         time += td.start_time.elapsed().as_millis() as u64;
     }
 
+    let end = Instant::now();
+
     #[cfg(debug_assertions)]
     td.debug_stats.print();
+    td.minimal_output = minimal_enabled;
     td.clear();
+
+    let seconds = end.duration_since(start).as_secs_f64();
+    println!("{:.4} seconds\n", seconds);
+
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
 }

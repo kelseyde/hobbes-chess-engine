@@ -18,8 +18,8 @@ use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
 use crate::evaluation::network::{HIDDEN, NETWORK, QA, QAB, SCALE};
 use crate::search::parameters::{
-    material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_queen,
-    scale_value_rook,
+    material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
+    scale_value_queen, scale_value_rook,
 };
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
@@ -403,18 +403,22 @@ fn should_mirror(king_sq: Square) -> bool {
     File::of(king_sq) > File::D
 }
 
+#[inline]
 fn scale_evaluation(board: &Board, eval: i32) -> i32 {
     let phase = material_phase(board);
     eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
 }
 
+#[inline]
 fn material_phase(board: &Board) -> i32 {
+    let pawns = board.pieces(Pawn).count();
     let knights = board.pieces(Knight).count();
     let bishops = board.pieces(Bishop).count();
     let rooks = board.pieces(Rook).count();
     let queens = board.pieces(Queen).count();
 
-    scale_value_knight() * knights as i32
+    scale_value_pawn() * pawns as i32
+        + scale_value_knight() * knights as i32
         + scale_value_bishop() * bishops as i32
         + scale_value_rook() * rooks as i32
         + scale_value_queen() * queens as i32
