@@ -124,8 +124,6 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
             w7 = w7.add(4 * STRIDE);
         }
 
-        // TODO need to handle remainders?
-
         let combined0 = simd::add_i32(simd::add_i32(acc00, acc01), simd::add_i32(acc02, acc03));
         let raw0 = simd::horizontal_sum_i32_single(combined0);
         let shifted0 = (raw0 >> L1_SHIFT) + biases[out_idx];
