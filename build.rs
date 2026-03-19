@@ -10,6 +10,12 @@ fn main() {
 
     // Read the raw on-disk network file into an aligned buffer.
     let raw_net = fs::read("hobbes.nnue").expect("network file not found!");
+    assert!(
+        raw_net.len() == size_of::<UntransposedNetwork>(),
+        "hobbes.nnue is {} bytes but UntransposedNetwork is {} bytes — wrong network file?",
+        raw_net.len(),
+        size_of::<UntransposedNetwork>(),
+    );
     let src_layout = Layout::from_size_align(size_of::<UntransposedNetwork>(), 64).unwrap();
     let src: &UntransposedNetwork = unsafe {
         let ptr = alloc_zeroed(src_layout);

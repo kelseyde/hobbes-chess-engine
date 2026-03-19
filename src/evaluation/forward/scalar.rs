@@ -75,12 +75,11 @@ pub fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SI
 
     let mut out = NETWORK.l2_biases[output_bucket];
     for input_idx in 0..L2_SIZE {
-        let input = input[input_idx];
+        let input_val = input[input_idx];
         for output_idx in 0..L3_SIZE {
-            let w_idx = input_idx * L3_SIZE + output_idx;
-            let weight = weights[w_idx];
+            let weight = weights[input_idx][output_idx];
             // This multiplication moves us into [0, Q^3] space
-            out[output_idx] += input * weight;
+            out[output_idx] += input_val * weight;
         }
     }
     out

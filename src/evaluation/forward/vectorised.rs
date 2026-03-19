@@ -191,9 +191,9 @@ pub unsafe fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32
         *acc_lane = simd::load_i32(biases.as_ptr().add(lane * simd::I32_LANES));
     }
 
-    for (i, &input_scalar) in input.iter().enumerate() {
+    for (&input_scalar, weight_row_arr) in input.iter().zip(weights.iter()) {
         let input_val = simd::splat_i32(input_scalar);
-        let weight_row = weights.as_ptr().add(i * L3_SIZE);
+        let weight_row = weight_row_arr.as_ptr();
 
         let mut lane = 0;
         while lane + 4 <= LANES {

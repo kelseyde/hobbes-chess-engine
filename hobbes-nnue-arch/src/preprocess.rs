@@ -1,4 +1,4 @@
-use crate::{Network, UntransposedNetwork, L1_SIZE, L2_SIZE, OUTPUT_BUCKET_COUNT};
+use crate::{Network, UntransposedNetwork, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT};
 
 pub struct PermuteConfig {
     pub needs_permuting: bool,
@@ -22,12 +22,11 @@ pub const fn permute_config() -> PermuteConfig {
 /// Convert an `UntransposedNetwork` (the output format from Bullet) into a `Network` (the optimal
 /// format for inference).
 ///
-/// This performs two transformations:
+/// This performs the following transformations:
 /// 1. Permutes the L0 weights and biases to cancel out the cross-lane behaviour of packus.
-/// 2. Transposes the L1 weights from input-major order (`weights[input * L2_SIZE + output]`) to
-/// output-major order (`weights[output][input]`) for more efficient access during L1 propagation.
-///
-/// All other layers are copied as-is.
+/// 2. Transposes L1 weights: src[input][bucket][output] -> dst[bucket][output][input]
+/// 3. Reorders L2 weights: src[input][bucket][output] -> dst[bucket][input][output]
+/// 4. Reorders L3 weights: src[input][bucket] -> dst[bucket][input]
 pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
     unsafe {
         std::ptr::copy_nonoverlapping(&src.l0_weights, &mut dst.l0_weights, 1);
@@ -50,22 +49,33 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         permute_i16s(&mut dst.l0_biases, order, chunk_size, block_size);
     }
 
-    // Transpose L1 weights from input-major to output-major
-    for bucket in 0..OUTPUT_BUCKET_COUNT {
-        for input_idx in 0..L1_SIZE {
+    for input_idx in 0..L1_SIZE {
+        for bucket in 0..OUTPUT_BUCKET_COUNT {
             for output_idx in 0..L2_SIZE {
                 dst.l1_weights[bucket][output_idx][input_idx] =
-                    src.l1_weights[bucket][input_idx * L2_SIZE + output_idx];
+                    src.l1_weights[input_idx][bucket][output_idx];
             }
         }
     }
 
-    // Copy remaining layers
+    for input_idx in 0..L2_SIZE {
+        for bucket in 0..OUTPUT_BUCKET_COUNT {
+            for output_idx in 0..L3_SIZE {
+                dst.l2_weights[bucket][input_idx][output_idx] =
+                    src.l2_weights[input_idx][bucket][output_idx];
+            }
+        }
+    }
+
+    for input_idx in 0..L3_SIZE {
+        for bucket in 0..OUTPUT_BUCKET_COUNT {
+            dst.l3_weights[bucket][input_idx] = src.l3_weights[input_idx][bucket][0];
+        }
+    }
+
     unsafe {
         std::ptr::copy_nonoverlapping(&src.l1_biases, &mut dst.l1_biases, 1);
-        std::ptr::copy_nonoverlapping(&src.l2_weights, &mut dst.l2_weights, 1);
         std::ptr::copy_nonoverlapping(&src.l2_biases, &mut dst.l2_biases, 1);
-        std::ptr::copy_nonoverlapping(&src.l3_weights, &mut dst.l3_weights, 1);
         std::ptr::copy_nonoverlapping(&src.l3_biases, &mut dst.l3_biases, 1);
     }
 }
@@ -85,4 +95,3 @@ fn permute_i16s(data: &mut [i16], order: &[u8], chunk_size: usize, block_size: u
         }
     }
 }
-

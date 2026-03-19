@@ -20,7 +20,7 @@ pub const L0_SHIFT: usize = 9;
 pub const INPUT_BUCKET_COUNT: usize = get_num_buckets(&BUCKETS);
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
-pub const L1_SIZE: usize = 2048;
+pub const L1_SIZE: usize = 1280;
 pub const L1_SHIFT: usize = 8;
 pub const L1_QUANT: usize = 128;
 
@@ -35,25 +35,25 @@ pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
-    pub l0_biases: [i16; L1_SIZE],
-    pub l1_weights: [[i8; L1_SIZE * L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_weights: [[i32; L2_SIZE * L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_biases: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l3_weights: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
+    pub l0_biases:  [i16; L1_SIZE],
+    pub l1_weights: [[[i8; L2_SIZE]; OUTPUT_BUCKET_COUNT]; L1_SIZE],
+    pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_weights: [[[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT]; L2_SIZE],
+    pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l3_weights: [[[i32; 1]; OUTPUT_BUCKET_COUNT]; L3_SIZE],
+    pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
 }
 
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
-    pub l0_biases: [i16; L1_SIZE],
+    pub l0_biases:  [i16; L1_SIZE],
     pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_weights: [[i32; L2_SIZE * L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_biases: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_weights: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
+    pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
 }
 
 pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
