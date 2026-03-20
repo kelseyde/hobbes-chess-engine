@@ -30,10 +30,10 @@ fn read_network_bytes(path: &str) -> Vec<u8> {
 }
 
 fn write_network_bytes(path: &PathBuf, dst: &Network) {
-    fs::write(&path, unsafe { as_bytes(&*dst) }).unwrap();
+    fs::write(path, unsafe { as_bytes(dst) }).unwrap();
 }
 
-fn load_network_from_bytes(bytes: &Vec<u8>) -> Box<UntransposedNetwork> {
+fn load_network_from_bytes(bytes: &[u8]) -> Box<UntransposedNetwork> {
     assert_eq!(
         bytes.len(),
         size_of::<UntransposedNetwork>(),

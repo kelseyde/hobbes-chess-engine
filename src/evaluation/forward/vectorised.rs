@@ -1,7 +1,5 @@
 use crate::evaluation::{simd, NETWORK};
-use hobbes_nnue_arch::{
-    L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS,
-};
+use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
 #[cfg(target_feature = "neon")]
 use std::arch::aarch64::int32x4_t;
