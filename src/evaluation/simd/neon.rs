@@ -85,6 +85,16 @@ pub unsafe fn clamp_i32(x: int32x4_t, min: int32x4_t, max: int32x4_t) -> int32x4
     vmaxq_s32(vminq_s32(x, max), min)
 }
 
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshrq_n_s32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shl_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshlq_n_s32::<SHIFT>(a)
+}
+
 /// Fused shift-left + multiply-high using NEON's vqdmulhq_s16 (doubling multiply high).
 /// vqdmulhq computes (a * b * 2) >> 16, so we shift by one less than the intended shift.
 #[inline(always)]

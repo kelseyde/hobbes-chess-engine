@@ -41,8 +41,11 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
     let mut output = [0i32; L2_SIZE * 2];
 
+    const OUT_UNROLL: usize = L2_SIZE;
     const STRIDE: usize = simd::I32_LANES * 4;
-    const OUT_UNROLL: usize = 8;
+
+    // OUT_UNROLL == L2_SIZE == 16; one iteration covers all output neurons.
+    debug_assert_eq!(L2_SIZE % OUT_UNROLL, 0);
 
     let mut out_idx = 0;
     while out_idx + OUT_UNROLL <= L2_SIZE {
@@ -54,6 +57,14 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
         let mut w5 = NETWORK.l1_weights[output_bucket][out_idx + 5].as_ptr();
         let mut w6 = NETWORK.l1_weights[output_bucket][out_idx + 6].as_ptr();
         let mut w7 = NETWORK.l1_weights[output_bucket][out_idx + 7].as_ptr();
+        let mut w8 = NETWORK.l1_weights[output_bucket][out_idx + 8].as_ptr();
+        let mut w9 = NETWORK.l1_weights[output_bucket][out_idx + 9].as_ptr();
+        let mut w10 = NETWORK.l1_weights[output_bucket][out_idx + 10].as_ptr();
+        let mut w11 = NETWORK.l1_weights[output_bucket][out_idx + 11].as_ptr();
+        let mut w12 = NETWORK.l1_weights[output_bucket][out_idx + 12].as_ptr();
+        let mut w13 = NETWORK.l1_weights[output_bucket][out_idx + 13].as_ptr();
+        let mut w14 = NETWORK.l1_weights[output_bucket][out_idx + 14].as_ptr();
+        let mut w15 = NETWORK.l1_weights[output_bucket][out_idx + 15].as_ptr();
 
         let (mut acc00, mut acc01, mut acc02, mut acc03) = simd::splat_i32_x4(0);
         let (mut acc10, mut acc11, mut acc12, mut acc13) = simd::splat_i32_x4(0);
@@ -63,6 +74,14 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
         let (mut acc50, mut acc51, mut acc52, mut acc53) = simd::splat_i32_x4(0);
         let (mut acc60, mut acc61, mut acc62, mut acc63) = simd::splat_i32_x4(0);
         let (mut acc70, mut acc71, mut acc72, mut acc73) = simd::splat_i32_x4(0);
+        let (mut acc80, mut acc81, mut acc82, mut acc83) = simd::splat_i32_x4(0);
+        let (mut acc90, mut acc91, mut acc92, mut acc93) = simd::splat_i32_x4(0);
+        let (mut acc100, mut acc101, mut acc102, mut acc103) = simd::splat_i32_x4(0);
+        let (mut acc110, mut acc111, mut acc112, mut acc113) = simd::splat_i32_x4(0);
+        let (mut acc120, mut acc121, mut acc122, mut acc123) = simd::splat_i32_x4(0);
+        let (mut acc130, mut acc131, mut acc132, mut acc133) = simd::splat_i32_x4(0);
+        let (mut acc140, mut acc141, mut acc142, mut acc143) = simd::splat_i32_x4(0);
+        let (mut acc150, mut acc151, mut acc152, mut acc153) = simd::splat_i32_x4(0);
 
         let mut in_ptr = input.as_ptr();
         let end_ptr = input.as_ptr().add(L1_SIZE).sub(4 * STRIDE);
@@ -113,6 +132,46 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
                 acc70, acc71, acc72, acc73, in0, in1, in2, in3, w7_0, w7_1, w7_2, w7_3,
             );
 
+            let (w8_0, w8_1, w8_2, w8_3) = simd::load_i8x4(w8, STRIDE);
+            (acc80, acc81, acc82, acc83) = simd::dpbusd_x4(
+                acc80, acc81, acc82, acc83, in0, in1, in2, in3, w8_0, w8_1, w8_2, w8_3,
+            );
+
+            let (w9_0, w9_1, w9_2, w9_3) = simd::load_i8x4(w9, STRIDE);
+            (acc90, acc91, acc92, acc93) = simd::dpbusd_x4(
+                acc90, acc91, acc92, acc93, in0, in1, in2, in3, w9_0, w9_1, w9_2, w9_3,
+            );
+
+            let (w10_0, w10_1, w10_2, w10_3) = simd::load_i8x4(w10, STRIDE);
+            (acc100, acc101, acc102, acc103) = simd::dpbusd_x4(
+                acc100, acc101, acc102, acc103, in0, in1, in2, in3, w10_0, w10_1, w10_2, w10_3,
+            );
+
+            let (w11_0, w11_1, w11_2, w11_3) = simd::load_i8x4(w11, STRIDE);
+            (acc110, acc111, acc112, acc113) = simd::dpbusd_x4(
+                acc110, acc111, acc112, acc113, in0, in1, in2, in3, w11_0, w11_1, w11_2, w11_3,
+            );
+
+            let (w12_0, w12_1, w12_2, w12_3) = simd::load_i8x4(w12, STRIDE);
+            (acc120, acc121, acc122, acc123) = simd::dpbusd_x4(
+                acc120, acc121, acc122, acc123, in0, in1, in2, in3, w12_0, w12_1, w12_2, w12_3,
+            );
+
+            let (w13_0, w13_1, w13_2, w13_3) = simd::load_i8x4(w13, STRIDE);
+            (acc130, acc131, acc132, acc133) = simd::dpbusd_x4(
+                acc130, acc131, acc132, acc133, in0, in1, in2, in3, w13_0, w13_1, w13_2, w13_3,
+            );
+
+            let (w14_0, w14_1, w14_2, w14_3) = simd::load_i8x4(w14, STRIDE);
+            (acc140, acc141, acc142, acc143) = simd::dpbusd_x4(
+                acc140, acc141, acc142, acc143, in0, in1, in2, in3, w14_0, w14_1, w14_2, w14_3,
+            );
+
+            let (w15_0, w15_1, w15_2, w15_3) = simd::load_i8x4(w15, STRIDE);
+            (acc150, acc151, acc152, acc153) = simd::dpbusd_x4(
+                acc150, acc151, acc152, acc153, in0, in1, in2, in3, w15_0, w15_1, w15_2, w15_3,
+            );
+
             in_ptr = in_ptr.add(4 * STRIDE);
             w0 = w0.add(4 * STRIDE);
             w1 = w1.add(4 * STRIDE);
@@ -122,71 +181,99 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
             w5 = w5.add(4 * STRIDE);
             w6 = w6.add(4 * STRIDE);
             w7 = w7.add(4 * STRIDE);
+            w8 = w8.add(4 * STRIDE);
+            w9 = w9.add(4 * STRIDE);
+            w10 = w10.add(4 * STRIDE);
+            w11 = w11.add(4 * STRIDE);
+            w12 = w12.add(4 * STRIDE);
+            w13 = w13.add(4 * STRIDE);
+            w14 = w14.add(4 * STRIDE);
+            w15 = w15.add(4 * STRIDE);
         }
 
-        let combined0 = simd::add_i32(simd::add_i32(acc00, acc01), simd::add_i32(acc02, acc03));
-        let raw0 = simd::horizontal_sum_i32_single(combined0);
-        let shifted0 = (raw0 >> L1_SHIFT) + biases[out_idx];
-        let crelu0: i32 = shifted0.clamp(0, Q as i32) << Q_BITS;
-        let csrelu0: i32 = (shifted0 * shifted0).clamp(0, (Q * Q) as i32);
-        output[out_idx] = crelu0;
-        output[out_idx + L2_SIZE] = csrelu0;
+        let mut raws = [0i32; OUT_UNROLL];
+        raws[0] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc00, acc01),
+            simd::add_i32(acc02, acc03),
+        ));
+        raws[1] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc10, acc11),
+            simd::add_i32(acc12, acc13),
+        ));
+        raws[2] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc20, acc21),
+            simd::add_i32(acc22, acc23),
+        ));
+        raws[3] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc30, acc31),
+            simd::add_i32(acc32, acc33),
+        ));
+        raws[4] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc40, acc41),
+            simd::add_i32(acc42, acc43),
+        ));
+        raws[5] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc50, acc51),
+            simd::add_i32(acc52, acc53),
+        ));
+        raws[6] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc60, acc61),
+            simd::add_i32(acc62, acc63),
+        ));
+        raws[7] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc70, acc71),
+            simd::add_i32(acc72, acc73),
+        ));
+        raws[8] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc80, acc81),
+            simd::add_i32(acc82, acc83),
+        ));
+        raws[9] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc90, acc91),
+            simd::add_i32(acc92, acc93),
+        ));
+        raws[10] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc100, acc101),
+            simd::add_i32(acc102, acc103),
+        ));
+        raws[11] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc110, acc111),
+            simd::add_i32(acc112, acc113),
+        ));
+        raws[12] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc120, acc121),
+            simd::add_i32(acc122, acc123),
+        ));
+        raws[13] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc130, acc131),
+            simd::add_i32(acc132, acc133),
+        ));
+        raws[14] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc140, acc141),
+            simd::add_i32(acc142, acc143),
+        ));
+        raws[15] = simd::horizontal_sum_i32_single(simd::add_i32(
+            simd::add_i32(acc150, acc151),
+            simd::add_i32(acc152, acc153),
+        ));
 
-        let combined1 = simd::add_i32(simd::add_i32(acc10, acc11), simd::add_i32(acc12, acc13));
-        let raw1 = simd::horizontal_sum_i32_single(combined1);
-        let shifted1 = (raw1 >> L1_SHIFT) + biases[out_idx + 1];
-        let crelu1: i32 = shifted1.clamp(0, Q as i32) << Q_BITS;
-        let csrelu1: i32 = (shifted1 * shifted1).clamp(0, (Q * Q) as i32);
-        output[out_idx + 1] = crelu1;
-        output[out_idx + 1 + L2_SIZE] = csrelu1;
+        // SIMD activation: apply bias + shift + dual crelu + csrelu activation
+        let lo = simd::splat_i32(0);
+        let hi = simd::splat_i32(Q as i32);
+        let hi2 = simd::splat_i32((Q * Q) as i32);
 
-        let combined2 = simd::add_i32(simd::add_i32(acc20, acc21), simd::add_i32(acc22, acc23));
-        let raw2 = simd::horizontal_sum_i32_single(combined2);
-        let shifted2 = (raw2 >> L1_SHIFT) + biases[out_idx + 2];
-        let crelu2: i32 = shifted2.clamp(0, Q as i32) << Q_BITS;
-        let csrelu2: i32 = (shifted2 * shifted2).clamp(0, (Q * Q) as i32);
-        output[out_idx + 2] = crelu2;
-        output[out_idx + 2 + L2_SIZE] = csrelu2;
-
-        let combined3 = simd::add_i32(simd::add_i32(acc30, acc31), simd::add_i32(acc32, acc33));
-        let raw3 = simd::horizontal_sum_i32_single(combined3);
-        let shifted3 = (raw3 >> L1_SHIFT) + biases[out_idx + 3];
-        let crelu3: i32 = shifted3.clamp(0, Q as i32) << Q_BITS;
-        let csrelu3: i32 = (shifted3 * shifted3).clamp(0, (Q * Q) as i32);
-        output[out_idx + 3] = crelu3;
-        output[out_idx + 3 + L2_SIZE] = csrelu3;
-
-        let combined4 = simd::add_i32(simd::add_i32(acc40, acc41), simd::add_i32(acc42, acc43));
-        let raw4 = simd::horizontal_sum_i32_single(combined4);
-        let shifted4 = (raw4 >> L1_SHIFT) + biases[out_idx + 4];
-        let crelu4: i32 = shifted4.clamp(0, Q as i32) << Q_BITS;
-        let csrelu4: i32 = (shifted4 * shifted4).clamp(0, (Q * Q) as i32);
-        output[out_idx + 4] = crelu4;
-        output[out_idx + 4 + L2_SIZE] = csrelu4;
-
-        let combined5 = simd::add_i32(simd::add_i32(acc50, acc51), simd::add_i32(acc52, acc53));
-        let raw5 = simd::horizontal_sum_i32_single(combined5);
-        let shifted5 = (raw5 >> L1_SHIFT) + biases[out_idx + 5];
-        let crelu5: i32 = shifted5.clamp(0, Q as i32) << Q_BITS;
-        let csrelu5: i32 = (shifted5 * shifted5).clamp(0, (Q * Q) as i32);
-        output[out_idx + 5] = crelu5;
-        output[out_idx + 5 + L2_SIZE] = csrelu5;
-
-        let combined6 = simd::add_i32(simd::add_i32(acc60, acc61), simd::add_i32(acc62, acc63));
-        let raw6 = simd::horizontal_sum_i32_single(combined6);
-        let shifted6 = (raw6 >> L1_SHIFT) + biases[out_idx + 6];
-        let crelu6: i32 = shifted6.clamp(0, Q as i32) << Q_BITS;
-        let csrelu6: i32 = (shifted6 * shifted6).clamp(0, (Q * Q) as i32);
-        output[out_idx + 6] = crelu6;
-        output[out_idx + 6 + L2_SIZE] = csrelu6;
-
-        let combined7 = simd::add_i32(simd::add_i32(acc70, acc71), simd::add_i32(acc72, acc73));
-        let raw7 = simd::horizontal_sum_i32_single(combined7);
-        let shifted7 = (raw7 >> L1_SHIFT) + biases[out_idx + 7];
-        let crelu7: i32 = shifted7.clamp(0, Q as i32) << Q_BITS;
-        let csrelu7: i32 = (shifted7 * shifted7).clamp(0, (Q * Q) as i32);
-        output[out_idx + 7] = crelu7;
-        output[out_idx + 7 + L2_SIZE] = csrelu7;
+        let mut chunk = 0;
+        while chunk * simd::I32_LANES < OUT_UNROLL {
+            let offset = chunk * simd::I32_LANES;
+            let raw_vec = simd::load_i32(raws.as_ptr().add(offset));
+            let bias_vec = simd::load_i32(biases.as_ptr().add(out_idx + offset));
+            let shifted = simd::add_i32(simd::shr_i32::<{ L1_SHIFT as i32 }>(raw_vec), bias_vec);
+            let crelu = simd::shl_i32::<{ Q_BITS as i32 }>(simd::clamp_i32(shifted, lo, hi));
+            let csrelu = simd::clamp_i32(simd::mul_i32(shifted, shifted), lo, hi2);
+            simd::store_i32(output.as_mut_ptr().add(out_idx + offset), crelu);
+            simd::store_i32(output.as_mut_ptr().add(out_idx + offset + L2_SIZE), csrelu);
+            chunk += 1;
+        }
 
         out_idx += OUT_UNROLL;
     }

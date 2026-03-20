@@ -91,6 +91,16 @@ pub unsafe fn clamp_i32(x: __m512i, min: __m512i, max: __m512i) -> __m512i {
     _mm512_max_epi32(_mm512_min_epi32(x, max), min)
 }
 
+#[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: __m512i) -> __m512i {
+    _mm512_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shl_i32<const SHIFT: i32>(a: __m512i) -> __m512i {
+    _mm512_slli_epi32::<SHIFT>(a)
+}
+
 /// Fused shift-left + multiply-high.
 #[inline(always)]
 pub unsafe fn shift_left_mul_high_i16(a: __m512i, b: __m512i) -> __m512i {

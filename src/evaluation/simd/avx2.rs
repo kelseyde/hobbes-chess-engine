@@ -86,6 +86,16 @@ pub unsafe fn clamp_i32(x: __m256i, min: __m256i, max: __m256i) -> __m256i {
 }
 
 #[inline(always)]
+pub unsafe fn shr_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
+    _mm256_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shl_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
+    _mm256_slli_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
 pub unsafe fn shift_left_mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
     const SHIFT: i32 = 16 - L0_SHIFT as i32;
     _mm256_mulhi_epi16(_mm256_slli_epi16::<SHIFT>(a), b)
