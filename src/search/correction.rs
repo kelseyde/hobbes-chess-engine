@@ -41,6 +41,7 @@ impl CorrectionHistories {
         best_score: i32,
     ) {
         let us = board.stm;
+        let them = !us;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[White];
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Black];
@@ -48,14 +49,16 @@ impl CorrectionHistories {
         let minor_hash = board.keys.minor_hash;
 
         let diff = best_score - static_eval;
-        let pawn_bonus = pawn_corr_bonus(diff, depth);
+        let pawn_stm_bonus = pawn_corr_stm_bonus(diff, depth);
+        let pawn_nstm_bonus = pawn_corr_nstm_bonus(diff, depth);
         let nonpawn_bonus = nonpawn_corr_bonus(diff, depth);
         let major_bonus = major_corr_bonus(diff, depth);
         let minor_bonus = minor_corr_bonus(diff, depth);
         let counter_bonus = counter_corr_bonus(diff, depth);
         let follow_up_bonus = follow_up_corr_bonus(diff, depth);
 
-        self.pawn_corrhist.update(us, pawn_hash, pawn_bonus);
+        self.pawn_corrhist.update(us, pawn_hash, pawn_stm_bonus);
+        self.pawn_corrhist.update(them, pawn_hash, pawn_nstm_bonus);
         self.nonpawn_corrhist[White].update(us, w_nonpawn_hash, nonpawn_bonus);
         self.nonpawn_corrhist[Black].update( us, b_nonpawn_hash, nonpawn_bonus);
         self.major_corrhist.update(us, major_hash, major_bonus);
@@ -68,13 +71,15 @@ impl CorrectionHistories {
     pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
 
         let us = board.stm;
+        let them = !us;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[White];
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Black];
         let major_hash = board.keys.major_hash;
         let minor_hash = board.keys.minor_hash;
 
-        let pawn       = self.pawn_corrhist.get(us, pawn_hash);
+        let pawn_stm   = self.pawn_corrhist.get(us, pawn_hash);
+        let pawn_nstm  = self.pawn_corrhist.get(them, pawn_hash);
         let white      = self.nonpawn_corrhist[White].get(us, w_nonpawn_hash);
         let black      = self.nonpawn_corrhist[Black].get(us, b_nonpawn_hash);
         let major      = self.major_corrhist.get(us, major_hash);
@@ -82,7 +87,8 @@ impl CorrectionHistories {
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
-        ((pawn * 100 / corr_pawn_weight())
+        ((pawn_stm * 100 / corr_pawn_stm_weight())
+            + (pawn_nstm * 100 / corr_pawn_nstm_weight())
             + (white * 100 / corr_non_pawn_weight())
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
@@ -191,14 +197,25 @@ impl<const N: usize> CorrectionHistory<N> {
     }
 }
 
-fn pawn_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn pawn_corr_stm_bonus(diff: i32, depth: i32) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_pawn_bonus_mult(),
-        corr_pawn_bonus_div(),
-        corr_pawn_bonus_min(),
-        corr_pawn_bonus_max(),
+        corr_pawn_stm_bonus_mult(),
+        corr_pawn_stm_bonus_div(),
+        corr_pawn_stm_bonus_min(),
+        corr_pawn_stm_bonus_max(),
+    )
+}
+
+fn pawn_corr_nstm_bonus(diff: i32, depth: i32) -> i32 {
+    corr_bonus(
+        diff,
+        depth,
+        corr_pawn_nstm_bonus_mult(),
+        corr_pawn_nstm_bonus_div(),
+        corr_pawn_nstm_bonus_min(),
+        corr_pawn_nstm_bonus_max(),
     )
 }
 
