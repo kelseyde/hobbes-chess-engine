@@ -5,7 +5,6 @@ use std::mem::size_of;
 use std::path::PathBuf;
 
 fn main() {
-
     // Load the raw network
     let raw_net: Vec<u8> = read_network_bytes("hobbes.nnue");
     let src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
