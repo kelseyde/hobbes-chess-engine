@@ -4,6 +4,8 @@ use std::{arch::aarch64::*, mem::size_of};
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
+pub type I32Vec = int32x4_t;
+
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
     vreinterpretq_s8_u8(vld1q_u8(ptr))

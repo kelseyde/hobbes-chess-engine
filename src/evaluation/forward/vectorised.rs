@@ -1,6 +1,7 @@
 use crate::evaluation::{simd, NETWORK};
 use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
+
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
 pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
@@ -124,69 +125,29 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
             w7 = w7.add(4 * STRIDE);
         }
 
-        let combined0 = simd::add_i32(simd::add_i32(acc00, acc01), simd::add_i32(acc02, acc03));
-        let raw0 = simd::horizontal_sum_i32_single(combined0);
-        let shifted0 = (raw0 >> L1_SHIFT) + biases[out_idx];
-        let crelu0: i32 = shifted0.clamp(0, Q as i32) << Q_BITS;
-        let csrelu0: i32 = (shifted0 * shifted0).clamp(0, (Q * Q) as i32);
-        output[out_idx] = crelu0;
-        output[out_idx + L2_SIZE] = csrelu0;
+        (output[out_idx], output[out_idx + L2_SIZE]) =
+            dual_activation(acc00, acc01, acc02, acc03, biases, out_idx);
 
-        let combined1 = simd::add_i32(simd::add_i32(acc10, acc11), simd::add_i32(acc12, acc13));
-        let raw1 = simd::horizontal_sum_i32_single(combined1);
-        let shifted1 = (raw1 >> L1_SHIFT) + biases[out_idx + 1];
-        let crelu1: i32 = shifted1.clamp(0, Q as i32) << Q_BITS;
-        let csrelu1: i32 = (shifted1 * shifted1).clamp(0, (Q * Q) as i32);
-        output[out_idx + 1] = crelu1;
-        output[out_idx + 1 + L2_SIZE] = csrelu1;
+        (output[out_idx + 1], output[out_idx + 1 + L2_SIZE]) =
+            dual_activation(acc10, acc11, acc12, acc13, biases, out_idx + 1);
 
-        let combined2 = simd::add_i32(simd::add_i32(acc20, acc21), simd::add_i32(acc22, acc23));
-        let raw2 = simd::horizontal_sum_i32_single(combined2);
-        let shifted2 = (raw2 >> L1_SHIFT) + biases[out_idx + 2];
-        let crelu2: i32 = shifted2.clamp(0, Q as i32) << Q_BITS;
-        let csrelu2: i32 = (shifted2 * shifted2).clamp(0, (Q * Q) as i32);
-        output[out_idx + 2] = crelu2;
-        output[out_idx + 2 + L2_SIZE] = csrelu2;
+        (output[out_idx + 2], output[out_idx + 2 + L2_SIZE]) =
+            dual_activation(acc20, acc21, acc22, acc23, biases, out_idx + 2);
 
-        let combined3 = simd::add_i32(simd::add_i32(acc30, acc31), simd::add_i32(acc32, acc33));
-        let raw3 = simd::horizontal_sum_i32_single(combined3);
-        let shifted3 = (raw3 >> L1_SHIFT) + biases[out_idx + 3];
-        let crelu3: i32 = shifted3.clamp(0, Q as i32) << Q_BITS;
-        let csrelu3: i32 = (shifted3 * shifted3).clamp(0, (Q * Q) as i32);
-        output[out_idx + 3] = crelu3;
-        output[out_idx + 3 + L2_SIZE] = csrelu3;
+        (output[out_idx + 3], output[out_idx + 3 + L2_SIZE]) =
+            dual_activation(acc30, acc31, acc32, acc33, biases, out_idx + 3);
 
-        let combined4 = simd::add_i32(simd::add_i32(acc40, acc41), simd::add_i32(acc42, acc43));
-        let raw4 = simd::horizontal_sum_i32_single(combined4);
-        let shifted4 = (raw4 >> L1_SHIFT) + biases[out_idx + 4];
-        let crelu4: i32 = shifted4.clamp(0, Q as i32) << Q_BITS;
-        let csrelu4: i32 = (shifted4 * shifted4).clamp(0, (Q * Q) as i32);
-        output[out_idx + 4] = crelu4;
-        output[out_idx + 4 + L2_SIZE] = csrelu4;
+        (output[out_idx + 4], output[out_idx + 4 + L2_SIZE]) =
+            dual_activation(acc40, acc41, acc42, acc43, biases, out_idx + 4);
 
-        let combined5 = simd::add_i32(simd::add_i32(acc50, acc51), simd::add_i32(acc52, acc53));
-        let raw5 = simd::horizontal_sum_i32_single(combined5);
-        let shifted5 = (raw5 >> L1_SHIFT) + biases[out_idx + 5];
-        let crelu5: i32 = shifted5.clamp(0, Q as i32) << Q_BITS;
-        let csrelu5: i32 = (shifted5 * shifted5).clamp(0, (Q * Q) as i32);
-        output[out_idx + 5] = crelu5;
-        output[out_idx + 5 + L2_SIZE] = csrelu5;
+        (output[out_idx + 5], output[out_idx + 5 + L2_SIZE]) =
+            dual_activation(acc50, acc51, acc52, acc53, biases, out_idx + 5);
 
-        let combined6 = simd::add_i32(simd::add_i32(acc60, acc61), simd::add_i32(acc62, acc63));
-        let raw6 = simd::horizontal_sum_i32_single(combined6);
-        let shifted6 = (raw6 >> L1_SHIFT) + biases[out_idx + 6];
-        let crelu6: i32 = shifted6.clamp(0, Q as i32) << Q_BITS;
-        let csrelu6: i32 = (shifted6 * shifted6).clamp(0, (Q * Q) as i32);
-        output[out_idx + 6] = crelu6;
-        output[out_idx + 6 + L2_SIZE] = csrelu6;
+        (output[out_idx + 6], output[out_idx + 6 + L2_SIZE]) =
+            dual_activation(acc60, acc61, acc62, acc63, biases, out_idx + 6);
 
-        let combined7 = simd::add_i32(simd::add_i32(acc70, acc71), simd::add_i32(acc72, acc73));
-        let raw7 = simd::horizontal_sum_i32_single(combined7);
-        let shifted7 = (raw7 >> L1_SHIFT) + biases[out_idx + 7];
-        let crelu7: i32 = shifted7.clamp(0, Q as i32) << Q_BITS;
-        let csrelu7: i32 = (shifted7 * shifted7).clamp(0, (Q * Q) as i32);
-        output[out_idx + 7] = crelu7;
-        output[out_idx + 7 + L2_SIZE] = csrelu7;
+        (output[out_idx + 7], output[out_idx + 7 + L2_SIZE]) =
+            dual_activation(acc70, acc71, acc72, acc73, biases, out_idx + 7);
 
         out_idx += OUT_UNROLL;
     }
@@ -255,4 +216,22 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     }
 
     simd::horizontal_sum_i32(acc) + bias
+}
+
+/// Dual activation for L1 outputs:
+/// - crelu: clamp(x, 0, Q) << Q_BITS
+/// - csrelu: clamp(x^2, 0, Q^2)
+unsafe fn dual_activation(
+    acc1: simd::I32Vec,
+    acc2: simd::I32Vec,
+    acc3: simd::I32Vec,
+    acc4: simd::I32Vec,
+    biases: &[i32; L2_SIZE],
+    out_idx: usize,
+) -> (i32, i32) {
+    let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
+    let shifted = (simd::horizontal_sum_i32_single(combined) >> L1_SHIFT) + biases[out_idx];
+    let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
+    let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
+    (crelu, csrelu)
 }

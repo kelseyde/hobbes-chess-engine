@@ -5,6 +5,8 @@ pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
+pub type I32Vec = __m512i;
+
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
     _mm512_loadu_si512(ptr as *const __m512i)
