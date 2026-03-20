@@ -220,6 +220,9 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     simd::horizontal_sum_i32(acc) + bias
 }
 
+/// Dual activation for L1 outputs:
+/// - crelu: clamp(x, 0, Q)
+/// - csrelu: clamp(x^2, 0, Q^2)
 unsafe fn dual_activation(
     acc1: int32x4_t,
     acc2: int32x4_t,
