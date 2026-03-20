@@ -44,9 +44,6 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     const OUT_UNROLL: usize = L2_SIZE;
     const STRIDE: usize = simd::I32_LANES * 4;
 
-    // OUT_UNROLL == L2_SIZE == 16; one iteration covers all output neurons.
-    debug_assert_eq!(L2_SIZE % OUT_UNROLL, 0);
-
     let mut out_idx = 0;
     while out_idx + OUT_UNROLL <= L2_SIZE {
         let mut w0 = NETWORK.l1_weights[output_bucket][out_idx].as_ptr();
