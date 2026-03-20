@@ -1,50 +1,60 @@
 use hobbes_nnue_arch::{preprocess, Network, UntransposedNetwork};
-use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::env;
 use std::fs;
 use std::mem::size_of;
 use std::path::PathBuf;
 
 fn main() {
+
+    // Load the raw network
+    let raw_net: Vec<u8> = read_network_bytes("hobbes.nnue");
+    let src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
+    let mut dst: Box<Network> = unsafe { boxed_and_zeroed() };
+
+    // Transpose and permute the net
+    preprocess::process_network(&src, &mut dst);
+
+    // Write the processed network
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    // Read the raw on-disk network file into an aligned buffer.
-    let raw_net = fs::read("hobbes.nnue").expect("network file not found!");
-    assert_eq!(
-        raw_net.len(),
-        size_of::<UntransposedNetwork>(),
-        "hobbes.nnue is {} bytes but UntransposedNetwork is {} bytes — wrong network file?",
-        raw_net.len(),
-        size_of::<UntransposedNetwork>()
-    );
-    let src_layout = Layout::from_size_align(size_of::<UntransposedNetwork>(), 64).unwrap();
-    let src: &UntransposedNetwork = unsafe {
-        let ptr = alloc_zeroed(src_layout);
-        assert!(!ptr.is_null(), "allocation failed");
-        std::ptr::copy_nonoverlapping(raw_net.as_ptr(), ptr, raw_net.len());
-        &*(ptr as *const UntransposedNetwork)
-    };
-
-    let layout = Layout::from_size_align(size_of::<Network>(), 64).unwrap();
-    let dst: &mut Network = unsafe {
-        let ptr = alloc_zeroed(layout);
-        assert!(!ptr.is_null(), "allocation failed");
-        &mut *(ptr as *mut Network)
-    };
-
-    preprocess::process_network(src, dst);
-
-    let dst_bytes: &[u8] = unsafe {
-        std::slice::from_raw_parts(dst as *const Network as *const u8, size_of::<Network>())
-    };
     let network_path = out_dir.join("hobbes_converted.nnue");
-    fs::write(&network_path, dst_bytes).unwrap();
-
-    unsafe {
-        dealloc(src as *const UntransposedNetwork as *mut u8, src_layout);
-        dealloc(dst as *mut Network as *mut u8, layout);
-    };
+    write_network_bytes(&network_path, &dst);
 
     println!("cargo:rustc-env=NETWORK_PATH={}", network_path.display());
     println!("cargo:rerun-if-changed=hobbes.nnue");
+}
+
+fn read_network_bytes(path: &str) -> Vec<u8> {
+    fs::read(path).expect("network file not found!")
+}
+
+fn write_network_bytes(path: &PathBuf, dst: &Network) {
+    fs::write(&path, unsafe { as_bytes(&*dst) }).unwrap();
+}
+
+fn load_network_from_bytes(bytes: &Vec<u8>) -> Box<UntransposedNetwork> {
+    assert_eq!(
+        bytes.len(),
+        size_of::<UntransposedNetwork>(),
+        "Byte slice is {} bytes but UntransposedNetwork is {} bytes — wrong network file?",
+        bytes.len(),
+        size_of::<UntransposedNetwork>()
+    );
+    unsafe {
+        let mut b: Box<UntransposedNetwork> = boxed_and_zeroed();
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), b.as_mut() as *mut _ as *mut u8, bytes.len());
+        b
+    }
+}
+
+unsafe fn as_bytes<T>(val: &T) -> &[u8] {
+    std::slice::from_raw_parts(val as *const T as *const u8, size_of::<T>())
+}
+
+unsafe fn boxed_and_zeroed<T>() -> Box<T> {
+    let layout = std::alloc::Layout::new::<T>();
+    let ptr = std::alloc::alloc_zeroed(layout);
+    if ptr.is_null() {
+        std::alloc::handle_alloc_error(layout);
+    }
+    Box::from_raw(ptr.cast())
 }
