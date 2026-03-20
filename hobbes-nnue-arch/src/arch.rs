@@ -28,6 +28,7 @@ pub const L2_SIZE: usize = 16;
 pub const L3_SIZE: usize = 32;
 
 pub const Q: i64 = 64;
+pub const Q_BITS: usize = 6;
 pub const SCALE: i64 = 400;
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
@@ -38,7 +39,7 @@ pub struct UntransposedNetwork {
     pub l0_biases:  [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE]; OUTPUT_BUCKET_COUNT]; L1_SIZE],
     pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_weights: [[[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT]; L2_SIZE],
+    pub l2_weights: [[[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT]; L2_SIZE * 2],
     pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_weights: [[[i32; 1]; OUTPUT_BUCKET_COUNT]; L3_SIZE],
     pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
@@ -50,7 +51,7 @@ pub struct Network {
     pub l0_biases:  [i16; L1_SIZE],
     pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE * 2]; OUTPUT_BUCKET_COUNT],
     pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_weights: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],

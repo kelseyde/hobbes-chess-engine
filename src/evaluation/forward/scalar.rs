@@ -1,5 +1,5 @@
 use crate::evaluation::NETWORK;
-use hobbes_nnue_arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q};
+use hobbes_nnue_arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
@@ -30,7 +30,7 @@ pub fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] 
 }
 
 /// L1 propagation
-pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE] {
+pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
     let weights = &NETWORK.l1_weights[output_bucket];
     let biases = &NETWORK.l1_biases[output_bucket];
 
@@ -46,7 +46,7 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
     }
 
     // Re-quantise, add biases and activate L1 outputs
-    let mut output: [i32; L2_SIZE] = [0; L2_SIZE];
+    let mut output: [i32; L2_SIZE * 2] = [0; L2_SIZE * 2];
     for i in 0..L2_SIZE {
         let bias: i32 = biases[i];
         let mut out: i32 = intermediate[i];
@@ -57,24 +57,25 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
         // Add the bias
         out += bias;
 
-        // Squared Clipped ReLU activation
-        // Clamp to [0, Q]
-        let clamped: i32 = out.clamp(0, Q as i32);
-        // Square the clamped value, moving to [0, Q*Q]
-        let activated = clamped * clamped;
+        // crelu activation: clamp(x, 0, Q)
+        let crelu: i32 = out.clamp(0, Q as i32) << Q_BITS;
 
-        output[i] = activated;
+        // csrelu activation: clamp(x^2, 0, Q^2)
+        let csrelu: i32 = (out * out).clamp(0, (Q * Q) as i32);
+
+        output[i] = crelu;
+        output[i + L2_SIZE] = csrelu;
     }
 
     output
 }
 
 /// L2 propagation
-pub fn propagate_l2(input: &[i32; L2_SIZE], output_bucket: usize) -> [i32; L3_SIZE] {
+pub fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize) -> [i32; L3_SIZE] {
     let weights = &NETWORK.l2_weights[output_bucket];
 
     let mut out = NETWORK.l2_biases[output_bucket];
-    for input_idx in 0..L2_SIZE {
+    for input_idx in 0..(L2_SIZE * 2) {
         let input_val = input[input_idx];
         for output_idx in 0..L3_SIZE {
             let weight = weights[input_idx][output_idx];
