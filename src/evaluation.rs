@@ -4,14 +4,14 @@ pub mod feature;
 pub mod stats;
 
 mod forward {
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    mod vectorised;
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    pub use vectorised::*;
+    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    // mod vectorised;
+    // #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
+    // pub use vectorised::*;
 
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     mod scalar;
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
+    // #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     pub use scalar::*;
 }
 
@@ -111,7 +111,7 @@ impl NNUE {
         }
         output *= SCALE;
         output /= Q * Q * Q * Q;
-        output = scale_evaluation(board, output as i32) as i64;
+        // output = scale_evaluation(board, output as i32) as i64;
         output as i32
     }
 
