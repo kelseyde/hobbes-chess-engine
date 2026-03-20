@@ -4,9 +4,12 @@ use std::fs;
 use std::mem::size_of;
 use std::path::PathBuf;
 
+const INPUT_NET_FILE: &str = "hobbes.nnue";
+const OUTPUT_NET_FILE: &str = "hobbes_converted.nnue";
+
 fn main() {
     // Load the raw network
-    let raw_net: Vec<u8> = read_network_bytes("hobbes.nnue");
+    let raw_net: Vec<u8> = read_network_bytes(INPUT_NET_FILE);
     let src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
     let mut dst: Box<Network> = unsafe { boxed_and_zeroed() };
 
@@ -15,7 +18,7 @@ fn main() {
 
     // Write the processed network
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let network_path = out_dir.join("hobbes_converted.nnue");
+    let network_path = out_dir.join(OUTPUT_NET_FILE);
     write_network_bytes(&network_path, &dst);
 
     println!("cargo:rustc-env=NETWORK_PATH={}", network_path.display());
