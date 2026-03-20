@@ -1,14 +1,6 @@
 use crate::evaluation::{simd, NETWORK};
 use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
-#[cfg(target_feature = "neon")]
-use std::arch::aarch64::int32x4_t;
-
-#[cfg(target_feature = "avx2")]
-use std::arch::x86_64::__m256i;
-
-#[cfg(target_feature = "avx512f")]
-use std::arch::x86_64::__m512i;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
@@ -227,60 +219,18 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
 }
 
 /// Dual activation for L1 outputs:
-/// - crelu: clamp(x, 0, Q)
+/// - crelu: clamp(x, 0, Q) << Q_BITS
 /// - csrelu: clamp(x^2, 0, Q^2)
-#[cfg(target_feature = "neon")]
 unsafe fn dual_activation(
-    acc1: int32x4_t,
-    acc2: int32x4_t,
-    acc3: int32x4_t,
-    acc4: int32x4_t,
+    acc1: simd::I32Vec,
+    acc2: simd::I32Vec,
+    acc3: simd::I32Vec,
+    acc4: simd::I32Vec,
     biases: &[i32; L2_SIZE],
     out_idx: usize,
 ) -> (i32, i32) {
     let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let raw = simd::horizontal_sum_i32_single(combined);
-    let shifted = (raw >> L1_SHIFT) + biases[out_idx];
-    let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
-    let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
-    (crelu, csrelu)
-}
-
-/// Dual activation for L1 outputs:
-/// - crelu: clamp(x, 0, Q)
-/// - csrelu: clamp(x^2, 0, Q^2)
-#[cfg(target_feature = "avx2")]
-unsafe fn dual_activation(
-    acc1: __m256i,
-    acc2: __m256i,
-    acc3: __m256i,
-    acc4: __m256i,
-    biases: &[i32; L2_SIZE],
-    out_idx: usize,
-) -> (i32, i32) {
-    let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let raw = simd::horizontal_sum_i32_single(combined);
-    let shifted = (raw >> L1_SHIFT) + biases[out_idx];
-    let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
-    let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
-    (crelu, csrelu)
-}
-
-/// Dual activation for L1 outputs:
-/// - crelu: clamp(x, 0, Q)
-/// - csrelu: clamp(x^2, 0, Q^2)
-#[cfg(target_feature = "avx512f")]
-unsafe fn dual_activation(
-    acc1: __m512i,
-    acc2: __m512i,
-    acc3: __m512i,
-    acc4: __m512i,
-    biases: &[i32; L2_SIZE],
-    out_idx: usize,
-) -> (i32, i32) {
-    let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let raw = simd::horizontal_sum_i32_single(combined);
-    let shifted = (raw >> L1_SHIFT) + biases[out_idx];
+    let shifted = (simd::horizontal_sum_i32_single(combined) >> L1_SHIFT) + biases[out_idx];
     let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
     let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
     (crelu, csrelu)

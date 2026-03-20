@@ -5,6 +5,8 @@ pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
+pub type I32Vec = __m256i;
+
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
     _mm256_loadu_si256(ptr as *const __m256i)
