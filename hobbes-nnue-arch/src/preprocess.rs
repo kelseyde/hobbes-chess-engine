@@ -58,7 +58,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         }
     }
 
-    for input_idx in 0..L2_SIZE {
+    for input_idx in 0..(L2_SIZE * 2) {
         for bucket in 0..OUTPUT_BUCKET_COUNT {
             for output_idx in 0..L3_SIZE {
                 dst.l2_weights[bucket][input_idx][output_idx] =
