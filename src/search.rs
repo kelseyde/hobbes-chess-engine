@@ -500,6 +500,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
+            && !board.gives_direct_check(mv)
             && searched_moves > late_move_threshold(depth, improvement) {
             move_picker.skip_quiets = true;
         }
@@ -512,6 +513,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
+            && !board.gives_direct_check(mv)
             && history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets = true;
             continue
@@ -523,6 +525,7 @@ fn alpha_beta<NODE: NodeType>(
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
+            && !board.gives_direct_check(mv)
             && move_picker.stage == BadNoisies
             && futility_margin <= alpha {
             break;
@@ -548,6 +551,7 @@ fn alpha_beta<NODE: NodeType>(
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
+            && !board.gives_direct_check(mv)
             && !see(board, &mv, see_threshold, Pruning) {
             continue;
         }
