@@ -23,7 +23,7 @@ use crate::search::see::{see, SeeType};
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::Upper;
+use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
@@ -410,6 +410,20 @@ fn alpha_beta<NODE: NodeType>(
         && depth >= cutnode_red_min_depth()
         && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
         depth -= 1;
+    }
+
+    let probcut_beta = beta + 375;
+    if !pv_node
+        && !singular_search
+        && !in_check
+        && Score::is_defined(tt_score)
+        && !Score::is_mate(tt_score)
+        && !Score::is_mate(beta)
+        && !Score::is_mate(probcut_beta)
+        && (tt_flag == Lower || tt_flag == Exact)
+        && tt_score >= probcut_beta
+        && tt_depth >= depth - 2 {
+        return tt_score;
     }
 
     // We have decided that the current node should not be pruned and is worth examining further.
