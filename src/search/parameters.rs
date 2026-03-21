@@ -25,6 +25,8 @@ tunable_params! {
     iir_tt_depth_offset          = 4, 1, 6, 1,                false;
     cutnode_red_min_depth        = 8, 4, 12, 1,               false;
     cutnode_red_tt_offset        = 4, 1, 6, 1,                false;
+    pc_beta_margin               = 375, 200, 600, 50,         true;
+    pc_tt_depth_offset           = 2, 0, 4, 1,                false;
     hindsight_ext_min_depth      = 1, 1, 5, 1,                false;
     hindsight_ext_min_reduction  = 3, 1, 5, 1,                false;
     hindsight_ext_eval_diff      = -12, -50, 50, 5,           true;
