@@ -487,7 +487,6 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mated
-            && !board.gives_direct_check(mv)
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets = true;
             continue;
@@ -500,7 +499,6 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && !board.gives_direct_check(mv)
             && searched_moves > late_move_threshold(depth, improvement) {
             move_picker.skip_quiets = true;
         }
@@ -513,7 +511,6 @@ fn alpha_beta<NODE: NodeType>(
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && !board.gives_direct_check(mv)
             && history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets = true;
             continue
@@ -525,7 +522,6 @@ fn alpha_beta<NODE: NodeType>(
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
-            && !board.gives_direct_check(mv)
             && move_picker.stage == BadNoisies
             && futility_margin <= alpha {
             break;
@@ -551,7 +547,6 @@ fn alpha_beta<NODE: NodeType>(
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
-            && !board.gives_direct_check(mv)
             && !see(board, &mv, see_threshold, Pruning) {
             continue;
         }
@@ -994,7 +989,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
+        if !in_check
+            && !is_recapture
+            && !is_killer
+            && !is_mate_score
+            && !board.gives_direct_check(mv)
+            && move_count >= 2 {
             break;
         }
 
