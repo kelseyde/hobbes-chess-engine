@@ -302,7 +302,8 @@ fn alpha_beta<NODE: NodeType>(
 
         let value = dynamic_policy_mult() * -(static_eval + prev_eval);
         let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
-        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
+        td.history.quiet_history
+            .update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus, in_check);
     }
 
     // Hindsight extension
@@ -790,7 +791,7 @@ fn alpha_beta<NODE: NodeType>(
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
-            td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
+            td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus, in_check);
             td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &[cont_1_bonus, cont_2_bonus]);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
@@ -800,7 +801,7 @@ fn alpha_beta<NODE: NodeType>(
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
-                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
+                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus, in_check);
                     td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &[cont_1_malus, cont_2_malus]);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
@@ -829,7 +830,7 @@ fn alpha_beta<NODE: NodeType>(
             let prev_threats = td.stack[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
             td.history.quiet_history
-                .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
+                .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus, in_check);
         }
     }
 
