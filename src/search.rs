@@ -649,8 +649,8 @@ fn alpha_beta<NODE: NodeType>(
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                     if is_quiet && (score <= alpha || score >= beta) {
-                        let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta);
-                        let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta);
+                        let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta, in_check);
+                        let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta, in_check);
                         td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
                     }
                 }
@@ -740,20 +740,20 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
 
-        let quiet_bonus = quiet_history_bonus(depth)
+        let quiet_bonus = quiet_history_bonus(depth, in_check)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
             + capture_count as i16 * quiet_hist_capture_mult() as i16;
 
-        let quiet_malus = quiet_history_malus(depth)
+        let quiet_malus = quiet_history_malus(depth, in_check)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
 
-        let quiet_factoriser_bonus = quiet_history_factoriser_bonus(depth)
+        let quiet_factoriser_bonus = quiet_history_factoriser_bonus(depth, in_check)
             - cut_node as i16 * quiet_fact_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
             + capture_count as i16 * quiet_fact_capture_mult() as i16;
 
-        let quiet_factoriser_malus = quiet_history_factoriser_malus(depth)
+        let quiet_factoriser_malus = quiet_history_factoriser_malus(depth, in_check)
             + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
 
         let capt_bonus = capture_history_bonus(depth)
@@ -762,26 +762,26 @@ fn alpha_beta<NODE: NodeType>(
         let capt_malus = capture_history_malus(depth)
             + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
 
-        let cont_1_bonus = cont_history_1_bonus(depth)
+        let cont_1_bonus = cont_history_1_bonus(depth, in_check)
             - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
             + capture_count as i16 * cont_hist_1_capture_mult() as i16;
 
-        let cont_1_malus = cont_history_1_malus(depth)
+        let cont_1_malus = cont_history_1_malus(depth, in_check)
             + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
         
-        let cont_2_bonus = cont_history_2_bonus(depth)
+        let cont_2_bonus = cont_history_2_bonus(depth, in_check)
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
             + capture_count as i16 * cont_hist_2_capture_mult() as i16;
 
-        let cont_2_malus = cont_history_2_malus(depth)
+        let cont_2_malus = cont_history_2_malus(depth, in_check)
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
 
-        let from_bonus = from_history_bonus(depth);
-        let from_malus = from_history_malus(depth);
-        let to_bonus = to_history_bonus(depth);
-        let to_malus = to_history_malus(depth);
+        let from_bonus = from_history_bonus(depth, in_check);
+        let from_malus = from_history_malus(depth, in_check);
+        let to_bonus = to_history_bonus(depth, in_check);
+        let to_malus = to_history_malus(depth, in_check);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
@@ -827,7 +827,7 @@ fn alpha_beta<NODE: NodeType>(
         && td.stack[ply - 1].captured.is_none() {
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             let prev_threats = td.stack[ply - 1].threats;
-            let quiet_bonus = prior_countermove_bonus(depth);
+            let quiet_bonus = prior_countermove_bonus(depth, in_check);
             td.history.quiet_history
                 .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
         }
