@@ -33,6 +33,8 @@ pub const SCALE: i64 = 400;
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
+/// The `UntransposedNetwork` represents the net outputted by Bullet, with weights and biases in the
+/// original [input][bucket][output] format.
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
@@ -45,6 +47,8 @@ pub struct UntransposedNetwork {
     pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
 }
 
+/// The `Network` represents the net in the optimal format for inference, with weights and biases
+/// permuted and transposed into the [bucket][output][input] format optimal for inference.
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
