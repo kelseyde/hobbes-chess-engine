@@ -220,8 +220,8 @@ impl QuietHistory {
     ) {
         bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         if in_check {
-            bonus = bonus * quiet_hist_incheck_mult() as i16 / 1024;
-            factoriser_bonus = factoriser_bonus * quiet_fact_incheck_mult() as i16 / 1024;
+            bonus = (bonus as i32 * quiet_hist_incheck_mult() / 1024) as i16;
+            factoriser_bonus = (factoriser_bonus as i32 * quiet_fact_incheck_mult() / 1024) as i16;
         }
         let threat_index = ThreatIndex::new(*mv, threats);
 
