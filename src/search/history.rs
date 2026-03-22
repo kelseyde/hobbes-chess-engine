@@ -238,6 +238,7 @@ impl QuietHistory {
         factoriser_bonus: i16,
     ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        let factoriser_bonus = factoriser_bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
 
         self.from_to_entries[stm][mv.from()][mv.to()].update(
