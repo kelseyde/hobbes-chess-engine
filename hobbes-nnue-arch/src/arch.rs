@@ -48,7 +48,7 @@ pub struct UntransposedNetwork {
 }
 
 /// The `Network` represents the net in the optimal format for inference, with weights and biases
-/// permuted and transposed into the [bucket][output][input] format optimal for inference.
+/// permuted and transposed into the [bucket][output][input] format.
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
