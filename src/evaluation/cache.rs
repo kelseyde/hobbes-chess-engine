@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::side::Side;
-use crate::evaluation::network::{HIDDEN, NETWORK};
-use crate::evaluation::NUM_BUCKETS;
+use crate::evaluation::NETWORK;
+use hobbes_nnue_arch::{INPUT_BUCKET_COUNT, L1_SIZE};
 
 /// Whenever the king changes bucket, a costly full refresh of the accumulator is required. This
 /// service implements a technique to improve the performance of this refresh known as 'Finny tables'.
@@ -13,19 +13,19 @@ use crate::evaluation::NUM_BUCKETS;
 #[derive(Clone, Default)]
 #[repr(align(64))]
 pub struct InputBucketCache {
-    entries: Box<[[[CacheEntry; NUM_BUCKETS]; 2]; 2]>,
+    entries: Box<[[[CacheEntry; INPUT_BUCKET_COUNT]; 2]; 2]>,
 }
 
 #[derive(Clone)]
 pub struct CacheEntry {
-    pub features: [i16; HIDDEN],
+    pub features: [i16; L1_SIZE],
     pub bitboards: [Bitboard; 8],
 }
 
 impl Default for CacheEntry {
     fn default() -> Self {
         CacheEntry {
-            features: NETWORK.feature_bias,
+            features: NETWORK.l0_biases,
             bitboards: [Bitboard::empty(); 8],
         }
     }

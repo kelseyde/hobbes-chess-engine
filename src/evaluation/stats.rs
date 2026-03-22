@@ -1,6 +1,6 @@
 use crate::board::{movegen, Board};
-use crate::evaluation::network::SCALE;
 use crate::search::thread::ThreadData;
+use hobbes_nnue_arch::SCALE;
 use std::fs;
 use std::path::Path;
 
@@ -64,7 +64,7 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
 
         // Compute the target scaling factor to achieve the same absolute mean as the master network
         let master_abs_mean = 1233.83;
-        let scale = master_abs_mean / abs_mean * f64::from(SCALE);
+        let scale = master_abs_mean / abs_mean * f64::from(SCALE as i32);
         println!("  TARGET SCALING FACTOR: {scale:.6}");
     }
 }
