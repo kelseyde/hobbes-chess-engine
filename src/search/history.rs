@@ -236,8 +236,14 @@ impl QuietHistory {
         threats: Bitboard,
         bonus: i16,
         factoriser_bonus: i16,
+        in_check: bool,
     ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        let bonus = if in_check {
+            bonus / 2
+        } else {
+            bonus
+        };
         let threat_index = ThreatIndex::new(*mv, threats);
 
         self.from_to_entries[stm][mv.from()][mv.to()].update(
