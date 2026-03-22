@@ -133,7 +133,6 @@ tunable_params! {
     quiet_fact_ttmove_malus      = 82, 0, 200, 25,            true;
     quiet_fact_malus_max         = 1350, 1000, 1600, 100,     true;
     quiet_hist_incheck_mult      = 512, 0, 1024, 64,          true;
-    quiet_fact_incheck_mult      = 512, 0, 1024, 64,          true;
     quiet_hist_lerp_factor       = 38, 0, 100, 5,             true;
     capt_hist_lerp_factor        = 46, 0, 100, 5,             true;
     capt_hist_bonus_scale        = 244, 80, 360, 40,          true;
