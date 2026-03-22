@@ -20,7 +20,7 @@ pub const L0_SHIFT: usize = 9;
 pub const INPUT_BUCKET_COUNT: usize = get_num_buckets(&BUCKETS);
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
-pub const L1_SIZE: usize = 1280;
+pub const L1_SIZE: usize = 1792;
 pub const L1_SHIFT: usize = 8;
 pub const L1_QUANT: usize = 128;
 
