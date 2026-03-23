@@ -230,7 +230,7 @@ unsafe fn dual_activation(
     out_idx: usize,
 ) -> (i32, i32) {
     let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let shifted = (simd::horizontal_sum_i32_single(combined) >> L1_SHIFT) + biases[out_idx];
+    let shifted = (simd::horizontal_sum_i32_single(combined) + biases[out_idx]) >> L1_SHIFT;
     let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
     let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
     (crelu, csrelu)

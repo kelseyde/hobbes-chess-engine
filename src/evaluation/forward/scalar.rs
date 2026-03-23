@@ -51,11 +51,11 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
         let bias: i32 = biases[i];
         let mut out: i32 = intermediate[i];
 
-        // Down-shift into L1 Q space
-        out >>= L1_SHIFT;
-
         // Add the bias
         out += bias;
+
+        // Down-shift into L1 Q space
+        out >>= L1_SHIFT;
 
         // crelu activation: clamp(x, 0, Q)
         let crelu: i32 = out.clamp(0, Q as i32) << Q_BITS;
