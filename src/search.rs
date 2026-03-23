@@ -278,6 +278,7 @@ fn alpha_beta<NODE: NodeType>(
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
+    td.stack[ply + 2].num_fail_highs = 0;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
@@ -356,8 +357,9 @@ fn alpha_beta<NODE: NodeType>(
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
+        let nmp_margin = nmp_margin() - 20 * (td.stack[ply + 1].num_fail_highs < 2) as i32;
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval >= beta + nmp_margin
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
@@ -718,6 +720,7 @@ fn alpha_beta<NODE: NodeType>(
             // further, and we can cut off the search.
             if score >= beta {
                 flag = TTFlag::Lower;
+                td.stack[ply].num_fail_highs += 1;
                 break;
             }
 
