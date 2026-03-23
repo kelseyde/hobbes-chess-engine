@@ -647,12 +647,12 @@ fn alpha_beta<NODE: NodeType>(
 
                 if new_depth > reduced_depth {
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                }
 
-                    if is_quiet && (score <= alpha || score >= beta) {
-                        let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta);
-                        let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta);
-                        td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
-                    }
+                if is_quiet && (score <= alpha || score >= beta) {
+                    let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta);
+                    let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta);
+                    td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
                 }
             }
         }
