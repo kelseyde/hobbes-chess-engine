@@ -179,9 +179,10 @@ impl MovePicker {
             // Score quiet
             let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
             let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-            let is_killer = td.stack[ply].killer == Some(*mv);
-            let killer_bonus = if is_killer { 10000000 } else { 0 };
+
+            let killer_bonus = if td.stack[ply].killer == Some(*mv) { 10000000 } else { 0 };
             let direct_check_bonus = if board.gives_direct_check(*mv) { 10000 } else { 0 };
+
             entry.score = quiet_score + cont_score + killer_bonus + direct_check_bonus;
         }
     }
