@@ -314,7 +314,7 @@ fn alpha_beta<NODE: NodeType>(
         && depth >= hindsight_ext_min_depth()
         && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
         && Score::is_defined(td.stack[ply - 1].static_eval)
-        && static_eval + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
+        && static_eval + td.stack[ply - 1].static_eval < 0 {
         depth += 1;
     }
 
@@ -328,7 +328,7 @@ fn alpha_beta<NODE: NodeType>(
         && depth >= hindsight_red_min_depth()
         && td.stack[ply - 1].reduction >= hindsight_red_min_reduction()
         && Score::is_defined(td.stack[ply - 1].static_eval)
-        && static_eval + td.stack[ply - 1].static_eval > hindsight_red_eval_diff() {
+        && static_eval + td.stack[ply - 1].static_eval > 0 {
         depth -= 1;
     }
 

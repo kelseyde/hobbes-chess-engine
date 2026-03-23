@@ -29,10 +29,8 @@ tunable_params! {
     pc_tt_depth_offset           = 2, 0, 4, 1,                false;
     hindsight_ext_min_depth      = 1, 1, 5, 1,                false;
     hindsight_ext_min_reduction  = 3, 1, 5, 1,                false;
-    hindsight_ext_eval_diff      = -12, -50, 50, 5,           true;
     hindsight_red_min_depth      = 2, 1, 5, 1,                false;
     hindsight_red_min_reduction  = 1, 1, 5, 1,                false;
-    hindsight_red_eval_diff      = 47, 0, 120, 20,            true;
     dynamic_policy_mult          = 8, 0, 20, 2,               true;
     dynamic_policy_min           = -60, -100, 0, 25,          true;
     dynamic_policy_max           = 208, 75, 300, 25,          true;
