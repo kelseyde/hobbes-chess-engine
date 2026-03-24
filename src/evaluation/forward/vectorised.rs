@@ -1,11 +1,19 @@
 use crate::evaluation::{simd, NETWORK};
-use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
-
+use hobbes_nnue_arch::{L0_QUANT, L1_CHUNK_PER_32, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
+use crate::evaluation::simd::VecI32;
+use crate::max;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
 pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
+
+    const NNZ_INPUT_SIMD_WIDTH: usize = size_of::<VecI32>() / size_of::<i32>();
+    const NNZ_CHUNK: usize = max!(NNZ_INPUT_SIMD_WIDTH * 2, 8);
+    const NNZ_OUTPUTS_PER_CHUNK: usize = NNZ_CHUNK / 8;
+
     let mut output = [0u8; L1_SIZE];
+    let mut nnz = [0u16; L1_SIZE / L1_CHUNK_PER_32];
+    let mut nnz_count = 0;
 
     let lo = simd::splat_i16(0);
     let hi = simd::splat_i16(L0_QUANT as i16);
@@ -222,10 +230,10 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
 /// - crelu: clamp(x, 0, Q) << Q_BITS
 /// - csrelu: clamp(x^2, 0, Q^2)
 unsafe fn dual_activation(
-    acc1: simd::I32Vec,
-    acc2: simd::I32Vec,
-    acc3: simd::I32Vec,
-    acc4: simd::I32Vec,
+    acc1: simd::VecI32,
+    acc2: simd::VecI32,
+    acc3: simd::VecI32,
+    acc4: simd::VecI32,
     biases: &[i32; L2_SIZE],
     out_idx: usize,
 ) -> (i32, i32) {

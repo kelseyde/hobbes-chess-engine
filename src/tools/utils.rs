@@ -87,3 +87,19 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
     }
     Box::from_raw(ptr.cast())
 }
+
+#[macro_export]
+macro_rules! max {
+    ($a:expr) => {{
+        let mut idx = 0;
+        let mut max = $a[0];
+        while idx < $a.len() {
+            max = max!(max, $a[idx]);
+            idx += 1;
+        }
+        max
+    }};
+    ($a:expr, $b:expr) => {
+        if $a > $b { $a } else { $b }
+    };
+}

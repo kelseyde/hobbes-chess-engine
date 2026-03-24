@@ -5,7 +5,7 @@ pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
-pub type I32Vec = __m256i;
+pub type VecI32 = __m256i;
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
@@ -91,6 +91,11 @@ pub unsafe fn clamp_i32(x: __m256i, min: __m256i, max: __m256i) -> __m256i {
 pub unsafe fn shift_left_mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
     const SHIFT: i32 = 16 - L0_SHIFT as i32;
     _mm256_mulhi_epi16(_mm256_slli_epi16::<SHIFT>(a), b)
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: __m256i) -> u16 {
+    return _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(vec, _mm256_setzero_si256()))) as u16;
 }
 
 #[inline(always)]

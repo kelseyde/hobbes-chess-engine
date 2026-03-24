@@ -31,6 +31,8 @@ pub const Q: i64 = 64;
 pub const Q_BITS: usize = 6;
 pub const SCALE: i64 = 400;
 
+pub const L1_CHUNK_PER_32: usize = size_of::<i32>() / size_of::<i8>();
+
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
 /// The `UntransposedNetwork` represents the net outputted by Bullet, with weights and biases in the
