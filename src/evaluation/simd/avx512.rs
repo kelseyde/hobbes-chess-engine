@@ -1,11 +1,13 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
 pub type VecI32 = __m512i;
+pub type VecI8 = __m512i;
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
@@ -106,7 +108,8 @@ pub unsafe fn nonzero_mask_i32(vec: __m512i) -> u16 {
 }
 
 #[inline(always)]
-pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
+pub unsafe fn packus(a: __m512i, b: __m512i) -> VecI8 {
+    // Pack unsigned saturating into bytes; return as VecI8 (bitwise identical to unsigned bytes)
     _mm512_packus_epi16(a, b)
 }
 
@@ -163,4 +166,9 @@ pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m512i, __m512i, __m
         _mm512_loadu_si512(ptr.add(2 * stride) as *const __m512i),
         _mm512_loadu_si512(ptr.add(3 * stride) as *const __m512i),
     )
+}
+
+#[inline(always)]
+pub unsafe fn trans_i8_i32(vec: VecI8) -> VecI32 {
+    std::mem::transmute(vec)
 }

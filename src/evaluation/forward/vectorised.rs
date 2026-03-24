@@ -2,11 +2,13 @@ use crate::evaluation::{simd, NETWORK};
 use hobbes_nnue_arch::{L0_QUANT, L1_CHUNK_PER_32, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 use crate::evaluation::simd::VecI32;
 use crate::max;
+use crate::evaluation::sparse::NNZ_TABLE;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
+pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> ([u8; L1_SIZE], [u16; L1_SIZE / L1_CHUNK_PER_32]) {
 
+    const L1_PAIR_COUNT: usize = L1_SIZE / 2;
     const NNZ_INPUT_SIMD_WIDTH: usize = size_of::<VecI32>() / size_of::<i32>();
     const NNZ_CHUNK: usize = max!(NNZ_INPUT_SIMD_WIDTH * 2, 8);
     const NNZ_OUTPUTS_PER_CHUNK: usize = NNZ_CHUNK / 8;
@@ -14,38 +16,84 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
     let mut output = [0u8; L1_SIZE];
     let mut nnz = [0u16; L1_SIZE / L1_CHUNK_PER_32];
     let mut nnz_count = 0;
+    let mut nnz_base = simd::splat_v128(0);
+    let nnz_increment = simd::splat_v128(8);
 
     let lo = simd::splat_i16(0);
     let hi = simd::splat_i16(L0_QUANT as i16);
 
     for (side, feats) in [us, them].into_iter().enumerate() {
-        let base = side * (L1_SIZE / 2);
+        let base = side * L1_PAIR_COUNT;
+        let feat_ptr = feats.as_ptr();
 
-        for i in (0..L1_SIZE / 2).step_by(2 * simd::I16_LANES) {
-            let left1 = simd::load_i16(feats.as_ptr().add(i));
-            let left2 = simd::load_i16(feats.as_ptr().add(i + simd::I16_LANES));
-            let right1 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2));
-            let right2 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
+        for i in (0..L1_PAIR_COUNT).step_by(simd::I16_LANES * 2 * 2) {
+
+            let left1 = simd::load_i16(feat_ptr.add(i + 0 * simd::I16_LANES));
+            let left2 = simd::load_i16(feat_ptr.add(i + 1 * simd::I16_LANES));
+            let left3 = simd::load_i16(feat_ptr.add(i + 2 * simd::I16_LANES));
+            let left4 = simd::load_i16(feat_ptr.add(i + 3 * simd::I16_LANES));
+
+            let j = i + L1_PAIR_COUNT;
+            let right1 = simd::load_i16(feat_ptr.add(j + 0 * simd::I16_LANES));
+            let right2 = simd::load_i16(feat_ptr.add(j + 1 * simd::I16_LANES));
+            let right3 = simd::load_i16(feat_ptr.add(j + 2 * simd::I16_LANES));
+            let right4 = simd::load_i16(feat_ptr.add(j + 3 * simd::I16_LANES));
 
             let left1_clipped = simd::clamp_i16(left1, lo, hi);
             let left2_clipped = simd::clamp_i16(left2, lo, hi);
+            let left3_clipped = simd::clamp_i16(left3, lo, hi);
+            let left4_clipped = simd::clamp_i16(left4, lo, hi);
+
             let right1_clipped = simd::clamp_i16(right1, lo, hi);
             let right2_clipped = simd::clamp_i16(right2, lo, hi);
+            let right3_clipped = simd::clamp_i16(right3, lo, hi);
+            let right4_clipped = simd::clamp_i16(right4, lo, hi);
 
             let product1 = simd::shift_left_mul_high_i16(left1_clipped, right1_clipped);
             let product2 = simd::shift_left_mul_high_i16(left2_clipped, right2_clipped);
+            let product3 = simd::shift_left_mul_high_i16(left3_clipped, right3_clipped);
+            let product4 = simd::shift_left_mul_high_i16(left4_clipped, right4_clipped);
 
-            let packed = simd::packus(product1, product2);
-            simd::store_u8(output.as_mut_ptr().add(i + base), packed);
+            let packed1 = simd::packus(product1, product2);
+            let packed2 = simd::packus(product3, product4);
+
+            let out_ptr = output.as_mut_ptr();
+            simd::store_u8(out_ptr.add(i + base), packed1);
+            simd::store_u8(out_ptr.add(i + base + simd::U8_LANES).cast(), packed2);
+
+
+            let mut nnz_mask = 0;
+            nnz_mask |= u32::from(simd::nonzero_mask_i32(simd::trans_i8_i32(packed1)));
+            nnz_mask |= u32::from(simd::nonzero_mask_i32(simd::trans_i8_i32(packed2)))
+                << NNZ_INPUT_SIMD_WIDTH;
+
+            for j in 0..NNZ_OUTPUTS_PER_CHUNK {
+                let lookup = (nnz_mask >> (j * 8)) & 0xFF;
+                let entry = NNZ_TABLE.table.as_ptr().add(lookup as usize);
+                let offsets = simd::load_v128(entry.cast());
+                simd::store_v128(
+                    nnz.as_mut_ptr().add(nnz_count).cast(),
+                    simd::add_v128(nnz_base, offsets),
+                );
+                nnz_count += u32::count_ones(lookup) as usize;
+                nnz_base = simd::add_v128(nnz_base, nnz_increment);
+            }
         }
     }
 
-    output
+    let nnz_slice = std::slice::from_raw_parts(nnz.as_ptr().cast::<u16>(), nnz_count);
+
+    (output, nnz_slice)
 }
 
 /// L1 propagation
 /// Abandon hope, all ye who enter here.
-pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
+pub unsafe fn propagate_l1(
+    input: &[u8; L1_SIZE],
+    nnz: &[u16; L1_SIZE / L1_CHUNK_PER_32],
+    output_bucket: usize
+) -> [i32; L2_SIZE * 2] {
+
     let biases = &NETWORK.l1_biases[output_bucket];
 
     let mut output = [0i32; L2_SIZE * 2];
@@ -230,10 +278,10 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
 /// - crelu: clamp(x, 0, Q) << Q_BITS
 /// - csrelu: clamp(x^2, 0, Q^2)
 unsafe fn dual_activation(
-    acc1: simd::VecI32,
-    acc2: simd::VecI32,
-    acc3: simd::VecI32,
-    acc4: simd::VecI32,
+    acc1: VecI32,
+    acc2: VecI32,
+    acc3: VecI32,
+    acc4: VecI32,
     biases: &[i32; L2_SIZE],
     out_idx: usize,
 ) -> (i32, i32) {
@@ -242,4 +290,24 @@ unsafe fn dual_activation(
     let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
     let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
     (crelu, csrelu)
+}
+
+// Credit to Viridithas author.
+// used in only one place, separate function for clarity.
+unsafe fn reinterpret_as_i32s(ptr: &[u8; L1_SIZE]) -> &[i32; L1_SIZE / 4] {
+    let ptr = from_ref(ptr);
+    // check that the reference is aligned:
+    debug_assert!(ptr.cast::<i32>().is_aligned());
+    debug_assert!(ptr.cast::<[i32; L1_SIZE / 4]>().is_aligned());
+    // cast:
+    // Safety: pointer is known to be aligned.
+    unsafe { &*ptr.cast::<[i32; L1_SIZE / 4]>() }
+}
+
+#[inline]
+pub const fn from_ref<T>(r: &T) -> *const T
+where
+    T: ?Sized,
+{
+    r
 }

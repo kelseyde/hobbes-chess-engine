@@ -1,10 +1,12 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::aarch64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<int8x16_t>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
 pub type VecI32 = int32x4_t;
+pub type VecI8 = int8x16_t;
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
@@ -12,8 +14,8 @@ pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
 }
 
 #[inline(always)]
-pub unsafe fn store_u8(ptr: *mut u8, v: uint8x16_t) {
-    vst1q_u8(ptr, v)
+pub unsafe fn store_u8(ptr: *mut u8, v: int8x16_t) {
+    vst1q_s8(ptr as *mut i8, v)
 }
 
 #[inline(always)]
@@ -87,6 +89,29 @@ pub unsafe fn clamp_i32(x: int32x4_t, min: int32x4_t, max: int32x4_t) -> int32x4
     vmaxq_s32(vminq_s32(x, max), min)
 }
 
+#[inline(always)]
+pub unsafe fn splat_v128(a: u16) -> uint16x8_t {
+    vdupq_n_u16(a)
+}
+
+#[inline(always)]
+pub unsafe fn load_v128(ptr: *const u16) -> uint16x8_t {
+    vld1q_u16(ptr.cast())
+}
+
+#[inline(always)]
+pub unsafe fn store_v128(ptr: *mut u16, v: uint16x8_t) {
+    vst1q_u16(ptr.cast(), std::mem::transmute(v));
+}
+
+#[inline(always)]
+pub unsafe fn add_v128(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
+    vaddq_u16(
+        std::mem::transmute(a), 
+        std::mem::transmute(b)
+    )
+}
+
 /// Fused shift-left + multiply-high using NEON's vqdmulhq_s16 (doubling multiply high).
 /// vqdmulhq computes (a * b * 2) >> 16, so we shift by one less than the intended shift.
 #[inline(always)]
@@ -103,8 +128,9 @@ pub unsafe fn nonzero_mask_i32(vec: int32x4_t) -> u16 {
 }
 
 #[inline(always)]
-pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> uint8x16_t {
-    vcombine_u8(vqmovun_s16(a), vqmovun_s16(b))
+pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> int8x16_t {
+    // vqmovun_s16 returns unsigned bytes; reinterpret as signed int8x16_t for downstream use.
+    vreinterpretq_s8_u8(vcombine_u8(vqmovun_s16(a), vqmovun_s16(b)))
 }
 
 #[inline(always)]
@@ -180,4 +206,9 @@ pub unsafe fn load_i8x4(
         vld1q_s8(ptr.add(2 * stride)),
         vld1q_s8(ptr.add(3 * stride)),
     )
+}
+
+#[inline(always)]
+pub unsafe fn trans_i8_i32(vec: int8x16_t) -> int32x4_t {
+    std::mem::transmute(vec)
 }

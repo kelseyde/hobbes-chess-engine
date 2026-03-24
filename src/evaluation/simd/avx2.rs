@@ -1,11 +1,13 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
 pub type VecI32 = __m256i;
+pub type VecI8 = __m256i;
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
@@ -99,7 +101,8 @@ pub unsafe fn nonzero_mask_i32(vec: __m256i) -> u16 {
 }
 
 #[inline(always)]
-pub unsafe fn packus(a: __m256i, b: __m256i) -> __m256i {
+pub unsafe fn packus(a: __m256i, b: __m256i) -> VecI8 {
+    // Pack unsigned saturating into bytes; return as VecI8 (bitwise identical to unsigned bytes)
     _mm256_packus_epi16(a, b)
 }
 
@@ -169,4 +172,9 @@ pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m256i, __m256i, __m
 pub unsafe fn splat_i32_x4(a: i32) -> (__m256i, __m256i, __m256i, __m256i) {
     let v = _mm256_set1_epi32(a);
     (v, v, v, v)
+}
+
+#[inline(always)]
+pub unsafe fn trans_i8_i32(vec: VecI8) -> VecI32 {
+    std::mem::transmute(vec)
 }
