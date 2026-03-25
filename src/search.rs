@@ -563,8 +563,8 @@ fn alpha_beta<NODE: NodeType>(
             && tt_flag != Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
-            let s_beta_mult = depth * (1 + (tt_pv && !pv_node) as i32);
-            let s_beta = (tt_score - s_beta_mult * se_beta_scale(is_quiet) / 16).max(-Score::MATE + 1);
+            let singular_margin = depth * if tt_flag == Exact { 1 } else { 2 } / 2 + depth * (tt_pv && !NODE::PV) as i32;
+            let s_beta = tt_score - singular_margin;
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             td.stack[ply].singular = Some(mv);
@@ -1146,15 +1146,6 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
 
     (factor0 + factor1 * depth * depth) / 1024
-}
-
-#[inline]
-fn se_beta_scale(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_scale()
-    } else {
-        se_beta_noisy_scale()
-    }
 }
 
 #[inline]

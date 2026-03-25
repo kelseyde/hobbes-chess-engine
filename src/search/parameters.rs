@@ -70,10 +70,8 @@ tunable_params! {
     se_tt_depth_offset           = 3, 1, 6, 1,                false;
     se_depth_offset              = 1, 0, 3, 1,                false;
     se_depth_divisor             = 2, 1, 4, 1,                false;
-    se_beta_quiet_scale          = 16, 16, 48, 6,             true;
     se_dext_quiet_margin         = 9, 0, 30, 5,               true;
     se_text_quiet_margin         = 61, 20, 120, 10,           true;
-    se_beta_noisy_scale          = 19, 16, 48, 6,             true;
     se_dext_noisy_margin         = 10, 0, 30, 5,              true;
     se_text_noisy_margin         = 53, 20, 120, 10,           true;
     lmr_min_depth                = 2, 1, 5, 1,                false;
