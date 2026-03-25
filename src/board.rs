@@ -42,6 +42,7 @@ pub struct Board {
     pub threats: Bitboard, // squares attacked by the opponent
     pub checkers: Bitboard, // opponent pieces checking the king
     pub pinned: [Bitboard; 2], // pinned pieces for both sides
+    pub check_zones: [Bitboard; 4] // squares that, if moved to, would put the opponent's king in check
 }
 
 impl Default for Board {
@@ -70,6 +71,7 @@ impl Board {
             threats: Bitboard::empty(),
             checkers: Bitboard::empty(),
             pinned: [Bitboard::empty(); 2],
+            check_zones: [Bitboard::empty(); 4],
         }
     }
 
@@ -125,6 +127,7 @@ impl Board {
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
         self.pinned = self.calc_both_pinned();
+        self.check_zones = self.calc_check_zones();
     }
 
     #[inline]
@@ -248,6 +251,17 @@ impl Board {
         [self.calc_pinned(White), self.calc_pinned(Black)]
     }
 
+    pub fn calc_check_zones(&self) -> [Bitboard; 4] {
+        let their_king_sq = self.king_sq(!self.stm);
+        let occ = self.occ();
+        [
+            attacks::pawn(their_king_sq, !self.stm),
+            attacks::knight(their_king_sq),
+            attacks::bishop(their_king_sq, occ),
+            attacks::rook(their_king_sq, occ),
+        ]
+    }
+
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
         let king = self.king_sq(side);
@@ -274,6 +288,19 @@ impl Board {
         }
 
         pinned
+    }
+
+    pub fn gives_direct_check(&self, mv: Move) -> bool {
+        let moving_pc = mv.promo_piece().unwrap_or(self.piece_at(mv.from()).unwrap());
+        if moving_pc == Piece::King {
+            return false;
+        }
+        let zone = if moving_pc == Piece::Queen {
+            self.check_zones[Piece::Bishop] | self.check_zones[Piece::Rook]
+        } else {
+            self.check_zones[moving_pc]
+        };
+        zone.contains(mv.to())
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {

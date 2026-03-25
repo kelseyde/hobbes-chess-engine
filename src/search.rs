@@ -494,12 +494,14 @@ fn alpha_beta<NODE: NodeType>(
 
         // Late Move Pruning
         // Skip quiet moves ordered very late in the list.
+        let late_move_threshold = late_move_threshold(depth, improvement)
+            + board.gives_direct_check(mv) as i32;
         if !pv_node
             && !root_node
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improvement) {
+            && searched_moves > late_move_threshold {
             move_picker.skip_quiets = true;
         }
 
