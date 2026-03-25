@@ -619,6 +619,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r += 1024 * (tt_move.exists() && best_move == tt_move && tt_flag == Exact) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
