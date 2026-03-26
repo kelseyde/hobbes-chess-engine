@@ -291,16 +291,19 @@ impl Board {
     }
 
     pub fn gives_direct_check(&self, mv: Move) -> bool {
+        self.check_zone(mv).contains(mv.to())
+    }
+    
+    fn check_zone(&self, mv: Move) -> Bitboard {
         let moving_pc = mv.promo_piece().unwrap_or(self.piece_at(mv.from()).unwrap());
         if moving_pc == Piece::King {
-            return false;
+            return Bitboard::empty();
         }
-        let zone = if moving_pc == Piece::Queen {
+        if moving_pc == Piece::Queen {
             self.check_zones[Piece::Bishop] | self.check_zones[Piece::Rook]
         } else {
             self.check_zones[moving_pc]
-        };
-        zone.contains(mv.to())
+        }
     }
 
     pub fn has_kingside_rights(&self, side: Side) -> bool {
