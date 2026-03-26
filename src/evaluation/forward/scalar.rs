@@ -1,9 +1,15 @@
 use crate::evaluation::NETWORK;
 use hobbes_nnue_arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
+use crate::evaluation::forward::propagate_l1;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-pub fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
+pub fn activate_l0_and_propagate_l1(
+    us: &[i16; L1_SIZE], 
+    them: &[i16; L1_SIZE], 
+    output_bucket: usize
+) -> [i32; L2_SIZE * 2] {
+    
     let mut output = [0; L1_SIZE];
 
     for (side, feats) in [us, them].into_iter().enumerate() {
@@ -26,7 +32,7 @@ pub fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] 
             output[base + i] = result;
         }
     }
-    output
+    propagate_l1(&output, output_bucket)
 }
 
 /// L1 propagation

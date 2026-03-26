@@ -6,7 +6,11 @@ use crate::evaluation::sparse::NNZ_TABLE;
 
 /// L0 ('feature transformer') activation
 /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> ([u8; L1_SIZE], [u16; L1_SIZE / L1_CHUNK_PER_32]) {
+pub unsafe fn activate_l0_and_propagate_l1(
+    us: &[i16; L1_SIZE],
+    them: &[i16; L1_SIZE],
+    output_bucket: usize
+) -> [i32; L2_SIZE * 2] {
 
     const L1_PAIR_COUNT: usize = L1_SIZE / 2;
     const NNZ_INPUT_SIMD_WIDTH: usize = size_of::<VecI32>() / size_of::<i32>();
@@ -83,34 +87,37 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> ([u8; L
 
     let nnz_slice = std::slice::from_raw_parts(nnz.as_ptr().cast::<u16>(), nnz_count);
 
-    (output, nnz_slice)
+    propagate_l1(&output, nnz_slice, output_bucket)
 }
 
 /// L1 propagation
 /// Abandon hope, all ye who enter here.
 pub unsafe fn propagate_l1(
     input: &[u8; L1_SIZE],
-    nnz: &[u16; L1_SIZE / L1_CHUNK_PER_32],
+    nnz_slice: &[u16],
     output_bucket: usize
 ) -> [i32; L2_SIZE * 2] {
-
-    let biases = &NETWORK.l1_biases[output_bucket];
-
-    let mut output = [0i32; L2_SIZE * 2];
 
     const STRIDE: usize = simd::I32_LANES * 4;
     const OUT_UNROLL: usize = 8;
 
+    let weights = &NETWORK.l1_weights[output_bucket];
+    let biases = &NETWORK.l1_biases[output_bucket];
+
+    let mut output = [0i32; L2_SIZE * 2];
+    let nnz_count = nnz_slice.len();
+    let tail_start = nnz_count - (nnz_count % 4);
+
     let mut out_idx = 0;
     while out_idx + OUT_UNROLL <= L2_SIZE {
-        let mut w0 = NETWORK.l1_weights[output_bucket][out_idx].as_ptr();
-        let mut w1 = NETWORK.l1_weights[output_bucket][out_idx + 1].as_ptr();
-        let mut w2 = NETWORK.l1_weights[output_bucket][out_idx + 2].as_ptr();
-        let mut w3 = NETWORK.l1_weights[output_bucket][out_idx + 3].as_ptr();
-        let mut w4 = NETWORK.l1_weights[output_bucket][out_idx + 4].as_ptr();
-        let mut w5 = NETWORK.l1_weights[output_bucket][out_idx + 5].as_ptr();
-        let mut w6 = NETWORK.l1_weights[output_bucket][out_idx + 6].as_ptr();
-        let mut w7 = NETWORK.l1_weights[output_bucket][out_idx + 7].as_ptr();
+        let mut w0 = weights[out_idx].as_ptr();
+        let mut w1 = weights[out_idx + 1].as_ptr();
+        let mut w2 = weights[out_idx + 2].as_ptr();
+        let mut w3 = weights[out_idx + 3].as_ptr();
+        let mut w4 = weights[out_idx + 4].as_ptr();
+        let mut w5 = weights[out_idx + 5].as_ptr();
+        let mut w6 = weights[out_idx + 6].as_ptr();
+        let mut w7 = weights[out_idx + 7].as_ptr();
 
         let (mut acc00, mut acc01, mut acc02, mut acc03) = simd::splat_i32_x4(0);
         let (mut acc10, mut acc11, mut acc12, mut acc13) = simd::splat_i32_x4(0);
