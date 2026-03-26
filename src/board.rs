@@ -487,7 +487,8 @@ impl Board {
         let white_knights = knights & self.white();
         let black_knights = knights & self.black();
         if (!white_knights.is_empty() && !white_bishops.is_empty())
-            || (!black_knights.is_empty() && !black_bishops.is_empty()) {
+            || (!black_knights.is_empty() && !black_bishops.is_empty())
+        {
             return false;
         }
 
