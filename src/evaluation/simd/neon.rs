@@ -1,4 +1,4 @@
-use hobbes_nnue_arch::L0_SHIFT;
+use hobbes_nnue_arch::{L0_SHIFT, Q_BITS};
 use std::{arch::aarch64::*, mem::size_of};
 
 pub const U8_LANES: usize = size_of::<int8x16_t>() / size_of::<u8>();
@@ -112,6 +112,11 @@ pub unsafe fn add_v128(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     )
 }
 
+pub unsafe fn shift_left_i32(a: int32x4_t) -> int32x4_t {
+    const SHIFT: i32 = Q_BITS as i32;
+    vshlq_n_s32::<SHIFT>(a)
+}
+
 /// Fused shift-left + multiply-high using NEON's vqdmulhq_s16 (doubling multiply high).
 /// vqdmulhq computes (a * b * 2) >> 16, so we shift by one less than the intended shift.
 #[inline(always)]
@@ -133,53 +138,79 @@ pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> int8x16_t {
     vreinterpretq_s8_u8(vcombine_u8(vqmovun_s16(a), vqmovun_s16(b)))
 }
 
+// #[inline(always)]
+// pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
+//     #[cfg(target_feature = "dotprod")]
+//     {
+//         // NEON dotprod is unstable, so for now we use inline ASM.
+//         let mut result = acc;
+//         std::arch::asm!(
+//             "sdot {0:v}.4s, {1:v}.16b, {2:v}.16b",
+//             inlateout(vreg) result,
+//             in(vreg) u8s,
+//             in(vreg) i8s,
+//             options(pure, nomem, nostack),
+//         );
+//         result
+//     }
+//     #[cfg(not(target_feature = "dotprod"))]
+//     {
+//         let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
+//         let hi = vmull_high_s8(u8s, i8s);
+//         let pairwise = vpaddq_s16(lo, hi);
+//         vpadalq_s16(acc, pairwise)
+//     }
+// }
+
 #[inline(always)]
-pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_t {
-    #[cfg(target_feature = "dotprod")]
-    {
-        // NEON dotprod is unstable, so for now we use inline ASM.
-        let mut result = acc;
-        std::arch::asm!(
-            "sdot {0:v}.4s, {1:v}.16b, {2:v}.16b",
-            inlateout(vreg) result,
-            in(vreg) u8s,
-            in(vreg) i8s,
-            options(pure, nomem, nostack),
-        );
-        result
-    }
-    #[cfg(not(target_feature = "dotprod"))]
-    {
-        let lo = vmull_s8(vget_low_s8(u8s), vget_low_s8(i8s));
-        let hi = vmull_high_s8(u8s, i8s);
-        let pairwise = vpaddq_s16(lo, hi);
-        vpadalq_s16(acc, pairwise)
-    }
+pub unsafe fn dpbusd(i32s: int32x4_t, u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
+    vaddq_s32(i32s, dot_bytes(u8s, i8s))
 }
 
 #[inline(always)]
-#[allow(clippy::too_many_arguments)]
-pub unsafe fn dpbusd_x4(
-    a0: int32x4_t,
-    a1: int32x4_t,
-    a2: int32x4_t,
-    a3: int32x4_t,
-    u0: int8x16_t,
-    u1: int8x16_t,
-    u2: int8x16_t,
-    u3: int8x16_t,
-    w0: int8x16_t,
-    w1: int8x16_t,
-    w2: int8x16_t,
-    w3: int8x16_t,
-) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
-    (
-        dpbusd(a0, u0, w0),
-        dpbusd(a1, u1, w1),
-        dpbusd(a2, u2, w2),
-        dpbusd(a3, u3, w3),
-    )
+pub unsafe fn double_dpbusd(
+    i32s: int32x4_t, u8s1: int32x4_t, i8s1: int8x16_t, u8s2: int32x4_t, i8s2: int8x16_t,
+) -> int32x4_t {
+    let accum = vaddq_s32(dot_bytes(u8s1, i8s1), dot_bytes(u8s2, i8s2));
+    vaddq_s32(i32s, accum)
 }
+
+#[inline(always)]
+unsafe fn dot_bytes(u8s: int32x4_t, i8s: int8x16_t) -> int32x4_t {
+    let u8s = vreinterpretq_u8_s32(u8s);
+
+    let products_low = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(u8s))), vmovl_s8(vget_low_s8(i8s)));
+    let products_high = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(u8s))), vmovl_s8(vget_high_s8(i8s)));
+
+    let sums_low = vpaddlq_s16(products_low);
+    let sums_high = vpaddlq_s16(products_high);
+
+    vpaddq_s32(sums_low, sums_high)
+}
+//
+// #[inline(always)]
+// #[allow(clippy::too_many_arguments)]
+// pub unsafe fn dpbusd_x4(
+//     a0: int32x4_t,
+//     a1: int32x4_t,
+//     a2: int32x4_t,
+//     a3: int32x4_t,
+//     u0: int8x16_t,
+//     u1: int8x16_t,
+//     u2: int8x16_t,
+//     u3: int8x16_t,
+//     w0: int8x16_t,
+//     w1: int8x16_t,
+//     w2: int8x16_t,
+//     w3: int8x16_t,
+// ) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
+//     (
+//         dpbusd(a0, u0, w0),
+//         dpbusd(a1, u1, w1),
+//         dpbusd(a2, u2, w2),
+//         dpbusd(a3, u3, w3),
+//     )
+// }
 
 #[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {

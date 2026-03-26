@@ -97,123 +97,176 @@ pub unsafe fn propagate_l1(
     nnz_slice: &[u16],
     output_bucket: usize
 ) -> [i32; L2_SIZE * 2] {
+    println!("in here");
 
     const STRIDE: usize = simd::I32_LANES * 4;
-    const OUT_UNROLL: usize = 8;
+    const CHUNKS: usize = 4;
 
     let weights = &NETWORK.l1_weights[output_bucket];
     let biases = &NETWORK.l1_biases[output_bucket];
 
+    let packed = std::slice::from_raw_parts(input.as_ptr().cast::<i32>(), L1_SIZE / CHUNKS);
+    let mut pre_activations = [simd::splat_i32(0); L2_SIZE / simd::I32_LANES];
     let mut output = [0i32; L2_SIZE * 2];
-    let nnz_count = nnz_slice.len();
-    let tail_start = nnz_count - (nnz_count % 4);
+    let mut pairs = nnz_slice.chunks_exact(2);
 
-    let mut out_idx = 0;
-    while out_idx + OUT_UNROLL <= L2_SIZE {
-        let mut w0 = weights[out_idx].as_ptr();
-        let mut w1 = weights[out_idx + 1].as_ptr();
-        let mut w2 = weights[out_idx + 2].as_ptr();
-        let mut w3 = weights[out_idx + 3].as_ptr();
-        let mut w4 = weights[out_idx + 4].as_ptr();
-        let mut w5 = weights[out_idx + 5].as_ptr();
-        let mut w6 = weights[out_idx + 6].as_ptr();
-        let mut w7 = weights[out_idx + 7].as_ptr();
+    for pair in &mut pairs {
+        println!("1");
+        let index1 = *pair.get_unchecked(0) as usize;
+        let index2 = *pair.get_unchecked(1) as usize;
 
-        let (mut acc00, mut acc01, mut acc02, mut acc03) = simd::splat_i32_x4(0);
-        let (mut acc10, mut acc11, mut acc12, mut acc13) = simd::splat_i32_x4(0);
-        let (mut acc20, mut acc21, mut acc22, mut acc23) = simd::splat_i32_x4(0);
-        let (mut acc30, mut acc31, mut acc32, mut acc33) = simd::splat_i32_x4(0);
-        let (mut acc40, mut acc41, mut acc42, mut acc43) = simd::splat_i32_x4(0);
-        let (mut acc50, mut acc51, mut acc52, mut acc53) = simd::splat_i32_x4(0);
-        let (mut acc60, mut acc61, mut acc62, mut acc63) = simd::splat_i32_x4(0);
-        let (mut acc70, mut acc71, mut acc72, mut acc73) = simd::splat_i32_x4(0);
+        let input1 = simd::splat_i32(*packed.get_unchecked(index1));
+        let input2 = simd::splat_i32(*packed.get_unchecked(index2));
 
-        let mut in_ptr = input.as_ptr();
-        let end_ptr = input.as_ptr().add(L1_SIZE).sub(4 * STRIDE);
+        let weights1 = weights.as_ptr().add(index1 * L2_SIZE * CHUNKS);
+        let weights2 = weights.as_ptr().add(index2 * L2_SIZE * CHUNKS);
 
-        while in_ptr <= end_ptr {
-            let in0 = simd::load_u8(in_ptr);
-            let in1 = simd::load_u8(in_ptr.add(STRIDE));
-            let in2 = simd::load_u8(in_ptr.add(2 * STRIDE));
-            let in3 = simd::load_u8(in_ptr.add(3 * STRIDE));
+        for j in (0..L2_SIZE).step_by(simd::I32_LANES) {
+            println!("2");
+            let weights1 = *weights1.add(j * CHUNKS).cast();
+            let weights2 = *weights2.add(j * CHUNKS).cast();
 
-            let (w0_0, w0_1, w0_2, w0_3) = simd::load_i8x4(w0, STRIDE);
-            (acc00, acc01, acc02, acc03) = simd::dpbusd_x4(
-                acc00, acc01, acc02, acc03, in0, in1, in2, in3, w0_0, w0_1, w0_2, w0_3,
-            );
-
-            let (w1_0, w1_1, w1_2, w1_3) = simd::load_i8x4(w1, STRIDE);
-            (acc10, acc11, acc12, acc13) = simd::dpbusd_x4(
-                acc10, acc11, acc12, acc13, in0, in1, in2, in3, w1_0, w1_1, w1_2, w1_3,
-            );
-
-            let (w2_0, w2_1, w2_2, w2_3) = simd::load_i8x4(w2, STRIDE);
-            (acc20, acc21, acc22, acc23) = simd::dpbusd_x4(
-                acc20, acc21, acc22, acc23, in0, in1, in2, in3, w2_0, w2_1, w2_2, w2_3,
-            );
-
-            let (w3_0, w3_1, w3_2, w3_3) = simd::load_i8x4(w3, STRIDE);
-            (acc30, acc31, acc32, acc33) = simd::dpbusd_x4(
-                acc30, acc31, acc32, acc33, in0, in1, in2, in3, w3_0, w3_1, w3_2, w3_3,
-            );
-
-            let (w4_0, w4_1, w4_2, w4_3) = simd::load_i8x4(w4, STRIDE);
-            (acc40, acc41, acc42, acc43) = simd::dpbusd_x4(
-                acc40, acc41, acc42, acc43, in0, in1, in2, in3, w4_0, w4_1, w4_2, w4_3,
-            );
-
-            let (w5_0, w5_1, w5_2, w5_3) = simd::load_i8x4(w5, STRIDE);
-            (acc50, acc51, acc52, acc53) = simd::dpbusd_x4(
-                acc50, acc51, acc52, acc53, in0, in1, in2, in3, w5_0, w5_1, w5_2, w5_3,
-            );
-
-            let (w6_0, w6_1, w6_2, w6_3) = simd::load_i8x4(w6, STRIDE);
-            (acc60, acc61, acc62, acc63) = simd::dpbusd_x4(
-                acc60, acc61, acc62, acc63, in0, in1, in2, in3, w6_0, w6_1, w6_2, w6_3,
-            );
-
-            let (w7_0, w7_1, w7_2, w7_3) = simd::load_i8x4(w7, STRIDE);
-            (acc70, acc71, acc72, acc73) = simd::dpbusd_x4(
-                acc70, acc71, acc72, acc73, in0, in1, in2, in3, w7_0, w7_1, w7_2, w7_3,
-            );
-
-            in_ptr = in_ptr.add(4 * STRIDE);
-            w0 = w0.add(4 * STRIDE);
-            w1 = w1.add(4 * STRIDE);
-            w2 = w2.add(4 * STRIDE);
-            w3 = w3.add(4 * STRIDE);
-            w4 = w4.add(4 * STRIDE);
-            w5 = w5.add(4 * STRIDE);
-            w6 = w6.add(4 * STRIDE);
-            w7 = w7.add(4 * STRIDE);
+            let vector = &mut pre_activations[j / simd::I32_LANES];
+            *vector = simd::double_dpbusd(*vector, input1, weights1, input2, weights2);
         }
-
-        (output[out_idx], output[out_idx + L2_SIZE]) =
-            dual_activation(acc00, acc01, acc02, acc03, biases, out_idx);
-
-        (output[out_idx + 1], output[out_idx + 1 + L2_SIZE]) =
-            dual_activation(acc10, acc11, acc12, acc13, biases, out_idx + 1);
-
-        (output[out_idx + 2], output[out_idx + 2 + L2_SIZE]) =
-            dual_activation(acc20, acc21, acc22, acc23, biases, out_idx + 2);
-
-        (output[out_idx + 3], output[out_idx + 3 + L2_SIZE]) =
-            dual_activation(acc30, acc31, acc32, acc33, biases, out_idx + 3);
-
-        (output[out_idx + 4], output[out_idx + 4 + L2_SIZE]) =
-            dual_activation(acc40, acc41, acc42, acc43, biases, out_idx + 4);
-
-        (output[out_idx + 5], output[out_idx + 5 + L2_SIZE]) =
-            dual_activation(acc50, acc51, acc52, acc53, biases, out_idx + 5);
-
-        (output[out_idx + 6], output[out_idx + 6 + L2_SIZE]) =
-            dual_activation(acc60, acc61, acc62, acc63, biases, out_idx + 6);
-
-        (output[out_idx + 7], output[out_idx + 7 + L2_SIZE]) =
-            dual_activation(acc70, acc71, acc72, acc73, biases, out_idx + 7);
-
-        out_idx += OUT_UNROLL;
     }
+
+    println!("in here2");
+
+    if let Some(last) = pairs.remainder().first() {
+        let index = *last as usize;
+        let input = simd::splat_i32(*packed.get_unchecked(index));
+        let weights = weights.as_ptr().add(index * L2_SIZE * CHUNKS);
+
+        for j in (0..L2_SIZE).step_by(simd::I32_LANES) {
+            let weights = *weights.add(j * CHUNKS).cast();
+            let vector = &mut pre_activations[j / simd::I32_LANES];
+            *vector = simd::dpbusd(*vector, input, weights);
+        }
+    }
+    println!("in here3");
+
+    let zero = simd::splat_i32(0);
+    let one = simd::splat_i32(Q as i32);
+    let one_sq = simd::splat_i32((Q * Q) as i32);
+
+    for i in (0..L2_SIZE).step_by(simd::I32_LANES) {
+        let biases = *biases.as_ptr().add(i).cast();
+        let vector = simd::add_i32(pre_activations[i / simd::I32_LANES], biases);
+
+        let crelu = simd::shift_left_i32(simd::clamp_i32(vector, zero, one));
+        let csrelu = simd::clamp_i32(simd::mul_i32(vector, vector), zero, one_sq);
+
+        *output.as_mut_ptr().add(i).cast() = crelu;
+        *output.as_mut_ptr().add(i + L2_SIZE).cast() = csrelu;
+    }
+
+    // let mut out_idx = 0;
+    // while out_idx + CHUNKS <= L2_SIZE {
+    //     let mut w0 = weights[out_idx].as_ptr();
+    //     let mut w1 = weights[out_idx + 1].as_ptr();
+    //     let mut w2 = weights[out_idx + 2].as_ptr();
+    //     let mut w3 = weights[out_idx + 3].as_ptr();
+    //     let mut w4 = weights[out_idx + 4].as_ptr();
+    //     let mut w5 = weights[out_idx + 5].as_ptr();
+    //     let mut w6 = weights[out_idx + 6].as_ptr();
+    //     let mut w7 = weights[out_idx + 7].as_ptr();
+    //
+    //     let (mut acc00, mut acc01, mut acc02, mut acc03) = simd::splat_i32_x4(0);
+    //     let (mut acc10, mut acc11, mut acc12, mut acc13) = simd::splat_i32_x4(0);
+    //     let (mut acc20, mut acc21, mut acc22, mut acc23) = simd::splat_i32_x4(0);
+    //     let (mut acc30, mut acc31, mut acc32, mut acc33) = simd::splat_i32_x4(0);
+    //     let (mut acc40, mut acc41, mut acc42, mut acc43) = simd::splat_i32_x4(0);
+    //     let (mut acc50, mut acc51, mut acc52, mut acc53) = simd::splat_i32_x4(0);
+    //     let (mut acc60, mut acc61, mut acc62, mut acc63) = simd::splat_i32_x4(0);
+    //     let (mut acc70, mut acc71, mut acc72, mut acc73) = simd::splat_i32_x4(0);
+    //
+    //     let mut in_ptr = input.as_ptr();
+    //     let end_ptr = input.as_ptr().add(L1_SIZE).sub(4 * STRIDE);
+    //
+    //     while in_ptr <= end_ptr {
+    //         let in0 = simd::load_u8(in_ptr);
+    //         let in1 = simd::load_u8(in_ptr.add(STRIDE));
+    //         let in2 = simd::load_u8(in_ptr.add(2 * STRIDE));
+    //         let in3 = simd::load_u8(in_ptr.add(3 * STRIDE));
+    //
+    //         let (w0_0, w0_1, w0_2, w0_3) = simd::load_i8x4(w0, STRIDE);
+    //         (acc00, acc01, acc02, acc03) = simd::dpbusd_x4(
+    //             acc00, acc01, acc02, acc03, in0, in1, in2, in3, w0_0, w0_1, w0_2, w0_3,
+    //         );
+    //
+    //         let (w1_0, w1_1, w1_2, w1_3) = simd::load_i8x4(w1, STRIDE);
+    //         (acc10, acc11, acc12, acc13) = simd::dpbusd_x4(
+    //             acc10, acc11, acc12, acc13, in0, in1, in2, in3, w1_0, w1_1, w1_2, w1_3,
+    //         );
+    //
+    //         let (w2_0, w2_1, w2_2, w2_3) = simd::load_i8x4(w2, STRIDE);
+    //         (acc20, acc21, acc22, acc23) = simd::dpbusd_x4(
+    //             acc20, acc21, acc22, acc23, in0, in1, in2, in3, w2_0, w2_1, w2_2, w2_3,
+    //         );
+    //
+    //         let (w3_0, w3_1, w3_2, w3_3) = simd::load_i8x4(w3, STRIDE);
+    //         (acc30, acc31, acc32, acc33) = simd::dpbusd_x4(
+    //             acc30, acc31, acc32, acc33, in0, in1, in2, in3, w3_0, w3_1, w3_2, w3_3,
+    //         );
+    //
+    //         let (w4_0, w4_1, w4_2, w4_3) = simd::load_i8x4(w4, STRIDE);
+    //         (acc40, acc41, acc42, acc43) = simd::dpbusd_x4(
+    //             acc40, acc41, acc42, acc43, in0, in1, in2, in3, w4_0, w4_1, w4_2, w4_3,
+    //         );
+    //
+    //         let (w5_0, w5_1, w5_2, w5_3) = simd::load_i8x4(w5, STRIDE);
+    //         (acc50, acc51, acc52, acc53) = simd::dpbusd_x4(
+    //             acc50, acc51, acc52, acc53, in0, in1, in2, in3, w5_0, w5_1, w5_2, w5_3,
+    //         );
+    //
+    //         let (w6_0, w6_1, w6_2, w6_3) = simd::load_i8x4(w6, STRIDE);
+    //         (acc60, acc61, acc62, acc63) = simd::dpbusd_x4(
+    //             acc60, acc61, acc62, acc63, in0, in1, in2, in3, w6_0, w6_1, w6_2, w6_3,
+    //         );
+    //
+    //         let (w7_0, w7_1, w7_2, w7_3) = simd::load_i8x4(w7, STRIDE);
+    //         (acc70, acc71, acc72, acc73) = simd::dpbusd_x4(
+    //             acc70, acc71, acc72, acc73, in0, in1, in2, in3, w7_0, w7_1, w7_2, w7_3,
+    //         );
+    //
+    //         in_ptr = in_ptr.add(4 * STRIDE);
+    //         w0 = w0.add(4 * STRIDE);
+    //         w1 = w1.add(4 * STRIDE);
+    //         w2 = w2.add(4 * STRIDE);
+    //         w3 = w3.add(4 * STRIDE);
+    //         w4 = w4.add(4 * STRIDE);
+    //         w5 = w5.add(4 * STRIDE);
+    //         w6 = w6.add(4 * STRIDE);
+    //         w7 = w7.add(4 * STRIDE);
+    //     }
+    //
+    //     (output[out_idx], output[out_idx + L2_SIZE]) =
+    //         dual_activation(acc00, acc01, acc02, acc03, biases, out_idx);
+    //
+    //     (output[out_idx + 1], output[out_idx + 1 + L2_SIZE]) =
+    //         dual_activation(acc10, acc11, acc12, acc13, biases, out_idx + 1);
+    //
+    //     (output[out_idx + 2], output[out_idx + 2 + L2_SIZE]) =
+    //         dual_activation(acc20, acc21, acc22, acc23, biases, out_idx + 2);
+    //
+    //     (output[out_idx + 3], output[out_idx + 3 + L2_SIZE]) =
+    //         dual_activation(acc30, acc31, acc32, acc33, biases, out_idx + 3);
+    //
+    //     (output[out_idx + 4], output[out_idx + 4 + L2_SIZE]) =
+    //         dual_activation(acc40, acc41, acc42, acc43, biases, out_idx + 4);
+    //
+    //     (output[out_idx + 5], output[out_idx + 5 + L2_SIZE]) =
+    //         dual_activation(acc50, acc51, acc52, acc53, biases, out_idx + 5);
+    //
+    //     (output[out_idx + 6], output[out_idx + 6 + L2_SIZE]) =
+    //         dual_activation(acc60, acc61, acc62, acc63, biases, out_idx + 6);
+    //
+    //     (output[out_idx + 7], output[out_idx + 7 + L2_SIZE]) =
+    //         dual_activation(acc70, acc71, acc72, acc73, biases, out_idx + 7);
+    //
+    //     out_idx += CHUNKS;
+    // }
 
     output
 }
