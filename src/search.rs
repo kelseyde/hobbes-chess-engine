@@ -999,6 +999,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             && !is_mate_score
             && !is_killer
             && futility_margin <= alpha
+            && !board.gives_direct_check(mv)
             && !see::see(board, &mv, 1, Pruning)
         {
             if best_score < futility_margin {
