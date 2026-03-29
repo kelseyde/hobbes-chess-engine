@@ -631,7 +631,7 @@ fn alpha_beta<NODE: NodeType>(
                 && original_board.threats.contains(mv.to()) 
                 && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
 
-            let max_lmr_extension = 1 + (legal_moves <= 3) as i32 + 2 * (pv_node as i32);
+            let max_lmr_extension = 1 + (legal_moves <= 3) as i32 + pv_node as i32;
             let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth + max_lmr_extension);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
