@@ -259,6 +259,7 @@ fn alpha_beta<NODE: NodeType>(
     // extensions, reductions and pruning.
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -271,7 +272,7 @@ fn alpha_beta<NODE: NodeType>(
         if !tt_hit {
             td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        let correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
     }
 
@@ -573,8 +574,12 @@ fn alpha_beta<NODE: NodeType>(
 
             if score < s_beta {
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
-                extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
+
+                let double_ext_margin = (se_dext_margin(is_quiet) - (correction.abs() / 12)).max(0);
+                extension += (!pv_node && score < s_beta - double_ext_margin) as i32;
+
+                let triple_ext_margin = se_text_margin(is_quiet);
+                extension += (!pv_node && is_quiet && score < s_beta - triple_ext_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
