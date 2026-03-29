@@ -87,7 +87,10 @@ tunable_params! {
     lmr_ttpv_tt_depth            = 1174, 0, 2048, 256,        true;
     lmr_cut_node                 = 1791, 0, 2048, 256,        true;
     lmr_capture                  = 1269, 0, 2048, 256,        true;
-    lmr_improving                = 849, 0, 2048, 256,         true;
+    lmr_improving_base           = 438, 0, 1024, 128,         true;
+    lmr_improvement_mult         = 279, 64, 512, 64,          true;
+    lmr_improvement_div          = 128, 64, 256, 32,          true;
+    lmr_improvement_max          = 1288, 512, 2048, 256,      true;
     lmr_shallow                  = 1017, 0, 2048, 256,        true;
     lmr_killer                   = 962, 0, 2048, 256,         true;
     lmr_quiet_see                = 1285, 0, 2048, 256,        true;

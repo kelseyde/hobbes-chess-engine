@@ -621,7 +621,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
-            r += lmr_improving() * !improving as i32;
+            r += !improving as i32 * not_improving_reduction(improvement);
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
@@ -1146,6 +1146,15 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
 
     (factor0 + factor1 * depth * depth) / 1024
+}
+
+#[inline]
+fn not_improving_reduction(improvement: i32) -> i32 {
+    let base = lmr_improving_base();
+    let mult = lmr_improvement_mult();
+    let div = lmr_improvement_div();
+    let max = lmr_improvement_max();
+    (base - mult * improvement / div).min(max)
 }
 
 #[inline]
