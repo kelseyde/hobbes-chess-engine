@@ -1,12 +1,16 @@
 use std::arch::x86_64::*;
 use crate::board::bitboard::Bitboard;
 
-fn reduce_or2(a: __m256i, b: __m256i) -> u64 {
+pub fn knights_and_sliders_setwise(
+    knights: Bitboard,
+    orthos: Bitboard,
+    diags: Bitboard,
+    blockers: Bitboard,
+) -> Bitboard {
     unsafe {
-        let or = _mm256_or_si256(a, b);
-        let or = _mm_or_si128(_mm256_castsi256_si128(or), _mm256_extracti128_si256(or, 1));
-        let or = _mm_or_si128(or, _mm_shuffle_epi32(or, 0xee));
-        _mm_cvtsi128_si64(or) as u64
+        let [a, b] = knights_setwise(knights);
+        let [c, d] = sliders_setwise(orthos, diags, blockers);
+        Bitboard(reduce_or2(_mm256_or_si256(a, c), _mm256_or_si256(b, d)))
     }
 }
 
@@ -88,15 +92,12 @@ fn sliders_setwise(orth: Bitboard, diag: Bitboard, blockers: Bitboard) -> [__m25
     }
 }
 
-pub fn knights_and_sliders_setwise(
-    knights: Bitboard,
-    orth: Bitboard,
-    diag: Bitboard,
-    blockers: Bitboard,
-) -> Bitboard {
+#[inline(always)]
+fn reduce_or2(a: __m256i, b: __m256i) -> u64 {
     unsafe {
-        let [a, b] = knights_setwise(knights);
-        let [c, d] = sliders_setwise(orth, diag, blockers);
-        Bitboard(reduce_or2(_mm256_or_si256(a, c), _mm256_or_si256(b, d)))
+        let or = _mm256_or_si256(a, b);
+        let or = _mm_or_si128(_mm256_castsi256_si128(or), _mm256_extracti128_si256(or, 1));
+        let or = _mm_or_si128(or, _mm_shuffle_epi32(or, 0xee));
+        _mm_cvtsi128_si64(or) as u64
     }
 }
