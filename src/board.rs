@@ -20,6 +20,7 @@ pub mod setwise {
 
     #[cfg(not(target_feature = "avx2"))]
     mod scalar;
+    #[cfg(not(target_feature = "avx2"))]
     pub use crate::board::setwise::scalar::*;
 }
 
