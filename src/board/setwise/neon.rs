@@ -1,5 +1,5 @@
-use std::arch::aarch64::*;
 use crate::board::bitboard::Bitboard;
+use std::arch::aarch64::*;
 
 type Vec256 = (uint64x2_t, uint64x2_t);
 
