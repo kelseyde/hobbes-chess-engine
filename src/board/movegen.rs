@@ -7,8 +7,8 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
-use crate::board::{setwise, Board};
 use crate::board::{attacks, castling, ray};
+use crate::board::{setwise, Board};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -87,14 +87,14 @@ impl Board {
         let occ = self.occ() ^ king;
         let them = !side;
 
-        let their_pawns = self.pawns(them);
-        let their_knights = self.knights(them);
-        let their_diags = self.diags(them);
-        let their_orthos = self.orthos(them);
+        let pawns = self.pawns(them);
+        let knights = self.knights(them);
+        let diags = self.diags(them);
+        let orthos = self.orthos(them);
         let mut threats = Bitboard::empty();
 
-        threats |= attacks::pawn_attacks(their_pawns, them);
-        threats |= setwise::knights_and_sliders_setwise(their_knights, their_orthos, their_diags, occ);
+        threats |= attacks::pawn_attacks(pawns, them);
+        threats |= setwise::knights_and_sliders_setwise(knights, orthos, diags, occ);
         threats |= attacks::king(self.king_sq(them));
 
         threats

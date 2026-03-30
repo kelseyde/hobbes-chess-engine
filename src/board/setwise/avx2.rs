@@ -1,5 +1,5 @@
-use std::arch::x86_64::*;
 use crate::board::bitboard::Bitboard;
+use std::arch::x86_64::*;
 
 pub fn knights_and_sliders_setwise(
     knights: Bitboard,
