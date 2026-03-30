@@ -203,7 +203,7 @@ impl QuietHistoryEntry {
     }
 
     #[inline]
-    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16, factoriser_bonus: i16) {
+    fn update(&mut self, threat_index: &ThreatIndex, current_score: i16, bonus: i16, factoriser_bonus: i16) {
         self.factoriser = gravity(
             self.factoriser as i32,
             factoriser_bonus as i32,
@@ -211,8 +211,12 @@ impl QuietHistoryEntry {
         ) as i16;
 
         let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
-        *bucket_entry =
-            gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
+        *bucket_entry = gravity_with_base(
+            *bucket_entry as i32,
+            bonus as i32,
+            current_score as i32,
+            QuietHistory::BUCKET_MAX
+        ) as i16;
     }
 }
 
@@ -239,14 +243,21 @@ impl QuietHistory {
     ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
+        let current_score = self.get(stm, *mv, pc, threats);
 
         self.from_to_entries[stm][mv.from()][mv.to()].update(
             &threat_index,
+            current_score,
             bonus,
             factoriser_bonus,
         );
 
-        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus, factoriser_bonus);
+        self.piece_to_entries[stm][pc][mv.to()].update(
+            &threat_index,
+            current_score,
+            bonus,
+            factoriser_bonus
+        );
     }
 
     pub fn clear(&mut self) {
