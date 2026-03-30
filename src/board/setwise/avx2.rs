@@ -1,4 +1,6 @@
 use std::arch::x86_64::*;
+use crate::board::attacks;
+use crate::board::bitboard::Bitboard;
 
 fn reduce_or2(a: __m256i, b: __m256i) -> u64 {
     unsafe {
