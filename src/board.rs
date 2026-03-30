@@ -12,6 +12,16 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod setwise {
+    #[cfg(target_feature = "avx2")]
+    mod avx2;
+    #[cfg(target_feature = "avx2")]
+    pub use crate::board::setwise::avx2::*;
+
+    #[cfg(not(target_feature = "avx2"))]
+    mod scalar;
+    pub use crate::board::setwise::scalar::*;
+}
 
 use crate::board::castling::Rights;
 use crate::board::zobrist::{Keys, Zobrist};

@@ -7,7 +7,7 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
-use crate::board::Board;
+use crate::board::{setwise, Board};
 use crate::board::{attacks, castling, ray};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -86,22 +86,15 @@ impl Board {
         let king = self.king(side);
         let occ = self.occ() ^ king;
         let them = !side;
+
+        let their_pawns = self.pawns(them);
+        let their_knights = self.knights(them);
+        let their_diags = self.diags(them);
+        let their_orthos = self.orthos(them);
         let mut threats = Bitboard::empty();
 
-        threats |= attacks::pawn_attacks(self.pawns(them), them);
-
-        for sq in self.knights(them) {
-            threats |= attacks::knight(sq);
-        }
-
-        for sq in self.diags(them) {
-            threats |= attacks::bishop(sq, occ);
-        }
-
-        for sq in self.orthos(them) {
-            threats |= attacks::rook(sq, occ);
-        }
-
+        threats |= attacks::pawn_attacks(their_pawns, them);
+        threats |= setwise::knights_and_sliders_setwise(their_knights, their_orthos, their_diags, occ);
         threats |= attacks::king(self.king_sq(them));
 
         threats
