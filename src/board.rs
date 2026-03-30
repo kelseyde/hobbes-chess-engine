@@ -18,9 +18,20 @@ pub mod setwise {
     #[cfg(target_feature = "avx2")]
     pub use crate::board::setwise::avx2::*;
 
-    #[cfg(not(target_feature = "avx2"))]
+    #[cfg(all(
+        target_feature = "neon",
+        not(target_feature = "avx2")
+    ))]
+    mod neon;
+    #[cfg(all(
+        target_feature = "neon",
+        not(target_feature = "avx2")
+    ))]
+    pub use neon::*;
+
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     mod scalar;
-    #[cfg(not(target_feature = "avx2"))]
+    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     pub use crate::board::setwise::scalar::*;
 }
 
