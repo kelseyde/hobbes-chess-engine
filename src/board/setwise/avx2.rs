@@ -11,7 +11,7 @@ fn reduce_or2(a: __m256i, b: __m256i) -> u64 {
     }
 }
 
-fn knight_attacks_setwise(knights: Bitboard) -> [__m256i; 2] {
+fn knights_setwise(knights: Bitboard) -> [__m256i; 2] {
     let a = 0x0101010101010101i64;
     let b = a << 1;
     let g = a << 6;
@@ -30,7 +30,7 @@ fn knight_attacks_setwise(knights: Bitboard) -> [__m256i; 2] {
     }
 }
 
-fn slider_attacks_setwise(orth: Bitboard, diag: Bitboard, blockers: Bitboard) -> [__m256i; 2] {
+fn sliders_setwise(orth: Bitboard, diag: Bitboard, blockers: Bitboard) -> [__m256i; 2] {
     let a = 0x0101010101010101i64;
     let h = a << 7;
     unsafe {
@@ -89,15 +89,15 @@ fn slider_attacks_setwise(orth: Bitboard, diag: Bitboard, blockers: Bitboard) ->
     }
 }
 
-pub fn knight_and_slider_attacks_setwise(
+pub fn knights_and_sliders_setwise(
     knights: Bitboard,
     orth: Bitboard,
     diag: Bitboard,
     blockers: Bitboard,
 ) -> Bitboard {
     unsafe {
-        let [a, b] = knight_attacks_setwise(knights);
-        let [c, d] = slider_attacks_setwise(orth, diag, blockers);
+        let [a, b] = knights_setwise(knights);
+        let [c, d] = sliders_setwise(orth, diag, blockers);
         Bitboard(reduce_or2(_mm256_or_si256(a, c), _mm256_or_si256(b, d)))
     }
 }
