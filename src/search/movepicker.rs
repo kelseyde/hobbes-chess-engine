@@ -106,10 +106,13 @@ impl MovePicker {
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
-            } else {
+            if self.idx == self.good_noisies.len() {
                 self.stage = GenerateQuiets;
+            } else {
+                let (i, mv) = self.pick_best(self.stage);
+                self.good_noisies.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             }
         }
         if self.stage == GenerateQuiets {
@@ -129,19 +132,22 @@ impl MovePicker {
             }
         }
         if self.stage == Quiets {
-            if self.skip_quiets {
+            if self.skip_quiets || self.idx == self.quiets.len() {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
             } else {
-                self.idx = 0;
-                self.stage = BadNoisies;
+                let (i, mv) = self.pick_best(self.stage);
+                self.quiets.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
+            if self.idx != self.bad_noisies.len() {
+                let (i, mv) = self.pick_best(self.stage);
+                self.bad_noisies.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             } else {
                 self.stage = Done;
             }
@@ -174,17 +180,15 @@ impl MovePicker {
         }
     }
 
-    fn pick(&mut self, stage: Stage) -> Option<Move> {
+    fn pick_best(&mut self, stage: Stage) -> (usize, Move) {
         let moves = match stage {
             GoodNoisies => &mut self.good_noisies,
-            BadNoisies => &mut self.bad_noisies,
             Quiets => &mut self.quiets,
+            BadNoisies => &mut self.bad_noisies,
             _ => unreachable!(),
         };
+
         loop {
-            if moves.is_empty() || self.idx >= moves.len() {
-                return None;
-            }
             let mut best_index = self.idx;
             let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
             for j in self.idx + 1..moves.len() {
@@ -197,16 +201,8 @@ impl MovePicker {
                     break;
                 }
             }
-            if best_index != self.idx {
-                moves.list.swap(self.idx, best_index);
-            }
-
-            if let Some(best_move) = moves.get(self.idx) {
-                let mv = best_move.mv;
-                self.idx += 1;
-                return Some(mv);
-            }
-            return None;
+            let best_move = moves.list[best_index].mv;
+            return (best_index, best_move)
         }
     }
 }
