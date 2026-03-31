@@ -180,46 +180,6 @@ impl MovePicker {
         }
     }
 
-    fn pick(&mut self, stage: Stage) -> Option<Move> {
-        let moves = match stage {
-            GoodNoisies => &mut self.good_noisies,
-            BadNoisies => &mut self.bad_noisies,
-            Quiets => &mut self.quiets,
-            _ => unreachable!(),
-        };
-        loop {
-            if moves.is_empty() || self.idx >= moves.len() {
-                return None;
-            }
-            let mut best_index = self.idx;
-            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
-            for j in self.idx + 1..moves.len() {
-                if let Some(current) = moves.get(j) {
-                    if current.score > best_score {
-                        best_score = current.score;
-                        best_index = j;
-                    }
-                } else {
-                    break;
-                }
-            }
-            if best_index != self.idx {
-                moves.list.swap(self.idx, best_index);
-            }
-
-            if let Some(best_move) = moves.get(self.idx) {
-                let mv = best_move.mv;
-                if mv == self.tt_move {
-                    self.idx += 1;
-                    continue;
-                }
-                self.idx += 1;
-                return Some(mv);
-            }
-            return None;
-        }
-    }
-
     fn pick_best(&mut self, stage: Stage) -> (usize, Move) {
         let moves = match stage {
             GoodNoisies => &mut self.good_noisies,
