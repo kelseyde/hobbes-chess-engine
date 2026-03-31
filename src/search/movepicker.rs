@@ -187,15 +187,31 @@ impl MovePicker {
             BadNoisies => &mut self.bad_noisies,
             _ => unreachable!(),
         };
-        let packed = moves
-            .list
-            .iter()
-            .enumerate()
-            .skip(self.idx)
-            .map(|(i, mv)| (i as i32) | (mv.score) << 16)
-            .fold(i32::MIN, std::cmp::max);
-        let idx = packed as usize & 0xffff;
-        (idx, moves.list[idx].mv)
+        // let packed = moves
+        //     .list
+        //     .iter()
+        //     .enumerate()
+        //     .skip(self.idx)
+        //     .map(|(i, mv)| (i as i32) | (mv.score) << 16)
+        //     .fold(i32::MIN, std::cmp::max);
+        // let idx = packed as usize & 0xffff;
+        // (idx, moves.list[idx].mv)
+        loop {
+            let mut best_index = self.idx;
+            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
+            for j in self.idx + 1..moves.len() {
+                if let Some(current) = moves.get(j) {
+                    if current.score > best_score {
+                        best_score = current.score;
+                        best_index = j;
+                    }
+                } else {
+                    break;
+                }
+            }
+            let best_move = moves.list[best_index].mv;
+            return (best_index, best_move)
+        }
     }
 }
 
