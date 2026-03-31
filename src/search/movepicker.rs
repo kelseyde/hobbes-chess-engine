@@ -24,7 +24,6 @@ pub enum Stage {
 }
 
 pub struct MovePicker {
-    moves: MoveList,
     filter: MoveFilter,
     idx: usize,
     pub stage: Stage,
@@ -33,7 +32,9 @@ pub struct MovePicker {
     threats: Bitboard,
     pub skip_quiets: bool,
     split_noisies: bool,
+    good_noisies: MoveList,
     bad_noisies: MoveList,
+    quiets: MoveList,
 }
 
 impl MovePicker {
@@ -44,7 +45,6 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
-            moves: MoveList::new(),
             filter: MoveFilter::Noisies,
             idx: 0,
             stage,
@@ -53,7 +53,9 @@ impl MovePicker {
             threats,
             skip_quiets: false,
             split_noisies: true,
+            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
+            quiets: MoveList::new(),
         }
     }
 
@@ -64,7 +66,6 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
-            moves: MoveList::new(),
             filter,
             idx: 0,
             stage,
@@ -73,7 +74,9 @@ impl MovePicker {
             threats,
             skip_quiets: true,
             split_noisies: false,
+            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
+            quiets: MoveList::new(),
         }
     }
 
@@ -86,42 +89,22 @@ impl MovePicker {
         }
         if self.stage == GenerateNoisies {
             self.idx = 0;
-            let mut moves = board.gen_moves(self.filter);
-            for entry in moves.iter() {
+            let mut moves: MoveList = board.gen_moves(self.filter);
+            for entry in moves.iter().filter(|entry| entry.mv != self.tt_move) {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
-
-                let good_noisy = if entry.mv.is_promo() {
-                    // Queen and knight promos are treated as good noisies
-                    entry
-                        .mv
-                        .promo_piece()
-                        .is_some_and(|p| p == Queen || p == Knight)
+                let good_noisy = is_good_noisy(entry, board, self.split_noisies);
+                let moves = if good_noisy {
+                    &mut self.good_noisies
                 } else {
-                    // Captures are sorted based on whether they pass a SEE threshold
-                    if !self.split_noisies {
-                        true
-                    } else {
-                        let threshold =
-                            -entry.score / movepick_see_divisor() + movepick_see_offset();
-                        match threshold {
-                            t if t > see::value(Queen, SeeType::Ordering) => false,
-                            t if t < -see::value(Queen, SeeType::Ordering) => true,
-                            _ => see(board, &entry.mv, threshold, SeeType::Ordering),
-                        }
-                    }
+                    &mut self.bad_noisies
                 };
-
-                if good_noisy {
-                    self.moves.add(*entry);
-                } else {
-                    self.bad_noisies.add(*entry);
-                }
+                moves.add(*entry);
             }
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(false) {
-                return Some(best_move);
+            if self.idx != self.good_noisies.list.len() {
+                return Some(self.pick_best(self.stage))
             } else {
                 self.idx = 0;
                 self.stage = GenerateQuiets;
@@ -132,10 +115,11 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.moves = board.gen_moves(MoveFilter::Quiets);
-                self.moves
-                    .iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
+                let mut moves: MoveList = board.gen_moves(MoveFilter::Quiets);
+                for entry in moves.iter().filter(|entry| entry.mv != self.tt_move) {
+                    MovePicker::score(entry, board, td, self.ply, self.threats);
+                    self.quiets.add(*entry);
+                }
                 self.stage = Quiets;
             }
         }
@@ -143,19 +127,17 @@ impl MovePicker {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(false) {
-                return Some(best_move);
+            } else if self.idx != self.quiets.list.len() {
+                return Some(self.pick_best(self.stage));
             } else {
                 self.idx = 0;
                 self.stage = BadNoisies;
             }
         }
-        if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
-                return Some(best_move);
-            } else {
-                self.stage = Done;
-            }
+        if self.stage == BadNoisies && self.idx != self.bad_noisies.list.len() {
+            return Some(self.pick_best(self.stage))
+        } else {
+            self.stage = Done;
         }
         None
     }
@@ -185,42 +167,47 @@ impl MovePicker {
         }
     }
 
-    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
-        let moves = if use_bad_noisies {
-            &mut self.bad_noisies
-        } else {
-            &mut self.moves
+    fn pick_best(&mut self, stage: Stage) -> Move {
+        let moves = match stage {
+            GoodNoisies => &mut self.good_noisies,
+            Quiets => &mut self.quiets,
+            BadNoisies => &mut self.bad_noisies,
+            _ => unreachable!(),
         };
-        loop {
-            if moves.is_empty() || self.idx >= moves.len() {
-                return None;
-            }
-            let mut best_index = self.idx;
-            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
-            for j in self.idx + 1..moves.len() {
-                if let Some(current) = moves.get(j) {
-                    if current.score > best_score {
-                        best_score = current.score;
-                        best_index = j;
-                    }
-                } else {
-                    break;
-                }
-            }
-            if best_index != self.idx {
-                moves.list.swap(self.idx, best_index);
-            }
+        let packed = moves
+            .list
+            .iter()
+            .enumerate()
+            .skip(self.idx)
+            .map(|(i, mv)| (i as i32) | (mv.score) << 16)
+            .fold(i32::MIN, std::cmp::max);
+        let idx = packed as usize & 0xffff;
+        moves.list.swap(self.idx, idx);
+        self.idx += 1;
+        moves.list[idx].mv
+    }
 
-            if let Some(best_move) = moves.get(self.idx) {
-                let mv = best_move.mv;
-                if mv == self.tt_move {
-                    self.idx += 1;
-                    continue;
-                }
-                self.idx += 1;
-                return Some(mv);
+}
+
+fn is_good_noisy(entry: &MoveListEntry, board: &Board, split_noisies: bool) -> bool {
+    if entry.mv.is_promo() {
+        // Queen and knight promos are treated as good noisies
+        entry
+            .mv
+            .promo_piece()
+            .is_some_and(|p| p == Queen || p == Knight)
+    } else {
+        // Captures are sorted based on whether they pass a SEE threshold
+        if !split_noisies {
+            true
+        } else {
+            let threshold =
+                -entry.score / movepick_see_divisor() + movepick_see_offset();
+            match threshold {
+                t if t > see::value(Queen, SeeType::Ordering) => false,
+                t if t < -see::value(Queen, SeeType::Ordering) => true,
+                _ => see(board, &entry.mv, threshold, SeeType::Ordering),
             }
-            return None;
         }
     }
 }
