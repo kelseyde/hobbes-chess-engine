@@ -24,7 +24,6 @@ pub enum Stage {
 }
 
 pub struct MovePicker {
-    moves: MoveList,
     filter: MoveFilter,
     idx: usize,
     pub stage: Stage,
@@ -33,7 +32,9 @@ pub struct MovePicker {
     threats: Bitboard,
     pub skip_quiets: bool,
     split_noisies: bool,
+    good_noisies: MoveList,
     bad_noisies: MoveList,
+    quiets: MoveList,
 }
 
 impl MovePicker {
@@ -44,7 +45,6 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
-            moves: MoveList::new(),
             filter: MoveFilter::Noisies,
             idx: 0,
             stage,
@@ -53,7 +53,9 @@ impl MovePicker {
             threats,
             skip_quiets: false,
             split_noisies: true,
+            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
+            quiets: MoveList::new(),
         }
     }
 
@@ -64,7 +66,6 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
-            moves: MoveList::new(),
             filter,
             idx: 0,
             stage,
@@ -73,7 +74,9 @@ impl MovePicker {
             threats,
             skip_quiets: true,
             split_noisies: false,
+            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
+            quiets: MoveList::new(),
         }
     }
 
@@ -89,41 +92,20 @@ impl MovePicker {
             let mut moves = board.gen_moves(self.filter);
             for entry in moves.iter() {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
-
-                let good_noisy = if entry.mv.is_promo() {
-                    // Queen and knight promos are treated as good noisies
-                    entry
-                        .mv
-                        .promo_piece()
-                        .is_some_and(|p| p == Queen || p == Knight)
+                let good_noisy = is_good_noisy(entry, board, self.split_noisies);
+                let moves = if good_noisy {
+                    &mut self.good_noisies
                 } else {
-                    // Captures are sorted based on whether they pass a SEE threshold
-                    if !self.split_noisies {
-                        true
-                    } else {
-                        let threshold =
-                            -entry.score / movepick_see_divisor() + movepick_see_offset();
-                        match threshold {
-                            t if t > see::value(Queen, SeeType::Ordering) => false,
-                            t if t < -see::value(Queen, SeeType::Ordering) => true,
-                            _ => see(board, &entry.mv, threshold, SeeType::Ordering),
-                        }
-                    }
+                    &mut self.bad_noisies
                 };
-
-                if good_noisy {
-                    self.moves.add(*entry);
-                } else {
-                    self.bad_noisies.add(*entry);
-                }
+                moves.add(*entry);
             }
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(false) {
+            if let Some(best_move) = self.pick(self.stage) {
                 return Some(best_move);
             } else {
-                self.idx = 0;
                 self.stage = GenerateQuiets;
             }
         }
@@ -132,8 +114,8 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.moves = board.gen_moves(MoveFilter::Quiets);
-                self.moves
+                self.quiets = board.gen_moves(MoveFilter::Quiets);
+                self.quiets
                     .iter()
                     .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
                 self.stage = Quiets;
@@ -143,7 +125,7 @@ impl MovePicker {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(false) {
+            } else if let Some(best_move) = self.pick(self.stage) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
@@ -151,7 +133,7 @@ impl MovePicker {
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
+            if let Some(best_move) = self.pick(self.stage) {
                 return Some(best_move);
             } else {
                 self.stage = Done;
@@ -185,11 +167,12 @@ impl MovePicker {
         }
     }
 
-    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
-        let moves = if use_bad_noisies {
-            &mut self.bad_noisies
-        } else {
-            &mut self.moves
+    fn pick(&mut self, stage: Stage) -> Option<Move> {
+        let moves = match stage {
+            GoodNoisies => &mut self.good_noisies,
+            BadNoisies => &mut self.bad_noisies,
+            Quiets => &mut self.quiets,
+            _ => unreachable!(),
         };
         loop {
             if moves.is_empty() || self.idx >= moves.len() {
@@ -221,6 +204,29 @@ impl MovePicker {
                 return Some(mv);
             }
             return None;
+        }
+    }
+}
+
+fn is_good_noisy(entry: &MoveListEntry, board: &Board, split_noisies: bool) -> bool {
+    if entry.mv.is_promo() {
+        // Queen and knight promos are treated as good noisies
+        entry
+            .mv
+            .promo_piece()
+            .is_some_and(|p| p == Queen || p == Knight)
+    } else {
+        // Captures are sorted based on whether they pass a SEE threshold
+        if !split_noisies {
+            true
+        } else {
+            let threshold =
+                -entry.score / movepick_see_divisor() + movepick_see_offset();
+            match threshold {
+                t if t > see::value(Queen, SeeType::Ordering) => false,
+                t if t < -see::value(Queen, SeeType::Ordering) => true,
+                _ => see(board, &entry.mv, threshold, SeeType::Ordering),
+            }
         }
     }
 }
