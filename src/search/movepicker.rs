@@ -128,6 +128,7 @@ impl MovePicker {
         None
     }
 
+    #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
         board
             .gen_moves(MoveFilter::Quiets)
@@ -139,6 +140,7 @@ impl MovePicker {
             });
     }
 
+    #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
         board
             .gen_moves(self.filter)
@@ -154,6 +156,7 @@ impl MovePicker {
             });
     }
 
+    #[inline(always)]
     fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
         let moves = if use_bad_noisies {
             &mut self.bad_noisies
@@ -188,6 +191,7 @@ impl MovePicker {
     }
 }
 
+#[inline(always)]
 fn score_move(
     entry: &mut ScoredMove,
     board: &Board,
@@ -213,6 +217,7 @@ fn score_move(
     }
 }
 
+#[inline(always)]
 fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
