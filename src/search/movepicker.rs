@@ -90,23 +90,29 @@ impl MovePicker {
         if self.stage == GenerateNoisies {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
-            for entry in moves.iter() {
-                MovePicker::score(entry, board, td, self.ply, self.threats);
-                let good_noisy = is_good_noisy(entry, board, self.split_noisies);
-                let moves = if good_noisy {
-                    &mut self.good_noisies
-                } else {
-                    &mut self.bad_noisies
-                };
-                moves.add(*entry);
-            }
+            moves
+                .iter()
+                .filter(|entry| entry.mv != self.tt_move)
+                .for_each(|entry| {
+                    MovePicker::score(entry, board, td, self.ply, self.threats);
+                    let good_noisy = is_good_noisy(entry, board, self.split_noisies);
+                    let moves = if good_noisy {
+                        &mut self.good_noisies
+                    } else {
+                        &mut self.bad_noisies
+                    };
+                    moves.add(*entry);
+                });
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
-            } else {
+            if self.idx == self.good_noisies.len() {
                 self.stage = GenerateQuiets;
+            } else {
+                let (i, mv) = self.pick_best(self.stage);
+                self.good_noisies.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             }
         }
         if self.stage == GenerateQuiets {
@@ -114,27 +120,34 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.quiets = board.gen_moves(MoveFilter::Quiets);
-                self.quiets
+                let mut moves = board.gen_moves(MoveFilter::Quiets);
+                moves
                     .iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
+                    .filter(|entry| entry.mv != self.tt_move)
+                    .for_each(|entry| {
+                    MovePicker::score(entry, board, td, self.ply, self.threats);
+                    self.quiets.add(*entry);
+                });
                 self.stage = Quiets;
             }
         }
         if self.stage == Quiets {
-            if self.skip_quiets {
+            if self.skip_quiets || self.idx == self.quiets.len() {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
             } else {
-                self.idx = 0;
-                self.stage = BadNoisies;
+                let (i, mv) = self.pick_best(self.stage);
+                self.quiets.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(self.stage) {
-                return Some(best_move);
+            if self.idx != self.bad_noisies.len() {
+                let (i, mv) = self.pick_best(self.stage);
+                self.bad_noisies.list.swap(self.idx, i);
+                self.idx += 1;
+                return Some(mv)
             } else {
                 self.stage = Done;
             }
@@ -205,6 +218,24 @@ impl MovePicker {
             }
             return None;
         }
+    }
+
+    fn pick_best(&mut self, stage: Stage) -> (usize, Move) {
+        let moves = match stage {
+            GoodNoisies => &mut self.good_noisies,
+            Quiets => &mut self.quiets,
+            BadNoisies => &mut self.bad_noisies,
+            _ => unreachable!(),
+        };
+        let packed = moves
+            .list
+            .iter()
+            .enumerate()
+            .skip(self.idx)
+            .map(|(i, mv)| (i as i32) | (mv.score) << 16)
+            .fold(i32::MIN, std::cmp::max);
+        let idx = packed as usize & 0xffff;
+        (idx, moves.list[idx].mv)
     }
 }
 
