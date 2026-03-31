@@ -80,27 +80,17 @@ impl MovePicker {
     pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
-            if self.tt_move.exists() && board.is_pseudo_legal(&self.tt_move) {
+            if self.tt_move.exists() {
                 return Some(self.tt_move);
             }
         }
         if self.stage == GenerateNoisies {
             self.idx = 0;
-            board.gen_moves(self.filter)
-                .iter()
-                .filter(|entry| entry.mv != self.tt_move)
-                .for_each(|entry| {
-                    score(entry, board, td, self.ply, self.threats);
-                    if is_good_noisy(entry, board, self.split_noisies) {
-                        self.moves.add(*entry);
-                    } else {
-                        self.bad_noisies.add(*entry);
-                    }
-                });
+            self.gen_noisy_moves(board, td);
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick(false) {
+            if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
@@ -113,13 +103,7 @@ impl MovePicker {
                 self.stage = BadNoisies;
             } else {
                 self.moves.list.clear();
-                board.gen_moves(MoveFilter::Quiets)
-                    .iter()
-                    .filter(|entry| entry.mv != self.tt_move)
-                    .for_each(|entry| {
-                        score(entry, board, td, self.ply, self.threats);
-                        self.moves.add(*entry);
-                    });
+                self.gen_quiet_moves(board, td);
                 self.stage = Quiets;
             }
         }
@@ -127,7 +111,7 @@ impl MovePicker {
             if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick(false) {
+            } else if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
@@ -135,7 +119,7 @@ impl MovePicker {
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick(true) {
+            if let Some(best_move) = self.pick_best(true) {
                 return Some(best_move);
             } else {
                 self.stage = Done;
@@ -144,43 +128,67 @@ impl MovePicker {
         None
     }
 
-    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
+    fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
+        board
+            .gen_moves(MoveFilter::Quiets)
+            .iter()
+            .filter(|entry| entry.mv != self.tt_move)
+            .for_each(|entry| {
+                score_move(entry, board, td, self.ply, self.threats);
+                self.moves.add(*entry);
+            });
+    }
+
+    fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
+        board
+            .gen_moves(self.filter)
+            .iter()
+            .filter(|entry| entry.mv != self.tt_move)
+            .for_each(|entry| {
+                score_move(entry, board, td, self.ply, self.threats);
+                if is_good_noisy(entry, board, self.split_noisies) {
+                    self.moves.add(*entry);
+                } else {
+                    self.bad_noisies.add(*entry);
+                }
+            });
+    }
+
+    fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
         let moves = if use_bad_noisies {
             &mut self.bad_noisies
         } else {
             &mut self.moves
         };
-        loop {
-            if moves.is_empty() || self.idx >= moves.len() {
-                return None;
-            }
-            let mut best_index = self.idx;
-            let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
-            for j in self.idx + 1..moves.len() {
-                if let Some(current) = moves.get(j) {
-                    if current.score > best_score {
-                        best_score = current.score;
-                        best_index = j;
-                    }
-                } else {
-                    break;
-                }
-            }
-            if best_index != self.idx {
-                moves.list.swap(self.idx, best_index);
-            }
-
-            if let Some(best_move) = moves.get(self.idx) {
-                let mv = best_move.mv;
-                self.idx += 1;
-                return Some(mv);
-            }
+        if moves.is_empty() || self.idx >= moves.len() {
             return None;
         }
+        let mut best_index = self.idx;
+        let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
+        for j in self.idx + 1..moves.len() {
+            if let Some(current) = moves.get(j) {
+                if current.score > best_score {
+                    best_score = current.score;
+                    best_index = j;
+                }
+            } else {
+                break;
+            }
+        }
+        if best_index != self.idx {
+            moves.list.swap(self.idx, best_index);
+        }
+
+        if let Some(best_move) = moves.get(self.idx) {
+            let mv = best_move.mv;
+            self.idx += 1;
+            return Some(mv);
+        }
+        None
     }
 }
 
-fn score(
+fn score_move(
     entry: &mut ScoredMove,
     board: &Board,
     td: &ThreadData,
@@ -217,8 +225,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies {
             true
         } else {
-            let threshold =
-                -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
