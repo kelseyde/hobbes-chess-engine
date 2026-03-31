@@ -87,7 +87,7 @@ impl MovePicker {
         if self.stage == GenerateNoisies {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
-            for entry in moves.iter() {
+            moves.iter().filter(|entry| entry.mv != self.tt_move).for_each(|entry| {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
 
                 let good_noisy = if entry.mv.is_promo() {
@@ -116,7 +116,7 @@ impl MovePicker {
                 } else {
                     self.bad_noisies.add(*entry);
                 }
-            }
+            });
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
@@ -132,10 +132,15 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                self.moves = board.gen_moves(MoveFilter::Quiets);
-                self.moves
+                self.moves.list.clear();
+                let mut moves = board.gen_moves(MoveFilter::Quiets);
+                moves
                     .iter()
-                    .for_each(|entry| MovePicker::score(entry, board, td, self.ply, self.threats));
+                    .filter(|entry| entry.mv != self.tt_move)
+                    .for_each(|entry| {
+                        MovePicker::score(entry, board, td, self.ply, self.threats);
+                        self.moves.add(*entry);
+                    });
                 self.stage = Quiets;
             }
         }
