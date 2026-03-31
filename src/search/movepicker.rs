@@ -1,6 +1,6 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::movegen::MoveFilter;
-use crate::board::moves::{Move, MoveList, MoveListEntry};
+use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
@@ -24,6 +24,7 @@ pub enum Stage {
 }
 
 pub struct MovePicker {
+    moves: MoveList,
     filter: MoveFilter,
     idx: usize,
     pub stage: Stage,
@@ -32,9 +33,7 @@ pub struct MovePicker {
     threats: Bitboard,
     pub skip_quiets: bool,
     split_noisies: bool,
-    good_noisies: MoveList,
     bad_noisies: MoveList,
-    quiets: MoveList,
 }
 
 impl MovePicker {
@@ -45,6 +44,7 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
+            moves: MoveList::new(),
             filter: MoveFilter::Noisies,
             idx: 0,
             stage,
@@ -53,9 +53,7 @@ impl MovePicker {
             threats,
             skip_quiets: false,
             split_noisies: true,
-            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
-            quiets: MoveList::new(),
         }
     }
 
@@ -66,6 +64,7 @@ impl MovePicker {
             GenerateNoisies
         };
         Self {
+            moves: MoveList::new(),
             filter,
             idx: 0,
             stage,
@@ -74,9 +73,7 @@ impl MovePicker {
             threats,
             skip_quiets: true,
             split_noisies: false,
-            good_noisies: MoveList::new(),
             bad_noisies: MoveList::new(),
-            quiets: MoveList::new(),
         }
     }
 
@@ -89,30 +86,25 @@ impl MovePicker {
         }
         if self.stage == GenerateNoisies {
             self.idx = 0;
-            let mut moves = board.gen_moves(self.filter);
-            moves
+            board.gen_moves(self.filter)
                 .iter()
                 .filter(|entry| entry.mv != self.tt_move)
                 .for_each(|entry| {
-                    MovePicker::score(entry, board, td, self.ply, self.threats);
-                    let good_noisy = is_good_noisy(entry, board, self.split_noisies);
-                    let moves = if good_noisy {
-                        &mut self.good_noisies
+                    score(entry, board, td, self.ply, self.threats);
+                    if is_good_noisy(entry, board, self.split_noisies) {
+                        self.moves.add(*entry);
                     } else {
-                        &mut self.bad_noisies
-                    };
-                    moves.add(*entry);
+                        self.bad_noisies.add(*entry);
+                    }
                 });
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if self.idx == self.good_noisies.len() {
-                self.stage = GenerateQuiets;
+            if let Some(best_move) = self.pick(false) {
+                return Some(best_move);
             } else {
-                let (i, mv) = self.pick_best(self.stage);
-                self.good_noisies.list.swap(self.idx, i);
-                self.idx += 1;
-                return Some(mv)
+                self.idx = 0;
+                self.stage = GenerateQuiets;
             }
         }
         if self.stage == GenerateQuiets {
@@ -120,34 +112,31 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = BadNoisies;
             } else {
-                let mut moves = board.gen_moves(MoveFilter::Quiets);
-                moves
+                self.moves.list.clear();
+                board.gen_moves(MoveFilter::Quiets)
                     .iter()
                     .filter(|entry| entry.mv != self.tt_move)
                     .for_each(|entry| {
-                    MovePicker::score(entry, board, td, self.ply, self.threats);
-                    self.quiets.add(*entry);
-                });
+                        score(entry, board, td, self.ply, self.threats);
+                        self.moves.add(*entry);
+                    });
                 self.stage = Quiets;
             }
         }
         if self.stage == Quiets {
-            if self.skip_quiets || self.idx == self.quiets.len() {
+            if self.skip_quiets {
                 self.idx = 0;
                 self.stage = BadNoisies;
+            } else if let Some(best_move) = self.pick(false) {
+                return Some(best_move);
             } else {
-                let (i, mv) = self.pick_best(self.stage);
-                self.quiets.list.swap(self.idx, i);
-                self.idx += 1;
-                return Some(mv)
+                self.idx = 0;
+                self.stage = BadNoisies;
             }
         }
         if self.stage == BadNoisies {
-            if self.idx != self.bad_noisies.len() {
-                let (i, mv) = self.pick_best(self.stage);
-                self.bad_noisies.list.swap(self.idx, i);
-                self.idx += 1;
-                return Some(mv)
+            if let Some(best_move) = self.pick(true) {
+                return Some(best_move);
             } else {
                 self.stage = Done;
             }
@@ -155,40 +144,16 @@ impl MovePicker {
         None
     }
 
-    fn score(
-        entry: &mut MoveListEntry,
-        board: &Board,
-        td: &ThreadData,
-        ply: usize,
-        threats: Bitboard,
-    ) {
-        let mv = &entry.mv;
-        if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
-            // Score capture
-            let victim_value = see::value(victim, SeeType::Ordering);
-            let history_score = td
-                .history
-                .capture_history_score(board, mv, attacker, victim);
-            entry.score = 16 * victim_value + history_score;
-        } else if let Some(pc) = board.piece_at(mv.from()) {
-            // Score quiet
-            let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
-            let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-            let is_killer = td.stack[ply].killer == Some(*mv);
-            let base = if is_killer { 10000000 } else { 0 };
-            entry.score = base + quiet_score + cont_score;
-        }
-    }
-
-    fn pick_best(&mut self, stage: Stage) -> (usize, Move) {
-        let moves = match stage {
-            GoodNoisies => &mut self.good_noisies,
-            Quiets => &mut self.quiets,
-            BadNoisies => &mut self.bad_noisies,
-            _ => unreachable!(),
+    fn pick(&mut self, use_bad_noisies: bool) -> Option<Move> {
+        let moves = if use_bad_noisies {
+            &mut self.bad_noisies
+        } else {
+            &mut self.moves
         };
-
         loop {
+            if moves.is_empty() || self.idx >= moves.len() {
+                return None;
+            }
             let mut best_index = self.idx;
             let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
             for j in self.idx + 1..moves.len() {
@@ -201,13 +166,46 @@ impl MovePicker {
                     break;
                 }
             }
-            let best_move = moves.list[best_index].mv;
-            return (best_index, best_move)
+            if best_index != self.idx {
+                moves.list.swap(self.idx, best_index);
+            }
+
+            if let Some(best_move) = moves.get(self.idx) {
+                let mv = best_move.mv;
+                self.idx += 1;
+                return Some(mv);
+            }
+            return None;
         }
     }
 }
 
-fn is_good_noisy(entry: &MoveListEntry, board: &Board, split_noisies: bool) -> bool {
+fn score(
+    entry: &mut ScoredMove,
+    board: &Board,
+    td: &ThreadData,
+    ply: usize,
+    threats: Bitboard,
+) {
+    let mv = &entry.mv;
+    if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
+        // Score capture
+        let victim_value = see::value(victim, SeeType::Ordering);
+        let history_score = td
+            .history
+            .capture_history_score(board, mv, attacker, victim);
+        entry.score = 16 * victim_value + history_score;
+    } else if let Some(pc) = board.piece_at(mv.from()) {
+        // Score quiet
+        let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
+        let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+        let is_killer = td.stack[ply].killer == Some(*mv);
+        let base = if is_killer { 10000000 } else { 0 };
+        entry.score = base + quiet_score + cont_score;
+    }
+}
+
+fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry

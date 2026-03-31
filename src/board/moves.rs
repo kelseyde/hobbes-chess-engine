@@ -11,11 +11,11 @@ pub const MAX_MOVES: usize = 218;
 
 #[derive(Debug, Clone)]
 pub struct MoveList {
-    pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
+    pub list: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct MoveListEntry {
+pub struct ScoredMove {
     pub mv: Move,
     pub score: i32,
 }
@@ -230,7 +230,7 @@ impl MoveList {
     #[inline(always)]
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
         unsafe {
-            self.list.push_unchecked(MoveListEntry {
+            self.list.push_unchecked(ScoredMove {
                 mv: Move::new(from, to, flag),
                 score: 0,
             });
@@ -238,7 +238,7 @@ impl MoveList {
     }
 
     #[inline(always)]
-    pub fn add(&mut self, entry: MoveListEntry) {
+    pub fn add(&mut self, entry: ScoredMove) {
         unsafe {
             self.list.push_unchecked(entry);
         }
@@ -252,7 +252,7 @@ impl MoveList {
         self.list.len()
     }
 
-    pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
+    pub fn get(&self, idx: usize) -> Option<&ScoredMove> {
         if idx < self.list.len() {
             Some(&self.list[idx])
         } else {
@@ -260,7 +260,7 @@ impl MoveList {
         }
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
+    pub fn iter(&mut self) -> impl Iterator<Item = &mut ScoredMove> {
         self.list.iter_mut()
     }
 }
