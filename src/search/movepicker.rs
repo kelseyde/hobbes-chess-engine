@@ -87,7 +87,7 @@ impl MovePicker {
         if self.stage == GenerateNoisies {
             self.idx = 0;
             let mut moves = board.gen_moves(self.filter);
-            moves.iter().filter(|entry| entry.mv == self.tt_move).for_each(|entry| {
+            moves.iter().filter(|entry| entry.mv != self.tt_move).for_each(|entry| {
                 MovePicker::score(entry, board, td, self.ply, self.threats);
 
                 let good_noisy = if entry.mv.is_promo() {
