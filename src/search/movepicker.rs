@@ -82,6 +82,7 @@ impl MovePicker {
         }
     }
 
+    /// Select the next move based on the current stage.
     pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
@@ -132,6 +133,7 @@ impl MovePicker {
         None
     }
 
+    /// Generate all the quiet moves in the current position, and add them to the move list.
     #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
         for entry in board.gen_moves(MoveFilter::Quiets).iter_mut() {
@@ -143,6 +145,8 @@ impl MovePicker {
         }
     }
 
+    /// Generate all the noisy moves in the current position using the provided filter, and add them
+    /// to the 'good' or 'bad' noisy move list. Bad noisies are tried last.
     #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
         for entry in board.gen_moves(self.filter).iter_mut() {
@@ -158,6 +162,9 @@ impl MovePicker {
         }
     }
 
+    /// Select the next move to try from the move list. We use an incremental selection sort, where
+    /// only the best move is moved to the front each time. This is efficient since typically only
+    /// a few moves will be tried during search, and so we save the time required to sort the rest.
     #[inline(always)]
     fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
         let moves = if use_bad_noisies {
@@ -186,6 +193,9 @@ impl MovePicker {
     }
 }
 
+/// Assign a score to a move, determining the order in which moves are selected. Captures are scored
+/// based on the value of the victim and the history score. Quiet moves are scored based on their
+/// history scores, and given an additional bonus if they are a killer move.
 #[inline(always)]
 fn score_move(
     entry: &mut ScoredMove,
@@ -215,6 +225,9 @@ fn score_move(
     }
 }
 
+/// Determine whether the current noisy is 'good' or 'bad'. Queen and knight promos are always good.
+/// Captures are sorted based on whether they pass a SEE threshold, which takes into account the
+/// move's history score.
 #[inline(always)]
 fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
     if entry.mv.is_promo() {
