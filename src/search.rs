@@ -332,6 +332,20 @@ fn alpha_beta<NODE: NodeType>(
         depth -= 1;
     }
 
+    // Hindsight extension reduction?
+    // We extended in the parent, but now the static eval indicates the position is worsening,
+    // so we correct the extension 'in hindsight' by reducing depth in the current node.
+    if !root_node
+        && !pv_node
+        && !in_check
+        && !singular_search
+        && depth >= hindsight_red_min_depth()
+        && td.stack[ply - 1].extension >= 2
+        && Score::is_defined(td.stack[ply - 1].static_eval)
+        && static_eval + td.stack[ply - 1].static_eval < 20 {
+        depth -= 1;
+    }
+
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search {
@@ -597,6 +611,7 @@ fn alpha_beta<NODE: NodeType>(
         td.stack[ply].mv = Some(mv);
         td.stack[ply].pc = Some(pc);
         td.stack[ply].captured = captured;
+        td.stack[ply].extension = extension;
         td.keys.push(board.hash());
         td.tt.prefetch(board.hash());
 
