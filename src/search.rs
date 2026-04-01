@@ -757,7 +757,8 @@ fn alpha_beta<NODE: NodeType>(
         let quiet_factoriser_bonus = quiet_history_factoriser_bonus(depth)
             - cut_node as i16 * quiet_fact_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_fact_capture_mult() as i16;
+            + capture_count as i16 * quiet_fact_capture_mult() as i16
+            + higher_pieces_available * 40;
 
         let quiet_factoriser_malus = quiet_history_factoriser_malus(depth)
             + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
@@ -771,7 +772,8 @@ fn alpha_beta<NODE: NodeType>(
         let cont_1_bonus = cont_history_1_bonus(depth)
             - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_1_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_1_capture_mult() as i16
+            + higher_pieces_available * 40;
 
         let cont_1_malus = cont_history_1_malus(depth)
             + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
@@ -779,14 +781,20 @@ fn alpha_beta<NODE: NodeType>(
         let cont_2_bonus = cont_history_2_bonus(depth)
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_2_capture_mult() as i16;
+            + capture_count as i16 * cont_hist_2_capture_mult() as i16
+            + higher_pieces_available * 40;
 
         let cont_2_malus = cont_history_2_malus(depth)
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
 
-        let from_bonus = from_history_bonus(depth);
+        let from_bonus = from_history_bonus(depth)
+            + higher_pieces_available * 40;
+
         let from_malus = from_history_malus(depth);
-        let to_bonus = to_history_bonus(depth);
+
+        let to_bonus = to_history_bonus(depth)
+            + higher_pieces_available * 40;
+
         let to_malus = to_history_malus(depth);
 
         if let Some(captured) = board.captured(&best_move) {
