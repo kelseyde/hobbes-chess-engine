@@ -1036,7 +1036,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         move_count += 1;
         td.nodes += 1;
 
-        let score = -qs(&board, td, -beta, -alpha, ply + 1);
+        let score = if !in_check {
+            -qs(&board, td, -beta, -alpha, ply + 1)
+        } else {
+            -alpha_beta::<NonPV>(&board, td, 1, ply + 1, -beta, -alpha, false)
+        };
 
         td.stack[ply].mv = None;
         td.stack[ply].pc = None;
