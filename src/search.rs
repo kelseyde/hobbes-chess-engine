@@ -27,6 +27,8 @@ use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
+use crate::board::piece::Piece;
+use crate::board::piece::Piece::King;
 
 pub const MAX_PLY: usize = 256;
 
@@ -443,6 +445,7 @@ fn alpha_beta<NODE: NodeType>(
 
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
+    let mut available_piece_types: u8 = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -457,6 +460,7 @@ fn alpha_beta<NODE: NodeType>(
         }
 
         let pc = board.piece_at(mv.from()).unwrap();
+        available_piece_types |= 1u8 << pc as u8;
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mated = Score::is_mated(best_score);
@@ -739,11 +743,13 @@ fn alpha_beta<NODE: NodeType>(
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
+        let higher_pieces_available = count_higher_piece_types(pc, available_piece_types);
 
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+            + capture_count as i16 * quiet_hist_capture_mult() as i16
+            + higher_pieces_available * 40;
 
         let quiet_malus = quiet_history_malus(depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
@@ -1137,6 +1143,16 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     } else {
         0
     }
+}
+
+/// Count how many piece types with higher value than `pc` had legal moves available.
+#[inline]
+fn count_higher_piece_types(pc: Piece, available_piece_types: u8) -> i16 {
+    if pc == King {
+        return 0;
+    }
+    let higher_bits = available_piece_types >> (pc as u8 + 1);
+    higher_bits.count_ones() as i16
 }
 
 #[inline]
