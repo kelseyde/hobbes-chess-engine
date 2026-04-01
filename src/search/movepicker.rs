@@ -175,14 +175,13 @@ impl MovePicker {
         if self.idx >= moves.len() {
             return None;
         }
-        let packed = moves
-            .list
+        let packed = moves.list
             .iter()
             .enumerate()
             .skip(self.idx)
-            .map(|(i, mv)| ((mv.score as i64) << 32) | ((u32::MAX as i64) - i as i64))
-            .reduce(std::cmp::max)?;
-        let best_index = (u32::MAX as usize) - (packed & 0xffffffff) as usize;
+            .map(|(i, mv)| ((mv.score as i64) << 32) | (i as i64))
+            .fold(i64::MIN, std::cmp::max);
+        let best_index = (packed & 0xffffffff) as usize;
 
         if best_index != self.idx {
             moves.list.swap(self.idx, best_index);
