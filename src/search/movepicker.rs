@@ -180,7 +180,7 @@ impl MovePicker {
             .enumerate()
             .skip(self.idx)
             .map(|(i, mv)| ((mv.score as i64) << 32) | (i as i64))
-            .fold(i64::MIN, std::cmp::max);
+            .reduce(std::cmp::max)?;
         let best_index = (packed & 0xffffffff) as usize;
 
         if best_index != self.idx {
