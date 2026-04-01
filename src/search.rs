@@ -616,7 +616,7 @@ fn alpha_beta<NODE: NodeType>(
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= 1024 * in_check as i32;
+            r += 1024 * !in_check as i32;
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
