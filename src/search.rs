@@ -905,12 +905,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = Score::MIN;
+    let mut tt_move_noisy = false;
     if let Some(entry) = td.tt.probe(board.hash()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
+            tt_move_noisy = board.is_noisy(&tt_move);
         }
         let score = entry.score(ply) as i32;
 
@@ -955,7 +957,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let filter = if in_check {
+    let filter = if in_check || (!pv_node && tt_move.exists() && !tt_move_noisy) {
         MoveFilter::All
     } else {
         MoveFilter::Captures
