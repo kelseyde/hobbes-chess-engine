@@ -163,31 +163,23 @@ impl MovePicker {
         } else {
             &mut self.moves
         };
-        if moves.is_empty() || self.idx >= moves.len() {
+        if self.idx >= moves.len() {
             return None;
         }
-        let mut best_index = self.idx;
-        let mut best_score = moves.get(self.idx).map_or(0, |entry| entry.score);
-        for j in self.idx + 1..moves.len() {
-            if let Some(current) = moves.get(j) {
-                if current.score > best_score {
-                    best_score = current.score;
-                    best_index = j;
-                }
-            } else {
-                break;
-            }
-        }
+        let packed = moves.list
+            .iter()
+            .enumerate()
+            .skip(self.idx)
+            .map(|(i, mv)| ((mv.score as i64) << 32) | ((u32::MAX as i64) - i as i64))
+            .reduce(std::cmp::max)?;
+        let best_index = (u32::MAX as usize) - (packed & 0xffffffff) as usize;
+
         if best_index != self.idx {
             moves.list.swap(self.idx, best_index);
         }
-
-        if let Some(best_move) = moves.get(self.idx) {
-            let mv = best_move.mv;
-            self.idx += 1;
-            return Some(mv);
-        }
-        None
+        let best_move = moves.list[self.idx].mv;
+        self.idx += 1;
+        Some(best_move)
     }
 }
 
