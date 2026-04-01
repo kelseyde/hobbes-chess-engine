@@ -37,8 +37,13 @@ name = "hobbes-chess-engine"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "hobbes-nnue-arch",
  "rand",
 ]
+
+[[package]]
+name = "hobbes-nnue-arch"
+version = "0.1.0"
 
 [[package]]
 name = "libc"

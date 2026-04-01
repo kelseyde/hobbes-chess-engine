@@ -2,6 +2,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::Move;
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
+use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::search;
@@ -13,6 +14,7 @@ use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
+use std::path::Path;
 use std::time::Instant;
 
 pub struct UCI {
@@ -51,31 +53,35 @@ impl UCI {
         pretty::print_uci_info();
 
         loop {
-            let mut command = String::new();
+            let mut line = String::new();
             io::stdin()
-                .read_line(&mut command)
+                .read_line(&mut line)
                 .expect("info error failed to parse command");
+            let tokens = self.split_args(line.clone());
 
-            let tokens = self.split_args(command.clone());
-
-            match command.split_ascii_whitespace().next().unwrap() {
-                "uci" => self.handle_uci(),
-                "isready" => self.handle_isready(),
-                "setoption" => self.handle_setoption(tokens),
-                "ucinewgame" => self.handle_ucinewgame(),
-                "bench" => self.handle_bench(),
-                "position" => self.handle_position(tokens),
-                "go" => self.handle_go(tokens),
-                "stop" => self.handle_stop(),
-                "fen" => self.handle_fen(),
-                "eval" => self.handle_eval(),
-                "perft" => self.handle_perft(tokens),
-                "genfens" => self.handle_genfens(tokens),
-                "help" => self.handle_help(),
-                #[cfg(feature = "tuning")]
-                "params" => print_params_ob(),
-                "quit" => self.handle_quit(),
-                _ => println!("info error: unknown command"),
+            if let Some(command) = line.split_ascii_whitespace().next() {
+                match command {
+                    "uci" => self.handle_uci(),
+                    "isready" => self.handle_isready(),
+                    "setoption" => self.handle_setoption(tokens),
+                    "ucinewgame" => self.handle_ucinewgame(),
+                    "bench" => self.handle_bench(),
+                    "position" => self.handle_position(tokens),
+                    "go" => self.handle_go(tokens),
+                    "stop" => self.handle_stop(),
+                    "fen" => self.handle_fen(),
+                    "eval" => self.handle_eval(),
+                    "eval_stats" => self.handle_eval_stats(tokens),
+                    "perft" => self.handle_perft(tokens),
+                    "genfens" => self.handle_genfens(tokens),
+                    "help" => self.handle_help(),
+                    #[cfg(feature = "tuning")]
+                    "params" => print_params_ob(),
+                    "quit" => self.handle_quit(),
+                    _ => println!("info error: unknown command"),
+                }
+            } else {
+                continue;
             }
         }
     }
@@ -83,6 +89,7 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
+        println!("option name Threads type spin default 1 min 1 max 1");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
             self.td.tt.size_mb()
@@ -241,7 +248,7 @@ impl UCI {
         self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
-            let mut legal_moves = self.board.gen_moves(MoveFilter::All);
+            let legal_moves = self.board.gen_moves(MoveFilter::All);
             let legal_move = legal_moves
                 .iter()
                 .map(|entry| entry.mv)
@@ -358,7 +365,14 @@ impl UCI {
             }
         }
 
-        self.td.limits = SearchLimits::new(fischer, movetime, softnodes, nodes, depth);
+        self.td.limits = SearchLimits::new(
+            fischer,
+            movetime,
+            softnodes,
+            nodes,
+            depth,
+            self.board.fm as usize,
+        );
 
         // Perform the search
         search(&self.board, &mut self.td);
@@ -371,6 +385,16 @@ impl UCI {
         self.td.nnue.activate(&self.board);
         let eval: i32 = self.td.nnue.evaluate(&self.board);
         println!("{}", eval);
+    }
+
+    fn handle_eval_stats(&mut self, tokens: Vec<String>) {
+        if tokens.len() < 2 {
+            println!("info error: missing input file argument");
+            return;
+        }
+
+        let input_path = Path::new(&tokens[1]);
+        stats::eval_stats(&mut self.td, input_path);
     }
 
     fn handle_fen(&self) {

@@ -13,9 +13,43 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod setwise {
+    #[cfg(target_feature = "avx512f")]
+    mod avx512;
+    #[cfg(target_feature = "avx512f")]
+    pub use crate::board::setwise::avx512::*;
+
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    mod avx2;
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    pub use crate::board::setwise::avx2::*;
+
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    mod neon;
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    pub use neon::*;
+
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    mod scalar;
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    pub use crate::board::setwise::scalar::*;
+}
 
 use crate::board::castling::Rights;
-use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -37,6 +71,7 @@ pub struct Board {
     pub hm: u8,            // number of half moves since last capture or pawn move
     pub fm: u8,            // number of full moves
     pub ep_sq: Option<Square>, // en passant square (0-63)
+    pub recapture_sq: Option<Square>, // square where a recapture can occur
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
     pub frc: bool,         // whether the game is Fischer Random Chess
@@ -64,6 +99,7 @@ impl Board {
             hm: 0,
             fm: 0,
             ep_sq: None,
+            recapture_sq: None,
             rights: Rights::default(),
             keys: Keys::default(),
             frc: false,
@@ -108,6 +144,11 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
+        self.recapture_sq = if captured.is_some() {
+            Some(m.to())
+        } else {
+            None
+        };
         self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += if side == Black { 1 } else { 0 };
         self.hm = if captured.is_some() || pc == Piece::Pawn {
@@ -127,21 +168,20 @@ impl Board {
         let bb: Bitboard = Bitboard::of_sq(sq);
         self.bb[pc] ^= bb;
         self.bb[side.idx()] ^= bb;
-        self.pcs[sq] = if self.pcs[sq] == Some(pc) {
-            None
-        } else {
-            Some(pc)
-        };
-        self.keys.hash ^= Zobrist::sq(pc, side, sq);
+        let cur = self.pcs[sq];
+        self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
+
+        let hash = Zobrist::sq(pc, side, sq);
+        self.keys.hash ^= hash;
         if pc == Piece::Pawn {
-            self.keys.pawn_hash ^= Zobrist::sq(Piece::Pawn, side, sq);
+            self.keys.pawn_hash ^= hash;
         } else {
-            self.keys.non_pawn_hashes[side] ^= Zobrist::sq(pc, side, sq);
+            self.keys.non_pawn_hashes[side] ^= hash;
             if pc.is_major() {
-                self.keys.major_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.major_hash ^= hash;
             }
             if pc.is_minor() {
-                self.keys.minor_hash ^= Zobrist::sq(pc, side, sq);
+                self.keys.minor_hash ^= hash;
             }
         }
     }
@@ -225,16 +265,16 @@ impl Board {
 
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
-        if self.ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(self.ep_sq.unwrap());
+        if let Some(old_ep) = self.ep_sq {
+            self.keys.hash ^= Zobrist::ep(old_ep);
         }
         let ep_sq = if flag == MoveFlag::DoublePush {
             Some(self.ep_capture_sq(sq))
         } else {
             None
         };
-        if ep_sq.is_some() {
-            self.keys.hash ^= Zobrist::ep(ep_sq.unwrap());
+        if let Some(new_ep) = ep_sq {
+            self.keys.hash ^= Zobrist::ep(new_ep);
         }
         ep_sq
     }
@@ -246,21 +286,24 @@ impl Board {
 
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
-        let mut pinned = Bitboard::empty();
-
         let king = self.king_sq(side);
-
         let us = self.side(side);
         let them = self.side(!side);
 
-        let their_diags = (self.pcs(Queen) | self.pcs(Bishop)) & them;
-        let their_orthos = (self.pcs(Queen) | self.pcs(Piece::Rook)) & them;
+        let their_diags = self.diags(!side);
+        let their_orthos = self.orthos(!side);
+
+        if their_diags.is_empty() && their_orthos.is_empty() {
+            return Bitboard::empty();
+        }
 
         let potential_attackers =
             attacks::bishop(king, them) & their_diags | attacks::rook(king, them) & their_orthos;
 
-        for potential_attacker in potential_attackers {
-            let maybe_pinned = us & ray::between(king, potential_attacker);
+        let mut pinned = Bitboard::empty();
+        for attacker in potential_attackers {
+            let between = ray::between(king, attacker);
+            let maybe_pinned = us & between;
             if maybe_pinned.count() == 1 {
                 pinned |= maybe_pinned;
             }
@@ -293,70 +336,97 @@ impl Board {
         self.keys.hash
     }
 
+    #[inline]
     pub fn pawns(&self, side: Side) -> Bitboard {
         self.bb[Piece::Pawn] & self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn knights(&self, side: Side) -> Bitboard {
         self.bb[Piece::Knight] & self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn bishops(&self, side: Side) -> Bitboard {
         self.bb[Piece::Bishop] & self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn rooks(&self, side: Side) -> Bitboard {
         self.bb[Piece::Rook] & self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn queens(&self, side: Side) -> Bitboard {
         self.bb[Piece::Queen] & self.bb[side.idx()]
     }
 
+    #[inline]
+    pub fn diags(&self, side: Side) -> Bitboard {
+        self.bishops(side) | self.queens(side)
+    }
+
+    #[inline]
+    pub fn orthos(&self, side: Side) -> Bitboard {
+        self.rooks(side) | self.queens(side)
+    }
+
+    #[inline]
     pub fn king(&self, side: Side) -> Bitboard {
         self.bb[Piece::King] & self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn king_sq(&self, side: Side) -> Square {
         self.king(side).lsb()
     }
 
+    #[inline]
     pub fn occ(&self) -> Bitboard {
         self.bb[White.idx()] | self.bb[Black.idx()]
     }
 
+    #[inline]
     pub fn pcs(&self, piece: Piece) -> Bitboard {
         self.bb[piece]
     }
 
+    #[inline]
     pub fn side(&self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
 
+    #[inline]
     pub fn white(&self) -> Bitboard {
         self.bb[White.idx()]
     }
 
+    #[inline]
     pub fn black(&self) -> Bitboard {
         self.bb[Black.idx()]
     }
 
+    #[inline]
     pub fn us(&self) -> Bitboard {
         self.bb[self.stm.idx()]
     }
 
+    #[inline]
     pub fn them(&self) -> Bitboard {
         self.bb[(!self.stm).idx()]
     }
 
+    #[inline]
     pub fn our(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[self.stm.idx()]
     }
 
+    #[inline]
     pub fn their(&self, piece: Piece) -> Bitboard {
         self.bb[piece] & self.bb[(!self.stm).idx()]
     }
 
+    #[inline]
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
         self.pcs[sq]
     }
@@ -365,6 +435,7 @@ impl Board {
         self.bb[pc]
     }
 
+    #[inline]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() {
             return None;
@@ -375,6 +446,7 @@ impl Board {
         self.piece_at(mv.to())
     }
 
+    #[inline]
     pub fn is_noisy(&self, mv: &Move) -> bool {
         mv.is_promo() || self.captured(mv).is_some()
     }
@@ -399,8 +471,6 @@ impl Board {
 
     pub fn is_insufficient_material(&self) -> bool {
         let pawns = self.bb[Piece::Pawn];
-        let knights = self.bb[Piece::Knight];
-        let bishops = self.bb[Piece::Bishop];
         let rooks = self.bb[Piece::Rook];
         let queens = self.bb[Piece::Queen];
 
@@ -408,18 +478,30 @@ impl Board {
             return false;
         }
 
+        let knights = self.bb[Piece::Knight];
+        let bishops = self.bb[Piece::Bishop];
+
         let minor_pieces = knights | bishops;
-        let piece_count = minor_pieces.count();
-        if piece_count <= 1 {
+        let minor_count = minor_pieces.count();
+        if minor_count <= 1 {
             return true;
         }
 
-        if knights.is_empty() && !bishops.is_empty() && (bishops & self.white()).count() == 2
-            || (bishops & self.black()).count() == 2
+        let white_bishops = bishops & self.white();
+        let black_bishops = bishops & self.black();
+        if white_bishops.count() >= 2 || black_bishops.count() >= 2 {
+            return false;
+        }
+
+        let white_knights = knights & self.white();
+        let black_knights = knights & self.black();
+        if (!white_knights.is_empty() && !white_bishops.is_empty())
+            || (!black_knights.is_empty() && !black_bishops.is_empty())
         {
             return false;
         }
-        piece_count <= 3
+
+        minor_count <= 3
     }
 
     pub const fn is_frc(&self) -> bool {

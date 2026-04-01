@@ -7,21 +7,20 @@ use crate::board::square::Square;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
 
-pub const MAX_MOVES: usize = 256;
+pub const MAX_MOVES: usize = 218;
 
 #[derive(Debug, Clone)]
 pub struct MoveList {
-    pub list: ArrayVec<MoveListEntry, MAX_MOVES>,
-    pub len: usize,
+    pub list: ArrayVec<ScoredMove, MAX_MOVES>,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct MoveListEntry {
+pub struct ScoredMove {
     pub mv: Move,
     pub score: i32,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFlag {
     Standard = 0,
     DoublePush = 1,
@@ -225,47 +224,47 @@ impl MoveList {
     pub fn new() -> Self {
         MoveList {
             list: ArrayVec::new(),
-            len: 0,
         }
     }
 
+    #[inline(always)]
     pub fn add_move(&mut self, from: Square, to: Square, flag: MoveFlag) {
-        self.list.push(MoveListEntry {
-            mv: Move::new(from, to, flag),
-            score: 0,
-        });
-        self.len += 1;
+        unsafe {
+            self.list.push_unchecked(ScoredMove {
+                mv: Move::new(from, to, flag),
+                score: 0,
+            });
+        }
     }
 
-    pub fn add(&mut self, entry: MoveListEntry) {
-        self.list.push(entry);
-        self.len += 1;
+    #[inline(always)]
+    pub fn add(&mut self, entry: ScoredMove) {
+        unsafe {
+            self.list.push_unchecked(entry);
+        }
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.len == 0
+        self.list.is_empty()
     }
 
     pub const fn len(&self) -> usize {
-        self.len
+        self.list.len()
     }
 
-    pub fn contains(&self, m: &Move) -> bool {
-        self.list
-            .iter()
-            .take(self.len)
-            .any(|entry| entry.mv.matches(m))
-    }
-
-    pub fn get(&self, idx: usize) -> Option<&MoveListEntry> {
-        if idx < self.len {
+    pub fn get(&self, idx: usize) -> Option<&ScoredMove> {
+        if idx < self.list.len() {
             Some(&self.list[idx])
         } else {
             None
         }
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut MoveListEntry> {
-        self.list.iter_mut().take(self.len)
+    pub fn iter(&self) -> impl Iterator<Item = &ScoredMove> {
+        self.list.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ScoredMove> {
+        self.list.iter_mut()
     }
 }

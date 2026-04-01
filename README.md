@@ -19,9 +19,11 @@ A strong chess engine written in Rust, with NNUE evaluation trained from zero kn
 
 Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches) towards turning Hobbes into a strong engine. 
 
-## Strength
+## Strength 
 
-Hobbes is not yet officially released. The current strength is approximately 3640 elo CCRL blitz.
+|                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
+|:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
+| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      | 3572 (#20) |     -      |
 
 ## Search
 
@@ -29,9 +31,9 @@ Hobbes features a classical alpha-beta negamax search with iterative deepening. 
 
 ## Evaluation
 
-Hobbes uses an efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x10hm->1280)x2->1`. Other NNUE optimisations that Hobbes employs are fused refreshes, Finny tables, and lazy updates.
+Hobbes uses an efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x16hm->1280)x2->1`. Other NNUE optimisations that Hobbes employs are fused refreshes, Finny tables, and lazy updates.
 
-The network is trained entirely on data generated from self-play. The network was initialised from random values and trained up over many iterations; the full history of past nets is documented [here](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network_history.txt). 
+The network is trained entirely on data generated from self-play. The training data is a (roughly) 80/20 split of standard data and DFRC data. The network was initialised from random values and trained up over many iterations; the full history of past nets is documented [here](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network_history.txt). All of hobbes' networks have been trained using [bullet](https://github.com/jw1912/bullet).
 
 ## Building Hobbes
 
