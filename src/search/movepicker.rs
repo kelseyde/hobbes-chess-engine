@@ -12,6 +12,24 @@ use crate::search::thread::ThreadData;
 use Piece::Knight;
 use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 
+/// Selects the next move to try in a given position. We save time during search by trying moves in
+/// stages. Typically, the TT move is tried first, then 'good' noisy moves, then quiet moves, and
+/// finally 'bad' noisy moves. If we reach a beta cutoff in any of these stages, then we have saved
+/// the time required to generate the moves in the later stages.
+#[rustfmt::skip]
+pub struct MovePicker {
+    moves: MoveList,       // List of moves to pick from in the current stage
+    pub stage: Stage,      // The current stage of move picking, e.g. generating quiets, trying captures.
+    idx: usize,            // The index of the current move being searched.
+    filter: MoveFilter,    // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
+    tt_move: Move,         // The move from the transposition table, which is tried first if it exists.
+    ply: usize,            // The ply of the current search, used for history heuristics.
+    threats: Bitboard,     // The squares threatened by the opponent, used for history heuristics.
+    pub skip_quiets: bool, // Whether we should skip the remaining quiet moves.
+    split_noisies: bool,   // Whether to split noisy moves into good and bad based on a SEE threshold.
+    bad_noisies: MoveList, // Noisy moves that fail the SEE threshold, which are tried after quiet moves.
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     TTMove,
@@ -23,19 +41,6 @@ pub enum Stage {
     Done,
 }
 
-pub struct MovePicker {
-    moves: MoveList,
-    filter: MoveFilter,
-    idx: usize,
-    pub stage: Stage,
-    tt_move: Move,
-    ply: usize,
-    threats: Bitboard,
-    pub skip_quiets: bool,
-    split_noisies: bool,
-    bad_noisies: MoveList,
-}
-
 impl MovePicker {
     pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
         let stage = if tt_move.exists() {
@@ -45,9 +50,9 @@ impl MovePicker {
         };
         Self {
             moves: MoveList::new(),
-            filter: MoveFilter::Noisies,
-            idx: 0,
             stage,
+            idx: 0,
+            filter: MoveFilter::Noisies,
             tt_move,
             ply,
             threats,
@@ -65,9 +70,9 @@ impl MovePicker {
         };
         Self {
             moves: MoveList::new(),
-            filter,
-            idx: 0,
             stage,
+            idx: 0,
+            filter,
             tt_move,
             ply,
             threats,
@@ -93,7 +98,6 @@ impl MovePicker {
             if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
-                self.idx = 0;
                 self.stage = GenerateQuiets;
             }
         }
@@ -130,30 +134,28 @@ impl MovePicker {
 
     #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
-        board
-            .gen_moves(MoveFilter::Quiets)
-            .iter()
-            .filter(|entry| entry.mv != self.tt_move)
-            .for_each(|entry| {
-                score_move(entry, board, td, self.ply, self.threats);
-                self.moves.add(*entry);
-            });
+        for entry in board.gen_moves(MoveFilter::Quiets).iter_mut() {
+            if entry.mv == self.tt_move {
+                continue;
+            }
+            score_move(entry, board, td, self.ply, self.threats);
+            self.moves.add(*entry);
+        }
     }
 
     #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
-        board
-            .gen_moves(self.filter)
-            .iter()
-            .filter(|entry| entry.mv != self.tt_move)
-            .for_each(|entry| {
-                score_move(entry, board, td, self.ply, self.threats);
-                if is_good_noisy(entry, board, self.split_noisies) {
-                    self.moves.add(*entry);
-                } else {
-                    self.bad_noisies.add(*entry);
-                }
-            });
+        for entry in board.gen_moves(self.filter).iter_mut() {
+            if entry.mv == self.tt_move {
+                continue;
+            }
+            score_move(entry, board, td, self.ply, self.threats);
+            if is_good_noisy(entry, board, self.split_noisies) {
+                self.moves.add(*entry);
+            } else {
+                self.bad_noisies.add(*entry);
+            }
+        }
     }
 
     #[inline(always)]
@@ -166,7 +168,8 @@ impl MovePicker {
         if self.idx >= moves.len() {
             return None;
         }
-        let packed = moves.list
+        let packed = moves
+            .list
             .iter()
             .enumerate()
             .skip(self.idx)
@@ -203,9 +206,12 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-        let is_killer = td.stack[ply].killer == Some(*mv);
-        let base = if is_killer { 10000000 } else { 0 };
-        entry.score = base + quiet_score + cont_score;
+        let killer_bonus = if td.stack[ply].killer == Some(*mv) {
+            10_000_000
+        } else {
+            0
+        };
+        entry.score = killer_bonus + quiet_score + cont_score;
     }
 }
 

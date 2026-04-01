@@ -260,7 +260,11 @@ impl MoveList {
         }
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut ScoredMove> {
+    pub fn iter(&self) -> impl Iterator<Item = &ScoredMove> {
+        self.list.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ScoredMove> {
         self.list.iter_mut()
     }
 }
