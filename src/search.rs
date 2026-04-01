@@ -951,7 +951,9 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             alpha = static_eval
         }
         if alpha >= beta {
-            return (alpha + beta) / 2;
+            let stand_pat_score = (alpha + beta) / 2;
+            td.tt.insert(board.hash(), Move::NONE, stand_pat_score, raw_eval, 0, ply, Lower, tt_pv);
+            return stand_pat_score;
         }
     }
 
