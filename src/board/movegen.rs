@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
+use crate::board::moves::{MoveFlag, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
@@ -23,11 +23,11 @@ impl Board {
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
-        let mut moves = self.gen_moves(MoveFilter::All);
+        let moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add(MoveListEntry {
+                legal_moves.add(ScoredMove {
                     mv: entry.mv,
                     score: 0,
                 })
