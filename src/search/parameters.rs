@@ -234,4 +234,5 @@ tunable_params! {
     movepick_see_divisor         = 44, 30, 60, 2,             true;
     movepick_see_offset          = 111, 80, 200, 10,          true;
     score_stability_threshold    = 14, 4, 24, 2,              true;
+    eval_scale                   = 400, 200, 600, 25,         true;
 }

@@ -53,10 +53,11 @@ use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
 };
-use crate::search::MAX_PLY;
+use crate::search::{parameters, MAX_PLY};
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
-use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q};
+use parameters::eval_scale;
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -109,7 +110,7 @@ impl NNUE {
             let l3_output = forward::propagate_l3(&l2_outputs, output_bucket);
             output = l3_output as i64;
         }
-        output *= SCALE;
+        output *= eval_scale() as i64;
         output /= Q * Q * Q * Q;
         output = scale_evaluation(board, output as i32) as i64;
         output as i32
