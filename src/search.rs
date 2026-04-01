@@ -72,6 +72,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
         loop {
             let search_depth = td.depth - reduction;
+            td.root_depth = search_depth;
+
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
 
             bound = if score <= alpha {
@@ -665,6 +667,9 @@ fn alpha_beta<NODE: NodeType>(
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+           if mv == tt_move && tt_depth > 1 && td.root_depth > 8 {
+                new_depth = new_depth.max(1);
+            }
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
