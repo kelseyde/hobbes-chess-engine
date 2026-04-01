@@ -29,7 +29,7 @@ pub const L3_SIZE: usize = 32;
 
 pub const Q: i64 = 64;
 pub const Q_BITS: usize = 6;
-pub const SCALE: i64 = 400;
+pub const SCALE: i64 = 650;
 
 pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 
