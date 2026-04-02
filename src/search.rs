@@ -630,7 +630,10 @@ fn alpha_beta<NODE: NodeType>(
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
                 && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
-            let reduced_depth = (new_depth - (r / 1024)).clamp(1, new_depth + (1 + (legal_moves <= 3) as i32));
+
+            let min_reduced_depth = 1;
+            let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
+            let reduced_depth = (new_depth - (r / 1024)).clamp(min_reduced_depth, max_reduced_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.stack[ply].reduction = r;
