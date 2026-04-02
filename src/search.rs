@@ -957,12 +957,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let filter = if in_check || (!pv_node && tt_move.exists() && !tt_move_noisy) {
+    let filter = if in_check {
         MoveFilter::All
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
+    let skip_quiets = !in_check && (pv_node || !tt_move.exists() || tt_move_noisy);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats, skip_quiets);
 
     let mut move_count = 0;
 
