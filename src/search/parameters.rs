@@ -134,6 +134,7 @@ tunable_params! {
     quiet_fact_malus_max         = 1350, 1000, 1600, 100,     true;
     quiet_hist_lerp_factor       = 38, 0, 100, 5,             true;
     capt_hist_lerp_factor        = 46, 0, 100, 5,             true;
+    cont_hist_lerp_factor        = 50, 0, 100, 5,             true;
     capt_hist_bonus_scale        = 244, 80, 360, 40,          true;
     capt_hist_bonus_offset       = 49, 0, 200, 25,            true;
     capt_hist_ttmove_bonus       = 62, 0, 200, 25,            true;
