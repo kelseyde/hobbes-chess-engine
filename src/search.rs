@@ -350,14 +350,17 @@ fn alpha_beta<NODE: NodeType>(
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node
+            && (!tt_move.exists() || tt_move_noisy)
+            && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
+        let nmp_margin = if cut_node { nmp_cutnode_margin() } else { nmp_base_margin() };
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval >= beta + nmp_margin
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
@@ -475,7 +478,8 @@ fn alpha_beta<NODE: NodeType>(
 
         // Futility Pruning
         // Skip quiet moves when the static evaluation + some margin is still below alpha.
-        let futility_margin = fp_base()
+        let futility_value = static_eval
+            + fp_base()
             + fp_scale() * lmr_depth
             + pv_node as i32 * fp_pv_node()
             - legal_moves * fp_movecount_mult()
@@ -487,7 +491,11 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mated
-            && static_eval + futility_margin <= alpha {
+            && !board.gives_direct_check(mv)
+            && futility_value <= alpha {
+            if !Score::is_mate(best_score) && best_score < futility_value {
+                best_score = futility_value;
+            }
             move_picker.skip_quiets = true;
             continue;
         }
@@ -631,7 +639,7 @@ fn alpha_beta<NODE: NodeType>(
                 && original_board.threats.contains(mv.to()) 
                 && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
 
-            let min_reduced_depth = 1;
+            let min_reduced_depth = 1 - cut_node as i32;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
             let reduced_depth = (new_depth - (r / 1024)).clamp(min_reduced_depth, max_reduced_depth);
 
