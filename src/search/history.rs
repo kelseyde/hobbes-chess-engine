@@ -297,7 +297,8 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        self.piece_to_entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2]);
+        self.from_to_entries = Box::new([[[[[0; 64]; 64]; 64]; 64]; 2]);
     }
 }
 
