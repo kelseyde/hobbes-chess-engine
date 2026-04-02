@@ -425,6 +425,7 @@ fn alpha_beta<NODE: NodeType>(
         && (tt_flag == Lower || tt_flag == Exact)
         && tt_score >= probcut_beta
         && tt_depth >= depth - pc_tt_depth_offset() {
+        td.tt.insert(board.hash(), tt_move, tt_score, raw_eval, depth, ply, tt_flag, tt_pv);
         return tt_score;
     }
 
