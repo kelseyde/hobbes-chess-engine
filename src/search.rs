@@ -464,6 +464,7 @@ fn alpha_beta<NODE: NodeType>(
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
+        let to_square_attacked = threats.contains(mv.to());
 
         let mut extension = 0;
 
@@ -544,7 +545,7 @@ fn alpha_beta<NODE: NodeType>(
         };
         if !pv_node
             && depth <= see_max_depth()
-            && threats.contains(mv.to())
+            && to_square_attacked
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
@@ -627,9 +628,8 @@ fn alpha_beta<NODE: NodeType>(
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet 
-                && original_board.threats.contains(mv.to()) 
-                && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            r += (is_quiet && to_square_attacked && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            r += (!is_quiet && to_square_attacked && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_noisy_see();
 
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
