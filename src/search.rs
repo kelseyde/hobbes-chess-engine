@@ -435,6 +435,7 @@ fn alpha_beta<NODE: NodeType>(
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
+    let mut pruned_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
     let mut best_score = Score::MIN;
@@ -488,6 +489,7 @@ fn alpha_beta<NODE: NodeType>(
             && lmr_depth < fp_max_depth()
             && !is_mated
             && static_eval + futility_margin <= alpha {
+            pruned_moves += 1;
             move_picker.skip_quiets = true;
             continue;
         }
@@ -503,6 +505,16 @@ fn alpha_beta<NODE: NodeType>(
             move_picker.skip_quiets = true;
         }
 
+        // Metapruning
+        if !pv_node
+            && !root_node
+            && !is_mated
+            && is_quiet
+            && depth <= lmp_max_depth()
+            && pruned_moves > 6 + (depth / 4) {
+            move_picker.skip_quiets = true;
+        }
+
         // History Pruning
         // Skip quiet moves that have a bad history score.
         if !pv_node
@@ -512,6 +524,7 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && depth <= hp_max_depth()
             && history_score < hp_scale() * depth * depth {
+            pruned_moves += 1;
             move_picker.skip_quiets = true;
             continue
         }
@@ -548,6 +561,7 @@ fn alpha_beta<NODE: NodeType>(
             && searched_moves >= 1
             && !Score::is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
+            pruned_moves += 1;
             continue;
         }
 
