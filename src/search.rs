@@ -625,7 +625,6 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
-            let lmr_history_red = lmr_history_reduction(is_quiet, history_score);
             r += lmr_history_reduction(is_quiet, history_score);
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 

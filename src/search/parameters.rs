@@ -94,7 +94,7 @@ tunable_params! {
     lmr_quiet_hist_offset        = 984, -2048, 2048, 256,     true;
     lmr_quiet_hist_divisor       = 19658, 8192, 32768, 2048,  true;
     lmr_noisy_hist_offset        = 984, -2048, 2048, 256,     true;
-    lmr_noisy_hist_divisor       = 19658, 8192, 32768, 2048,  true;
+    lmr_noisy_hist_divisor       = 7864, 2048, 16384, 1024,   true;
     lmr_mvv_divisor              = 3, 1, 5, 1,                true;
     lmr_extension_divisor        = 4, 1, 6, 1,                true;
     lmr_deeper_base              = 25, 0, 100, 10,            true;
