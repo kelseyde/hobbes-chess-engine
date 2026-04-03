@@ -508,10 +508,11 @@ fn alpha_beta<NODE: NodeType>(
         // Metapruning
         if !pv_node
             && !root_node
+            && !in_check
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && pruned_moves > 6 + (depth / 4) {
+            && pruned_moves > 4 + (depth / 6) {
             move_picker.skip_quiets = true;
         }
 
