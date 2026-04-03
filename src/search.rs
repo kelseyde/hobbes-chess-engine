@@ -628,8 +628,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet && to_square_attacked && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
-            r += (!is_quiet && to_square_attacked && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_noisy_see();
+            r += lmr_see_reduction(original_board, is_quiet, to_square_attacked, &mv);
 
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
@@ -1149,6 +1148,19 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
 
     (factor0 + factor1 * depth * depth) / 1024
+}
+
+#[inline]
+fn lmr_see_reduction(board: &Board, is_quiet: bool, to_square_attacked: bool, mv: &Move) -> i32 {
+    if to_square_attacked && !see::see(board, mv, 0, Ordering) {
+        if is_quiet {
+            lmr_quiet_see()
+        } else {
+            lmr_noisy_see()
+        }
+    } else {
+        0
+    }
 }
 
 #[inline]
