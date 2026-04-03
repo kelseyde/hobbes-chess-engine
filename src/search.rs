@@ -547,6 +547,7 @@ fn alpha_beta<NODE: NodeType>(
             && threats.contains(mv.to())
             && searched_moves >= 1
             && !Score::is_mate(best_score)
+            && history_score < 6000
             && !see(board, &mv, see_threshold, Pruning) {
             continue;
         }
