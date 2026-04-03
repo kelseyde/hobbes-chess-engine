@@ -17,14 +17,15 @@ use crate::search::parameters::{
     lmr_cont_hist_1_malus_max, lmr_cont_hist_1_malus_offset, lmr_cont_hist_1_malus_scale,
     lmr_cont_hist_2_bonus_max, lmr_cont_hist_2_bonus_offset, lmr_cont_hist_2_bonus_scale,
     lmr_cont_hist_2_malus_max, lmr_cont_hist_2_malus_offset, lmr_cont_hist_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
+    pawn_hist_bonus_max, pawn_hist_bonus_offset, pawn_hist_bonus_scale, pawn_hist_malus_max,
+    pawn_hist_malus_offset, pawn_hist_malus_scale, pcm_bonus_max, pcm_bonus_offset,
+    pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale,
+    qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale,
+    quiet_fact_bonus_max, quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max,
+    quiet_fact_malus_offset, quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
+    quiet_hist_bonus_scale, quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset,
+    quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale,
+    to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale,
 };
 use crate::tools::utils::boxed_and_zeroed;
 
@@ -50,6 +51,10 @@ pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
 
+pub struct PawnHistory {
+    pub entries: Box<[[[[i16; Self::HASH_SIZE]; 64]; 6]; 2]>,
+}
+
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
@@ -61,6 +66,7 @@ pub struct Histories {
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
+    pub pawn_history: PawnHistory,
     pub from_history: SquareHistory,
     pub to_history: SquareHistory,
 }
@@ -113,6 +119,10 @@ impl Histories {
         cont_score
     }
 
+    pub fn pawn_history_score(&self, board: &Board, mv: &Move, pc: Piece) -> i32 {
+        self.pawn_history.score(board, mv, pc)
+    }
+
     pub fn capture_history_score(
         &self,
         board: &Board,
@@ -157,6 +167,7 @@ impl Histories {
         self.quiet_history.clear();
         self.capture_history.clear();
         self.cont_history.clear();
+        self.pawn_history.clear();
         self.from_history.clear();
         self.to_history.clear();
     }
@@ -181,6 +192,14 @@ impl Default for CaptureHistory {
 }
 
 impl Default for ContinuationHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
+impl Default for PawnHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() },
@@ -313,6 +332,26 @@ impl ContinuationHistory {
     }
 }
 
+impl PawnHistory {
+    const HASH_SIZE: usize = 2048;
+    const MAX: i32 = 16384;
+
+    pub fn score(&self, board: &Board, mv: &Move, pc: Piece) -> i32 {
+        let hash_index = board.keys.pawn_hash as usize % Self::HASH_SIZE;
+        self.entries[board.stm][pc][mv.to()][hash_index] as i32
+    }
+
+    pub fn update(&mut self, board: &Board, mv: &Move, pc: Piece, bonus: i16) {
+        let hash_index = board.keys.pawn_hash as usize % Self::HASH_SIZE;
+        let entry = &mut self.entries[board.stm][pc][mv.to()][hash_index];
+        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = Box::new([[[[0; Self::HASH_SIZE]; 64]; 6]; 2]);
+    }
+}
+
 impl SquareHistory {
     const MAX: i32 = 4096;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
@@ -424,6 +463,20 @@ pub fn cont_history_2_malus(depth: i32) -> i16 {
     let offset = cont_hist_2_malus_offset() as i16;
     let max = cont_hist_2_malus_max() as i16;
     history_malus(depth, scale, offset, max)
+}
+
+pub fn pawn_history_bonus(depth: i32) -> i16 {
+    let scale = pawn_hist_bonus_scale() as i16;
+    let offset = pawn_hist_bonus_offset() as i16;
+    let max = pawn_hist_bonus_max() as i16;
+    history_bonus(depth, scale, offset, max)
+}
+
+pub fn pawn_history_malus(depth: i32) -> i16 {
+    let scale = pawn_hist_malus_scale() as i16;
+    let offset = pawn_hist_malus_offset() as i16;
+    let max = pawn_hist_malus_max() as i16;
+    history_bonus(depth, scale, offset, max)
 }
 
 pub fn prior_countermove_bonus(depth: i32) -> i16 {

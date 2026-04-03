@@ -216,12 +216,13 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+        let pawn_score = td.history.pawn_history_score(board, mv, pc);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             10_000_000
         } else {
             0
         };
-        entry.score = killer_bonus + quiet_score + cont_score;
+        entry.score = killer_bonus + quiet_score + cont_score + pawn_score;
     }
 }
 
