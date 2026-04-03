@@ -625,7 +625,8 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
-            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            let lmr_history_red = lmr_history_reduction(is_quiet, history_score);
+            r += lmr_history_reduction(is_quiet, history_score);
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
@@ -1149,6 +1150,21 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
 
     (factor0 + factor1 * depth * depth) / 1024
+}
+
+#[inline]
+fn lmr_history_reduction(is_quiet: bool, history_score: i32) -> i32 {
+    let offset = if is_quiet {
+        lmr_quiet_hist_offset()
+    } else {
+        lmr_noisy_hist_offset()
+    };
+    let divisor = if is_quiet {
+        lmr_quiet_hist_divisor()
+    } else {
+        lmr_noisy_hist_divisor()
+    };
+    -((history_score - offset) / divisor) * 1024
 }
 
 #[inline]
