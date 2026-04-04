@@ -282,12 +282,7 @@ fn alpha_beta<NODE: NodeType>(
     let estimated_score = if !in_check
         && !singular_search
         && tt_hit
-        && match tt_flag {
-            TTFlag::None => false,
-            TTFlag::Exact => true,
-            TTFlag::Lower => tt_score > static_eval,
-            TTFlag::Upper => tt_score < static_eval,
-        } {
+        && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
         tt_score
     } else {
         static_eval
