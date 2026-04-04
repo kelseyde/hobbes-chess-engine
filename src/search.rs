@@ -285,6 +285,8 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
+    let opponent_worsening = is_opponent_worsening(td, ply, static_eval, in_check);
+
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
@@ -341,6 +343,7 @@ fn alpha_beta<NODE: NodeType>(
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
+            - 25 * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
@@ -1140,6 +1143,14 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
     } else {
         0
     }
+}
+
+#[inline]
+fn is_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> bool {
+    !in_check
+        && ply > 1
+        && Score::is_defined(td.stack[ply - 1].static_eval)
+        && static_eval > -td.stack[ply - 1].static_eval
 }
 
 #[inline]
