@@ -1135,8 +1135,6 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
 fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
     if ply >= 2 && Score::is_defined(td.stack[ply - 2].static_eval) && !in_check {
         static_eval - td.stack[ply - 2].static_eval
-    } else if ply >= 4 && Score::is_defined(td.stack[ply - 4].static_eval) && !in_check {
-        static_eval - td.stack[ply - 4].static_eval
     } else {
         0
     }
