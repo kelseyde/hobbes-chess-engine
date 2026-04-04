@@ -279,6 +279,20 @@ fn alpha_beta<NODE: NodeType>(
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
 
+    let estimated_score = if !in_check
+        && !singular_search
+        && tt_hit
+        && match tt_flag {
+            TTFlag::None => false,
+            TTFlag::Exact => true,
+            TTFlag::Lower => tt_score > static_eval,
+            TTFlag::Upper => tt_score < static_eval,
+        } {
+        tt_score
+    } else {
+        static_eval
+    };
+
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
@@ -343,9 +357,13 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
+            && estimated_score - futility_margin >= beta
             && tt_flag != Upper {
-            return beta + (static_eval - beta) / 3;
+            return if !Score::is_mate(estimated_score) && !Score::is_mate(beta) {
+                beta + (estimated_score - beta) / 3
+            } else {
+                estimated_score
+            }
         }
 
         // Razoring
