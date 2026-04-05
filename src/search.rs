@@ -16,7 +16,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
-use crate::search::movepicker::Stage::BadNoisies;
+use crate::search::movepicker::Stage::BadNoisiesAndQuiets;
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
 use crate::search::see::{see, SeeType};
@@ -522,7 +522,7 @@ fn alpha_beta<NODE: NodeType>(
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
-            && move_picker.stage == BadNoisies
+            && move_picker.stage == BadNoisiesAndQuiets
             && futility_margin <= alpha {
             break;
         }
@@ -980,7 +980,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
-        if move_picker.stage == BadNoisies {
+        if move_picker.stage == BadNoisiesAndQuiets {
             break;
         }
 

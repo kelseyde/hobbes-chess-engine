@@ -4,8 +4,8 @@ use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
-use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::movepicker::Stage::{BadNoisiesAndQuiets, Done, GoodNoisies};
+use crate::search::parameters::{movepick_bad_quiet_threshold, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -18,16 +18,16 @@ use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 /// the time required to generate the moves in the later stages.
 #[rustfmt::skip]
 pub struct MovePicker {
-    moves: MoveList,       // List of moves to pick from in the current stage
-    pub stage: Stage,      // The current stage of move picking, e.g. generating quiets, trying captures.
-    idx: usize,            // The index of the current move being searched.
-    filter: MoveFilter,    // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
-    tt_move: Move,         // The move from the transposition table, which is tried first if it exists.
-    ply: usize,            // The ply of the current search, used for history heuristics.
-    threats: Bitboard,     // The squares threatened by the opponent, used for history heuristics.
-    pub skip_quiets: bool, // Whether we should skip the remaining quiet moves.
-    split_noisies: bool,   // Whether to split noisy moves into good and bad based on a SEE threshold.
-    bad_noisies: MoveList, // Noisy moves that fail the SEE threshold, which are tried after quiet moves.
+    moves: MoveList,                   // List of moves to pick from in the current stage
+    pub stage: Stage,                  // The current stage of move picking, e.g. generating quiets, trying captures.
+    idx: usize,                        // The index of the current move being searched.
+    filter: MoveFilter,                // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
+    tt_move: Move,                     // The move from the transposition table, which is tried first if it exists.
+    ply: usize,                        // The ply of the current search, used for history heuristics.
+    threats: Bitboard,                 // The squares threatened by the opponent, used for history heuristics.
+    pub skip_quiets: bool,             // Whether we should skip the remaining quiet moves.
+    split_noisies: bool,               // Whether to split noisy moves into good and bad based on a SEE threshold.
+    bad_noisies_and_quiets: MoveList,  // Moves which are likely bad, and will be tried last.
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -37,7 +37,7 @@ pub enum Stage {
     GoodNoisies,
     GenerateQuiets,
     Quiets,
-    BadNoisies,
+    BadNoisiesAndQuiets,
     Done,
 }
 
@@ -58,7 +58,7 @@ impl MovePicker {
             threats,
             skip_quiets: false,
             split_noisies: true,
-            bad_noisies: MoveList::new(),
+            bad_noisies_and_quiets: MoveList::new(),
         }
     }
 
@@ -78,7 +78,7 @@ impl MovePicker {
             threats,
             skip_quiets: true,
             split_noisies: false,
-            bad_noisies: MoveList::new(),
+            bad_noisies_and_quiets: MoveList::new(),
         }
     }
 
@@ -105,7 +105,7 @@ impl MovePicker {
         if self.stage == GenerateQuiets {
             self.idx = 0;
             if self.skip_quiets {
-                self.stage = BadNoisies;
+                self.stage = BadNoisiesAndQuiets;
             } else {
                 self.moves.list.clear();
                 self.gen_quiet_moves(board, td);
@@ -115,15 +115,15 @@ impl MovePicker {
         if self.stage == Quiets {
             if self.skip_quiets {
                 self.idx = 0;
-                self.stage = BadNoisies;
+                self.stage = BadNoisiesAndQuiets;
             } else if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
                 self.idx = 0;
-                self.stage = BadNoisies;
+                self.stage = BadNoisiesAndQuiets;
             }
         }
-        if self.stage == BadNoisies {
+        if self.stage == BadNoisiesAndQuiets {
             if let Some(best_move) = self.pick_best(true) {
                 return Some(best_move);
             } else {
@@ -141,7 +141,11 @@ impl MovePicker {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
-            self.moves.add(*entry);
+            if entry.score < movepick_bad_quiet_threshold() {
+                self.bad_noisies_and_quiets.add(*entry);
+            } else {
+                self.moves.add(*entry);
+            }
         }
     }
 
@@ -157,7 +161,7 @@ impl MovePicker {
             if is_good_noisy(entry, board, self.split_noisies) {
                 self.moves.add(*entry);
             } else {
-                self.bad_noisies.add(*entry);
+                self.bad_noisies_and_quiets.add(*entry);
             }
         }
     }
@@ -168,7 +172,7 @@ impl MovePicker {
     #[inline(always)]
     fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
         let moves = if use_bad_noisies {
-            &mut self.bad_noisies
+            &mut self.bad_noisies_and_quiets
         } else {
             &mut self.moves
         };
