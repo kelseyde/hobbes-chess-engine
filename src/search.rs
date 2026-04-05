@@ -323,7 +323,7 @@ fn alpha_beta<NODE: NodeType>(
         && depth >= hindsight_ext_min_depth()
         && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
         && Score::is_defined(td.stack[ply - 1].static_eval)
-        && static_eval + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
+        && estimated_score + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
         depth += 1;
     }
 
@@ -366,14 +366,14 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && estimated_score >= beta + nmp_margin()
+            && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
-                + nmp_red_eval_mult() * (estimated_score - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
+                + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
                 / 1024;
 
             let mut board = *board;
