@@ -3,7 +3,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
-use crate::board::{Board};
+use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
@@ -215,7 +215,9 @@ fn score_move(
         entry.score = 16 * victim_value + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
-        let quiet_score = td.history.quiet_history_score(board, mv, pc, threats, phase);
+        let quiet_score = td
+            .history
+            .quiet_history_score(board, mv, pc, threats, phase);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             10_000_000

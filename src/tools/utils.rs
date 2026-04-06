@@ -5,7 +5,7 @@ macro_rules! tunable_params {
     ($($name:ident = ($val1:expr, $val2:expr, $val3:expr), $min:literal ..= $max:literal, $spsa:expr;)*) => {
         #[cfg(feature = "tuning")]
         use std::sync::atomic::Ordering;
-        use crate::board::phase::Phase;
+        use $crate::board::phase::Phase;
 
         #[cfg(feature = "tuning")]
         pub fn list_params() {

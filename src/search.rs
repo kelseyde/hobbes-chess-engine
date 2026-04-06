@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::phase::Phase;
 use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -27,7 +28,6 @@ use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
 use SeeType::{Ordering, Pruning};
-use crate::board::phase::Phase;
 
 pub const MAX_PLY: usize = 256;
 

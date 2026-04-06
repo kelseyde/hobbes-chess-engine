@@ -1,5 +1,6 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
+use crate::board::phase::Phase;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
@@ -12,7 +13,6 @@ use crate::search::parameters::{
     see_value_rook_pruning,
 };
 use SeeType::{Ordering, Pruning};
-use crate::board::phase::Phase;
 
 #[derive(Clone, Copy)]
 pub enum SeeType {

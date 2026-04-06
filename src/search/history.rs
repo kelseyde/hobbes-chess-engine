@@ -1,10 +1,10 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
+use crate::board::phase::Phase;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
-use crate::board::phase::Phase;
 use crate::search::node::NodeStack;
 use crate::search::parameters::{
     capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
@@ -76,7 +76,7 @@ impl Histories {
         ply: usize,
         threats: Bitboard,
         pc: Piece,
-        captured: Option<Piece>, 
+        captured: Option<Piece>,
         phase: Phase,
     ) -> i32 {
         if let Some(captured) = captured {
@@ -95,7 +95,7 @@ impl Histories {
         board: &Board,
         mv: &Move,
         pc: Piece,
-        threats: Bitboard, 
+        threats: Bitboard,
         phase: Phase,
     ) -> i32 {
         self.quiet_history.get(board.stm, *mv, pc, threats, phase) as i32
@@ -124,7 +124,8 @@ impl Histories {
         captured: Piece,
         phase: Phase,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, *mv, captured, phase) as i32
+        self.capture_history
+            .get(board.stm, pc, *mv, captured, phase) as i32
     }
 
     pub fn update_continuation_history(

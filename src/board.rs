@@ -6,13 +6,13 @@ pub mod legal;
 pub mod magics;
 pub mod movegen;
 pub mod moves;
+pub mod phase;
 pub mod piece;
 pub mod rank;
 pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
-pub mod phase;
 
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]

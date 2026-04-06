@@ -1,3 +1,4 @@
+use crate::board::phase::Phase;
 use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::node::NodeStack;
@@ -5,7 +6,6 @@ use crate::search::parameters::*;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 use Side::{Black, White};
-use crate::board::phase::Phase;
 
 const CORRECTION_SCALE: i32 = 280;
 
