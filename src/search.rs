@@ -343,7 +343,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
-    if !root_node && !pv_node && !in_check && !singular_search {
+    if !root_node && !pv_node && !singular_search {
 
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
@@ -351,25 +351,25 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+        let futility_eval = if in_check { estimated_score } else { static_eval };
         if depth <= rfp_max_depth()
-            && estimated_score - futility_margin >= beta
+            && futility_eval - futility_margin >= beta
             && tt_flag != Upper {
-            return if !Score::is_mate(estimated_score) && !Score::is_mate(beta) {
-                beta + (estimated_score - beta) / 3
-            } else {
-                estimated_score
-            }
+            return beta + (static_eval - beta) / 3;
         }
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node
+            && !in_check
+            && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
-        if depth >= nmp_min_depth()
+        if !in_check
+            && depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
