@@ -567,11 +567,13 @@ fn alpha_beta<NODE: NodeType>(
                 let s_beta = (tt_score - s_beta_mult * se_beta_scale(is_quiet) / 16).max(-Score::MATE + 1);
                 let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
+                // Do a reduced-depth search with the TT move excluded.
                 td.stack[ply].singular = Some(mv);
                 let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
                 td.stack[ply].singular = None;
 
                 if score < s_beta {
+                    // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                     extension = 1;
                     extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
                     extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
@@ -584,9 +586,12 @@ fn alpha_beta<NODE: NodeType>(
                 } else if tt_score <= alpha {
                     extension = -1;
                 }
-            } else if depth <= 7
+            // Low-Depth Singular Extensions (LDSE)
+            // At low depths, if the static eval is well below alpha but the TT move failed high, we
+            // assume the TT move is singular without a reduced-depth search, and extend.
+            } else if depth <= ldse_max_depth()
                 && !in_check
-                && static_eval <= alpha - 26
+                && static_eval <= alpha - ldse_margin()
                 && tt_flag == Lower {
                 extension = 1;
             }

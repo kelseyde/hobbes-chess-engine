@@ -76,6 +76,8 @@ tunable_params! {
     se_beta_noisy_scale          = 19, 16, 48, 6,             true;
     se_dext_noisy_margin         = 9, 0, 30, 5,               true;
     se_text_noisy_margin         = 49, 20, 120, 10,           true;
+    ldse_max_depth               = 7, 1, 12, 1,               false;
+    ldse_margin                  = 26, 0, 80, 10,             true;
     lmr_min_depth                = 2, 1, 5, 1,                false;
     lmr_min_moves                = 2, 1, 4, 1,                false;
     lmr_quiet_base               = 93, 50, 150, 10,           true;
