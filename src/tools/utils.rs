@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! tunable_params {
 
-    ($($name:ident = $val:expr, $min:expr, $max:expr, $step:expr, $spsa:expr;)*) => {
+    ($($name:ident = $val:expr, $min:expr, $max:expr, $spsa:expr;)*) => {
         #[cfg(feature = "tuning")]
         use std::sync::atomic::Ordering;
 
@@ -33,14 +33,13 @@ macro_rules! tunable_params {
         pub fn print_params_ob() {
             $(
                 if $spsa {
-                    let step = ($max - $min) / 20;
                     println!(
                         "{}, int, {}.0, {}.0, {}.0, {}, 0.002",
                         stringify!($name),
                         $name(),
                         $min,
                         $max,
-                        step,
+                        ($max - $min) / 20,
                     );
                 }
             )*
