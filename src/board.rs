@@ -12,6 +12,8 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod phase;
+
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]
     mod avx512;
@@ -49,6 +51,7 @@ pub mod setwise {
 }
 
 use crate::board::castling::Rights;
+use crate::board::phase::Phase;
 use crate::board::zobrist::{Keys, Zobrist};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -73,6 +76,7 @@ pub struct Board {
     pub recapture_sq: Option<Square>, // square where a recapture can occur
     pub rights: Rights,    // encoded castle rights
     pub keys: Keys,        // zobrist hashes
+    pub phase: Phase,      // game phase
     pub frc: bool,         // whether the game is Fischer Random Chess
     pub threats: Bitboard, // squares attacked by the opponent
     pub checkers: Bitboard, // opponent pieces checking the king
@@ -101,6 +105,7 @@ impl Board {
             recapture_sq: None,
             rights: Rights::default(),
             keys: Keys::default(),
+            phase: Phase::P1,
             frc: false,
             threats: Bitboard::empty(),
             checkers: Bitboard::empty(),
@@ -156,6 +161,7 @@ impl Board {
             self.hm + 1
         };
         self.keys.hash ^= Zobrist::stm();
+        self.phase = self.calc_phase();
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
@@ -432,6 +438,12 @@ impl Board {
 
     pub fn pieces(&self, pc: Piece) -> Bitboard {
         self.bb[pc]
+    }
+
+    pub fn calc_phase(&self) -> Phase {
+        let occ_count = self.occ().count();
+        let idx = ((occ_count.saturating_sub(1)) / 8).min(2) as usize;
+        Phase::from_usize(idx)
     }
 
     #[inline]

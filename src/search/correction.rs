@@ -5,6 +5,7 @@ use crate::search::parameters::*;
 use crate::tools::utils::boxed_and_zeroed;
 use std::marker::PhantomData;
 use Side::{Black, White};
+use crate::board::phase::Phase;
 
 const CORRECTION_SCALE: i32 = 280;
 
@@ -41,6 +42,7 @@ impl CorrectionHistories {
         best_score: i32,
     ) {
         let us = board.stm;
+        let phase = board.phase;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[White];
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Black];
@@ -48,12 +50,12 @@ impl CorrectionHistories {
         let minor_hash = board.keys.minor_hash;
 
         let diff = best_score - static_eval;
-        let pawn_bonus = pawn_corr_bonus(diff, depth);
-        let nonpawn_bonus = nonpawn_corr_bonus(diff, depth);
-        let major_bonus = major_corr_bonus(diff, depth);
-        let minor_bonus = minor_corr_bonus(diff, depth);
-        let counter_bonus = counter_corr_bonus(diff, depth);
-        let follow_up_bonus = follow_up_corr_bonus(diff, depth);
+        let pawn_bonus = pawn_corr_bonus(diff, depth, phase);
+        let nonpawn_bonus = nonpawn_corr_bonus(diff, depth, phase);
+        let major_bonus = major_corr_bonus(diff, depth, phase);
+        let minor_bonus = minor_corr_bonus(diff, depth, phase);
+        let counter_bonus = counter_corr_bonus(diff, depth, phase);
+        let follow_up_bonus = follow_up_corr_bonus(diff, depth, phase);
 
         self.pawn_corrhist.update(us, pawn_hash, pawn_bonus);
         self.nonpawn_corrhist[White].update(us, w_nonpawn_hash, nonpawn_bonus);
@@ -68,6 +70,7 @@ impl CorrectionHistories {
     pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
 
         let us = board.stm;
+        let phase = board.phase;
         let pawn_hash = board.keys.pawn_hash;
         let w_nonpawn_hash = board.keys.non_pawn_hashes[White];
         let b_nonpawn_hash = board.keys.non_pawn_hashes[Black];
@@ -82,13 +85,13 @@ impl CorrectionHistories {
         let counter    = self.countermove_correction(board, ss, ply);
         let follow_up  = self.follow_up_move_correction(board, ss, ply);
 
-        ((pawn * 100 / corr_pawn_weight())
-            + (white * 100 / corr_non_pawn_weight())
-            + (black * 100 / corr_non_pawn_weight())
-            + (major * 100 / corr_major_weight())
-            + (minor * 100 / corr_minor_weight())
-            + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight()))
+        ((pawn * 100 / corr_pawn_weight(phase))
+            + (white * 100 / corr_non_pawn_weight(phase))
+            + (black * 100 / corr_non_pawn_weight(phase))
+            + (major * 100 / corr_major_weight(phase))
+            + (minor * 100 / corr_minor_weight(phase))
+            + (counter * 100 / corr_counter_weight(phase))
+            + (follow_up * 100 / corr_follow_up_weight(phase)))
             / CORRECTION_SCALE
 
     }
@@ -191,69 +194,69 @@ impl<const N: usize> CorrectionHistory<N> {
     }
 }
 
-fn pawn_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn pawn_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_pawn_bonus_mult(),
-        corr_pawn_bonus_div(),
-        corr_pawn_bonus_min(),
-        corr_pawn_bonus_max(),
+        corr_pawn_bonus_mult(phase),
+        corr_pawn_bonus_div(phase),
+        corr_pawn_bonus_min(phase),
+        corr_pawn_bonus_max(phase),
     )
 }
 
-fn nonpawn_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn nonpawn_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_nonpawn_bonus_mult(),
-        corr_nonpawn_bonus_div(),
-        corr_nonpawn_bonus_min(),
-        corr_nonpawn_bonus_max(),
+        corr_nonpawn_bonus_mult(phase),
+        corr_nonpawn_bonus_div(phase),
+        corr_nonpawn_bonus_min(phase),
+        corr_nonpawn_bonus_max(phase),
     )
 }
 
-fn major_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn major_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_major_bonus_mult(),
-        corr_major_bonus_div(),
-        corr_major_bonus_min(),
-        corr_major_bonus_max(),
+        corr_major_bonus_mult(phase),
+        corr_major_bonus_div(phase),
+        corr_major_bonus_min(phase),
+        corr_major_bonus_max(phase),
     )
 }
 
-fn minor_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn minor_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_minor_bonus_mult(),
-        corr_minor_bonus_div(),
-        corr_minor_bonus_min(),
-        corr_minor_bonus_max(),
+        corr_minor_bonus_mult(phase),
+        corr_minor_bonus_div(phase),
+        corr_minor_bonus_min(phase),
+        corr_minor_bonus_max(phase),
     )
 }
 
-fn counter_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn counter_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_counter_bonus_mult(),
-        corr_counter_bonus_div(),
-        corr_counter_bonus_min(),
-        corr_counter_bonus_max(),
+        corr_counter_bonus_mult(phase),
+        corr_counter_bonus_div(phase),
+        corr_counter_bonus_min(phase),
+        corr_counter_bonus_max(phase),
     )
 }
 
-fn follow_up_corr_bonus(diff: i32, depth: i32) -> i32 {
+fn follow_up_corr_bonus(diff: i32, depth: i32, phase: Phase) -> i32 {
     corr_bonus(
         diff,
         depth,
-        corr_follow_up_bonus_mult(),
-        corr_follow_up_bonus_div(),
-        corr_follow_up_bonus_min(),
-        corr_follow_up_bonus_max(),
+        corr_follow_up_bonus_mult(phase),
+        corr_follow_up_bonus_div(phase),
+        corr_follow_up_bonus_min(phase),
+        corr_follow_up_bonus_max(phase),
     )
 }
 

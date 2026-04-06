@@ -12,6 +12,7 @@ use crate::search::parameters::{
     see_value_rook_pruning,
 };
 use SeeType::{Ordering, Pruning};
+use crate::board::phase::Phase;
 
 #[derive(Clone, Copy)]
 pub enum SeeType {
@@ -19,18 +20,19 @@ pub enum SeeType {
     Ordering,
 }
 
-pub fn value(pc: Piece, see_type: SeeType) -> i32 {
+pub fn value(pc: Piece, phase: Phase, see_type: SeeType) -> i32 {
     match pc {
-        Piece::Pawn => pawn_value(see_type),
-        Piece::Knight => knight_value(see_type),
-        Piece::Bishop => bishop_value(see_type),
-        Piece::Rook => rook_value(see_type),
-        Piece::Queen => queen_value(see_type),
+        Piece::Pawn => pawn_value(see_type, phase),
+        Piece::Knight => knight_value(see_type, phase),
+        Piece::Bishop => bishop_value(see_type, phase),
+        Piece::Rook => rook_value(see_type, phase),
+        Piece::Queen => queen_value(see_type, phase),
         Piece::King => 0,
     }
 }
 
 pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool {
+    let phase = board.phase;
     let from = mv.from();
     let to = mv.to();
 
@@ -44,7 +46,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
         return false;
     }
 
-    balance -= value(next_victim, see_type);
+    balance -= value(next_victim, phase, see_type);
 
     if balance >= 0 {
         return true;
@@ -87,7 +89,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
         occ = occ.pop_bit(sq);
         stm = !stm;
 
-        balance = -balance - 1 - value(attacker, see_type);
+        balance = -balance - 1 - value(attacker, phase, see_type);
         if balance >= 0 {
             break;
         }
@@ -107,14 +109,15 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
 
 #[allow(clippy::redundant_closure)]
 fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
+    let phase = board.phase;
     let mut see_value = board
         .piece_at(mv.to())
-        .map_or(0, |captured| value(captured, see_type));
+        .map_or(0, |captured| value(captured, phase, see_type));
 
     if let Some(promo) = mv.promo_piece() {
-        see_value += value(promo, see_type);
+        see_value += value(promo, phase, see_type);
     } else if mv.is_ep() {
-        see_value = value(Piece::Pawn, see_type);
+        see_value = value(Piece::Pawn, phase, see_type);
     }
     see_value
 }
@@ -159,41 +162,41 @@ fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboar
 }
 
 #[inline]
-fn pawn_value(see_type: SeeType) -> i32 {
+fn pawn_value(see_type: SeeType, phase: Phase) -> i32 {
     match see_type {
-        Pruning => see_value_pawn_pruning(),
-        Ordering => see_value_pawn_ordering(),
+        Pruning => see_value_pawn_pruning(phase),
+        Ordering => see_value_pawn_ordering(phase),
     }
 }
 
 #[inline]
-fn knight_value(see_type: SeeType) -> i32 {
+fn knight_value(see_type: SeeType, phase: Phase) -> i32 {
     match see_type {
-        Pruning => see_value_knight_pruning(),
-        Ordering => see_value_knight_ordering(),
+        Pruning => see_value_knight_pruning(phase),
+        Ordering => see_value_knight_ordering(phase),
     }
 }
 
 #[inline]
-fn bishop_value(see_type: SeeType) -> i32 {
+fn bishop_value(see_type: SeeType, phase: Phase) -> i32 {
     match see_type {
-        Pruning => see_value_bishop_pruning(),
-        Ordering => see_value_bishop_ordering(),
+        Pruning => see_value_bishop_pruning(phase),
+        Ordering => see_value_bishop_ordering(phase),
     }
 }
 
 #[inline]
-fn rook_value(see_type: SeeType) -> i32 {
+fn rook_value(see_type: SeeType, phase: Phase) -> i32 {
     match see_type {
-        Pruning => see_value_rook_pruning(),
-        Ordering => see_value_rook_ordering(),
+        Pruning => see_value_rook_pruning(phase),
+        Ordering => see_value_rook_ordering(phase),
     }
 }
 
 #[inline]
-fn queen_value(see_type: SeeType) -> i32 {
+fn queen_value(see_type: SeeType, phase: Phase) -> i32 {
     match see_type {
-        Pruning => see_value_queen_pruning(),
-        Ordering => see_value_queen_ordering(),
+        Pruning => see_value_queen_pruning(phase),
+        Ordering => see_value_queen_ordering(phase),
     }
 }

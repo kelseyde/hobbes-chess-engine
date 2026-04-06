@@ -3,7 +3,7 @@ use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
-use crate::board::Board;
+use crate::board::{Board};
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
 use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
@@ -205,16 +205,17 @@ fn score_move(
     threats: Bitboard,
 ) {
     let mv = &entry.mv;
+    let phase = board.phase;
     if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
         // Score capture
-        let victim_value = see::value(victim, SeeType::Ordering);
+        let victim_value = see::value(victim, phase, SeeType::Ordering);
         let history_score = td
             .history
-            .capture_history_score(board, mv, attacker, victim);
+            .capture_history_score(board, mv, attacker, victim, phase);
         entry.score = 16 * victim_value + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
-        let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
+        let quiet_score = td.history.quiet_history_score(board, mv, pc, threats, phase);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             10_000_000
@@ -230,6 +231,7 @@ fn score_move(
 /// move's history score.
 #[inline(always)]
 fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
+    let phase = board.phase;
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry
@@ -241,10 +243,10 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies {
             true
         } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = -entry.score / movepick_see_divisor(phase) + movepick_see_offset(phase);
             match threshold {
-                t if t > see::value(Queen, SeeType::Ordering) => false,
-                t if t < -see::value(Queen, SeeType::Ordering) => true,
+                t if t > see::value(Queen, phase, SeeType::Ordering) => false,
+                t if t < -see::value(Queen, phase, SeeType::Ordering) => true,
                 _ => see(board, &entry.mv, threshold, SeeType::Ordering),
             }
         }

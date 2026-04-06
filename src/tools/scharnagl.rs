@@ -128,6 +128,7 @@ impl Board {
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
         board.pinned = board.calc_both_pinned();
+        board.phase = board.calc_phase();
 
         board
     }
@@ -203,6 +204,7 @@ impl Board {
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
         board.pinned = board.calc_both_pinned();
+        board.phase = board.calc_phase();
 
         board
     }

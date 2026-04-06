@@ -405,22 +405,23 @@ fn should_mirror(king_sq: Square) -> bool {
 #[inline]
 fn scale_evaluation(board: &Board, eval: i32) -> i32 {
     let phase = material_phase(board);
-    eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
+    eval * (material_scaling_base(board.phase) + phase) / 32768 * (200 - board.hm as i32) / 200
 }
 
 #[inline]
 fn material_phase(board: &Board) -> i32 {
+    let game_phase = board.phase;
     let pawns = board.pieces(Pawn).count();
     let knights = board.pieces(Knight).count();
     let bishops = board.pieces(Bishop).count();
     let rooks = board.pieces(Rook).count();
     let queens = board.pieces(Queen).count();
 
-    scale_value_pawn() * pawns as i32
-        + scale_value_knight() * knights as i32
-        + scale_value_bishop() * bishops as i32
-        + scale_value_rook() * rooks as i32
-        + scale_value_queen() * queens as i32
+    scale_value_pawn(game_phase) * pawns as i32
+        + scale_value_knight(game_phase) * knights as i32
+        + scale_value_bishop(game_phase) * bishops as i32
+        + scale_value_rook(game_phase) * rooks as i32
+        + scale_value_queen(game_phase) * queens as i32
 }
 
 #[cfg(test)]

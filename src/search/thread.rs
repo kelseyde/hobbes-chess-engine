@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::board::moves::Move;
+use crate::board::phase::Phase;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
@@ -243,11 +244,11 @@ impl LmrTable {
         self.table[depth.min(255) as usize][move_count.min(63) as usize][is_quiet as usize]
     }
 
-    pub fn init(&mut self) {
-        let quiet_base = lmr_quiet_base() as f32 / 100.0;
-        let quiet_divisor = lmr_quiet_div() as f32 / 100.0;
-        let noisy_base = lmr_noisy_base() as f32 / 100.0;
-        let noisy_divisor = lmr_noisy_div() as f32 / 100.0;
+    pub fn init(&mut self, phase: Phase) {
+        let quiet_base = lmr_quiet_base(phase) as f32 / 100.0;
+        let quiet_divisor = lmr_quiet_div(phase) as f32 / 100.0;
+        let noisy_base = lmr_noisy_base(phase) as f32 / 100.0;
+        let noisy_divisor = lmr_noisy_div(phase) as f32 / 100.0;
 
         for depth in 1..256 {
             for move_count in 1..64 {
