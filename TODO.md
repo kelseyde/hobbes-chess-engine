@@ -23,7 +23,6 @@
 - [x] NMP depth-based reduction
 - [x] NMP eval-based reduction
 - [x] NMP TT capture
-- [ ] Increment NMP base reduction
 - [x] NMP verification search
 - [ ] NMP TT condition
 
@@ -34,7 +33,7 @@
 - [x] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
-- [ ] Noisy LMR
+- [x] Noisy LMR
 - [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
@@ -58,9 +57,9 @@
 - [x] FP movecount
 - [x] PVS SEE quiet history
 - [x] PVS SEE noisy history
-- [ ] Use LMR depth in more places
+- [x] Use LMR depth in more places
 - [x] Qs evasion pruning
-- [ ] Qs guard recaptures
+- [x] Qs guard recaptures
 
 #### Transposition Table
 - [x] Static eval to TT
@@ -73,7 +72,7 @@
 - [ ] TT cut PV node depth reduction
 - [x] Better replacement scheme
 - [x] SF TT aging
-- [ ] Qs standpat TT store
+- [x] Qs standpat TT store
 - [ ] "Would TT prune" PV reduction
 
 ### Correction History
@@ -83,13 +82,13 @@
 - [x] Major correction history
 - [x] Countermove correction history
 - [x] Follow-up move correction history
-- [ ] Gravity corrhist
+- [x] Gravity corrhist
 
 ### Extensions
 - [x] Check extensions
 - [x] Singular extensions
 - [x] Double extensions
-- [ ] Triple extensions
+- [x] Triple extensions
 - [x] Negative extensions
 - [x] Double negative extensions
 - [x] Multicut
@@ -103,7 +102,7 @@
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
-- [ ] SF small probcut idea
+- [x] SF small probcut idea
 - [x] Deeper/shallower
 
 ## Move Ordering / History
@@ -121,12 +120,12 @@
 - [x] Quiet threat history
 - [x] Killer stage
 - [x] Split good/bad noisies
-- [ ] Use capthist in SEE margin
+- [x] Use capthist in SEE margin
 - [ ] Split good/bad quiets
 - [x] Prior countermove bonus
 - [x] Dynamic policy history update
-- [ ] Threats capthist
-- [ ] History factoriser
+- [x] Threats capthist
+- [x] History factoriser
 - [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
@@ -145,8 +144,8 @@
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
 - [x] Node-based scaling
-- [ ] Best move stability
-- [ ] Eval stability
+- [x] Best move stability
+- [x] Eval stability
 
 ## UCI
 - [x] Configurable Hash size
