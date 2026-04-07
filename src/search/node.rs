@@ -50,6 +50,14 @@ pub struct Node {
     pub reduction: i32,
 }
 
+impl NodeStack {
+
+    pub fn is_killer(&self, mv: &Move, ply: usize) -> bool {
+        self[ply].killer == Some(*mv)
+    }
+
+}
+
 impl Default for NodeStack {
     fn default() -> Self {
         NodeStack {

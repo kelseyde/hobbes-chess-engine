@@ -196,6 +196,7 @@ impl MovePicker {
 /// Assign a score to a move, determining the order in which moves are selected. Captures are scored
 /// based on the value of the victim and the history score. Quiet moves are scored based on their
 /// history scores, and given an additional bonus if they are a killer move.
+#[rustfmt::skip]
 #[inline(always)]
 fn score_move(
     entry: &mut ScoredMove,
@@ -216,12 +217,8 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-        let killer_bonus = if td.stack[ply].killer == Some(*mv) {
-            10_000_000
-        } else {
-            0
-        };
-        entry.score = killer_bonus + quiet_score + cont_score;
+        let killer_bonus = if td.stack.is_killer(mv, ply) { 10_000_000 } else { 0 };
+        entry.score = killer_bonus + 2 * quiet_score + cont_score;
     }
 }
 
