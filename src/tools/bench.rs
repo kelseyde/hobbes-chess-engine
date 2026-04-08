@@ -81,7 +81,6 @@ pub fn bench(td: &mut ThreadData) {
 
     let end = Instant::now();
 
-    #[cfg(debug_assertions)]
     td.debug_stats.print();
     td.minimal_output = minimal_enabled;
     td.clear();

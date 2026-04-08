@@ -53,11 +53,9 @@ pub struct SquareHistory {
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryBucket {
     score: i16,
-    /// Welford online variance of (factoriser + bucket score) for this specific
-    /// threat context. Variance = score_m2 / score_count (once count > 0).
     score_mean: i32,
-    score_m2: i32,
-    score_count: u16,
+    score_m2: i64,
+    score_count: u32,
 }
 
 #[derive(Default, Copy, Clone)]
@@ -114,7 +112,7 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         threats: Bitboard,
-    ) -> i32 {
+    ) -> i64 {
         self.quiet_history.get_variance(board.stm, *mv, pc, threats)
     }
 
@@ -217,14 +215,12 @@ impl Default for SquareHistory {
 }
 
 impl QuietHistoryBucket {
-    /// Returns the variance of (factoriser + bucket score) for this threat context.
-    /// Returns 0 if this bucket has never been updated.
     #[inline]
-    fn variance(&self) -> i32 {
+    fn variance(&self) -> i64 {
         if self.score_count == 0 {
             0
         } else {
-            self.score_m2 / self.score_count as i32
+            self.score_m2 / self.score_count as i64
         }
     }
 
@@ -232,14 +228,13 @@ impl QuietHistoryBucket {
     fn update(&mut self, factoriser: i16, bucket_bonus: i16, bucket_max: i32) {
         self.score = gravity(self.score as i32, bucket_bonus as i32, bucket_max) as i16;
 
-        // Welford update on the combined (factoriser + bucket) score for this
-        // specific threat context — no cross-bucket mixing.
+        // Update running variance
         let new_score = (factoriser + self.score) as i32;
         self.score_count = self.score_count.saturating_add(1);
         let delta = new_score - self.score_mean;
         self.score_mean += delta / self.score_count as i32;
         let delta2 = new_score - self.score_mean;
-        self.score_m2 = self.score_m2.saturating_add(delta * delta2);
+        self.score_m2 = self.score_m2.saturating_add(delta as i64 * delta2 as i64);
     }
 }
 
@@ -250,7 +245,7 @@ impl QuietHistoryEntry {
     }
 
     #[inline]
-    fn variance(&self, threat_index: &ThreatIndex) -> i32 {
+    fn variance(&self, threat_index: &ThreatIndex) -> i64 {
         self.bucket[threat_index.from()][threat_index.to()].variance()
     }
 
@@ -279,14 +274,11 @@ impl QuietHistory {
         lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
     }
 
-    /// Returns the blended variance of the score across the from-to and piece-to
-    /// entries for the specific threat context, using the same lerp as `get`.
-    /// Higher values indicate a less reliable score.
-    pub fn get_variance(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i32 {
+    pub fn get_variance(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i64 {
         let threat_idx = ThreatIndex::new(mv, threats);
         let from_to_var = self.from_to_entries[stm][mv.from()][mv.to()].variance(&threat_idx);
         let piece_to_var = self.piece_to_entries[stm][pc][mv.to()].variance(&threat_idx);
-        lerp(from_to_var, piece_to_var, quiet_hist_lerp_factor())
+        lerp_i64(from_to_var, piece_to_var, quiet_hist_lerp_factor() as i64)
     }
 
     pub fn update(
@@ -583,3 +575,8 @@ fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
 fn lerp(a: i32, b: i32, factor: i32) -> i32 {
     (a * (100 - factor) + b * factor) / 100
 }
+
+fn lerp_i64(a: i64, b: i64, factor: i64) -> i64 {
+    (a * (100 - factor) + b * factor) / 100
+}
+

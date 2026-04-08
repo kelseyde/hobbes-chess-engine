@@ -464,6 +464,9 @@ fn alpha_beta<NODE: NodeType>(
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
+        if is_quiet {
+            td.debug_stats.insert(String::from("variance"), td.history.quiet_history_variance(board, &mv, pc, threats) / 100000);
+        }
 
         let mut extension = 0;
 
