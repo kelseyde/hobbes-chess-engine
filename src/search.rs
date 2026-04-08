@@ -636,7 +636,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= extension * 1024 / lmr_extension_divisor();
-            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+            r -= is_quiet as i32 * (history_score * 1024) / lmr_hist_divisor();
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
