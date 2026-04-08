@@ -523,7 +523,7 @@ fn alpha_beta<NODE: NodeType>(
             && !in_check
             && is_quiet
             && depth <= 10
-            && cont_score < -4000 {
+            && cont_score < -2000 * depth {
             continue;
         }
 
