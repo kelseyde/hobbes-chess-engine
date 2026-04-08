@@ -462,6 +462,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_mated = Score::is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
+        let cont_score = if is_quiet { td.history.cont_history_score(board, &td.stack, &mv, ply) } else { 0 };
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
@@ -514,6 +515,16 @@ fn alpha_beta<NODE: NodeType>(
             && history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets = true;
             continue
+        }
+
+        // Continuation Pruning
+        if !pv_node
+            && !root_node
+            && !in_check
+            && is_quiet
+            && depth <= 10
+            && cont_score < -4000 {
+            continue;
         }
 
         // Bad Noisy Pruning
