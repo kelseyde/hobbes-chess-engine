@@ -16,7 +16,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::{movegen, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
-use crate::search::movepicker::Stage::BadNoisies;
+use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{format_score, Score};
 use crate::search::see::{see, SeeType};
@@ -459,6 +459,7 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
+        let is_good_noisy = move_picker.stage == GoodNoisies;
         let is_mated = Score::is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
@@ -631,7 +632,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
-            r -= lmr_capture() * captured.is_some() as i32;
+            r -= lmr_capture() * (captured.is_some() && is_good_noisy) as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
