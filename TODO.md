@@ -1,29 +1,5 @@
 ## Search
 
-### New Ideas to Yoink
-- [ ] SEE-bucketed noisy hist: https://kelseyde.pythonanywhere.com/test/1507/
-- [ ] SE depth stuff: https://recklesschess.space/test/7711/
-- [ ] SEE pruning movecount: https://recklesschess.space/test/7684/
-- [ ] TTPV Cutnode LMR: https://recklesschess.space/test/7617/
-- [ ] RFP easy capture: https://chess.swehosting.se/test/11716/ 
-- [ ] RFP min margin: https://recklesschess.space/test/7584/
-- [ ] FP alpha compensation: https://recklesschess.space/test/7592/
-- [ ] LMP initial depth: https://recklesschess.space/test/7382/
-- [ ] Razoring initial depth: https://recklesschess.space/test/7357/
-- [ ] Check/capture bucketed conthist: https://recklesschess.space/test/7196/
-- [ ] FP quadratic depth: https://recklesschess.space/test/7138/
-- [ ] Refuse non-TT move: https://recklesschess.space/test/6822/
-- [ ] LMR MVV: https://recklesschess.space/test/6810/
-- [ ] TTPV SEE threshold: https://recklesschess.space/test/6418/
-- [ ] Cutnode quiet bonus: https://recklesschess.space/test/6307/
-- [ ] Cutnode noisy bonus: https://recklesschess.space/test/6380/
-- [ ] IIR TT move hist: http://verdict.shaheryarsohail.com/test/1174/
-- [ ] NMP TT move hist: http://verdict.shaheryarsohail.com/test/1129/
-- [ ] Quadratic RFP: http://verdict.shaheryarsohail.com/test/1112/
-- [ ] Razoring easy capture: http://verdict.shaheryarsohail.com/test/1093/
-- [ ] LMP static eval fail high: https://chess.swehosting.se/test/11848/
-- [ ] SF LMR PV ext: https://chess.swehosting.se/test/11585/
-
 #### Basics
 - [x] Iterative Deepening
 - [x] MVV-LVA
@@ -47,7 +23,6 @@
 - [x] NMP depth-based reduction
 - [x] NMP eval-based reduction
 - [x] NMP TT capture
-- [ ] Increment NMP base reduction
 - [x] NMP verification search
 - [ ] NMP TT condition
 
@@ -58,7 +33,7 @@
 - [x] LMR TT-PV
 - [x] LMR Cutnode
 - [x] LMR History
-- [ ] Noisy LMR
+- [x] Noisy LMR
 - [x] Fractional LMR
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
@@ -82,9 +57,9 @@
 - [x] FP movecount
 - [x] PVS SEE quiet history
 - [x] PVS SEE noisy history
-- [ ] Use LMR depth in more places
+- [x] Use LMR depth in more places
 - [x] Qs evasion pruning
-- [ ] Qs guard recaptures
+- [x] Qs guard recaptures
 
 #### Transposition Table
 - [x] Static eval to TT
@@ -97,7 +72,7 @@
 - [ ] TT cut PV node depth reduction
 - [x] Better replacement scheme
 - [x] SF TT aging
-- [ ] Qs standpat TT store
+- [x] Qs standpat TT store
 - [ ] "Would TT prune" PV reduction
 
 ### Correction History
@@ -107,13 +82,13 @@
 - [x] Major correction history
 - [x] Countermove correction history
 - [x] Follow-up move correction history
-- [ ] Gravity corrhist
+- [x] Gravity corrhist
 
 ### Extensions
 - [x] Check extensions
 - [x] Singular extensions
 - [x] Double extensions
-- [ ] Triple extensions
+- [x] Triple extensions
 - [x] Negative extensions
 - [x] Double negative extensions
 - [x] Multicut
@@ -127,7 +102,7 @@
 - [x] Razoring
 - [x] Alpha raise reductions
 - [ ] Probcut
-- [ ] SF small probcut idea
+- [x] SF small probcut idea
 - [x] Deeper/shallower
 
 ## Move Ordering / History
@@ -145,12 +120,12 @@
 - [x] Quiet threat history
 - [x] Killer stage
 - [x] Split good/bad noisies
-- [ ] Use capthist in SEE margin
+- [x] Use capthist in SEE margin
 - [ ] Split good/bad quiets
 - [x] Prior countermove bonus
 - [x] Dynamic policy history update
-- [ ] Threats capthist
-- [ ] History factoriser
+- [x] Threats capthist
+- [x] History factoriser
 - [x] Post-LMR update conthist
 - [ ] History depth alpha bonus
 - [ ] History depth beta bonus
@@ -169,8 +144,8 @@
 - [x] Hard bound (applies to the entire search)
 - [x] Soft bound (checked on each new depth in the ID loop)
 - [x] Node-based scaling
-- [ ] Best move stability
-- [ ] Eval stability
+- [x] Best move stability
+- [x] Eval stability
 
 ## UCI
 - [x] Configurable Hash size
@@ -179,3 +154,7 @@
 - [x] Seldepth
 - [x] Hashfull
 - [ ] Pretty print
+
+## Random stuff
+- Conthist-only pruning/LMR
+- History score variance
