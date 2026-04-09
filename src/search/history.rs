@@ -5,27 +5,7 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
-    cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
-    cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
-    cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
-    cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
-    from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_hist_1_bonus_max, lmr_cont_hist_1_bonus_offset, lmr_cont_hist_1_bonus_scale,
-    lmr_cont_hist_1_malus_max, lmr_cont_hist_1_malus_offset, lmr_cont_hist_1_malus_scale,
-    lmr_cont_hist_2_bonus_max, lmr_cont_hist_2_bonus_offset, lmr_cont_hist_2_bonus_scale,
-    lmr_cont_hist_2_malus_max, lmr_cont_hist_2_malus_offset, lmr_cont_hist_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
-};
+use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max, cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max, cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max, cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max, cont_hist_2_malus_offset, cont_hist_2_malus_scale, cont_hist_lerp_factor, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_hist_1_bonus_max, lmr_cont_hist_1_bonus_offset, lmr_cont_hist_1_bonus_scale, lmr_cont_hist_1_malus_max, lmr_cont_hist_1_malus_offset, lmr_cont_hist_1_malus_scale, lmr_cont_hist_2_bonus_max, lmr_cont_hist_2_bonus_offset, lmr_cont_hist_2_bonus_scale, lmr_cont_hist_2_malus_max, lmr_cont_hist_2_malus_offset, lmr_cont_hist_2_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max, quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset, quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
 use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -43,7 +23,8 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
+    from_to_entries: Box<[FromToHistory<FromToHistory<i16>>; 2]>,
 }
 
 pub struct SquareHistory {
@@ -183,7 +164,8 @@ impl Default for CaptureHistory {
 impl Default for ContinuationHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() },
+            piece_to_entries: unsafe { boxed_and_zeroed() },
+            from_to_entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -288,9 +270,12 @@ impl ContinuationHistory {
 
     pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
         let prev_ply = prev_ply - 1; // 0-based index
-        self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()]
+        let piece_to_score = self.piece_to_entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
+        let from_to_score = self.from_to_entries[prev_ply][prev_mv.from()][prev_mv.to()][mv.from()][mv.to()];
+        lerp(from_to_score as i32, piece_to_score as i32, cont_hist_lerp_factor()) as i16
     }
 
+    #[rustfmt::skip]
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
@@ -303,13 +288,18 @@ impl ContinuationHistory {
         prev_ply: usize,
     ) {
         let prev_ply = prev_ply - 1; // 0-based index
-        let entry = &mut self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+
+        let entry = &mut self.piece_to_entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
+        *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
+
+        let entry = &mut self.from_to_entries[prev_ply][prev_mv.from()][prev_mv.to()][mv.from()][mv.to()];
         *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        self.piece_to_entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2]);
+        self.from_to_entries = Box::new([[[[[0; 64]; 64]; 64]; 64]; 2]);
     }
 }
 
