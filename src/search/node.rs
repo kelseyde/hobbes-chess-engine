@@ -81,3 +81,9 @@ impl IndexMut<usize> for NodeStack {
         unsafe { self.data.get_unchecked_mut(index) }
     }
 }
+
+impl NodeStack {
+    pub fn is_killer(&self, ply: usize, mv: Move) -> bool {
+        self[ply].killer == Some(mv)
+    }
+}
