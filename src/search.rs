@@ -277,6 +277,9 @@ fn alpha_beta<NODE: NodeType>(
 
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
+
+    let distance_to_pv = if pv_node { 0 } else { td.stack[ply - 1].distance_to_pv + 1 };
+    td.stack[ply].distance_to_pv = distance_to_pv;
     td.stack[ply + 1].killer = None;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
@@ -341,7 +344,8 @@ fn alpha_beta<NODE: NodeType>(
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            - distance_to_pv as i32 * 100 / 140;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
             && tt_flag != Upper {
