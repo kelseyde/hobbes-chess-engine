@@ -107,7 +107,7 @@ pub unsafe fn store_v128(ptr: *mut u16, v: uint16x8_t) {
 #[inline(always)]
 pub unsafe fn add_v128(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     vaddq_u16(
-        std::mem::transmute(a), 
+        std::mem::transmute(a),
         std::mem::transmute(b)
     )
 }

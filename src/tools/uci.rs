@@ -248,7 +248,7 @@ impl UCI {
         self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
-            let mut legal_moves = self.board.gen_moves(MoveFilter::All);
+            let legal_moves = self.board.gen_moves(MoveFilter::All);
             let legal_move = legal_moves
                 .iter()
                 .map(|entry| entry.mv)
