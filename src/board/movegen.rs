@@ -1,14 +1,14 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
+use crate::board::moves::{MoveFlag, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
-use crate::board::Board;
 use crate::board::{attacks, castling, ray};
+use crate::board::{setwise, Board};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -23,11 +23,11 @@ impl Board {
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
-        let mut moves = self.gen_moves(MoveFilter::All);
+        let moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add(MoveListEntry {
+                legal_moves.add(ScoredMove {
                     mv: entry.mv,
                     score: 0,
                 })
@@ -86,22 +86,15 @@ impl Board {
         let king = self.king(side);
         let occ = self.occ() ^ king;
         let them = !side;
+
+        let pawns = self.pawns(them);
+        let knights = self.knights(them);
+        let diags = self.diags(them);
+        let orthos = self.orthos(them);
         let mut threats = Bitboard::empty();
 
-        threats |= attacks::pawn_attacks(self.pawns(them), them);
-
-        for sq in self.knights(them) {
-            threats |= attacks::knight(sq);
-        }
-
-        for sq in self.diags(them) {
-            threats |= attacks::bishop(sq, occ);
-        }
-
-        for sq in self.orthos(them) {
-            threats |= attacks::rook(sq, occ);
-        }
-
+        threats |= attacks::pawn_attacks(pawns, them);
+        threats |= setwise::knights_and_sliders_setwise(knights, orthos, diags, occ);
         threats |= attacks::king(self.king_sq(them));
 
         threats

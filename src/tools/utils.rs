@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! tunable_params {
 
-    ($($name:ident = $val:expr, $min:expr, $max:expr, $step:expr, $spsa:expr;)*) => {
+    ($($name:ident = $val:expr, $min:literal ..= $max:literal, $spsa:expr;)*) => {
         #[cfg(feature = "tuning")]
         use std::sync::atomic::Ordering;
 

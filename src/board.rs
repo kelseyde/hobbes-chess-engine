@@ -12,6 +12,41 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod setwise {
+    #[cfg(target_feature = "avx512f")]
+    mod avx512;
+    #[cfg(target_feature = "avx512f")]
+    pub use crate::board::setwise::avx512::*;
+
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    mod avx2;
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    pub use crate::board::setwise::avx2::*;
+
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    mod neon;
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    pub use neon::*;
+
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    mod scalar;
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    pub use crate::board::setwise::scalar::*;
+}
 
 use crate::board::castling::Rights;
 use crate::board::zobrist::{Keys, Zobrist};
@@ -487,7 +522,8 @@ impl Board {
         let white_knights = knights & self.white();
         let black_knights = knights & self.black();
         if (!white_knights.is_empty() && !white_bishops.is_empty())
-            || (!black_knights.is_empty() && !black_bishops.is_empty()) {
+            || (!black_knights.is_empty() && !black_bishops.is_empty())
+        {
             return false;
         }
 
