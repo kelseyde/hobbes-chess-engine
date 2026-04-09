@@ -23,8 +23,8 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    piece_to_entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
-    from_to_entries: Box<[FromToHistory<FromToHistory<i16>>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<PieceToHistory<i16>>; ContinuationHistory::PLIES.len()]>,
+    from_to_entries: Box<[FromToHistory<FromToHistory<i16>>; ContinuationHistory::PLIES.len()]>,
 }
 
 pub struct SquareHistory {
@@ -298,8 +298,8 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2]);
-        self.from_to_entries = Box::new([[[[[0; 64]; 64]; 64]; 64]; 2]);
+        self.piece_to_entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; ContinuationHistory::PLIES.len()]);
+        self.from_to_entries = Box::new([[[[[0; 64]; 64]; 64]; 64]; ContinuationHistory::PLIES.len()]);
     }
 }
 
