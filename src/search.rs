@@ -344,8 +344,7 @@ fn alpha_beta<NODE: NodeType>(
         let futility_margin = rfp_base()
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
-            - distance_to_pv as i32 * 100 / 140;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
             && tt_flag != Upper {
@@ -634,6 +633,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r += 64 * distance_to_pv as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
