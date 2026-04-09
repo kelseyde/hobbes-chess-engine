@@ -216,17 +216,12 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-        let killer_bonus = if td.stack.is_killer(ply, *mv) {
+        let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             10_000_000
         } else {
             0
         };
-        let direct_check_bonus = if board.gives_direct_check(*mv) && see::see(board, mv, -100, SeeType::Ordering) {
-            8192
-        } else {
-            0
-        };
-        entry.score = quiet_score + cont_score + killer_bonus + direct_check_bonus;
+        entry.score = killer_bonus + quiet_score + cont_score;
     }
 }
 

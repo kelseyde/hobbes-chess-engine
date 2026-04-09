@@ -487,7 +487,8 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mated
-            && static_eval + futility_margin <= alpha {
+            && static_eval + futility_margin <= alpha
+            && !board.gives_direct_check(mv) {
             move_picker.skip_quiets = true;
             continue;
         }
