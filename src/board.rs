@@ -356,6 +356,7 @@ impl Board {
         }
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
+        self.check_zones = self.calc_check_zones();
     }
 
     pub const fn hash(&self) -> u64 {
