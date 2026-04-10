@@ -49,10 +49,17 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         permute_i16s(&mut dst.l0_biases, order, chunk_size, block_size);
     }
 
+    // L1 weights: transpose from [input][bucket][output] to sparse-friendly layout
+    // [bucket][input_block][output * 4 + byte_within_block]
+    // where input_block = input_idx / 4, byte_within_block = input_idx % 4.
+    // This groups the 4 weight bytes for each output neuron contiguously per input block.
     for input_idx in 0..L1_SIZE {
+        let input_block = input_idx / 4;
+        let byte_within_block = input_idx % 4;
         for bucket in 0..OUTPUT_BUCKET_COUNT {
             for output_idx in 0..L2_SIZE {
-                dst.l1_weights[bucket][output_idx][input_idx] =
+                let dst_offset = input_block * (L2_SIZE * 4) + output_idx * 4 + byte_within_block;
+                dst.l1_weights[bucket][dst_offset] =
                     src.l1_weights[input_idx][bucket][output_idx];
             }
         }

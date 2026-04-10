@@ -1,4 +1,4 @@
-use hobbes_nnue_arch::L0_SHIFT;
+use hobbes_nnue_arch::{L0_SHIFT, L1_SIZE};
 use std::{arch::x86_64::*, mem::size_of};
 
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
@@ -20,6 +20,12 @@ pub unsafe fn store_u8(ptr: *mut u8, v: __m512i) {
 #[inline(always)]
 pub unsafe fn load_i8(ptr: *const i8) -> __m512i {
     _mm512_loadu_si512(ptr as *const __m512i)
+}
+
+/// Reinterpret an i32 vector as an i8 vector (no-op on x86, same __m512i type).
+#[inline(always)]
+pub unsafe fn reinterpret_i32_as_i8(v: __m512i) -> __m512i {
+    v
 }
 
 #[inline(always)]
@@ -159,3 +165,82 @@ pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m512i, __m512i, __m
         _mm512_loadu_si512(ptr.add(3 * stride) as *const __m512i),
     )
 }
+
+/// Find non-zero i32 blocks in the u8 activation buffer.
+/// AVX512 has 16 i32 lanes per vector. We use _mm512_test_epi32_mask to get a 16-bit mask,
+/// then split it into two 8-bit halves to use the same 256-entry lookup table.
+#[inline(always)]
+pub unsafe fn find_nnz(
+    input: &[u8; L1_SIZE],
+    nnz: &mut [u16; L1_SIZE / 4],
+) -> usize {
+    let input_ptr = input.as_ptr() as *const __m512i;
+    let num_blocks = L1_SIZE / 4;
+    let num_vecs = num_blocks / I32_LANES; // 320 / 16 = 20
+
+    let mut count: usize = 0;
+
+    for i in 0..num_vecs {
+        let vec = _mm512_loadu_si512(input_ptr.add(i));
+        let mask = _mm512_test_epi32_mask(vec, vec); // 16-bit mask
+
+        // Process low 8 bits
+        let lo_mask = (mask & 0xFF) as usize;
+        let lo_base = (i * I32_LANES) as u16;
+        let lo_entry = &NNZ_TABLE[lo_mask];
+        let lo_count = NNZ_COUNT[lo_mask] as usize;
+        for j in 0..lo_count {
+            *nnz.get_unchecked_mut(count + j) = lo_base + lo_entry[j];
+        }
+        count += lo_count;
+
+        // Process high 8 bits
+        let hi_mask = ((mask >> 8) & 0xFF) as usize;
+        let hi_base = (i * I32_LANES + 8) as u16;
+        let hi_entry = &NNZ_TABLE[hi_mask];
+        let hi_count = NNZ_COUNT[hi_mask] as usize;
+        for j in 0..hi_count {
+            *nnz.get_unchecked_mut(count + j) = hi_base + hi_entry[j];
+        }
+        count += hi_count;
+    }
+
+    count
+}
+
+/// For an 8-bit mask (0..256), maps each mask to the indices of set bits.
+const NNZ_TABLE: [[u16; 8]; 256] = {
+    let mut table = [[0u16; 8]; 256];
+    let mut mask = 0usize;
+    while mask < 256 {
+        let mut idx = 0;
+        let mut bit = 0;
+        while bit < 8 {
+            if mask & (1 << bit) != 0 {
+                table[mask][idx] = bit as u16;
+                idx += 1;
+            }
+            bit += 1;
+        }
+        mask += 1;
+    }
+    table
+};
+
+const NNZ_COUNT: [u8; 256] = {
+    let mut counts = [0u8; 256];
+    let mut mask = 0usize;
+    while mask < 256 {
+        let mut c = 0u8;
+        let mut bit = 0;
+        while bit < 8 {
+            if mask & (1 << bit) != 0 {
+                c += 1;
+            }
+            bit += 1;
+        }
+        counts[mask] = c;
+        mask += 1;
+    }
+    counts
+};

@@ -1,4 +1,4 @@
-use hobbes_nnue_arch::L0_SHIFT;
+use hobbes_nnue_arch::{L0_SHIFT, L1_SIZE};
 use std::{arch::x86_64::*, mem::size_of};
 
 pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
@@ -20,6 +20,12 @@ pub unsafe fn store_u8(ptr: *mut u8, v: __m256i) {
 #[inline(always)]
 pub unsafe fn load_i8(ptr: *const i8) -> __m256i {
     _mm256_loadu_si256(ptr as *const __m256i)
+}
+
+/// Reinterpret an i32 vector as an i8 vector (no-op on x86, same __m256i type).
+#[inline(always)]
+pub unsafe fn reinterpret_i32_as_i8(v: __m256i) -> __m256i {
+    v
 }
 
 #[inline(always)]
@@ -165,3 +171,73 @@ pub unsafe fn splat_i32_x4(a: i32) -> (__m256i, __m256i, __m256i, __m256i) {
     let v = _mm256_set1_epi32(a);
     (v, v, v, v)
 }
+
+
+/// Find non-zero i32 blocks in the u8 activation buffer.
+#[inline(always)]
+pub unsafe fn find_nnz(
+    input: &[u8; L1_SIZE],
+    nnz: &mut [u16; L1_SIZE / 4],
+) -> usize {
+    let input_ptr = input.as_ptr() as *const __m256i;
+    let num_blocks = L1_SIZE / 4;
+    let num_vecs = num_blocks / I32_LANES; // 320 / 8 = 40
+    let zero = _mm256_setzero_si256();
+
+    let mut count: usize = 0;
+
+    for i in 0..num_vecs {
+        let vec = _mm256_loadu_si256(input_ptr.add(i));
+        // Compare each i32 lane against zero; movemask_ps gives one bit per i32 lane
+        let cmp = _mm256_cmpeq_epi32(vec, zero);
+        let mask = (!_mm256_movemask_ps(_mm256_castsi256_ps(cmp))) as u32 & 0xFF;
+        let base = (i * I32_LANES) as u16;
+
+        let entry = &NNZ_TABLE[mask as usize];
+        let num_set = NNZ_COUNT[mask as usize] as usize;
+        for j in 0..num_set {
+            *nnz.get_unchecked_mut(count + j) = base + entry[j];
+        }
+        count += num_set;
+    }
+
+    count
+}
+
+/// For an 8-lane i32 mask (0..256), maps each mask to the indices of set bits.
+const NNZ_TABLE: [[u16; 8]; 256] = {
+    let mut table = [[0u16; 8]; 256];
+    let mut mask = 0usize;
+    while mask < 256 {
+        let mut idx = 0;
+        let mut bit = 0;
+        while bit < 8 {
+            if mask & (1 << bit) != 0 {
+                table[mask][idx] = bit as u16;
+                idx += 1;
+            }
+            bit += 1;
+        }
+        mask += 1;
+    }
+    table
+};
+
+const NNZ_COUNT: [u8; 256] = {
+    let mut counts = [0u8; 256];
+    let mut mask = 0usize;
+    while mask < 256 {
+        let mut c = 0u8;
+        let mut bit = 0;
+        while bit < 8 {
+            if mask & (1 << bit) != 0 {
+                c += 1;
+            }
+            bit += 1;
+        }
+        counts[mask] = c;
+        mask += 1;
+    }
+    counts
+};
+

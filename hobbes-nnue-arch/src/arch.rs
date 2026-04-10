@@ -48,12 +48,18 @@ pub struct UntransposedNetwork {
 }
 
 /// The `Network` represents the net in the optimal format for inference, with weights and biases
-/// permuted and transposed into the [bucket][output][input] format.
+/// permuted and transposed for efficient SIMD inference.
+///
+/// L1 weights are stored in sparse-matmul-friendly layout:
+///   [bucket][ input_block ][ output * 4 + byte_within_block ]
+/// where input_block = input_idx / 4, byte_within_block = input_idx % 4.
+/// This groups the 4 weight bytes for each output neuron contiguously per input block,
+/// enabling dpbusd (u8×i8→i32) with splatted activations.
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
     pub l0_biases:  [i16; L1_SIZE],
-    pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l1_weights: [[i8; L1_SIZE * L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE * 2]; OUTPUT_BUCKET_COUNT],
     pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],

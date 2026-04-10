@@ -1,10 +1,14 @@
 use crate::evaluation::{simd, NETWORK};
 use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
-/// L0 ('feature transformer') activation
-/// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
+/// L0 ('feature transformer') activation with NNZ tracking.
+/// Produces u8 activations and a list of non-zero i32-block indices.
+pub unsafe fn activate_l0(
+    us: &[i16; L1_SIZE],
+    them: &[i16; L1_SIZE],
+) -> ([u8; L1_SIZE], [u16; L1_SIZE / 4], usize) {
     let mut output = [0u8; L1_SIZE];
+    let mut nnz = [0u16; L1_SIZE / 4];
 
     let lo = simd::splat_i16(0);
     let hi = simd::splat_i16(L0_QUANT as i16);
@@ -31,124 +35,114 @@ pub unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1
         }
     }
 
-    output
+    let nnz_count = simd::find_nnz(&output, &mut nnz);
+    (output, nnz, nnz_count)
 }
 
-/// L1 propagation
-/// Abandon hope, all ye who enter here.
-pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
+/// L1 propagation — sparse matrix multiplication.
+/// Instead of iterating over all L1_SIZE inputs, we only process non-zero i32 blocks
+/// (groups of 4 u8 activations). This skips the many zero activations produced by
+/// the pairwise CReLU activation.
+///
+/// Weight layout is sparse-friendly: [input_block][output * 4 + byte_within_block].
+/// For a given input block `idx`, the L2_SIZE * 4 = 64 weight bytes are contiguous,
+/// with each group of 4 bytes belonging to one output neuron. This allows dpbusd
+/// with splatted activations: each SIMD lane dot-products the same 4 activation bytes
+/// against 4 different weight bytes for a different output neuron.
+pub unsafe fn propagate_l1(
+    input: &[u8; L1_SIZE],
+    nnz: &[u16],
+    output_bucket: usize,
+) -> [i32; L2_SIZE * 2] {
     let biases = &NETWORK.l1_biases[output_bucket];
+    let weights = NETWORK.l1_weights[output_bucket].as_ptr();
 
-    let mut output = [0i32; L2_SIZE * 2];
+    const L1_CHUNK_PER_32: usize = 4;
+    let input32 = input.as_ptr() as *const i32;
 
-    const STRIDE: usize = simd::I32_LANES * 4;
-    const OUT_UNROLL: usize = 8;
+    // Number of SIMD vectors needed to cover L2_SIZE output neurons.
+    // Each i32 SIMD lane computes the dot product for one output neuron.
+    // L2_SIZE * 4 bytes of weights per input block.
+    //   NEON  (I32_LANES=4,  I8_BYTES=16):  64/16 = 4 vectors
+    //   AVX2  (I32_LANES=8,  I8_BYTES=32):  64/32 = 2 vectors
+    //   AVX512(I32_LANES=16, I8_BYTES=64):  64/64 = 1 vector
+    const WEIGHT_BYTES_PER_BLOCK: usize = L2_SIZE * L1_CHUNK_PER_32;
+    const LANES: usize = WEIGHT_BYTES_PER_BLOCK / (simd::I32_LANES * L1_CHUNK_PER_32);
 
-    let mut out_idx = 0;
-    while out_idx + OUT_UNROLL <= L2_SIZE {
-        let mut w0 = NETWORK.l1_weights[output_bucket][out_idx].as_ptr();
-        let mut w1 = NETWORK.l1_weights[output_bucket][out_idx + 1].as_ptr();
-        let mut w2 = NETWORK.l1_weights[output_bucket][out_idx + 2].as_ptr();
-        let mut w3 = NETWORK.l1_weights[output_bucket][out_idx + 3].as_ptr();
-        let mut w4 = NETWORK.l1_weights[output_bucket][out_idx + 4].as_ptr();
-        let mut w5 = NETWORK.l1_weights[output_bucket][out_idx + 5].as_ptr();
-        let mut w6 = NETWORK.l1_weights[output_bucket][out_idx + 6].as_ptr();
-        let mut w7 = NETWORK.l1_weights[output_bucket][out_idx + 7].as_ptr();
+    // 4 accumulator sets for instruction-level parallelism
+    let mut acc = [[simd::splat_i32(0); LANES]; 4];
 
-        let (mut acc00, mut acc01, mut acc02, mut acc03) = simd::splat_i32_x4(0);
-        let (mut acc10, mut acc11, mut acc12, mut acc13) = simd::splat_i32_x4(0);
-        let (mut acc20, mut acc21, mut acc22, mut acc23) = simd::splat_i32_x4(0);
-        let (mut acc30, mut acc31, mut acc32, mut acc33) = simd::splat_i32_x4(0);
-        let (mut acc40, mut acc41, mut acc42, mut acc43) = simd::splat_i32_x4(0);
-        let (mut acc50, mut acc51, mut acc52, mut acc53) = simd::splat_i32_x4(0);
-        let (mut acc60, mut acc61, mut acc62, mut acc63) = simd::splat_i32_x4(0);
-        let (mut acc70, mut acc71, mut acc72, mut acc73) = simd::splat_i32_x4(0);
+    let nnz_count = nnz.len();
+    let mut nnz_idx = 0;
 
-        let mut in_ptr = input.as_ptr();
-        let end_ptr = input.as_ptr().add(L1_SIZE).sub(4 * STRIDE);
+    // Main loop: process 4 NNZ entries at a time
+    while nnz_idx + 4 <= nnz_count {
+        let idx0 = *nnz.get_unchecked(nnz_idx) as usize;
+        let idx1 = *nnz.get_unchecked(nnz_idx + 1) as usize;
+        let idx2 = *nnz.get_unchecked(nnz_idx + 2) as usize;
+        let idx3 = *nnz.get_unchecked(nnz_idx + 3) as usize;
 
-        while in_ptr <= end_ptr {
-            let in0 = simd::load_u8(in_ptr);
-            let in1 = simd::load_u8(in_ptr.add(STRIDE));
-            let in2 = simd::load_u8(in_ptr.add(2 * STRIDE));
-            let in3 = simd::load_u8(in_ptr.add(3 * STRIDE));
+        // Splat each 4-byte activation block across all SIMD lanes
+        let in0 = simd::reinterpret_i32_as_i8(simd::splat_i32(*input32.add(idx0)));
+        let in1 = simd::reinterpret_i32_as_i8(simd::splat_i32(*input32.add(idx1)));
+        let in2 = simd::reinterpret_i32_as_i8(simd::splat_i32(*input32.add(idx2)));
+        let in3 = simd::reinterpret_i32_as_i8(simd::splat_i32(*input32.add(idx3)));
 
-            let (w0_0, w0_1, w0_2, w0_3) = simd::load_i8x4(w0, STRIDE);
-            (acc00, acc01, acc02, acc03) = simd::dpbusd_x4(
-                acc00, acc01, acc02, acc03, in0, in1, in2, in3, w0_0, w0_1, w0_2, w0_3,
-            );
+        // Weight pointers: for input block `idx`, weights start at idx * WEIGHT_BYTES_PER_BLOCK
+        let w_base0 = weights.add(idx0 * WEIGHT_BYTES_PER_BLOCK);
+        let w_base1 = weights.add(idx1 * WEIGHT_BYTES_PER_BLOCK);
+        let w_base2 = weights.add(idx2 * WEIGHT_BYTES_PER_BLOCK);
+        let w_base3 = weights.add(idx3 * WEIGHT_BYTES_PER_BLOCK);
 
-            let (w1_0, w1_1, w1_2, w1_3) = simd::load_i8x4(w1, STRIDE);
-            (acc10, acc11, acc12, acc13) = simd::dpbusd_x4(
-                acc10, acc11, acc12, acc13, in0, in1, in2, in3, w1_0, w1_1, w1_2, w1_3,
-            );
+        for lane in 0..LANES {
+            let off = lane * simd::I32_LANES * L1_CHUNK_PER_32;
+            let w0 = simd::load_i8(w_base0.add(off));
+            let w1 = simd::load_i8(w_base1.add(off));
+            let w2 = simd::load_i8(w_base2.add(off));
+            let w3 = simd::load_i8(w_base3.add(off));
 
-            let (w2_0, w2_1, w2_2, w2_3) = simd::load_i8x4(w2, STRIDE);
-            (acc20, acc21, acc22, acc23) = simd::dpbusd_x4(
-                acc20, acc21, acc22, acc23, in0, in1, in2, in3, w2_0, w2_1, w2_2, w2_3,
-            );
-
-            let (w3_0, w3_1, w3_2, w3_3) = simd::load_i8x4(w3, STRIDE);
-            (acc30, acc31, acc32, acc33) = simd::dpbusd_x4(
-                acc30, acc31, acc32, acc33, in0, in1, in2, in3, w3_0, w3_1, w3_2, w3_3,
-            );
-
-            let (w4_0, w4_1, w4_2, w4_3) = simd::load_i8x4(w4, STRIDE);
-            (acc40, acc41, acc42, acc43) = simd::dpbusd_x4(
-                acc40, acc41, acc42, acc43, in0, in1, in2, in3, w4_0, w4_1, w4_2, w4_3,
-            );
-
-            let (w5_0, w5_1, w5_2, w5_3) = simd::load_i8x4(w5, STRIDE);
-            (acc50, acc51, acc52, acc53) = simd::dpbusd_x4(
-                acc50, acc51, acc52, acc53, in0, in1, in2, in3, w5_0, w5_1, w5_2, w5_3,
-            );
-
-            let (w6_0, w6_1, w6_2, w6_3) = simd::load_i8x4(w6, STRIDE);
-            (acc60, acc61, acc62, acc63) = simd::dpbusd_x4(
-                acc60, acc61, acc62, acc63, in0, in1, in2, in3, w6_0, w6_1, w6_2, w6_3,
-            );
-
-            let (w7_0, w7_1, w7_2, w7_3) = simd::load_i8x4(w7, STRIDE);
-            (acc70, acc71, acc72, acc73) = simd::dpbusd_x4(
-                acc70, acc71, acc72, acc73, in0, in1, in2, in3, w7_0, w7_1, w7_2, w7_3,
-            );
-
-            in_ptr = in_ptr.add(4 * STRIDE);
-            w0 = w0.add(4 * STRIDE);
-            w1 = w1.add(4 * STRIDE);
-            w2 = w2.add(4 * STRIDE);
-            w3 = w3.add(4 * STRIDE);
-            w4 = w4.add(4 * STRIDE);
-            w5 = w5.add(4 * STRIDE);
-            w6 = w6.add(4 * STRIDE);
-            w7 = w7.add(4 * STRIDE);
+            acc[0][lane] = simd::dpbusd(acc[0][lane], in0, w0);
+            acc[1][lane] = simd::dpbusd(acc[1][lane], in1, w1);
+            acc[2][lane] = simd::dpbusd(acc[2][lane], in2, w2);
+            acc[3][lane] = simd::dpbusd(acc[3][lane], in3, w3);
         }
 
-        (output[out_idx], output[out_idx + L2_SIZE]) =
-            dual_activation(acc00, acc01, acc02, acc03, biases, out_idx);
+        nnz_idx += 4;
+    }
 
-        (output[out_idx + 1], output[out_idx + 1 + L2_SIZE]) =
-            dual_activation(acc10, acc11, acc12, acc13, biases, out_idx + 1);
+    // Tail: remaining NNZ entries
+    while nnz_idx < nnz_count {
+        let idx = *nnz.get_unchecked(nnz_idx) as usize;
+        let in_vec = simd::reinterpret_i32_as_i8(simd::splat_i32(*input32.add(idx)));
+        let w_base = weights.add(idx * WEIGHT_BYTES_PER_BLOCK);
 
-        (output[out_idx + 2], output[out_idx + 2 + L2_SIZE]) =
-            dual_activation(acc20, acc21, acc22, acc23, biases, out_idx + 2);
+        for lane in 0..LANES {
+            let off = lane * simd::I32_LANES * L1_CHUNK_PER_32;
+            let w = simd::load_i8(w_base.add(off));
+            acc[0][lane] = simd::dpbusd(acc[0][lane], in_vec, w);
+        }
 
-        (output[out_idx + 3], output[out_idx + 3 + L2_SIZE]) =
-            dual_activation(acc30, acc31, acc32, acc33, biases, out_idx + 3);
+        nnz_idx += 1;
+    }
 
-        (output[out_idx + 4], output[out_idx + 4 + L2_SIZE]) =
-            dual_activation(acc40, acc41, acc42, acc43, biases, out_idx + 4);
+    // Sum accumulator sets and apply shift, bias, and dual activation
+    let mut output = [0i32; L2_SIZE * 2];
 
-        (output[out_idx + 5], output[out_idx + 5 + L2_SIZE]) =
-            dual_activation(acc50, acc51, acc52, acc53, biases, out_idx + 5);
+    for lane in 0..LANES {
+        let combined = simd::add_i32(
+            simd::add_i32(acc[0][lane], acc[1][lane]),
+            simd::add_i32(acc[2][lane], acc[3][lane]),
+        );
+        simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), combined);
+    }
 
-        (output[out_idx + 6], output[out_idx + 6 + L2_SIZE]) =
-            dual_activation(acc60, acc61, acc62, acc63, biases, out_idx + 6);
-
-        (output[out_idx + 7], output[out_idx + 7 + L2_SIZE]) =
-            dual_activation(acc70, acc71, acc72, acc73, biases, out_idx + 7);
-
-        out_idx += OUT_UNROLL;
+    // Apply shift, bias, and dual activation (crelu + csrelu)
+    for i in 0..L2_SIZE {
+        let shifted = (output[i] >> L1_SHIFT) + biases[i];
+        let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
+        let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
+        output[i] = crelu;
+        output[i + L2_SIZE] = csrelu;
     }
 
     output
@@ -217,20 +211,4 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
     simd::horizontal_sum_i32(acc) + bias
 }
 
-/// Dual activation for L1 outputs:
-/// - crelu: clamp(x, 0, Q) << Q_BITS
-/// - csrelu: clamp(x^2, 0, Q^2)
-unsafe fn dual_activation(
-    acc1: simd::I32Vec,
-    acc2: simd::I32Vec,
-    acc3: simd::I32Vec,
-    acc4: simd::I32Vec,
-    biases: &[i32; L2_SIZE],
-    out_idx: usize,
-) -> (i32, i32) {
-    let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let shifted = (simd::horizontal_sum_i32_single(combined) >> L1_SHIFT) + biases[out_idx];
-    let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
-    let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
-    (crelu, csrelu)
-}
+
