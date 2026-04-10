@@ -75,7 +75,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
             bound = TTFlag::from_score(score, alpha, beta);
 
-            print_search_info(board, td, score.clamp(alpha, beta), bound);
+            print_search_info(board, td, score.clamp(alpha, beta), bound, false);
             update_tm_heuristics(td, prev_mv, prev_score, score);
 
             prev_mv = td.best_move;
@@ -112,7 +112,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    print_search_info(board, td, score.clamp(alpha, beta), bound);
+    print_search_info(board, td, score.clamp(alpha, beta), bound, true);
 
     (td.best_move, td.best_score)
 }
@@ -190,7 +190,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_score = Score::MIN;
     let mut tt_eval = Score::MIN;
     let mut has_tt_score = false;
-    let mut tt_flag = TTFlag::Lower;
+    let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
 
@@ -686,7 +686,7 @@ fn alpha_beta<NODE: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = TTFlag::Exact;
+            flag = Exact;
 
             if pv_node {
                 td.pv.update(ply, mv);
@@ -700,7 +700,7 @@ fn alpha_beta<NODE: NodeType>(
             // won't let us get here assuming perfect play. There is therefore no point searching
             // further, and we can cut off the search.
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
 
@@ -1043,14 +1043,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = TTFlag::Exact;
+            flag = Exact;
 
             if pv_node {
                 td.pv.update(ply, mv);
             }
 
             if score >= beta {
-                flag = TTFlag::Lower;
+                flag = Lower;
                 break;
             }
         }
@@ -1177,12 +1177,12 @@ fn update_tm_heuristics(
     }
 }
 
-fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
+fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
 
     // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, or
     // if we have a fail high/fail low in the first second of the search, to avoid excess noise.
     if !td.main
-        || td.minimal_output
+        || (td.minimal_output && !force)
         || (bound != Exact && td.start_time.elapsed() < Duration::from_secs(1)) {
         return;
     }
@@ -1224,7 +1224,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
-    print_search_info(board, td, static_eval, TTFlag::Exact);
+    print_search_info(board, td, static_eval, Exact, true);
     (td.best_move, td.best_score)
 }
 
