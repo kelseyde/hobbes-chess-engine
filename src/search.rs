@@ -50,7 +50,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut alpha = Score::MIN;
     let mut beta = Score::MAX;
     let mut score = 0;
-    let mut bound = TTFlag::Exact;
+    let mut bound = Exact;
     let mut delta = asp_delta();
     let mut reduction = 0;
     let mut prev_mv = Move::NONE;
@@ -73,36 +73,15 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         loop {
             let search_depth = td.depth - reduction;
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
+            bound = TTFlag::from_score(score, alpha, beta);
 
-            bound = if score <= alpha {
-                TTFlag::Upper
-            } else if score >= beta {
-                TTFlag::Lower
-            } else {
-                TTFlag::Exact
-            };
-            let skip_print =
-                bound != TTFlag::Exact && td.start_time.elapsed() < Duration::from_secs(1);
+            print_search_info(board, td, score.clamp(alpha, beta), bound);
+            update_tm_heuristics(td, prev_mv, prev_score, score);
 
-            if td.main && !td.minimal_output && !skip_print {
-                print_search_info(board, td, score.clamp(alpha, beta), bound);
-            }
-
-            if prev_mv == td.best_move {
-                td.best_move_stability += 1;
-            } else {
-                td.best_move_stability = 0;
-            }
             prev_mv = td.best_move;
-
-            if score - prev_score.abs() < score_stability_threshold() {
-                td.score_stability += 1;
-            } else {
-                td.score_stability = 0;
-            }
             prev_score = score;
 
-            if td.should_stop(Hard) || Score::is_mate(score) {
+            if td.should_stop(Hard) {
                 break;
             }
 
@@ -123,7 +102,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             }
         }
 
-        if td.should_stop(Hard) || Score::is_mate(score) {
+        if td.should_stop(Hard) {
             break;
         }
 
@@ -133,17 +112,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    if td.main {
-        print_search_info(board, td, score.clamp(alpha, beta), bound);
-    }
-
-    // If time expired before a best move was found in search, pick the first legal move.
-    if !td.best_move.exists() {
-        if let Some(root_move) = root_moves.get(0) {
-            println!("info error no best move was found in search, returning random move");
-            td.best_move = root_move.mv;
-        }
-    }
+    print_search_info(board, td, score.clamp(alpha, beta), bound);
 
     (td.best_move, td.best_score)
 }
@@ -1189,7 +1158,34 @@ fn se_text_margin(is_quiet: bool) -> i32 {
     }
 }
 
+fn update_tm_heuristics(
+    td: &mut ThreadData,
+    prev_mv: Move,
+    prev_score: i32,
+    score: i32,
+) {
+    if prev_mv == td.best_move {
+        td.best_move_stability += 1;
+    } else {
+        td.best_move_stability = 0;
+    }
+
+    if score - prev_score.abs() < score_stability_threshold() {
+        td.score_stability += 1;
+    } else {
+        td.score_stability = 0;
+    }
+}
+
 fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag) {
+
+    // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, or
+    // if we have a fail high/fail low in the first second of the search, to avoid excess noise.
+    if !td.main
+        || td.minimal_output
+        || (bound != Exact && td.start_time.elapsed() < Duration::from_secs(1)) {
+        return;
+    }
     let depth = td.depth;
     let seldepth = td.seldepth;
     let nodes = td.nodes;
@@ -1201,8 +1197,8 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     };
     let hashfull = td.tt.fill();
     let bound = match bound {
-        TTFlag::Lower => " lowerbound",
-        TTFlag::Upper => " upperbound",
+        Lower => " lowerbound",
+        Upper => " upperbound",
         _ => "",
     };
     print!(
