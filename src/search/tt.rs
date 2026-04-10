@@ -54,12 +54,12 @@ impl TTFlag {
             TTFlag::Upper => score <= lower,
         }
     }
-    
+
     pub const fn from_score(score: i32, alpha: i32, beta: i32) -> Self {
         match score {
             s if s <= alpha => TTFlag::Upper,
-            s if s >= beta  => TTFlag::Lower,
-            _               => TTFlag::Exact,
+            s if s >= beta => TTFlag::Lower,
+            _ => TTFlag::Exact,
         }
     }
 }

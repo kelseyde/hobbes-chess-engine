@@ -1158,12 +1158,7 @@ fn se_text_margin(is_quiet: bool) -> i32 {
     }
 }
 
-fn update_tm_heuristics(
-    td: &mut ThreadData,
-    prev_mv: Move,
-    prev_score: i32,
-    score: i32,
-) {
+fn update_tm_heuristics(td: &mut ThreadData, prev_mv: Move, prev_score: i32, score: i32) {
     if prev_mv == td.best_move {
         td.best_move_stability += 1;
     } else {
@@ -1178,12 +1173,12 @@ fn update_tm_heuristics(
 }
 
 fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
-
     // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, or
     // if we have a fail high/fail low in the first second of the search, to avoid excess noise.
     if !td.main
         || (td.minimal_output && !force)
-        || (bound != Exact && td.start_time.elapsed() < Duration::from_secs(1)) {
+        || (bound != Exact && td.start_time.elapsed() < Duration::from_secs(1))
+    {
         return;
     }
     let depth = td.depth;
