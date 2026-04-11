@@ -27,28 +27,48 @@ use crate::search::parameters::{
 };
 use crate::tools::utils::boxed_and_zeroed;
 
+/// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
+/// Also known as 'butterfly' history.
 type FromToHistory<T> = [[T; 64]; 64];
+
+/// History table storing values of type `T`, indexed by the type of piece being moved, and the 'to'
+/// square of a move.
 type PieceToHistory<T> = [[T; 64]; 6];
+
+/// A threat bucket stores four values of type `T`, indexed by whether the 'from' and 'to' squares
+/// of a move are threatened by enemy pieces.
 type ThreatBucket<T> = [[T; 2]; 2];
 
+/// History table for quiet moves. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
+/// tables. Each [`QuietHistoryEntry`] contains a [`ThreatBucket`] as well as a factoriser which is
+/// updated regardless of the threat bucket index. The from/to and piece/to entries are linearly
+/// interpolated to get the final score for the move.
 pub struct QuietHistory {
     from_to_entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
     piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
 }
 
+/// History table for captures. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
+/// tables, with the piece/to table additionally indexed by the captured piece type. The from/to
+/// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
     piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
     from_to_entries: Box<[FromToHistory<i16>; 2]>,
 }
 
+/// Continuation history table for quiet moves, indexed by the previous move and the current move.
+/// Stores one table per continuation ply (1, 2), each indexed by the previous piece/to and current
+/// piece/to.
 pub struct ContinuationHistory {
     entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
 }
 
+/// History table indexed by a single square (either the 'from' or 'to' square of a move).
 pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
 
+/// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each quiet move.
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
