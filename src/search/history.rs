@@ -100,17 +100,15 @@ impl Histories {
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
-        let mut cont_score = 0;
-        for prev_ply in ContinuationHistory::PLIES {
-            if ply >= prev_ply {
-                let prev_mv = ss[ply - prev_ply].mv;
-                let prev_pc = ss[ply - prev_ply].pc;
-                if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32;
-                }
-            }
-        }
-        cont_score
+        ContinuationHistory::PLIES
+            .iter()
+            .filter(|&&prev_ply| ply >= prev_ply)
+            .filter_map(|&prev_ply| {
+                let prev = ss[ply - prev_ply];
+                let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
+            })
+            .sum()
     }
 
     pub fn capture_history_score(
@@ -130,26 +128,22 @@ impl Histories {
         ply: usize,
         mv: &Move,
         pc: Piece,
-        bonuses: &[i16; ContinuationHistory::PLIES.len()],
+        bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
         let total_score = self.cont_history_score(board, ss, mv, ply);
-        for (i, &prev_ply) in ContinuationHistory::PLIES.iter().enumerate() {
-            if ply >= prev_ply {
+        let updates = ContinuationHistory::PLIES
+            .iter()
+            .zip(bonuses)
+            .filter(|(&prev_ply, _)| ply >= prev_ply)
+            .filter_map(|(&prev_ply, &bonus)| {
                 let prev = ss[ply - prev_ply];
-                let (prev_mv, prev_pc) = (prev.mv, prev.pc);
-                let bonus = bonuses[i];
-                if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    self.cont_history.update(
-                        &prev_mv,
-                        prev_pc,
-                        mv,
-                        pc,
-                        total_score,
-                        bonus,
-                        prev_ply,
-                    );
-                }
-            }
+                let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                Some((prev_mv, prev_pc, bonus, prev_ply))
+            });
+
+        for (prev_mv, prev_pc, bonus, prev_ply) in updates {
+            self.cont_history
+                .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
         }
     }
 
@@ -283,6 +277,7 @@ impl CaptureHistory {
 
 impl ContinuationHistory {
     const PLIES: [usize; 2] = [1, 2];
+    const PLY_COUNT: usize = Self::PLIES.len();
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
