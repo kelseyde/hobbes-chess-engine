@@ -130,7 +130,7 @@ impl Histories {
         bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
         let total_score = self.cont_history_score(board, ss, mv, ply);
-        let updates = ContinuationHistory::PLIES
+        ContinuationHistory::PLIES
             .iter()
             .zip(bonuses)
             .filter(|(&prev_ply, _)| ply >= prev_ply)
@@ -138,12 +138,9 @@ impl Histories {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
                 Some((prev_mv, prev_pc, bonus, prev_ply))
-            });
-
-        for (prev_mv, prev_pc, bonus, prev_ply) in updates {
-            self.cont_history
-                .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
-        }
+            })
+            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)|
+                self.cont_history.update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply));
     }
 
     pub fn clear(&mut self) {
@@ -260,16 +257,10 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        update_entry(
-            &mut self.piece_to_entries[stm][pc][mv.to()][captured],
-            bonus,
-            Self::MAX,
-        );
-        update_entry(
-            &mut self.from_to_entries[stm][mv.from()][mv.to()],
-            bonus,
-            Self::MAX,
-        );
+        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
+        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        update_entry(pt_entry, bonus, Self::MAX);
+        update_entry(ft_entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
