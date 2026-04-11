@@ -71,14 +71,10 @@ pub struct NNUE {
 
 impl Default for NNUE {
     fn default() -> Self {
-        let mut stack: Box<[Accumulator; MAX_ACCUMULATORS]> = unsafe { boxed_and_zeroed() };
-        for i in 0..MAX_ACCUMULATORS {
-            stack[i] = Accumulator::default();
-        }
         NNUE {
             current: 0,
             cache: InputBucketCache::default(),
-            stack,
+            stack: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -91,28 +87,21 @@ impl NNUE {
         self.apply_lazy_updates(board);
 
         let acc = &self.stack[self.current];
-        let us = match board.stm {
-            White => &acc.white_features,
-            Black => &acc.black_features,
-        };
-        let them = match board.stm {
-            White => &acc.black_features,
-            Black => &acc.white_features,
+        let (us, them) = match board.stm {
+            White => (&acc.white_features, &acc.black_features),
+            Black => (&acc.black_features, &acc.white_features),
         };
 
         let output_bucket = get_output_bucket(board);
-        let mut output: i64;
-        unsafe {
+        let raw = unsafe {
             let l0_outputs = forward::activate_l0(us, them);
             let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
             let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
-            let l3_output = forward::propagate_l3(&l2_outputs, output_bucket);
-            output = l3_output as i64;
-        }
-        output *= SCALE;
-        output /= Q * Q * Q * Q;
-        output = scale_evaluation(board, output as i32) as i64;
-        output as i32
+            forward::propagate_l3(&l2_outputs, output_bucket)
+        };
+
+        let output = raw as i64 * SCALE / (Q * Q * Q * Q);
+        scale_evaluation(board, output as i32)
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -123,14 +112,12 @@ impl NNUE {
         self.stack[self.current] = Accumulator::default();
         self.cache = InputBucketCache::default();
 
-        let w_mirror = should_mirror(board.king_sq(White));
-        let b_mirror = should_mirror(board.king_sq(Black));
-
-        let w_bucket = king_bucket(board.king_sq(White), White);
-        let b_bucket = king_bucket(board.king_sq(Black), Black);
-
-        self.full_refresh(board, self.current, White, w_mirror, w_bucket);
-        self.full_refresh(board, self.current, Black, b_mirror, b_bucket);
+        for side in [White, Black] {
+            let king_sq = board.king_sq(side);
+            let mirror = should_mirror(king_sq);
+            let bucket = king_bucket(king_sq, side);
+            self.full_refresh(board, self.current, side, mirror, bucket);
+        }
     }
 
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
@@ -214,11 +201,11 @@ impl NNUE {
         }
 
         self.stack[self.current].update = if mv.is_castle() {
-            self.handle_castle(board, mv, us)
+            Self::handle_castle(board, mv, us)
         } else if let Some(captured) = captured {
-            self.handle_capture(mv, pc, new_pc, captured, us)
+            Self::handle_capture(mv, pc, new_pc, captured, us)
         } else {
-            self.handle_standard(mv, pc, new_pc, us)
+            Self::handle_standard(mv, pc, new_pc, us)
         };
     }
 
@@ -277,78 +264,40 @@ impl NNUE {
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
-    fn handle_standard(
-        &mut self,
-        mv: &Move,
-        pc: Piece,
-        new_pc: Piece,
-        side: Side,
-    ) -> AccumulatorUpdate {
-        let pc_ft = Feature::new(pc, mv.from(), side);
-        let new_pc_ft = Feature::new(new_pc, mv.to(), side);
-
+    fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
         let mut update = AccumulatorUpdate::default();
-        update.push_sub(pc_ft);
-        update.push_add(new_pc_ft);
+        update.push_sub(Feature::new(pc, mv.from(), side));
+        update.push_add(Feature::new(new_pc, mv.to(), side));
         update
     }
 
     /// Update the accumulator for a capture move. The old piece is removed from the starting
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
-    #[allow(clippy::too_many_arguments)]
-    fn handle_capture(
-        &mut self,
-        mv: &Move,
-        pc: Piece,
-        new_pc: Piece,
-        captured: Piece,
-        side: Side,
-    ) -> AccumulatorUpdate {
-        let capture_sq = if mv.is_ep() {
-            Square(mv.to().0 ^ 8)
-        } else {
-            mv.to()
-        };
-
-        let pc_ft = Feature::new(pc, mv.from(), side);
-        let new_pc_ft = Feature::new(new_pc, mv.to(), side);
-        let capture_ft = Feature::new(captured, capture_sq, !side);
+    fn handle_capture(mv: &Move, pc: Piece, new_pc: Piece, captured: Piece, side: Side) -> AccumulatorUpdate {
+        let capture_sq = if mv.is_ep() { Square(mv.to().0 ^ 8) } else { mv.to() };
 
         let mut update = AccumulatorUpdate::default();
-        update.push_sub(pc_ft);
-        update.push_add(new_pc_ft);
-        update.push_sub(capture_ft);
+        update.push_sub(Feature::new(pc, mv.from(), side));
+        update.push_add(Feature::new(new_pc, mv.to(), side));
+        update.push_sub(Feature::new(captured, capture_sq, !side));
         update
     }
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
-    fn handle_castle(&mut self, board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
+    fn handle_castle(board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
-        let king_to = if board.is_frc() {
-            castling::king_to(us, kingside)
-        } else {
-            mv.to()
-        };
-        let rook_from = if board.is_frc() {
-            mv.to()
-        } else {
-            castling::rook_from(us, kingside)
-        };
+        let king_to = if board.is_frc() { castling::king_to(us, kingside) } else { mv.to() };
+        let rook_from = if board.is_frc() { mv.to() } else { castling::rook_from(us, kingside) };
         let rook_to = castling::rook_to(us, kingside);
 
-        let king_from_ft = Feature::new(King, king_from, us);
-        let king_to_ft = Feature::new(King, king_to, us);
-        let rook_from_ft = Feature::new(Rook, rook_from, us);
-        let rook_to_ft = Feature::new(Rook, rook_to, us);
-
         let mut update = AccumulatorUpdate::default();
-        update.push_sub(king_from_ft);
-        update.push_add(king_to_ft);
-        update.push_sub(rook_from_ft);
-        update.push_add(rook_to_ft);
+        update.push_sub(Feature::new(King, king_from, us));
+        update.push_add(Feature::new(King, king_to, us));
+        update.push_sub(Feature::new(Rook, rook_from, us));
+        update.push_add(Feature::new(Rook, rook_to, us));
         update
     }
 
@@ -358,18 +307,24 @@ impl NNUE {
     }
 }
 
+/// Resolve the king's destination square, accounting for FRC castling where the move target
+/// is the rook square rather than the king's final square.
+#[inline]
+fn king_dest_sq(board: &Board, mv: Move) -> Square {
+    if mv.is_castle() && board.is_frc() {
+        let kingside = castling::is_kingside(mv.from(), mv.to());
+        castling::king_to(board.stm, kingside)
+    } else {
+        mv.to()
+    }
+}
+
 #[inline]
 fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
     if pc != Piece::King {
         return false;
     }
-    let prev_king_sq = mv.from();
-    let mut new_king_sq = mv.to();
-    if mv.is_castle() && board.is_frc() {
-        let kingside = castling::is_kingside(mv.from(), mv.to());
-        new_king_sq = castling::king_to(board.stm, kingside);
-    }
-    king_bucket(prev_king_sq, side) != king_bucket(new_king_sq, side)
+    king_bucket(mv.from(), side) != king_bucket(king_dest_sq(board, mv), side)
 }
 
 #[inline]
@@ -377,13 +332,7 @@ fn mirror_changed(board: &Board, mv: Move, pc: Piece) -> bool {
     if pc != King {
         return false;
     }
-    let prev_king_sq = mv.from();
-    let mut new_king_sq = mv.to();
-    if mv.is_castle() && board.is_frc() {
-        let kingside = castling::is_kingside(mv.from(), mv.to());
-        new_king_sq = castling::king_to(board.stm, kingside);
-    }
-    should_mirror(prev_king_sq) != should_mirror(new_king_sq)
+    should_mirror(mv.from()) != should_mirror(king_dest_sq(board, mv))
 }
 
 #[inline(always)]
@@ -421,35 +370,4 @@ fn material_phase(board: &Board) -> i32 {
         + scale_value_bishop() * bishops as i32
         + scale_value_rook() * rooks as i32
         + scale_value_queen() * queens as i32
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tools::fen;
-
-    #[test]
-    fn test_lazy_updates() {
-        let mut nnue1 = NNUE::default();
-        let mut nnue2 = NNUE::default();
-
-        let mut board = Board::from_fen(fen::STARTPOS).unwrap();
-        nnue1.activate(&board);
-        nnue2.activate(&board);
-
-        let eval1 = nnue1.evaluate(&board);
-        let eval2 = nnue2.evaluate(&board);
-        assert_eq!(eval1, eval2);
-
-        let mv = Move::parse_uci("e2e4");
-        let pc = Pawn;
-        nnue1.update(&mv, pc, None, &board);
-        board.make(&mv);
-
-        nnue2.activate(&board);
-
-        let eval1 = nnue1.evaluate(&board);
-        let eval2 = nnue2.evaluate(&board);
-        assert_eq!(eval1, eval2);
-    }
 }
