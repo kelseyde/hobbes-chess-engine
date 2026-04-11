@@ -274,8 +274,18 @@ impl NNUE {
     /// Update the accumulator for a capture move. The old piece is removed from the starting
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
-    fn handle_capture(mv: &Move, pc: Piece, new_pc: Piece, captured: Piece, side: Side) -> AccumulatorUpdate {
-        let capture_sq = if mv.is_ep() { Square(mv.to().0 ^ 8) } else { mv.to() };
+    fn handle_capture(
+        mv: &Move,
+        pc: Piece,
+        new_pc: Piece,
+        captured: Piece,
+        side: Side,
+    ) -> AccumulatorUpdate {
+        let capture_sq = if mv.is_ep() {
+            Square(mv.to().0 ^ 8)
+        } else {
+            mv.to()
+        };
 
         let mut update = AccumulatorUpdate::default();
         update.push_sub(Feature::new(pc, mv.from(), side));
@@ -289,8 +299,16 @@ impl NNUE {
     fn handle_castle(board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
-        let king_to = if board.is_frc() { castling::king_to(us, kingside) } else { mv.to() };
-        let rook_from = if board.is_frc() { mv.to() } else { castling::rook_from(us, kingside) };
+        let king_to = if board.is_frc() {
+            castling::king_to(us, kingside)
+        } else {
+            mv.to()
+        };
+        let rook_from = if board.is_frc() {
+            mv.to()
+        } else {
+            castling::rook_from(us, kingside)
+        };
         let rook_to = castling::rook_to(us, kingside);
 
         let mut update = AccumulatorUpdate::default();
