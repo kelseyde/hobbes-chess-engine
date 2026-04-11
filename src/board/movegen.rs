@@ -53,7 +53,10 @@ impl Board {
         };
 
         let gen_quiets = matches!(filter, MoveFilter::All | MoveFilter::Quiets);
-        let gen_noisies = matches!(filter, MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures);
+        let gen_noisies = matches!(
+            filter,
+            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
+        );
 
         // Generate king moves first
         self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
@@ -341,11 +344,11 @@ fn add_pawn_promos(targets: Bitboard, side: Side, w_off: u8, b_off: u8, moves: &
 #[inline(always)]
 pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
     let them = !side;
-    let pawns   = board.pawns(them);
+    let pawns = board.pawns(them);
     let knights = board.knights(them);
-    let orthos  = board.orthos(them);
-    let diags   = board.diags(them);
-    let king    = board.king(them);
+    let orthos = board.orthos(them);
+    let diags = board.diags(them);
+    let king = board.king(them);
 
     for sq in bb {
         let attacked = !(attacks::pawn(sq, side) & pawns).is_empty()
