@@ -424,7 +424,6 @@ impl Board {
         self.pcs[sq]
     }
 
-
     #[inline]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() {
