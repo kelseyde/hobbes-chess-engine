@@ -42,7 +42,7 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
+    entries: Box<[[PieceToHistory<[PieceToHistory<i16>; 2]>; 2]; ContinuationHistory::PLY_COUNT]>,
 }
 
 pub struct SquareHistory {
@@ -98,6 +98,7 @@ impl Histories {
     }
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
+        let us = board.stm;
         let pc = board.piece_at(mv.from()).unwrap();
         ContinuationHistory::PLIES
             .iter()
@@ -105,7 +106,7 @@ impl Histories {
             .filter_map(|&prev_ply| {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
-                Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
+                Some(self.cont_history.get(us, prev_mv, prev_pc, mv, pc, prev_ply) as i32)
             })
             .sum()
     }
@@ -129,6 +130,7 @@ impl Histories {
         pc: Piece,
         bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
+        let us = board.stm;
         let total_score = self.cont_history_score(board, ss, mv, ply);
         ContinuationHistory::PLIES
             .iter()
@@ -139,8 +141,8 @@ impl Histories {
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
                 Some((prev_mv, prev_pc, bonus, prev_ply))
             })
-            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)|
-                self.cont_history.update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply));
+            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)| self.cont_history
+                .update(us, &prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply));
     }
 
     pub fn clear(&mut self) {
@@ -275,14 +277,15 @@ impl ContinuationHistory {
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
-    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
-        let index = (prev_ply & 1 == 0) as usize;
-        self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()]
+    pub fn get(&self, side: Side, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
+        let ply_index = Self::ply_index(prev_ply);
+        self.entries[ply_index][side][prev_pc][prev_mv.to()][!side][pc][mv.to()]
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
+        side: Side,
         prev_mv: &Move,
         prev_pc: Piece,
         mv: &Move,
@@ -291,14 +294,18 @@ impl ContinuationHistory {
         bonus: i16,
         prev_ply: usize,
     ) {
-        let index = (prev_ply & 1 == 0) as usize;
-        let entry = &mut self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()];
+        let ply_index = Self::ply_index(prev_ply);
+        let entry = &mut self.entries[ply_index][side][prev_pc][prev_mv.to()][!side][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        self.entries = Box::new([[[[[[[0; 64]; 6]; 2]; 64]; 6]; 2]; 2]);
+    }
+
+    const fn ply_index(prev_ply: usize) -> usize {
+        (prev_ply & 1 == 0) as usize
     }
 }
 
