@@ -13,10 +13,9 @@ use crate::search::parameters::{
     cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
     cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
     from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_hist_1_bonus_max, lmr_cont_hist_1_bonus_offset, lmr_cont_hist_1_bonus_scale,
-    lmr_cont_hist_1_malus_max, lmr_cont_hist_1_malus_offset, lmr_cont_hist_1_malus_scale,
-    lmr_cont_hist_2_bonus_max, lmr_cont_hist_2_bonus_offset, lmr_cont_hist_2_bonus_scale,
-    lmr_cont_hist_2_malus_max, lmr_cont_hist_2_malus_offset, lmr_cont_hist_2_malus_scale,
+    lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
+    lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
+    lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
     pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
     qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
     qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
@@ -100,17 +99,15 @@ impl Histories {
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
         let pc = board.piece_at(mv.from()).unwrap();
-        let mut cont_score = 0;
-        for prev_ply in ContinuationHistory::PLIES {
-            if ply >= prev_ply {
-                let prev_mv = ss[ply - prev_ply].mv;
-                let prev_pc = ss[ply - prev_ply].pc;
-                if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    cont_score += self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32;
-                }
-            }
-        }
-        cont_score
+        ContinuationHistory::PLIES
+            .iter()
+            .filter(|&&prev_ply| ply >= prev_ply)
+            .filter_map(|&prev_ply| {
+                let prev = ss[ply - prev_ply];
+                let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
+            })
+            .sum()
     }
 
     pub fn capture_history_score(
@@ -130,26 +127,22 @@ impl Histories {
         ply: usize,
         mv: &Move,
         pc: Piece,
-        bonuses: &[i16; ContinuationHistory::PLIES.len()],
+        bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
         let total_score = self.cont_history_score(board, ss, mv, ply);
-        for (i, &prev_ply) in ContinuationHistory::PLIES.iter().enumerate() {
-            if ply >= prev_ply {
+        let updates = ContinuationHistory::PLIES
+            .iter()
+            .zip(bonuses)
+            .filter(|(&prev_ply, _)| ply >= prev_ply)
+            .filter_map(|(&prev_ply, &bonus)| {
                 let prev = ss[ply - prev_ply];
-                let (prev_mv, prev_pc) = (prev.mv, prev.pc);
-                let bonus = bonuses[i];
-                if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
-                    self.cont_history.update(
-                        &prev_mv,
-                        prev_pc,
-                        mv,
-                        pc,
-                        total_score,
-                        bonus,
-                        prev_ply,
-                    );
-                }
-            }
+                let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                Some((prev_mv, prev_pc, bonus, prev_ply))
+            });
+
+        for (prev_mv, prev_pc, bonus, prev_ply) in updates {
+            self.cont_history
+                .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
         }
     }
 
@@ -267,12 +260,16 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-
-        let entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
-
-        let entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+        update_entry(
+            &mut self.piece_to_entries[stm][pc][mv.to()][captured],
+            bonus,
+            Self::MAX,
+        );
+        update_entry(
+            &mut self.from_to_entries[stm][mv.from()][mv.to()],
+            bonus,
+            Self::MAX,
+        );
     }
 
     pub fn clear(&mut self) {
@@ -283,6 +280,7 @@ impl CaptureHistory {
 
 impl ContinuationHistory {
     const PLIES: [usize; 2] = [1, 2];
+    const PLY_COUNT: usize = Self::PLIES.len();
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
@@ -322,9 +320,8 @@ impl SquareHistory {
     }
 
     pub fn update(&mut self, stm: Side, sq: Square, bonus: i16) {
-        let entry = &mut self.entries[stm][sq];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        *entry = gravity(*entry as i32, bonus as i32, Self::MAX) as i16;
+        update_entry(&mut self.entries[stm][sq], bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
@@ -339,11 +336,9 @@ pub struct ThreatIndex {
 
 impl ThreatIndex {
     pub fn new(mv: Move, threats: Bitboard) -> Self {
-        let from_attacked = threats.contains(mv.from());
-        let to_attacked = threats.contains(mv.to());
         ThreatIndex {
-            from_attacked,
-            to_attacked,
+            from_attacked: threats.contains(mv.from()),
+            to_attacked: threats.contains(mv.to()),
         }
     }
 
@@ -356,169 +351,77 @@ impl ThreatIndex {
     }
 }
 
-pub fn quiet_history_bonus(depth: i32) -> i16 {
-    let scale = quiet_hist_bonus_scale() as i16;
-    let offset = quiet_hist_bonus_offset() as i16;
-    let max = quiet_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn quiet_history_factoriser_bonus(depth: i32) -> i16 {
-    let scale = quiet_fact_bonus_scale() as i16;
-    let offset = quiet_fact_bonus_offset() as i16;
-    let max = quiet_fact_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn quiet_history_malus(depth: i32) -> i16 {
-    let scale = quiet_hist_malus_scale() as i16;
-    let offset = quiet_hist_malus_offset() as i16;
-    let max = quiet_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn quiet_history_factoriser_malus(depth: i32) -> i16 {
-    let scale = quiet_fact_malus_scale() as i16;
-    let offset = quiet_fact_malus_offset() as i16;
-    let max = quiet_fact_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn capture_history_bonus(depth: i32) -> i16 {
-    let scale = capt_hist_bonus_scale() as i16;
-    let offset = capt_hist_bonus_offset() as i16;
-    let max = capt_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn capture_history_malus(depth: i32) -> i16 {
-    let scale = capt_hist_malus_scale() as i16;
-    let offset = capt_hist_malus_offset() as i16;
-    let max = capt_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn cont_history_1_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_1_bonus_scale() as i16;
-    let offset = cont_hist_1_bonus_offset() as i16;
-    let max = cont_hist_1_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn cont_history_1_malus(depth: i32) -> i16 {
-    let scale = cont_hist_1_malus_scale() as i16;
-    let offset = cont_hist_1_malus_offset() as i16;
-    let max = cont_hist_1_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn cont_history_2_bonus(depth: i32) -> i16 {
-    let scale = cont_hist_2_bonus_scale() as i16;
-    let offset = cont_hist_2_bonus_offset() as i16;
-    let max = cont_hist_2_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn cont_history_2_malus(depth: i32) -> i16 {
-    let scale = cont_hist_2_malus_scale() as i16;
-    let offset = cont_hist_2_malus_offset() as i16;
-    let max = cont_hist_2_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn prior_countermove_bonus(depth: i32) -> i16 {
-    let scale = pcm_bonus_scale() as i16;
-    let offset = pcm_bonus_offset() as i16;
-    let max = pcm_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn from_history_bonus(depth: i32) -> i16 {
-    let scale = from_hist_bonus_scale() as i16;
-    let offset = from_hist_bonus_offset() as i16;
-    let max = from_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn from_history_malus(depth: i32) -> i16 {
-    let scale = from_hist_malus_scale() as i16;
-    let offset = from_hist_malus_offset() as i16;
-    let max = from_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn to_history_bonus(depth: i32) -> i16 {
-    let scale = to_hist_bonus_scale() as i16;
-    let offset = to_hist_bonus_offset() as i16;
-    let max = to_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn to_history_malus(depth: i32) -> i16 {
-    let scale = to_hist_malus_scale() as i16;
-    let offset = to_hist_malus_offset() as i16;
-    let max = to_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn qs_capthist_bonus(depth: i32) -> i16 {
-    let scale = qs_capt_hist_bonus_scale() as i16;
-    let offset = qs_capt_hist_bonus_offset() as i16;
-    let max = qs_capt_hist_bonus_max() as i16;
-    history_bonus(depth, scale, offset, max)
-}
-
-pub fn qs_capthist_malus(depth: i32) -> i16 {
-    let scale = qs_capt_hist_malus_scale() as i16;
-    let offset = qs_capt_hist_malus_offset() as i16;
-    let max = qs_capt_hist_malus_max() as i16;
-    history_malus(depth, scale, offset, max)
-}
-
-pub fn lmr_conthist_1_bonus(depth: i32, good: bool) -> i16 {
-    if good {
-        let scale = lmr_cont_hist_1_bonus_scale() as i16;
-        let offset = lmr_cont_hist_1_bonus_offset() as i16;
-        let max = lmr_cont_hist_1_bonus_max() as i16;
-        history_bonus(depth, scale, offset, max)
-    } else {
-        let scale = lmr_cont_hist_1_malus_scale() as i16;
-        let offset = lmr_cont_hist_1_malus_offset() as i16;
-        let max = lmr_cont_hist_1_malus_max() as i16;
-        history_malus(depth, scale, offset, max)
-    }
-}
-
-pub fn lmr_conthist_2_bonus(depth: i32, good: bool) -> i16 {
-    if good {
-        let scale = lmr_cont_hist_2_bonus_scale() as i16;
-        let offset = lmr_cont_hist_2_bonus_offset() as i16;
-        let max = lmr_cont_hist_2_bonus_max() as i16;
-        history_bonus(depth, scale, offset, max)
-    } else {
-        let scale = lmr_cont_hist_2_malus_scale() as i16;
-        let offset = lmr_cont_hist_2_malus_offset() as i16;
-        let max = lmr_cont_hist_2_malus_max() as i16;
-        history_malus(depth, scale, offset, max)
-    }
-}
-
+/// Compute a history bonus, using the formula `scale * depth - offset`, clamped to the maximum bonus.
 fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
     (scale * depth as i16 - offset).min(max)
 }
 
+/// Compute a history malus, using the formula `-(scale * depth - offset)`, clamped to the maximum malus.
 fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
     -(scale * depth as i16 - offset).min(max)
 }
 
-fn gravity(current: i32, update: i32, max: i32) -> i32 {
-    current + update - current * update.abs() / max
+/// Apply the gravity formula to a single `i16` table entry in-place.
+#[inline]
+fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
+    *entry = gravity(*entry as i32, bonus as i32, max) as i16;
 }
 
+/// Gravity formula for history updates, using the current value of the entry as the base for the update.
+fn gravity(current: i32, update: i32, max: i32) -> i32 {
+    gravity_with_base(current, update, current, max)
+}
+
+/// Gravity formula for history updates, weighting the update by the current value of the entry.
 fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
 }
 
+/// Linearly interpolate between two history scores, using the provided factor (0-100).
 fn lerp(a: i32, b: i32, factor: i32) -> i32 {
     (a * (100 - factor) + b * factor) / 100
 }
+
+#[rustfmt::skip]
+mod bonuses {
+    use super::*;
+
+    // Defines a history bonus and malus function pair, using the provided tunable parameters.
+    macro_rules! history_bonuses {
+        (
+            $bonus_fn:ident ($bs:ident, $bo:ident, $bm:ident),
+            $malus_fn:ident ($ms:ident, $mo:ident, $mm:ident)
+        ) => {
+            pub fn $bonus_fn(depth: i32) -> i16 {
+                history_bonus(depth, $bs() as i16, $bo() as i16, $bm() as i16)
+            }
+            pub fn $malus_fn(depth: i32) -> i16 {
+                history_malus(depth, $ms() as i16, $mo() as i16, $mm() as i16)
+            }
+        };
+    }
+
+    history_bonuses!(quiet_history_bonus       (quiet_hist_bonus_scale,    quiet_hist_bonus_offset,    quiet_hist_bonus_max),
+                     quiet_history_malus       (quiet_hist_malus_scale,    quiet_hist_malus_offset,    quiet_hist_malus_max));
+    history_bonuses!(quiet_factoriser_bonus    (quiet_fact_bonus_scale,    quiet_fact_bonus_offset,    quiet_fact_bonus_max),
+                     quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_offset,    quiet_fact_malus_max));
+    history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_offset,     capt_hist_bonus_max),
+                     capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_offset,     capt_hist_malus_max));
+    history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max),
+                     cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
+    history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
+                     cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
+    history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
+                     from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
+    history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
+                     to_history_malus          (to_hist_malus_scale,       to_hist_malus_offset,       to_hist_malus_max));
+    history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max),
+                     qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max));
+    history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max),
+                     lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
+    history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
+                     lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
+    history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
+                     prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
+}
+pub use bonuses::*;
