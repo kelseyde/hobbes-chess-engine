@@ -355,64 +355,47 @@ fn lerp(a: i32, b: i32, factor: i32) -> i32 {
     (a * (100 - factor) + b * factor) / 100
 }
 
+#[rustfmt::skip]
+mod bonuses {
+    use super::*;
 
-// Defines a history bonus and malus function pair, using the provided tunable parameters.
-macro_rules! history_bonuses {
-    (
-        $bonus_fn:ident ($bs:ident, $bo:ident, $bm:ident),
-        $malus_fn:ident ($ms:ident, $mo:ident, $mm:ident)
-    ) => {
-        pub fn $bonus_fn(depth: i32) -> i16 {
-            history_bonus(depth, $bs() as i16, $bo() as i16, $bm() as i16)
-        }
-        pub fn $malus_fn(depth: i32) -> i16 {
-            history_malus(depth, $ms() as i16, $mo() as i16, $mm() as i16)
-        }
-    };
+    // Defines a history bonus and malus function pair, using the provided tunable parameters.
+    macro_rules! history_bonuses {
+        (
+            $bonus_fn:ident ($bs:ident, $bo:ident, $bm:ident),
+            $malus_fn:ident ($ms:ident, $mo:ident, $mm:ident)
+        ) => {
+            pub fn $bonus_fn(depth: i32) -> i16 {
+                history_bonus(depth, $bs() as i16, $bo() as i16, $bm() as i16)
+            }
+            pub fn $malus_fn(depth: i32) -> i16 {
+                history_malus(depth, $ms() as i16, $mo() as i16, $mm() as i16)
+            }
+        };
+    }
+
+    history_bonuses!(quiet_history_bonus       (quiet_hist_bonus_scale,    quiet_hist_bonus_offset,    quiet_hist_bonus_max),
+                     quiet_history_malus       (quiet_hist_malus_scale,    quiet_hist_malus_offset,    quiet_hist_malus_max));
+    history_bonuses!(quiet_factoriser_bonus    (quiet_fact_bonus_scale,    quiet_fact_bonus_offset,    quiet_fact_bonus_max),
+                     quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_offset,    quiet_fact_malus_max));
+    history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_offset,     capt_hist_bonus_max),
+                     capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_offset,     capt_hist_malus_max));
+    history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max),
+                     cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
+    history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
+                     cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
+    history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
+                     from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
+    history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
+                     to_history_malus          (to_hist_malus_scale,       to_hist_malus_offset,       to_hist_malus_max));
+    history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max),
+                     qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max));
+    history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max),
+                     lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
+    history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
+                     lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
+    history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
+                     prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
-
-history_bonuses!(
-    quiet_history_bonus (quiet_hist_bonus_scale, quiet_hist_bonus_offset, quiet_hist_bonus_max),
-    quiet_history_malus (quiet_hist_malus_scale, quiet_hist_malus_offset, quiet_hist_malus_max)
-);
-history_bonuses!(
-    quiet_factoriser_bonus (quiet_fact_bonus_scale, quiet_fact_bonus_offset, quiet_fact_bonus_max),
-    quiet_factoriser_malus (quiet_fact_malus_scale, quiet_fact_malus_offset, quiet_fact_malus_max)
-);
-history_bonuses!(
-    capture_history_bonus (capt_hist_bonus_scale, capt_hist_bonus_offset, capt_hist_bonus_max),
-    capture_history_malus (capt_hist_malus_scale, capt_hist_malus_offset, capt_hist_malus_max)
-);
-history_bonuses!(
-    cont_history_1_bonus (cont_hist_1_bonus_scale, cont_hist_1_bonus_offset, cont_hist_1_bonus_max),
-    cont_history_1_malus (cont_hist_1_malus_scale, cont_hist_1_malus_offset, cont_hist_1_malus_max)
-);
-history_bonuses!(
-    cont_history_2_bonus (cont_hist_2_bonus_scale, cont_hist_2_bonus_offset, cont_hist_2_bonus_max),
-    cont_history_2_malus (cont_hist_2_malus_scale, cont_hist_2_malus_offset, cont_hist_2_malus_max)
-);
-history_bonuses!(
-    from_history_bonus (from_hist_bonus_scale, from_hist_bonus_offset, from_hist_bonus_max),
-    from_history_malus (from_hist_malus_scale, from_hist_malus_offset, from_hist_malus_max)
-);
-history_bonuses!(
-    to_history_bonus (to_hist_bonus_scale, to_hist_bonus_offset, to_hist_bonus_max),
-    to_history_malus (to_hist_malus_scale, to_hist_malus_offset, to_hist_malus_max)
-);
-history_bonuses!(
-    qs_capthist_bonus (qs_capt_hist_bonus_scale, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_max),
-    qs_capthist_malus (qs_capt_hist_malus_scale, qs_capt_hist_malus_offset, qs_capt_hist_malus_max)
-);
-history_bonuses!(
-    lmr_conthist_1_bonus (lmr_cont_1_bonus_scale, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_max),
-    lmr_conthist_1_malus (lmr_cont_1_malus_scale, lmr_cont_1_malus_offset, lmr_cont_1_malus_max)
-);
-history_bonuses!(
-    lmr_conthist_2_bonus (lmr_cont_2_bonus_scale, lmr_cont_2_bonus_offset, lmr_cont_2_bonus_max),
-    lmr_conthist_2_malus (lmr_cont_2_malus_scale, lmr_cont_2_malus_offset, lmr_cont_2_malus_max)
-);
-history_bonuses!(
-    prior_countermove_bonus (pcm_bonus_scale, pcm_bonus_offset, pcm_bonus_max),
-    prior_countermove_malus (pcm_bonus_scale, pcm_bonus_offset, pcm_bonus_max)
-);
+pub use bonuses::*;
 
