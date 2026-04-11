@@ -343,20 +343,8 @@ fn add_pawn_promos(targets: Bitboard, side: Side, w_off: u8, b_off: u8, moves: &
 
 #[inline(always)]
 pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
-    let them = !side;
-    let pawns = board.pawns(them);
-    let knights = board.knights(them);
-    let orthos = board.orthos(them);
-    let diags = board.diags(them);
-    let king = board.king(them);
-
     for sq in bb {
-        let attacked = !(attacks::pawn(sq, side) & pawns).is_empty()
-            || !(attacks::knight(sq) & knights).is_empty()
-            || !(attacks::rook(sq, occ) & orthos).is_empty()
-            || !(attacks::bishop(sq, occ) & diags).is_empty()
-            || !(attacks::king(sq) & king).is_empty();
-        if attacked {
+        if is_sq_attacked(sq, side, occ, board) {
             return true;
         }
     }
@@ -366,11 +354,28 @@ pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bo
 #[inline(always)]
 pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> bool {
     let them = !side;
-    !(attacks::pawn(sq, side) & board.pawns(them)).is_empty()
-        || !(attacks::knight(sq) & board.knights(them)).is_empty()
-        || !(attacks::rook(sq, occ) & board.orthos(them)).is_empty()
-        || !(attacks::bishop(sq, occ) & board.diags(them)).is_empty()
-        || !(attacks::king(sq) & board.king(them)).is_empty()
+
+    if !(attacks::pawn(sq, side) & board.pawns(them)).is_empty() {
+        return true;
+    }
+
+    if !(attacks::knight(sq) & board.knights(them)).is_empty() {
+        return true;
+    }
+
+    if !(attacks::rook(sq, occ) & board.orthos(them)).is_empty() {
+        return true;
+    }
+
+    if !(attacks::bishop(sq, occ) & board.diags(them)).is_empty() {
+        return true;
+    }
+
+    if !(attacks::king(sq) & board.king(them)).is_empty() {
+        return true;
+    }
+
+    false
 }
 
 #[inline(always)]
