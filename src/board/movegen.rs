@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList, ScoredMove};
+use crate::board::moves::{MoveFlag, MoveList};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
@@ -27,10 +27,7 @@ impl Board {
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add(ScoredMove {
-                    mv: entry.mv,
-                    score: 0,
-                })
+                legal_moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
             }
         }
         legal_moves
@@ -52,9 +49,11 @@ impl Board {
         let filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
             MoveFilter::Quiets => !them,
-            MoveFilter::Noisies => them,
-            MoveFilter::Captures => them,
+            MoveFilter::Noisies | MoveFilter::Captures => them,
         };
+
+        let gen_quiets = matches!(filter, MoveFilter::All | MoveFilter::Quiets);
+        let gen_noisies = matches!(filter, MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures);
 
         // Generate king moves first
         self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
@@ -65,8 +64,8 @@ impl Board {
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
-        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, &mut moves);
+        if gen_quiets {
             gen_castle_moves(self, side, &mut moves);
         }
 
@@ -142,19 +141,20 @@ fn gen_pawn_moves(
     side: Side,
     occ: Bitboard,
     them: Bitboard,
-    filter: MoveFilter,
+    gen_quiets: bool,
+    gen_noisies: bool,
     moves: &mut MoveList,
 ) {
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
     // Quiet pawn moves (single and double pushes).
-    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+    if gen_quiets {
         add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
         add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
     }
 
     // Noisy pawn moves (captures, promos, en passant).
-    if filter != MoveFilter::Quiets {
+    if gen_noisies {
         add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
         add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
 
@@ -340,8 +340,20 @@ fn add_pawn_promos(targets: Bitboard, side: Side, w_off: u8, b_off: u8, moves: &
 
 #[inline(always)]
 pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bool {
+    let them = !side;
+    let pawns   = board.pawns(them);
+    let knights = board.knights(them);
+    let orthos  = board.orthos(them);
+    let diags   = board.diags(them);
+    let king    = board.king(them);
+
     for sq in bb {
-        if is_sq_attacked(sq, side, occ, board) {
+        let attacked = !(attacks::pawn(sq, side) & pawns).is_empty()
+            || !(attacks::knight(sq) & knights).is_empty()
+            || !(attacks::rook(sq, occ) & orthos).is_empty()
+            || !(attacks::bishop(sq, occ) & diags).is_empty()
+            || !(attacks::king(sq) & king).is_empty();
+        if attacked {
             return true;
         }
     }
@@ -351,28 +363,11 @@ pub fn is_attacked(bb: Bitboard, side: Side, occ: Bitboard, board: &Board) -> bo
 #[inline(always)]
 pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> bool {
     let them = !side;
-
-    if !(attacks::pawn(sq, side) & board.pawns(them)).is_empty() {
-        return true;
-    }
-
-    if !(attacks::knight(sq) & board.knights(them)).is_empty() {
-        return true;
-    }
-
-    if !(attacks::rook(sq, occ) & board.orthos(them)).is_empty() {
-        return true;
-    }
-
-    if !(attacks::bishop(sq, occ) & board.diags(them)).is_empty() {
-        return true;
-    }
-
-    if !(attacks::king(sq) & board.king(them)).is_empty() {
-        return true;
-    }
-
-    false
+    !(attacks::pawn(sq, side) & board.pawns(them)).is_empty()
+        || !(attacks::knight(sq) & board.knights(them)).is_empty()
+        || !(attacks::rook(sq, occ) & board.orthos(them)).is_empty()
+        || !(attacks::bishop(sq, occ) & board.diags(them)).is_empty()
+        || !(attacks::king(sq) & board.king(them)).is_empty()
 }
 
 #[inline(always)]
