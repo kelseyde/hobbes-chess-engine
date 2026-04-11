@@ -5,7 +5,26 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor, capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max, cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max, cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max, cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max, cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset, from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale, lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max, lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset, lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale, pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max, quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset, quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale, quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale};
+use crate::search::parameters::{
+    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
+    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
+    cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
+    cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
+    cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
+    cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
+    from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
+    lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
+    lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
+    lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
+    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
+    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
+    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
+    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
+    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
+    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
+    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
+    to_hist_malus_offset, to_hist_malus_scale,
+};
 use crate::tools::utils::boxed_and_zeroed;
 
 type FromToHistory<T> = [[T; 64]; 64];
@@ -241,8 +260,16 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        update_entry(&mut self.piece_to_entries[stm][pc][mv.to()][captured], bonus, Self::MAX);
-        update_entry(&mut self.from_to_entries[stm][mv.from()][mv.to()], bonus, Self::MAX);
+        update_entry(
+            &mut self.piece_to_entries[stm][pc][mv.to()][captured],
+            bonus,
+            Self::MAX,
+        );
+        update_entry(
+            &mut self.from_to_entries[stm][mv.from()][mv.to()],
+            bonus,
+            Self::MAX,
+        );
     }
 
     pub fn clear(&mut self) {
@@ -311,7 +338,7 @@ impl ThreatIndex {
     pub fn new(mv: Move, threats: Bitboard) -> Self {
         ThreatIndex {
             from_attacked: threats.contains(mv.from()),
-            to_attacked:   threats.contains(mv.to()),
+            to_attacked: threats.contains(mv.to()),
         }
     }
 
@@ -398,4 +425,3 @@ mod bonuses {
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
 pub use bonuses::*;
-
