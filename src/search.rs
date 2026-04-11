@@ -766,14 +766,9 @@ fn alpha_beta<NODE: NodeType>(
         let cont_2_malus = cont_history_2_malus(depth)
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
         
-        let cont_4_bonus = cont_history_4_bonus(depth)
-            - cut_node as i16 * cont_hist_4_cutnode_offset() as i16
-            + new_tt_move as i16 * cont_hist_4_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_4_capture_mult() as i16;
-        
-        let cont_4_malus = cont_history_4_malus(depth)
-            + new_tt_move as i16 * cont_hist_4_ttmove_malus() as i16;
-        
+        let cont_4_bonus = cont_history_4_bonus(depth);
+        let cont_4_malus = cont_history_4_malus(depth);
+
         let cont_bonuses = [cont_1_bonus, cont_2_bonus, cont_4_bonus];
         let cont_maluses = [cont_1_malus, cont_2_malus, cont_4_malus];
 

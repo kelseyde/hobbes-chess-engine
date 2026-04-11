@@ -176,13 +176,9 @@ tunable_params! {
     cont_hist_2_malus_max        = 1083, 800..=1600,       true;
     cont_hist_4_bonus_scale      = 124, 80..=280,          true;
     cont_hist_4_bonus_offset     = 198, 0..=300,           true;
-    cont_hist_4_cutnode_offset   = 75, 0..=200,            true;
-    cont_hist_4_ttmove_bonus     = 47, 0..=200,            true;
-    cont_hist_4_capture_mult     = 26, 0..=100,            true;
     cont_hist_4_bonus_max        = 1039, 800..=1600,       true;
     cont_hist_4_malus_scale      = 92, 80..=280,           true;
     cont_hist_4_malus_offset     = 86, 0..=200,            true;
-    cont_hist_4_ttmove_malus     = 94, 0..=200,            true;
     cont_hist_4_malus_max        = 1083, 800..=1600,       true;
     from_hist_bonus_scale        = 202, 80..=280,          true;
     from_hist_bonus_offset       = 90, 0..=200,            true;
