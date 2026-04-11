@@ -42,7 +42,7 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
+    entries: Box<[[PieceToHistory<PieceToHistory<i16>>; 2]; 2]>,
 }
 
 pub struct SquareHistory {
@@ -105,7 +105,7 @@ impl Histories {
             .filter_map(|&prev_ply| {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
-                Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
+                Some(self.cont_history.get(board.stm, prev_mv, prev_pc, mv, pc, prev_ply) as i32)
             })
             .sum()
     }
@@ -142,7 +142,7 @@ impl Histories {
 
         for (prev_mv, prev_pc, bonus, prev_ply) in updates {
             self.cont_history
-                .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
+                .update(board.stm, &prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
         }
     }
 
@@ -279,19 +279,20 @@ impl CaptureHistory {
 }
 
 impl ContinuationHistory {
-    const PLIES: [usize; 2] = [1, 2];
+    const PLIES: [usize; 3] = [1, 2, 4];
     const PLY_COUNT: usize = Self::PLIES.len();
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
-    pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
-        let index = (prev_ply & 1 == 0) as usize;
-        self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()]
+    pub fn get(&self, side: Side, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
+        let ply_index = Self::ply_index(prev_ply);
+        self.entries[side][ply_index][prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
+        side: Side,
         prev_mv: &Move,
         prev_pc: Piece,
         mv: &Move,
@@ -300,14 +301,20 @@ impl ContinuationHistory {
         bonus: i16,
         prev_ply: usize,
     ) {
-        let index = (prev_ply & 1 == 0) as usize;
-        let entry = &mut self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()];
+        let ply_index = Self::ply_index(prev_ply);
+        let entry = &mut self.entries[side][ply_index][prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        self.entries = Box::new([[[[[[0; 64]; 6]; 64]; 6]; 2]; 2])
+    }
+
+    /// Get the ply index into the continuation history table. Even and odd plies are stored together.
+    #[inline]
+    const fn ply_index(prev_ply: usize) -> usize {
+        (prev_ply & 1 == 0) as usize
     }
 }
 
@@ -384,7 +391,8 @@ fn lerp(a: i32, b: i32, factor: i32) -> i32 {
 
 #[rustfmt::skip]
 mod bonuses {
-    use super::*;
+use crate::search::parameters::{cont_hist_4_bonus_max, cont_hist_4_bonus_offset, cont_hist_4_bonus_scale, cont_hist_4_malus_max, cont_hist_4_malus_offset, cont_hist_4_malus_scale, lmr_cont_4_bonus_max, lmr_cont_4_bonus_offset, lmr_cont_4_bonus_scale, lmr_cont_4_malus_max, lmr_cont_4_malus_offset, lmr_cont_4_malus_scale};
+use super::*;
 
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {
@@ -411,6 +419,8 @@ mod bonuses {
                      cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
     history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
                      cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
+    history_bonuses!(cont_history_4_bonus      (cont_hist_4_bonus_scale,   cont_hist_4_bonus_offset,   cont_hist_4_bonus_max),
+                     cont_history_4_malus      (cont_hist_4_malus_scale,   cont_hist_4_malus_offset,   cont_hist_4_malus_max));
     history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
                      from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
     history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
@@ -421,6 +431,8 @@ mod bonuses {
                      lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
     history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
                      lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
+    history_bonuses!(lmr_conthist_4_bonus      (lmr_cont_4_bonus_scale,    lmr_cont_4_bonus_offset,    lmr_cont_4_bonus_max),
+                     lmr_conthist_4_malus      (lmr_cont_4_malus_scale,    lmr_cont_4_malus_offset,    lmr_cont_4_malus_max));
     history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
