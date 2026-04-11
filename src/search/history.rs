@@ -42,7 +42,7 @@ pub struct CaptureHistory {
 }
 
 pub struct ContinuationHistory {
-    entries: Box<[[PieceToHistory<PieceToHistory<i16>>; 2]; 2]>,
+    entries: Box<[[PieceToHistory<PieceToHistory<i16>>; ContinuationHistory::PLY_COUNT]; 2]>,
 }
 
 pub struct SquareHistory {
@@ -308,13 +308,18 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[[0; 64]; 6]; 64]; 6]; 2]; 2])
+        self.entries = Box::new([[[[[[0; 64]; 6]; 64]; 6]; 3]; 2])
     }
 
-    /// Get the ply index into the continuation history table. Even and odd plies are stored together.
+    /// Get the ply index into the continuation history table. Each ply (1, 2, 4) has its own table.
     #[inline]
-    const fn ply_index(prev_ply: usize) -> usize {
-        (prev_ply & 1 == 0) as usize
+    fn ply_index(prev_ply: usize) -> usize {
+        match prev_ply {
+            1 => 0,
+            2 => 1,
+            4 => 2,
+            _ => unreachable!(),
+        }
     }
 }
 
