@@ -663,8 +663,9 @@ fn alpha_beta<NODE: NodeType>(
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                     if is_quiet && (score <= alpha || score >= beta) {
-                        let bonus_1 = lmr_conthist_1_bonus(depth, score >= beta);
-                        let bonus_2 = lmr_conthist_2_bonus(depth, score >= beta);
+                        let good = score >= beta;
+                        let bonus_1 = if good { lmr_conthist_1_bonus(depth) } else { lmr_conthist_1_malus(depth) };
+                        let bonus_2 = if good { lmr_conthist_2_bonus(depth) } else { lmr_conthist_2_malus(depth) };
                         td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
                     }
                 }
@@ -762,12 +763,12 @@ fn alpha_beta<NODE: NodeType>(
         let quiet_malus = quiet_history_malus(depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
 
-        let quiet_factoriser_bonus = quiet_history_factoriser_bonus(depth)
+        let quiet_factoriser_bonus = quiet_factoriser_bonus(depth)
             - cut_node as i16 * quiet_fact_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
             + capture_count as i16 * quiet_fact_capture_mult() as i16;
 
-        let quiet_factoriser_malus = quiet_history_factoriser_malus(depth)
+        let quiet_factoriser_malus = quiet_factoriser_malus(depth)
             + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
 
         let capt_bonus = capture_history_bonus(depth)
