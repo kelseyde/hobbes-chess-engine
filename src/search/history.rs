@@ -133,11 +133,11 @@ impl Histories {
         bonuses: &[i16; ContinuationHistory::PLIES.len()],
     ) {
         let total_score = self.cont_history_score(board, ss, mv, ply);
-        for prev_ply in ContinuationHistory::PLIES {
+        for (i, &prev_ply) in ContinuationHistory::PLIES.iter().enumerate() {
             if ply >= prev_ply {
-                let prev_mv = ss[ply - prev_ply].mv;
-                let prev_pc = ss[ply - prev_ply].pc;
-                let bonus = bonuses[prev_ply - 1];
+                let prev = ss[ply - prev_ply];
+                let (prev_mv, prev_pc) = (prev.mv, prev.pc);
+                let bonus = bonuses[i];
                 if let (Some(prev_mv), Some(prev_pc)) = (prev_mv, prev_pc) {
                     self.cont_history.update(
                         &prev_mv,
@@ -287,8 +287,8 @@ impl ContinuationHistory {
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, prev_mv: Move, prev_pc: Piece, mv: &Move, pc: Piece, prev_ply: usize) -> i16 {
-        let prev_ply = prev_ply - 1; // 0-based index
-        self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()]
+        let index = (prev_ply & 1 == 0) as usize;
+        self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()]
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -302,8 +302,8 @@ impl ContinuationHistory {
         bonus: i16,
         prev_ply: usize,
     ) {
-        let prev_ply = prev_ply - 1; // 0-based index
-        let entry = &mut self.entries[prev_ply][prev_pc][prev_mv.to()][pc][mv.to()];
+        let index = (prev_ply & 1 == 0) as usize;
+        let entry = &mut self.entries[index][prev_pc][prev_mv.to()][pc][mv.to()];
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         *entry = gravity_with_base(*entry as i32, bonus as i32, total_score, Self::MAX) as i16;
     }
