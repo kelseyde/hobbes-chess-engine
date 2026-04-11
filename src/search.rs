@@ -908,6 +908,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut raw_eval = Score::MIN;
     let mut static_eval = Score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         raw_eval = if tt_hit && Score::is_defined(tt_eval) {
@@ -927,7 +928,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
                 tt_pv,
             );
         }
-        let correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
     }
 
@@ -996,10 +997,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
+        let threshold = (alpha - static_eval) / 8 - correction.abs() / 2 - 7;
         if !in_check
             && !is_killer
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold(), Pruning)
+            && !see::see(board, &mv, threshold, Pruning)
         {
             continue;
         }
