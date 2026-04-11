@@ -108,6 +108,7 @@ impl Board {
         }
     }
 
+    #[rustfmt::skip]
     pub fn make(&mut self, m: &Move) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
@@ -143,18 +144,10 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
-        self.recapture_sq = if captured.is_some() {
-            Some(m.to())
-        } else {
-            None
-        };
+        self.recapture_sq = captured.map(|_| m.to());
         self.rights = self.calc_castle_rights(from, to, pc);
-        self.fm += if side == Black { 1 } else { 0 };
-        self.hm = if captured.is_some() || pc == Piece::Pawn {
-            0
-        } else {
-            self.hm + 1
-        };
+        self.fm += (side == Black) as u8;
+        self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
         self.keys.hash ^= Zobrist::stm();
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
@@ -214,11 +207,7 @@ impl Board {
 
     #[inline]
     fn new_pc(&self, m: &Move, pc: Piece) -> Piece {
-        if let Some(promo) = m.promo_piece() {
-            promo
-        } else {
-            pc
-        }
+        m.promo_piece().unwrap_or(pc)
     }
 
     #[inline]
@@ -391,6 +380,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn pieces(&self, pc: Piece) -> Bitboard {
+        self.pcs(pc)
+    }
+
+    #[inline]
     pub fn side(&self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
@@ -430,9 +424,6 @@ impl Board {
         self.pcs[sq]
     }
 
-    pub fn pieces(&self, pc: Piece) -> Bitboard {
-        self.bb[pc]
-    }
 
     #[inline]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
@@ -451,9 +442,10 @@ impl Board {
     }
 
     pub fn side_at(&self, sq: Square) -> Option<Side> {
-        if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() {
+        let bb = Bitboard::of_sq(sq);
+        if !(self.bb[White.idx()] & bb).is_empty() {
             Some(White)
-        } else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() {
+        } else if !(self.bb[Black.idx()] & bb).is_empty() {
             Some(Black)
         } else {
             None
@@ -461,7 +453,7 @@ impl Board {
     }
 
     pub fn has_non_pawns(&self) -> bool {
-        self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
+        (self.our(Piece::King) | self.our(Piece::Pawn)) != self.us()
     }
 
     pub const fn is_fifty_move_rule(&self) -> bool {
