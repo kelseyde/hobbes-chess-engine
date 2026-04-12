@@ -10,146 +10,68 @@ pub struct MagicLookup {
 
 impl MagicLookup {
     pub const fn index(&self, blockers: u64) -> usize {
-        let blockers = blockers & self.mask;
+        let masked = blockers & self.mask;
         let offset = self.offset as usize;
-        offset + (self.magic.wrapping_mul(blockers) >> self.shift) as usize
+        offset + (self.magic.wrapping_mul(masked) >> self.shift) as usize
     }
 }
 
-pub static BISHOP_ATTACKS: [Bitboard; 5248] = gen_bishop_attacks_table();
-pub static ROOK_ATTACKS: [Bitboard; 102400] = gen_rook_attacks_table();
-
-const fn gen_bishop_attacks_table() -> [Bitboard; 5248] {
-    let mut table = [Bitboard(0); 5248];
-    let mut sq: usize = 0;
-
-    while sq < 64 {
-        let entry = BISHOP_MAGICS[sq];
-        let mut subset: u64 = 0;
-
-        let attacks = gen_bishop_attacks(sq, subset);
-        let blockers = subset;
-        let idx = entry.index(blockers);
-        table[idx] = Bitboard(attacks);
-        subset = subset.wrapping_sub(entry.mask) & entry.mask;
-
-        while subset != 0 {
-            let attacks = gen_bishop_attacks(sq, subset);
-            let blockers = subset;
-            let idx = entry.index(blockers);
-            table[idx] = Bitboard(attacks);
-
-            subset = subset.wrapping_sub(entry.mask) & entry.mask;
-        }
-
-        sq += 1;
-    }
-
-    table
-}
-
-const fn gen_rook_attacks_table() -> [Bitboard; 102400] {
-    let mut table = [Bitboard(0); 102400];
-    let mut sq: usize = 0;
-
-    while sq < 64 {
-        let entry = ROOK_MAGICS[sq];
-        let mut subset: u64 = 0;
-
-        let attacks = gen_rook_attacks(sq, subset);
-        let blockers = subset;
-        let idx = entry.index(blockers);
-        table[idx] = Bitboard(attacks);
-        subset = subset.wrapping_sub(entry.mask) & entry.mask;
-
-        while subset != 0 {
-            let attacks = gen_rook_attacks(sq, subset);
-            let blockers = subset;
-            let idx = entry.index(blockers);
-            table[idx] = Bitboard(attacks);
-
-            subset = subset.wrapping_sub(entry.mask) & entry.mask;
-        }
-
-        sq += 1;
-    }
-
-    table
-}
-
-pub const fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
+// Slide in one direction, accumulating set bits until a blocker is hit.
+// `delta` is the square-index step; `stop` returns true when the edge is reached.
+fn slide(square: usize, blockers: u64, delta: i32, stop: fn(usize) -> bool) -> u64 {
     let mut bb: u64 = 0;
     let mut tgt = square;
-    while tgt % 8 > 0 && tgt / 8 < 7 {
-        tgt += 7;
+    while !stop(tgt) {
+        tgt = (tgt as i32 + delta) as usize;
         bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt % 8 < 7 && tgt / 8 < 7 {
-        tgt += 9;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt % 8 > 0 && tgt / 8 >= 1 {
-        tgt -= 9;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt % 8 < 7 && tgt / 8 >= 1 {
-        tgt -= 7;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
+        if blockers & (1 << tgt) != 0 {
             break;
         }
     }
     bb
 }
 
-pub const fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
-    let mut bb: u64 = 0;
-    let mut tgt = square;
-    while tgt / 8 < 7 {
-        tgt += 8;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt % 8 < 7 {
-        tgt += 1;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt / 8 >= 1 {
-        tgt -= 8;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    let mut tgt = square;
-    while tgt % 8 > 0 {
-        tgt -= 1;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) > 0 {
-            break;
-        }
-    }
-    bb
+pub fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
+    slide(square, blockers,  7, |s| s % 8 == 0 || s / 8 == 7)   // north-west
+    | slide(square, blockers,  9, |s| s % 8 == 7 || s / 8 == 7) // north-east
+    | slide(square, blockers, -9, |s| s % 8 == 0 || s / 8 == 0) // south-west
+    | slide(square, blockers, -7, |s| s % 8 == 7 || s / 8 == 0) // south-east
 }
+
+pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
+    slide(square, blockers,  8, |s| s / 8 == 7) // north
+    | slide(square, blockers,  1, |s| s % 8 == 7) // east
+    | slide(square, blockers, -8, |s| s / 8 == 0) // south
+    | slide(square, blockers, -1, |s| s % 8 == 0) // west
+}
+
+use std::sync::LazyLock;
+
+fn gen_attacks_table<const N: usize>(
+    magics: &[MagicLookup; 64],
+    gen: fn(usize, u64) -> u64,
+) -> [Bitboard; N] {
+    let mut table = [Bitboard(0); N];
+    let mut sq = 0;
+    while sq < 64 {
+        let entry = magics[sq];
+        let mut subset: u64 = 0;
+        loop {
+            table[entry.index(subset)] = Bitboard(gen(sq, subset));
+            subset = subset.wrapping_sub(entry.mask) & entry.mask;
+            if subset == 0 {
+                break;
+            }
+        }
+        sq += 1;
+    }
+    table
+}
+
+pub static BISHOP_ATTACKS: LazyLock<[Bitboard; 5248]> =
+    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks));
+pub static ROOK_ATTACKS: LazyLock<[Bitboard; 102400]> =
+    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks));
 
 #[rustfmt::skip]
 pub const BISHOP_MAGICS: [MagicLookup; 64] = [

@@ -159,8 +159,10 @@ impl Histories {
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
                 Some((prev_mv, prev_pc, bonus, prev_ply))
             })
-            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)|
-                self.cont_history.update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply));
+            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)| {
+                self.cont_history
+                    .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply)
+            });
     }
 
     pub fn clear(&mut self) {
