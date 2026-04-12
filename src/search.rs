@@ -397,6 +397,59 @@ fn alpha_beta<NODE: NodeType>(
         return tt_score;
     }
 
+    let mut extension = 0;
+
+    // Singular Extensions
+    // Do a reduced-depth search with the TT move excluded. If the result of that search plus
+    // some margin doesn't beat the TT score, we assume the TT move is 'singular' (i.e. the
+    // only good move), and extend the search depth.
+    if !root_node
+        && !singular_search
+        && tt_hit
+        && tt_move.exists() {
+        if depth >= se_min_depth() + tt_pv as i32
+            && tt_flag != Upper
+            && tt_depth >= depth - se_tt_depth_offset() {
+
+            let is_quiet = board.captured(&tt_move).is_some();
+            let s_beta_base = se_beta_base(is_quiet);
+            let s_beta_scale = se_beta_scale(is_quiet);
+            let s_beta_div = se_beta_div(is_quiet);
+            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
+            let s_beta = (tt_score - s_beta_margin).max(-Score::MATE + 1);
+            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
+
+            // Do a reduced-depth search with the TT move excluded.
+            td.stack[ply].singular = Some(tt_move);
+            let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            td.stack[ply].singular = None;
+
+            if score < s_beta {
+                // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
+                extension = 1;
+                extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
+                extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
+            } else if s_beta >= beta {
+                return (s_beta * s_depth + beta) / (s_depth + 1);
+            } else if tt_score >= beta {
+                extension = -3 + pv_node as i32;
+            } else if cut_node {
+                extension = -2;
+            } else if tt_score <= alpha {
+                extension = -1;
+            }
+        // Low-Depth Singular Extensions (LDSE)
+        // At low depths, if the static eval is well below alpha but the TT move failed high, we
+        // assume the TT move is singular without a reduced-depth search, and extend.
+        } else if depth <= ldse_max_depth()
+            && !in_check
+            && static_eval <= alpha - ldse_margin()
+            && tt_flag == Lower {
+            extension = 1;
+        }
+
+    }
+
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
@@ -434,11 +487,9 @@ fn alpha_beta<NODE: NodeType>(
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction);
 
-        let mut extension = 0;
-
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
-        if in_check {
+        if in_check && extension == 0 {
             extension = is_quiet as i32;
         }
 
@@ -520,56 +571,6 @@ fn alpha_beta<NODE: NodeType>(
             continue;
         }
 
-        // Singular Extensions
-        // Do a reduced-depth search with the TT move excluded. If the result of that search plus
-        // some margin doesn't beat the TT score, we assume the TT move is 'singular' (i.e. the
-        // only good move), and extend the search depth.
-        if !root_node
-            && !singular_search
-            && tt_hit
-            && mv == tt_move {
-            if depth >= se_min_depth() + tt_pv as i32
-                && tt_flag != Upper
-                && tt_depth >= depth - se_tt_depth_offset() {
-
-                let s_beta_base = se_beta_base(is_quiet);
-                let s_beta_scale = se_beta_scale(is_quiet);
-                let s_beta_div = se_beta_div(is_quiet);
-                let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
-                let s_beta = (tt_score - s_beta_margin).max(-Score::MATE + 1);
-                let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
-
-                // Do a reduced-depth search with the TT move excluded.
-                td.stack[ply].singular = Some(mv);
-                let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
-                td.stack[ply].singular = None;
-
-                if score < s_beta {
-                    // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
-                    extension = 1;
-                    extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
-                    extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
-                } else if s_beta >= beta {
-                    return (s_beta * s_depth + beta) / (s_depth + 1);
-                } else if tt_score >= beta {
-                    extension = -3 + pv_node as i32;
-                } else if cut_node {
-                    extension = -2;
-                } else if tt_score <= alpha {
-                    extension = -1;
-                }
-            // Low-Depth Singular Extensions (LDSE)
-            // At low depths, if the static eval is well below alpha but the TT move failed high, we
-            // assume the TT move is singular without a reduced-depth search, and extend.
-            } else if depth <= ldse_max_depth()
-                && !in_check
-                && static_eval <= alpha - ldse_margin()
-                && tt_flag == Lower {
-                extension = 1;
-            }
-
-        }
-
         // We have decided that the current move should not be pruned and is worth searching further.
         // Therefore, we make the move on the board and search the resulting position.
         let original_board = board;
@@ -587,7 +588,7 @@ fn alpha_beta<NODE: NodeType>(
         td.nodes += 1;
 
         let initial_nodes = td.nodes;
-        let mut new_depth = depth - 1 + extension;
+        let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
         let mut score = Score::MIN;
 
@@ -607,7 +608,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
-            r -= extension * 1024 / lmr_extension_divisor();
+            r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 
