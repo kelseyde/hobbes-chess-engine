@@ -38,7 +38,13 @@ pub const fn mated_in(ply: usize) -> i32 {
 /// Clamp a score to the valid [MIN, MAX] range.
 #[inline]
 pub const fn clamp(score: i32) -> i32 {
-    if score < MIN { MIN } else if score > MAX { MAX } else { score }
+    if score < MIN {
+        MIN
+    } else if score > MAX {
+        MAX
+    } else {
+        score
+    }
 }
 
 /// Adjust a mate score from search space into TT storage space.
