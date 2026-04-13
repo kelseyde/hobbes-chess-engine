@@ -164,8 +164,7 @@ impl Board {
     /// Toggles a single piece on or off a given square for the given side.
     ///
     /// Flips the relevant piece-type and colour bitboards, updates the per-square piece array,
-    /// and XORs all affected Zobrist keys (main hash, pawn hash, non-pawn hashes, major/minor
-    /// hashes as appropriate).
+    /// and XORs all affected Zobrist keys.
     #[inline]
     pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
         let bb: Bitboard = Bitboard::of_sq(sq);
