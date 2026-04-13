@@ -476,25 +476,18 @@ impl Board {
     }
 
     /// Returns the square occupied by the side to move's king.
-    ///
-    /// Shorthand for `board.king_sq(board.stm)`.
     #[inline]
     pub fn our_king_sq(&self) -> Square {
         self.king_sq(self.stm)
     }
 
     /// Returns the set of the side to move's pieces that are absolutely pinned to their king.
-    ///
-    /// Shorthand for `board.pinned[board.stm]`.
     #[inline]
     pub fn our_pinned(&self) -> Bitboard {
         self.pinned[self.stm]
     }
 
     /// Returns `true` if `mv` lands on the square of the last capture, making it a recapture.
-    ///
-    /// Used in quiescence search to allow recaptures that would otherwise be pruned by the
-    /// late-move-count limit.
     #[inline]
     pub fn is_recapture(&self, mv: &Move) -> bool {
         self.recapture_sq.is_some_and(|sq| sq == mv.to())
