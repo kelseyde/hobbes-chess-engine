@@ -62,21 +62,22 @@ use square::Square;
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
 /// and 'unmake' moves on the board. Uses bitboards to represent the pieces and 'toggling' functions
 /// to set and unset pieces.
+#[rustfmt::skip]
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8], // bitboards for each piece type (0-5) and both colours (6-7)
-    pub pcs: [Option<Piece>; 64], // piece type on each square
-    pub stm: Side,         // side to move (White or Black)
-    pub hm: u8,            // number of half moves since last capture or pawn move
-    pub fm: u8,            // number of full moves
-    pub ep_sq: Option<Square>, // en passant square (0-63)
+    pub bb: [Bitboard; 8],            // bitboards for each piece type (0-5) and both colours (6-7)
+    pub pcs: [Option<Piece>; 64],     // piece type on each square
+    pub stm: Side,                    // side to move (White or Black)
+    pub hm: u8,                       // number of half moves since last capture or pawn move
+    pub fm: u8,                       // number of full moves
+    pub ep_sq: Option<Square>,        // en passant square (0-63)
     pub recapture_sq: Option<Square>, // square where a recapture can occur
-    pub rights: Rights,    // encoded castle rights
-    pub keys: Keys,        // zobrist hashes
-    pub frc: bool,         // whether the game is Fischer Random Chess
-    pub threats: Bitboard, // squares attacked by the opponent
-    pub checkers: Bitboard, // opponent pieces checking the king
-    pub pinned: [Bitboard; 2], // pinned pieces for both sides
+    pub rights: Rights,               // encoded castle rights
+    pub keys: Keys,                   // zobrist hashes
+    pub frc: bool,                    // whether the game is Fischer Random Chess
+    pub threats: Bitboard,            // squares attacked by the opponent
+    pub checkers: Bitboard,           // opponent pieces checking the king
+    pub pinned: [Bitboard; 2],        // pinned pieces for both sides
 }
 
 impl Default for Board {
