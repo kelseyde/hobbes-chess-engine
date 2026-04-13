@@ -398,6 +398,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     let mut extension = 0;
+    let mut singular_score = Score::MIN;
 
     // Singular Extensions
     // Do a reduced-depth search with the TT move excluded. If the result of that search plus
@@ -421,14 +422,14 @@ fn alpha_beta<NODE: NodeType>(
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
-            let score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            singular_score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.stack[ply].singular = None;
 
-            if score < s_beta {
+            if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 extension = 1;
-                extension += (!pv_node && score < s_beta - se_dext_margin(is_quiet)) as i32;
-                extension += (!pv_node && is_quiet && score < s_beta - se_text_margin(is_quiet)) as i32;
+                extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
+                extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
@@ -461,6 +462,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut capture_count = 0;
     let mut best_score = Score::MIN;
     let mut best_move = Move::NONE;
+    let mut tt_mv_score = Score::MIN;
     let mut flag = Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
@@ -614,6 +616,10 @@ fn alpha_beta<NODE: NodeType>(
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
                 && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            if Score::is_defined(tt_mv_score) && Score::is_defined(singular_score) {
+                let margin = tt_mv_score - singular_score;
+                r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
+            }
 
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
@@ -680,6 +686,10 @@ fn alpha_beta<NODE: NodeType>(
 
         if td.should_stop(Hard) {
             break;
+        }
+
+        if mv == tt_move {
+            tt_mv_score = score;
         }
 
         if score > best_score {
