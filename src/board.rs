@@ -64,19 +64,19 @@ use square::Square;
 /// to set and unset pieces.
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8],            // bitboards for each piece type (0-5) and both colours (6-7)
-    pub pcs: [Option<Piece>; 64],     // piece type on each square
-    pub stm: Side,                    // side to move (White or Black)
-    pub hm: u8,                       // number of half moves since last capture or pawn move
-    pub fm: u8,                       // number of full moves
-    pub ep_sq: Option<Square>,        // en passant square (0-63)
+    pub bb: [Bitboard; 8], // bitboards for each piece type (0-5) and both colours (6-7)
+    pub pcs: [Option<Piece>; 64], // piece type on each square
+    pub stm: Side,         // side to move (White or Black)
+    pub hm: u8,            // number of half moves since last capture or pawn move
+    pub fm: u8,            // number of full moves
+    pub ep_sq: Option<Square>, // en passant square (0-63)
     pub recapture_sq: Option<Square>, // square where a recapture can occur
-    pub rights: Rights,               // encoded castle rights
-    pub keys: Keys,                   // zobrist hashes
-    pub frc: bool,                    // whether the game is Fischer Random Chess
-    pub threats: Bitboard,            // squares attacked by the opponent
-    pub checkers: Bitboard,           // opponent pieces checking the king
-    pub pinned: [Bitboard; 2],        // pinned pieces for both sides
+    pub rights: Rights,    // encoded castle rights
+    pub keys: Keys,        // zobrist hashes
+    pub frc: bool,         // whether the game is Fischer Random Chess
+    pub threats: Bitboard, // squares attacked by the opponent
+    pub checkers: Bitboard, // opponent pieces checking the king
+    pub pinned: [Bitboard; 2], // pinned pieces for both sides
 }
 
 impl Default for Board {
@@ -473,6 +473,31 @@ impl Board {
     #[inline]
     pub fn is_noisy(&self, mv: &Move) -> bool {
         mv.is_promo() || self.captured(mv).is_some()
+    }
+
+    /// Returns the square occupied by the side to move's king.
+    ///
+    /// Shorthand for `board.king_sq(board.stm)`.
+    #[inline]
+    pub fn our_king_sq(&self) -> Square {
+        self.king_sq(self.stm)
+    }
+
+    /// Returns the set of the side to move's pieces that are absolutely pinned to their king.
+    ///
+    /// Shorthand for `board.pinned[board.stm]`.
+    #[inline]
+    pub fn our_pinned(&self) -> Bitboard {
+        self.pinned[self.stm]
+    }
+
+    /// Returns `true` if `mv` lands on the square of the last capture, making it a recapture.
+    ///
+    /// Used in quiescence search to allow recaptures that would otherwise be pruned by the
+    /// late-move-count limit.
+    #[inline]
+    pub fn is_recapture(&self, mv: &Move) -> bool {
+        self.recapture_sq.is_some_and(|sq| sq == mv.to())
     }
 
     /// Returns the side that occupies `sq`, or `None` if the square is empty.

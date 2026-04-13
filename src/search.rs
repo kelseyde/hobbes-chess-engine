@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
-use crate::board::{movegen, Board};
+use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::BadNoisies;
@@ -146,7 +146,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Determine if we are currently in check.
     let threats = board.threats;
-    let in_check = threats.contains(board.king_sq(board.stm));
+    let in_check = threats.contains(board.our_king_sq());
     td.stack[ply].threats = threats;
 
     // Update the selective search depth
@@ -899,7 +899,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Determine if we are currently in check.
     let threats = board.threats;
-    let in_check = threats.contains(board.king_sq(board.stm));
+    let in_check = threats.contains(board.our_king_sq());
     td.stack[ply].threats = threats;
 
     // Transposition Table Lookup
@@ -986,7 +986,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
+        let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
@@ -1262,7 +1262,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
 
 fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     println!("info error no legal moves");
-    let in_check = movegen::is_check(board, board.stm);
+    let in_check = board.threats.contains(board.our_king_sq());
     let score = if in_check { -score::MATE } else { score::DRAW };
     td.best_move = Move::NONE;
     td.best_score = score;
