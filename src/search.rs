@@ -302,6 +302,13 @@ fn alpha_beta<NODE: NodeType>(
         depth -= 1;
     }
 
+    // Check if the TT entry meets the conditions for a potentially 'singular' move.
+    let maybe_singular = depth >= se_min_depth() + tt_pv as i32
+        && tt_depth >= depth - se_tt_depth_offset()
+        && tt_flag != Upper
+        && is_defined(tt_score)
+        && !is_mate(tt_score);
+
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search {
@@ -329,6 +336,7 @@ fn alpha_beta<NODE: NodeType>(
         if depth >= nmp_min_depth()
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
+            && !maybe_singular
             && board.has_non_pawns()
             && tt_flag != Upper {
 
@@ -409,10 +417,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && tt_hit
         && tt_move.exists() {
-        if depth >= se_min_depth() + tt_pv as i32
-            && tt_flag != Upper
-            && tt_depth >= depth - se_tt_depth_offset() {
-
+        if maybe_singular {
             let is_quiet = board.captured(&tt_move).is_some();
             let s_beta_base = se_beta_base(is_quiet);
             let s_beta_scale = se_beta_scale(is_quiet);
