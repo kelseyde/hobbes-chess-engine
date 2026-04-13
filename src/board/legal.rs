@@ -261,9 +261,9 @@ impl Board {
         let from = mv.from();
         let to = mv.to();
 
-        let king_sq = self.king_sq(self.stm);
+        let king_sq = self.our_king_sq();
         let threats = self.threats;
-        let pinned = self.pinned[self.stm];
+        let pinned = self.our_pinned();
 
         if mv.is_ep() {
             let from_bb = Bitboard::of_sq(from);
