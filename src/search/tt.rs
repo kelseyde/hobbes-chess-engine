@@ -1,6 +1,7 @@
 use crate::board::moves::Move;
-use crate::search::Score;
+use crate::search::{score};
 use std::mem::size_of;
+use score::is_mate;
 
 /// The transposition table is a lookup table that stores the results of previously searched
 /// positions, including the search depth, the score, the best move found, and other relevant
@@ -75,8 +76,8 @@ impl Default for Entry {
             key: 0,
             depth: 0,
             best_move: 0,
-            score: Score::MIN as i16,
-            eval: Score::MIN as i16,
+            score: score::MIN as i16,
+            eval: score::MIN as i16,
             flags: Flags::new(TTFlag::None, false, 0),
         }
     }
@@ -292,7 +293,7 @@ impl Flags {
 }
 
 const fn to_tt(score: i32, ply: usize) -> i16 {
-    if !Score::is_mate(score) {
+    if !is_mate(score) {
         return score as i16;
     }
     if score > 0 {
@@ -303,7 +304,7 @@ const fn to_tt(score: i32, ply: usize) -> i16 {
 }
 
 const fn to_search(score: i32, ply: usize) -> i16 {
-    if !Score::is_mate(score) {
+    if !is_mate(score) {
         return score as i16;
     }
     if score > 0 {

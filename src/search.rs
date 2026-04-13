@@ -18,7 +18,7 @@ use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::node::{NodeType, NonPV, Root, PV};
-use crate::search::score::{format_score, Score};
+use crate::search::score::{format_score, is_defined, is_mated, mate_in, mated_in};
 use crate::search::see::{see, SeeType};
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
@@ -26,6 +26,7 @@ use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use arrayvec::ArrayVec;
 use parameters::*;
+use score::is_mate;
 use SeeType::{Ordering, Pruning};
 
 pub const MAX_PLY: usize = 256;
@@ -47,8 +48,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         _ => {}
     }
 
-    let mut alpha = Score::MIN;
-    let mut beta = Score::MAX;
+    let mut alpha = score::MIN;
+    let mut beta = score::MAX;
     let mut score = 0;
     let mut bound = Exact;
     let mut delta = asp_delta();
@@ -66,8 +67,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
         if td.depth >= asp_min_depth() {
-            alpha = (score - delta).max(Score::MIN);
-            beta = (score + delta).min(Score::MAX);
+            alpha = (score - delta).max(score::MIN);
+            beta = (score + delta).min(score::MAX);
         }
 
         loop {
@@ -89,12 +90,12 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             match score {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;
-                    alpha = (score - delta).max(Score::MIN);
+                    alpha = (score - delta).max(score::MIN);
                     delta += (delta * 100) / asp_alpha_widening_factor();
                     reduction = 0;
                 }
                 s if s >= beta => {
-                    beta = (score + delta).min(Score::MAX);
+                    beta = (score + delta).min(score::MAX);
                     delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
                 }
@@ -165,7 +166,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // If drawn by repetition, insufficient material or fifty move rule, return a draw score.
     if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
+        return score::DRAW;
     }
 
     // If the maximum depth is reached, return the static evaluation of the position
@@ -175,8 +176,8 @@ fn alpha_beta<NODE: NodeType>(
 
     // Mate Distance Pruning
     // If we have already found a mate, prune nodes where no shorter mate is possible
-    alpha = alpha.max(Score::mated_in(ply));
-    beta = beta.min(Score::mate_in(ply));
+    alpha = alpha.max(mated_in(ply));
+    beta = beta.min(mate_in(ply));
     if alpha >= beta {
         return alpha;
     }
@@ -187,8 +188,8 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_hit = false;
     let mut tt_move = Move::NONE;
     let mut tt_move_noisy = false;
-    let mut tt_score = Score::MIN;
-    let mut tt_eval = Score::MIN;
+    let mut tt_score = score::MIN;
+    let mut tt_eval = score::MIN;
     let mut has_tt_score = false;
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
@@ -204,7 +205,7 @@ fn alpha_beta<NODE: NodeType>(
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
-            has_tt_score = Score::is_defined(tt_score);
+            has_tt_score = is_defined(tt_score);
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
@@ -226,13 +227,13 @@ fn alpha_beta<NODE: NodeType>(
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
     // used in search. In non-leaf nodes, it is used as a guide for several heuristics, such as
     // extensions, reductions and pruning.
-    let mut raw_eval = Score::MIN;
-    let mut static_eval = Score::MIN;
+    let mut raw_eval = score::MIN;
+    let mut static_eval = score::MIN;
 
     if !in_check {
         raw_eval = if singular_search {
             td.stack[ply].raw_eval
-        } else if tt_hit && Score::is_defined(tt_eval) {
+        } else if tt_hit && is_defined(tt_eval) {
             tt_eval
         } else {
             td.nnue.evaluate(board)
@@ -262,7 +263,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && td.stack[ply - 1].mv.is_some()
         && td.stack[ply - 1].captured.is_none()
-        && Score::is_defined(td.stack[ply - 1].static_eval) {
+        && is_defined(td.stack[ply - 1].static_eval) {
 
         let prev_eval = td.stack[ply - 1].static_eval;
         let prev_mv = td.stack[ply - 1].mv.unwrap();
@@ -282,7 +283,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && depth >= hindsight_ext_min_depth()
         && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
-        && Score::is_defined(td.stack[ply - 1].static_eval)
+        && is_defined(td.stack[ply - 1].static_eval)
         && static_eval + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
         depth += 1;
     }
@@ -296,7 +297,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && depth >= hindsight_red_min_depth()
         && td.stack[ply - 1].reduction >= hindsight_red_min_reduction()
-        && Score::is_defined(td.stack[ply - 1].static_eval)
+        && is_defined(td.stack[ply - 1].static_eval)
         && static_eval + td.stack[ply - 1].static_eval > hindsight_red_eval_diff() {
         depth -= 1;
     }
@@ -347,7 +348,7 @@ fn alpha_beta<NODE: NodeType>(
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if Score::is_mate(score) { beta } else {score };
+                    return if is_mate(score) { beta } else {score };
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
@@ -387,10 +388,10 @@ fn alpha_beta<NODE: NodeType>(
     if !pv_node
         && !singular_search
         && !in_check
-        && Score::is_defined(tt_score)
-        && !Score::is_mate(tt_score)
-        && !Score::is_mate(beta)
-        && !Score::is_mate(probcut_beta)
+        && is_defined(tt_score)
+        && !is_mate(tt_score)
+        && !is_mate(beta)
+        && !is_mate(probcut_beta)
         && (tt_flag == Lower || tt_flag == Exact)
         && tt_score >= probcut_beta
         && tt_depth >= depth - pc_tt_depth_offset() {
@@ -398,7 +399,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     let mut extension = 0;
-    let mut singular_score = Score::MIN;
+    let mut singular_score = score::MIN;
 
     // Singular Extensions
     // Do a reduced-depth search with the TT move excluded. If the result of that search plus
@@ -417,7 +418,7 @@ fn alpha_beta<NODE: NodeType>(
             let s_beta_scale = se_beta_scale(is_quiet);
             let s_beta_div = se_beta_div(is_quiet);
             let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
-            let s_beta = (tt_score - s_beta_margin).max(-Score::MATE + 1);
+            let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             // Do a reduced-depth search with the TT move excluded.
@@ -460,9 +461,9 @@ fn alpha_beta<NODE: NodeType>(
     let mut searched_moves = 0;
     let mut quiet_count = 0;
     let mut capture_count = 0;
-    let mut best_score = Score::MIN;
+    let mut best_score = score::MIN;
     let mut best_move = Move::NONE;
-    let mut tt_mv_score = Score::MIN;
+    let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
@@ -483,7 +484,7 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_mated = Score::is_mated(best_score);
+        let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
@@ -568,7 +569,7 @@ fn alpha_beta<NODE: NodeType>(
             && depth <= see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
-            && !Score::is_mate(best_score)
+            && !is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
             continue;
         }
@@ -592,7 +593,7 @@ fn alpha_beta<NODE: NodeType>(
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
-        let mut score = Score::MIN;
+        let mut score = score::MIN;
 
         // Principal Variation Search
         // We assume that the first move will be best, and search all others with a null window and/or
@@ -616,7 +617,7 @@ fn alpha_beta<NODE: NodeType>(
             r += (is_quiet 
                 && original_board.threats.contains(mv.to()) 
                 && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
-            if Score::is_defined(tt_mv_score) && Score::is_defined(singular_score) {
+            if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
             }
@@ -836,9 +837,9 @@ fn alpha_beta<NODE: NodeType>(
         return if singular_search {
             alpha
         } else if in_check {
-            -Score::MATE + ply as i32
+            -score::MATE + ply as i32
         } else {
-            Score::DRAW
+            score::DRAW
         };
     }
 
@@ -885,7 +886,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // If drawn by repetition, insufficient material or fifty move rule, return zero.
     if ply > 0 && is_draw(td, board) {
-        return Score::DRAW;
+        return score::DRAW;
     }
 
     // If the maximum depth is reached, return the static evaluation of the position.
@@ -902,7 +903,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_hit = false;
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
-    let mut tt_eval = Score::MIN;
+    let mut tt_eval = score::MIN;
     if let Some(entry) = td.tt.probe(board.hash()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
@@ -917,11 +918,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    let mut raw_eval = Score::MIN;
-    let mut static_eval = Score::MIN;
+    let mut raw_eval = score::MIN;
+    let mut static_eval = score::MIN;
 
     if !in_check {
-        raw_eval = if tt_hit && Score::is_defined(tt_eval) {
+        raw_eval = if tt_hit && is_defined(tt_eval) {
             tt_eval
         } else {
             td.nnue.evaluate(board)
@@ -983,7 +984,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
-        let is_mate_score = Score::is_mate(best_score);
+        let is_mate_score = is_mate(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
@@ -1072,10 +1073,10 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     if move_count == 0 && in_check {
-        return -Score::MATE + ply as i32;
+        return -score::MATE + ply as i32;
     }
 
-    if best_score >= beta && Score::is_defined(best_score) {
+    if best_score >= beta && is_defined(best_score) {
         best_score = (best_score + beta) / 2;
     }
 
@@ -1128,9 +1129,9 @@ fn can_use_tt_move(board: &Board, tt_move: &Move) -> bool {
 
 #[inline]
 fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
-    if ply >= 2 && Score::is_defined(td.stack[ply - 2].static_eval) && !in_check {
+    if ply >= 2 && is_defined(td.stack[ply - 2].static_eval) && !in_check {
         static_eval - td.stack[ply - 2].static_eval
-    } else if ply >= 4 && Score::is_defined(td.stack[ply - 4].static_eval) && !in_check {
+    } else if ply >= 4 && is_defined(td.stack[ply - 4].static_eval) && !in_check {
         static_eval - td.stack[ply - 4].static_eval
     } else {
         0
@@ -1259,7 +1260,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
 fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     println!("info error no legal moves");
     let in_check = movegen::is_check(board, board.stm);
-    let score = if in_check { -Score::MATE } else { Score::DRAW };
+    let score = if in_check { -score::MATE } else { score::DRAW };
     td.best_move = Move::NONE;
     td.best_score = score;
     (td.best_move, td.best_score)
