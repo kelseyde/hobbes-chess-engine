@@ -8,6 +8,7 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod window;
 
 use std::time::Duration;
 
@@ -24,6 +25,7 @@ use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::{Exact, Lower, Upper};
+use crate::search::window::Window;
 use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
@@ -48,8 +50,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         _ => {}
     }
 
-    let mut alpha = score::MIN;
-    let mut beta = score::MAX;
+    let mut window = Window::full();
     let mut score = 0;
     let mut bound = Exact;
     let mut delta = asp_delta();
@@ -67,16 +68,15 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
         if td.depth >= asp_min_depth() {
-            alpha = score::clamp(score - delta);
-            beta = score::clamp(score + delta);
+            window = Window::aspiration(score, delta);
         }
 
         loop {
             let search_depth = td.depth - reduction;
-            score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
-            bound = TTFlag::from_score(score, alpha, beta);
+            score = alpha_beta::<Root>(board, td, search_depth, 0, window, false);
+            bound = window.flag(score);
 
-            print_search_info(board, td, score.clamp(alpha, beta), bound, false);
+            print_search_info(board, td, score.clamp(window.alpha, window.beta), bound, false);
             update_tm_heuristics(td, prev_mv, prev_score, score);
 
             prev_mv = td.best_move;
@@ -88,15 +88,14 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
             // Adjust the aspiration window in case the score fell outside the current window.
             match score {
-                s if s <= alpha => {
-                    beta = (alpha + beta) / 2;
-                    alpha = score::clamp(score - delta);
+                s if s <= window.alpha => {
                     delta += (delta * 100) / asp_alpha_widening_factor();
+                    window.widen_alpha(score, delta);
                     reduction = 0;
                 }
-                s if s >= beta => {
-                    beta = score::clamp(score + delta);
+                s if s >= window.beta => {
                     delta += (delta * 100) / asp_beta_widening_factor();
+                    window.widen_beta(score, delta);
                     reduction = (reduction + 1).min(3);
                 }
                 _ => break,
@@ -113,7 +112,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    print_search_info(board, td, score.clamp(alpha, beta), bound, true);
+    print_search_info(board, td, score.clamp(window.alpha, window.beta), bound, true);
 
     (td.best_move, td.best_score)
 }
@@ -124,13 +123,12 @@ fn alpha_beta<NODE: NodeType>(
     td: &mut ThreadData,
     mut depth: i32,
     ply: usize,
-    mut alpha: i32,
-    mut beta: i32,
+    mut window: Window,
     cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
-        return alpha;
+        return window.alpha;
     }
 
     // A PV (principal variation) node is one that falls within the alpha-beta window.
@@ -156,7 +154,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // If depth is reached, drop into quiescence search
     if depth <= 0 && !in_check {
-        return qs(board, td, alpha, beta, ply);
+        return qs(board, td, window.alpha, window.beta, ply);
     }
 
     // Ensure depth is not negative
@@ -176,10 +174,10 @@ fn alpha_beta<NODE: NodeType>(
 
     // Mate Distance Pruning
     // If we have already found a mate, prune nodes where no shorter mate is possible
-    alpha = alpha.max(mated_in(ply));
-    beta = beta.min(mate_in(ply));
-    if alpha >= beta {
-        return alpha;
+    window.alpha = window.alpha.max(mated_in(ply));
+    window.beta = window.beta.min(mate_in(ply));
+    if window.alpha >= window.beta {
+        return window.alpha;
     }
 
     let singular = td.stack[ply].singular;
@@ -217,7 +215,7 @@ fn alpha_beta<NODE: NodeType>(
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
-                && entry.flag().bounds_match(tt_score, alpha, beta) {
+                && entry.flag().bounds_match(tt_score, window.alpha, window.beta) {
                 return tt_score;
             }
         }
@@ -313,28 +311,28 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
+            && static_eval - futility_margin >= window.beta
             && tt_flag != Upper {
-            return beta + (static_eval - beta) / 3;
+            return window.beta + (static_eval - window.beta) / 3;
         }
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
-            return qs(board, td, alpha, beta, ply);
+        if !pv_node && static_eval < window.alpha - razor_base() - razor_scale() * depth * depth {
+            return qs(board, td, window.alpha, window.beta, ply);
         }
 
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval >= window.beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
-                + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
+                + nmp_red_eval_mult() * (static_eval - window.beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
                 / 1024;
 
             let mut board = *board;
@@ -342,21 +340,21 @@ fn alpha_beta<NODE: NodeType>(
             td.nodes += 1;
             td.keys.push(board.hash());
             td.tt.prefetch(board.hash());
-            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, Window::new(-window.beta, -window.beta + 1), !cut_node);
             td.keys.pop();
 
-            if score >= beta {
+            if score >= window.beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if is_mate(score) { beta } else {score };
+                    return if is_mate(score) { window.beta } else { score };
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
                 td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
-                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, beta - 1, beta, true);
+                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, Window::new(window.beta - 1, window.beta), true);
                 td.nmp_min_ply = 0;
 
-                if verif_score >= beta {
+                if verif_score >= window.beta {
                     return score;
                 }
             }
@@ -384,13 +382,13 @@ fn alpha_beta<NODE: NodeType>(
 
     // Probcut TT pruning
     // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
-    let probcut_beta = beta + pc_beta_margin();
+    let probcut_beta = window.beta + pc_beta_margin();
     if !pv_node
         && !singular_search
         && !in_check
         && is_defined(tt_score)
         && !is_mate(tt_score)
-        && !is_mate(beta)
+        && !is_mate(window.beta)
         && !is_mate(probcut_beta)
         && (tt_flag == Lower || tt_flag == Exact)
         && tt_score >= probcut_beta
@@ -423,7 +421,7 @@ fn alpha_beta<NODE: NodeType>(
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
-            singular_score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            singular_score = alpha_beta::<NonPV>(board, td, s_depth, ply, Window::new(s_beta - 1, s_beta), cut_node);
             td.stack[ply].singular = None;
 
             if singular_score < s_beta {
@@ -431,13 +429,13 @@ fn alpha_beta<NODE: NodeType>(
                 extension = 1;
                 extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
                 extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
-            } else if s_beta >= beta {
-                return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
+            } else if s_beta >= window.beta {
+                return (s_beta * s_depth + window.beta) / (s_depth + 1);
+            } else if tt_score >= window.beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
                 extension = -2;
-            } else if tt_score <= alpha {
+            } else if tt_score <= window.alpha {
                 extension = -1;
             }
         // Low-Depth Singular Extensions (LDSE)
@@ -445,7 +443,7 @@ fn alpha_beta<NODE: NodeType>(
         // assume the TT move is singular without a reduced-depth search, and extend.
         } else if depth <= ldse_max_depth()
             && !in_check
-            && static_eval <= alpha - ldse_margin()
+            && static_eval <= window.alpha - ldse_margin()
             && tt_flag == Lower {
             extension = 1;
         }
@@ -510,7 +508,7 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && lmr_depth < fp_max_depth()
             && !is_mated
-            && static_eval + futility_margin <= alpha {
+            && static_eval + futility_margin <= window.alpha {
             move_picker.skip_quiets = true;
             continue;
         }
@@ -546,7 +544,7 @@ fn alpha_beta<NODE: NodeType>(
             && !in_check
             && lmr_depth < bnp_max_depth()
             && move_picker.stage == BadNoisies
-            && futility_margin <= alpha {
+            && futility_margin <= window.alpha {
             break;
         }
 
@@ -604,7 +602,7 @@ fn alpha_beta<NODE: NodeType>(
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
             r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
+            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > window.alpha) as i32;
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
@@ -628,11 +626,11 @@ fn alpha_beta<NODE: NodeType>(
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.stack[ply].reduction = r;
-            score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, window.null_flipped(), true);
             td.stack[ply].reduction = 0;
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
-            if score > alpha && new_depth > reduced_depth {
+            if score > window.alpha && new_depth > reduced_depth {
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
                 let do_shallower_margin = best_score + new_depth;
@@ -640,10 +638,10 @@ fn alpha_beta<NODE: NodeType>(
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
-                    score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                    score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, window.null_flipped(), !cut_node);
 
-                    if is_quiet && (score <= alpha || score >= beta) {
-                        let good = score >= beta;
+                    if is_quiet && (score <= window.alpha || score >= window.beta) {
+                        let good = score >= window.beta;
                         let bonus_1 = if good { lmr_conthist_1_bonus(depth) } else { lmr_conthist_1_malus(depth) };
                         let bonus_2 = if good { lmr_conthist_2_bonus(depth) } else { lmr_conthist_2_malus(depth) };
                         td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
@@ -654,13 +652,13 @@ fn alpha_beta<NODE: NodeType>(
         // If we're skipping late move reductions - either due to being in a PV node, or searching
         // the first move, or another reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, window.null_flipped(), !cut_node);
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
-        if pv_node && (searched_moves == 1 || score > alpha) {
-            score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
+        if pv_node && (searched_moves == 1 || score > window.alpha) {
+            score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, window.flipped(), false);
         }
 
         // Register the current move, to update its history score later
@@ -699,8 +697,8 @@ fn alpha_beta<NODE: NodeType>(
 
         // If the score is greater than alpha, then this is the best move we have examined so far.
         // We therefore update alpha to the current score and update best move to the current move.
-        if score > alpha {
-            alpha = score;
+        if score > window.alpha {
+            window.alpha = score;
             best_move = mv;
             flag = Exact;
 
@@ -715,7 +713,7 @@ fn alpha_beta<NODE: NodeType>(
             // If the score is greater than beta, then this position is 'too good' - our opponent
             // won't let us get here assuming perfect play. There is therefore no point searching
             // further, and we can cut off the search.
-            if score >= beta {
+            if score >= window.beta {
                 flag = Lower;
                 break;
             }
@@ -838,7 +836,7 @@ fn alpha_beta<NODE: NodeType>(
     // Checkmate / Stalemate Detection
     if legal_moves == 0 {
         return if singular_search {
-            alpha
+            window.alpha
         } else if in_check {
             mated_in(ply)
         } else {
