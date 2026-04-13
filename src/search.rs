@@ -314,7 +314,8 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth()
             && static_eval - futility_margin >= beta
-            && tt_flag != Upper {
+            && tt_flag != Upper
+            && (!tt_move.exists() || tt_move_noisy) {
             return beta + (static_eval - beta) / 3;
         }
 
