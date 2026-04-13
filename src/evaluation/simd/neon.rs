@@ -1,10 +1,33 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::aarch64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<int8x16_t>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
-pub type I32Vec = int32x4_t;
+pub type VecI32 = int32x4_t;
+pub type VecI8 = int8x16_t;
+pub type VecU16 = uint16x8_t;
+
+#[inline(always)]
+pub unsafe fn splat_u16(a: u16) -> uint16x8_t {
+    vdupq_n_u16(a)
+}
+
+#[inline(always)]
+pub unsafe fn load_u16(ptr: *const u16) -> uint16x8_t {
+    vld1q_u16(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn add_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
+    vaddq_u16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn store_u16(ptr: *mut u16, v: uint16x8_t) {
+    vst1q_u16(ptr, v)
+}
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
@@ -93,6 +116,19 @@ pub unsafe fn clamp_i32(x: int32x4_t, min: int32x4_t, max: int32x4_t) -> int32x4
 pub unsafe fn shift_left_mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     const SHIFT: i32 = 16 - L0_SHIFT as i32 - 1;
     vqdmulhq_s16(vshlq_n_s16::<SHIFT>(a), b)
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: int32x4_t) -> u16 {
+    const MASK: [u32; 4] = [1, 2, 4, 8];
+    let a = std::mem::transmute(vec);
+    vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(MASK.as_ptr()))) as u16
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
+    let chunk = vreinterpretq_s32_u8(vld1q_u8(ptr));
+    nonzero_mask_i32(chunk) as u32
 }
 
 #[inline(always)]

@@ -2,6 +2,7 @@ pub mod accumulator;
 pub mod cache;
 pub mod feature;
 pub mod stats;
+mod sparse;
 
 mod forward {
     #[cfg(any(target_feature = "avx2", target_feature = "neon"))]

@@ -221,10 +221,10 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
 /// - crelu: clamp(x, 0, Q) << Q_BITS
 /// - csrelu: clamp(x^2, 0, Q^2)
 unsafe fn dual_activation(
-    acc1: simd::I32Vec,
-    acc2: simd::I32Vec,
-    acc3: simd::I32Vec,
-    acc4: simd::I32Vec,
+    acc1: simd::VecI32,
+    acc2: simd::VecI32,
+    acc3: simd::VecI32,
+    acc4: simd::VecI32,
     biases: &[i32; L2_SIZE],
     out_idx: usize,
 ) -> (i32, i32) {

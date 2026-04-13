@@ -1,11 +1,34 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
-pub type I32Vec = __m512i;
+pub type VecI32 = __m512i;
+pub type VecI8 = __m512i;
+pub type VecU16 = __m128i;
+
+#[inline(always)]
+pub unsafe fn splat_u16(a: u16) -> __m128i {
+    _mm_set1_epi16(a as i16)
+}
+
+#[inline(always)]
+pub unsafe fn load_u16(ptr: *const u16) -> __m128i {
+    _mm_loadu_si128(ptr as *const __m128i)
+}
+
+#[inline(always)]
+pub unsafe fn add_u16(a: __m128i, b: __m128i) -> __m128i {
+    _mm_add_epi16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn store_u16(ptr: *mut u16, v: __m128i) {
+    _mm_storeu_si128(ptr as *mut __m128i, v)
+}
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
@@ -98,6 +121,17 @@ pub unsafe fn clamp_i32(x: __m512i, min: __m512i, max: __m512i) -> __m512i {
 pub unsafe fn shift_left_mul_high_i16(a: __m512i, b: __m512i) -> __m512i {
     const SHIFT: u32 = 16 - L0_SHIFT as u32;
     _mm512_mulhi_epi16(_mm512_slli_epi16::<SHIFT>(a), b)
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: __m512i) -> u16 {
+    _mm512_cmpgt_epi32_mask(vec, _mm512_setzero_si512()) as u16
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
+    let chunk = _mm512_loadu_si512(ptr as *const __m512i);
+    nonzero_mask_i32(chunk) as u32
 }
 
 #[inline(always)]

@@ -1,11 +1,34 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m256i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m256i>() / size_of::<i32>();
 pub const I8_LANES: usize = size_of::<__m256i>() / size_of::<i8>();
 
-pub type I32Vec = __m256i;
+pub type VecI32 = __m256i;
+pub type VecI8 = __m256i;
+pub type VecU16 = __m128i; 
+
+#[inline(always)]
+pub unsafe fn splat_u16(a: u16) -> __m128i {
+    _mm_set1_epi16(a as i16)
+}
+
+#[inline(always)]
+pub unsafe fn load_u16(ptr: *const u16) -> __m128i {
+    _mm_loadu_si128(ptr as *const __m128i)
+}
+
+#[inline(always)]
+pub unsafe fn add_u16(a: __m128i, b: __m128i) -> __m128i {
+    _mm_add_epi16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn store_u16(ptr: *mut u16, v: __m128i) {
+    _mm_storeu_si128(ptr as *mut __m128i, v)
+}
 
 #[inline(always)]
 pub unsafe fn load_u8(ptr: *const u8) -> __m256i {
@@ -91,6 +114,17 @@ pub unsafe fn clamp_i32(x: __m256i, min: __m256i, max: __m256i) -> __m256i {
 pub unsafe fn shift_left_mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
     const SHIFT: i32 = 16 - L0_SHIFT as i32;
     _mm256_mulhi_epi16(_mm256_slli_epi16::<SHIFT>(a), b)
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: __m256i) -> u16 {
+    _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(vec, _mm256_setzero_si256()))) as u16
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
+    let chunk = _mm256_loadu_si256(ptr as *const __m256i);
+    nonzero_mask_i32(chunk) as u32
 }
 
 #[inline(always)]
