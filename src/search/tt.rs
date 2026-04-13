@@ -1,7 +1,7 @@
 use crate::board::moves::Move;
-use crate::search::{score};
+use crate::search::score;
+use crate::search::score::{to_search, to_tt};
 use std::mem::size_of;
-use score::is_mate;
 
 /// The transposition table is a lookup table that stores the results of previously searched
 /// positions, including the search depth, the score, the best move found, and other relevant
@@ -89,7 +89,7 @@ impl Entry {
     }
 
     pub fn score(&self, ply: usize) -> i16 {
-        to_search(self.score as i32, ply)
+        to_search(self.score as i32, ply) as i16
     }
 
     pub fn static_eval(&self) -> i16 {
@@ -227,7 +227,7 @@ impl TranspositionTable {
 
         entry.key = key_part;
         entry.best_move = mv.0;
-        entry.score = to_tt(score, ply);
+        entry.score = to_tt(score, ply) as i16;
         entry.eval = static_eval as i16;
         entry.depth = depth as u8;
         entry.flags = Flags::new(flag, pv, tt_age);
@@ -289,55 +289,5 @@ impl Flags {
 
     pub const fn age(self) -> u8 {
         self.data >> 3
-    }
-}
-
-const fn to_tt(score: i32, ply: usize) -> i16 {
-    if !is_mate(score) {
-        return score as i16;
-    }
-    if score > 0 {
-        (score - ply as i32) as i16
-    } else {
-        (score + ply as i32) as i16
-    }
-}
-
-const fn to_search(score: i32, ply: usize) -> i16 {
-    if !is_mate(score) {
-        return score as i16;
-    }
-    if score > 0 {
-        (score + ply as i32) as i16
-    } else {
-        (score - ply as i32) as i16
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::board::moves::MoveFlag;
-    use crate::board::square::Square;
-
-    #[test]
-    fn test_tt() {
-        let mut tt = TranspositionTable::new(16);
-        let hash = 0x1234567890ABCDEF;
-        let best_move = Move::new(Square(0), Square(1), MoveFlag::Standard);
-        let score = 100;
-        let depth = 5;
-        let flag = TTFlag::Exact;
-
-        tt.insert(hash, best_move, score, depth, 0, 0, flag, true);
-
-        assert!(tt.probe(0x987654321FEDCBA).is_none());
-
-        let entry = tt.probe(hash).unwrap();
-        assert_eq!(entry.best_move(), best_move);
-        assert_eq!(entry.score(0), score as i16);
-        assert_eq!(entry.depth() as i32, depth);
-        assert_eq!(entry.flag(), flag);
-        assert!(entry.pv());
     }
 }

@@ -18,7 +18,7 @@ use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::BadNoisies;
 use crate::search::node::{NodeType, NonPV, Root, PV};
-use crate::search::score::{format_score, is_defined, is_mated, mate_in, mated_in};
+use crate::search::score::{is_defined, is_mated, mate_in, mated_in};
 use crate::search::see::{see, SeeType};
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
@@ -67,8 +67,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         // more cut-offs and thus speeding up the search. If the true score is outside the window,
         // a costly re-search is required.
         if td.depth >= asp_min_depth() {
-            alpha = (score - delta).max(score::MIN);
-            beta = (score + delta).min(score::MAX);
+            alpha = score::clamp(score - delta);
+            beta = score::clamp(score + delta);
         }
 
         loop {
@@ -90,12 +90,12 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             match score {
                 s if s <= alpha => {
                     beta = (alpha + beta) / 2;
-                    alpha = (score - delta).max(score::MIN);
+                    alpha = score::clamp(score - delta);
                     delta += (delta * 100) / asp_alpha_widening_factor();
                     reduction = 0;
                 }
                 s if s >= beta => {
-                    beta = (score + delta).min(score::MAX);
+                    beta = score::clamp(score + delta);
                     delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
                 }
@@ -837,7 +837,7 @@ fn alpha_beta<NODE: NodeType>(
         return if singular_search {
             alpha
         } else if in_check {
-            -score::MATE + ply as i32
+            mated_in(ply)
         } else {
             score::DRAW
         };
@@ -1073,7 +1073,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     if move_count == 0 && in_check {
-        return -score::MATE + ply as i32;
+        return mated_in(ply);
     }
 
     if best_score >= beta && is_defined(best_score) {
@@ -1234,7 +1234,7 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
         "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
         depth,
         seldepth,
-        format_score(score),
+        score::format_score(score),
         bound,
         nodes,
         time,
