@@ -56,7 +56,7 @@ macro_rules! lmr_reduction {
                 return 0;
             }
             let base = $base();
-            let scaled = $depth_mult() * depth * depth;
+            let scaled = ($depth_mult() * depth * depth) >> 6;
             (base + scaled).min($max())
         }
     };
