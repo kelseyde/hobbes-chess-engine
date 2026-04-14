@@ -8,6 +8,7 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod lmr;
 
 use std::time::Duration;
 
@@ -28,6 +29,7 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
+use crate::search::lmr::{lmr_capture, lmr_cut_node, lmr_improving, lmr_killer, lmr_quiet_see, lmr_ttpv, lmr_ttpv_depth, lmr_ttpv_score};
 
 pub const MAX_PLY: usize = 256;
 
@@ -488,6 +490,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
+        let to_threatened = threats.contains(mv.to());
         let lmr_depth = depth.saturating_sub(base_reduction);
 
         // Check Extensions
@@ -603,20 +606,19 @@ fn alpha_beta<NODE: NodeType>(
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
-            r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * cut_node as i32;
-            r -= lmr_capture() * captured.is_some() as i32;
-            r += lmr_improving() * !improving as i32;
+            r -= lmr_ttpv(tt_pv, depth);
+            r -= lmr_ttpv_score(tt_pv && has_tt_score && tt_score > alpha, depth);
+            r -= lmr_ttpv_depth(tt_pv && has_tt_score && tt_depth >= depth, depth);
+            r += lmr_cut_node(cut_node, depth);
+            r -= lmr_capture(captured.is_some(), depth);
+            r += lmr_improving(!improving, depth);
+            r -= lmr_killer(is_killer, depth);
+            r += lmr_quiet_see(is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering), depth);
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
-            r -= lmr_killer() * is_killer as i32;
             r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet 
-                && original_board.threats.contains(mv.to()) 
-                && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
