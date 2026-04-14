@@ -1,5 +1,4 @@
 use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
-use crate::search::parameters::*;
 use crate::tools::utils::boxed_and_zeroed;
 
 pub struct LmrTable {
