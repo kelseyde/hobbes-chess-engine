@@ -240,7 +240,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
             .is_some_and(|p| p == Queen || p == Knight)
     } else {
         // Captures are sorted based on whether they pass a SEE threshold
-        if !split_noisies || entry.score >= KILLER_BONUS {
+        if !split_noisies || entry.score >= KILLER_BONUS || board.gives_direct_check(entry.mv){
             true
         } else {
             let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
