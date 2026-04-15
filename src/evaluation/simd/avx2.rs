@@ -198,12 +198,12 @@ pub unsafe fn dpbusdx2(
 }
 
 #[inline(always)]
-pub unsafe fn shift_right_i32<const SHIFT: u32>(a: __m256i) -> __m256i {
+pub unsafe fn shift_right_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
     _mm256_srai_epi32::<SHIFT>(a)
 }
 
 #[inline(always)]
-pub unsafe fn shift_left_i32<const SHIFT: u32>(a: __m256i) -> __m256i {
+pub unsafe fn shift_left_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
     _mm256_slli_epi32::<SHIFT>(a)
 }
 
