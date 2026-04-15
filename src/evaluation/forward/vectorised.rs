@@ -41,7 +41,6 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     const WEIGHT_STRIDE: usize = simd::I32_LANES * 4;
     const UNROLL: usize = 4;
 
-
     let zero = simd::splat_i32(0);
     let mut acc = [[zero; UNROLL]; ACC_LANES];
 
@@ -54,8 +53,8 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
         for lane in 0..ACC_LANES {
             let off = lane * WEIGHT_STRIDE;
             for sub in 0..UNROLL {
-                let i1 = nonzero_indices[nnz + 2 * sub    ].assume_init() as usize;
-                let i2 = nonzero_indices[nnz + 2 * sub + 1].assume_init() as usize;
+                let i1 = nonzero_indices[nnz + 2 * sub] as usize;
+                let i2 = nonzero_indices[nnz + 2 * sub + 1] as usize;
                 let ft1 = simd::splat_i32_as_u8(*input_i32.add(i1));
                 let ft2 = simd::splat_i32_as_u8(*input_i32.add(i2));
                 let w1 = simd::load_i8(w_base.add(i1 * L2_SIZE * 4 + off));
@@ -67,7 +66,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     }
 
     while nnz < num_nonzero_indices {
-        let b = nonzero_indices[nnz].assume_init() as usize;
+        let b = nonzero_indices[nnz] as usize;
         let ft_val = simd::splat_i32_as_u8(*input_i32.add(b));
         for lane in 0..ACC_LANES {
             let off = lane * WEIGHT_STRIDE;
@@ -78,12 +77,12 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     }
 
     let bias_ptr = NETWORK.l1_biases[output_bucket].as_ptr() as *const simd::VecI32;
-    let lo       = simd::splat_i32(0);
-    let hi       = simd::splat_i32(Q as i32);
-    let hi2      = simd::splat_i32((Q * Q) as i32);
+    let lo = simd::splat_i32(0);
+    let hi = simd::splat_i32(Q as i32);
+    let hi2 = simd::splat_i32((Q * Q) as i32);
 
     let mut output = std::mem::MaybeUninit::<[i32; L2_SIZE * 2]>::uninit();
-    let out_ptr    = output.as_mut_ptr() as *mut simd::VecI32;
+    let out_ptr = output.as_mut_ptr() as *mut simd::VecI32;
 
     for lane in 0..ACC_LANES {
         let mut sum = acc[lane][0];
@@ -91,10 +90,10 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
             sum = simd::add_i32(sum, acc[lane][sub]);
         }
 
-        let bias    = simd::load_i32(bias_ptr.add(lane) as *const i32);
-        let shifted = simd::add_i32(simd::shift_right_i32::<{L1_SHIFT as _}>(sum), bias);
+        let bias = simd::load_i32(bias_ptr.add(lane) as *const i32);
+        let shifted = simd::add_i32(simd::shift_right_i32::<{ L1_SHIFT as _ }>(sum), bias);
 
-        let crelu  = simd::shift_left_i32::<{Q_BITS as _}>(simd::clamp_i32(shifted, lo, hi));
+        let crelu = simd::shift_left_i32::<{ Q_BITS as _ }>(simd::clamp_i32(shifted, lo, hi));
         let csrelu = simd::clamp_i32(simd::mul_i32(shifted, shifted), lo, hi2);
 
         simd::store_i32(out_ptr.add(lane) as *mut i32, crelu);

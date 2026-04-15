@@ -110,7 +110,10 @@ pub unsafe fn shift_left_mul_high_i16(a: __m256i, b: __m256i) -> __m256i {
 
 #[inline(always)]
 pub unsafe fn nonzero_mask_i32(vec: __m256i) -> u16 {
-    _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(vec, _mm256_setzero_si256()))) as u16
+    _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(
+        vec,
+        _mm256_setzero_si256(),
+    ))) as u16
 }
 
 #[inline(always)]
@@ -156,8 +159,10 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m256i; N]) -> i32 {
 #[inline(always)]
 pub unsafe fn dpbusdx2(
     acc: __m256i,
-    u1: __m256i, w1: __m256i,
-    u2: __m256i, w2: __m256i,
+    u1: __m256i,
+    w1: __m256i,
+    u2: __m256i,
+    w2: __m256i,
 ) -> __m256i {
     let p1 = _mm256_maddubs_epi16(u1, w1);
     let p2 = _mm256_maddubs_epi16(u2, w2);
@@ -180,4 +185,3 @@ pub unsafe fn shift_left_i32<const SHIFT: i32>(a: __m256i) -> __m256i {
 pub unsafe fn splat_i32_as_u8(a: i32) -> __m256i {
     _mm256_set1_epi32(a)
 }
-

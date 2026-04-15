@@ -155,8 +155,10 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m512i; N]) -> i32 {
 #[inline(always)]
 pub unsafe fn dpbusdx2(
     acc: __m512i,
-    u1: __m512i, w1: __m512i,
-    u2: __m512i, w2: __m512i,
+    u1: __m512i,
+    w1: __m512i,
+    u2: __m512i,
+    w2: __m512i,
 ) -> __m512i {
     let p1 = _mm512_maddubs_epi16(u1, w1);
     let p2 = _mm512_maddubs_epi16(u2, w2);

@@ -165,8 +165,10 @@ pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
 #[inline(always)]
 pub unsafe fn dpbusdx2(
     acc: int32x4_t,
-    u1: int8x16_t, w1: int8x16_t,
-    u2: int8x16_t, w2: int8x16_t,
+    u1: int8x16_t,
+    w1: int8x16_t,
+    u2: int8x16_t,
+    w2: int8x16_t,
 ) -> int32x4_t {
     #[cfg(target_feature = "dotprod")]
     {
@@ -176,11 +178,11 @@ pub unsafe fn dpbusdx2(
     {
         let lo1 = vmull_s8(vget_low_s8(u1), vget_low_s8(w1));
         let hi1 = vmull_high_s8(u1, w1);
-        let p1  = vpaddq_s16(lo1, hi1);
+        let p1 = vpaddq_s16(lo1, hi1);
 
         let lo2 = vmull_s8(vget_low_s8(u2), vget_low_s8(w2));
         let hi2 = vmull_high_s8(u2, w2);
-        let p2  = vpaddq_s16(lo2, hi2);
+        let p2 = vpaddq_s16(lo2, hi2);
 
         vpadalq_s16(acc, vaddq_s16(p1, p2))
     }
