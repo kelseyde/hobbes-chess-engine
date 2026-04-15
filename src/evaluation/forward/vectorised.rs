@@ -81,7 +81,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     let hi = simd::splat_i32(Q as i32);
     let hi2 = simd::splat_i32((Q * Q) as i32);
 
-    let mut output = std::mem::MaybeUninit::<[i32; L2_SIZE * 2]>::uninit();
+    let mut output = [0i32; L2_SIZE * 2];
     let out_ptr = output.as_mut_ptr() as *mut simd::VecI32;
 
     for lane in 0..ACC_LANES {
@@ -100,7 +100,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
         simd::store_i32(out_ptr.add(lane + ACC_LANES) as *mut i32, csrelu);
     }
 
-    output.assume_init()
+    output
 }
 
 /// L2 propagation
