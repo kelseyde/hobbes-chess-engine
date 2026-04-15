@@ -85,10 +85,9 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     let out_ptr = output.as_mut_ptr() as *mut simd::VecI32;
 
     for lane in 0..ACC_LANES {
-        let mut sum = acc[lane][0];
-        for sub in 1..UNROLL {
-            sum = simd::add_i32(sum, acc[lane][sub]);
-        }
+        let half0 = simd::add_i32(acc[lane][0], acc[lane][1]);
+        let half1 = simd::add_i32(acc[lane][2], acc[lane][3]);
+        let sum = simd::add_i32(half0, half1);
 
         let bias = simd::load_i32(bias_ptr.add(lane) as *const i32);
         let shifted = simd::add_i32(simd::shift_right_i32::<{ L1_SHIFT as _ }>(sum), bias);
