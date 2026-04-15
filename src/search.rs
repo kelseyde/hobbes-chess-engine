@@ -504,7 +504,8 @@ fn alpha_beta<NODE: NodeType>(
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
-            - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper();
+            - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper()
+            - 20 * board.gives_direct_check(mv) as i32;
         if !root_node
             && !in_check
             && is_quiet
