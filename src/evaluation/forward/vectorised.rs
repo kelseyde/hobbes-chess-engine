@@ -50,7 +50,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
     let mut nnz = 0;
     while nnz + 2 * UNROLL <= num_nonzero_indices {
-        for lane in 0..ACC_LANES {
+        for (lane, acc_lane) in acc.iter_mut().enumerate() {
             let off = lane * WEIGHT_STRIDE;
             for sub in 0..UNROLL {
                 let i1 = nonzero_indices[nnz + 2 * sub] as usize;
@@ -59,7 +59,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
                 let ft2 = simd::splat_i32_as_u8(*input_i32.add(i2));
                 let w1 = simd::load_i8(w_base.add(i1 * L2_SIZE * 4 + off));
                 let w2 = simd::load_i8(w_base.add(i2 * L2_SIZE * 4 + off));
-                acc[lane][sub] = simd::dpbusdx2(acc[lane][sub], ft1, w1, ft2, w2);
+                acc_lane[sub] = simd::dpbusdx2(acc_lane[sub], ft1, w1, ft2, w2);
             }
         }
         nnz += 2 * UNROLL;
@@ -68,10 +68,10 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     while nnz < num_nonzero_indices {
         let b = nonzero_indices[nnz] as usize;
         let ft_val = simd::splat_i32_as_u8(*input_i32.add(b));
-        for lane in 0..ACC_LANES {
+        for (lane, acc_lane) in acc.iter_mut().enumerate() {
             let off = lane * WEIGHT_STRIDE;
             let wv = simd::load_i8(w_base.add(b * L2_SIZE * 4 + off));
-            acc[lane][0] = simd::dpbusd(acc[lane][0], ft_val, wv);
+            acc_lane[0] = simd::dpbusd(acc_lane[0], ft_val, wv);
         }
         nnz += 1;
     }
@@ -84,9 +84,9 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     let mut output = [0i32; L2_SIZE * 2];
     let out_ptr = output.as_mut_ptr() as *mut simd::VecI32;
 
-    for lane in 0..ACC_LANES {
-        let half0 = simd::add_i32(acc[lane][0], acc[lane][1]);
-        let half1 = simd::add_i32(acc[lane][2], acc[lane][3]);
+    for (lane, acc_lane) in acc.iter().enumerate() {
+        let half0 = simd::add_i32(acc_lane[0], acc_lane[1]);
+        let half1 = simd::add_i32(acc_lane[2], acc_lane[3]);
         let sum = simd::add_i32(half0, half1);
 
         let bias = simd::load_i32(bias_ptr.add(lane) as *const i32);

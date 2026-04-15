@@ -118,7 +118,7 @@ pub unsafe fn shift_left_mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
 #[inline(always)]
 pub unsafe fn nonzero_mask_i32(vec: int32x4_t) -> u16 {
     const MASK: [u32; 4] = [1, 2, 4, 8];
-    let a = std::mem::transmute(vec);
+    let a = std::mem::transmute::<int32x4_t, uint32x4_t>(vec);
     vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(MASK.as_ptr()))) as u16
 }
 
