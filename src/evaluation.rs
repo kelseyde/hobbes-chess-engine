@@ -1,19 +1,34 @@
-pub mod accumulator;
-pub mod cache;
-pub mod feature;
-mod sparse;
 pub mod stats;
+mod accumulator;
+mod cache;
+mod feature;
+mod sparse;
 
 mod forward {
+    use hobbes_nnue_arch::{L1_SIZE, L2_SIZE, L3_SIZE};
+
+    /// Trait grouping for four forward pass functions in Hobbes' multilayer NNUE inference. There
+    /// is both a `Vectorised` and `Scalar` implementation of this trait; the appropriate one is
+    /// selected at compile time.
+    pub trait Forward {
+        unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE];
+
+        unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2];
+
+        unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize) -> [i32; L3_SIZE];
+
+        unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32;
+    }
+
     #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
     mod vectorised;
     #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    pub use vectorised::*;
+    pub use vectorised::Vectorised as inference;
 
     #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
     mod scalar;
     #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
-    pub use scalar::*;
+    pub use scalar::Scalar as inference;
 }
 
 mod simd {
@@ -58,6 +73,7 @@ use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use crate::evaluation::forward::{inference, Forward};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -95,10 +111,10 @@ impl NNUE {
 
         let output_bucket = get_output_bucket(board);
         let raw = unsafe {
-            let l0_outputs = forward::activate_l0(us, them);
-            let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
-            let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
-            forward::propagate_l3(&l2_outputs, output_bucket)
+            let l0_outputs = inference::activate_l0(us, them);
+            let l1_outputs = inference::propagate_l1(&l0_outputs, output_bucket);
+            let l2_outputs = inference::propagate_l2(&l1_outputs, output_bucket);
+            inference::propagate_l3(&l2_outputs, output_bucket)
         };
 
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
