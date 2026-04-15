@@ -8,7 +8,7 @@ use crate::search::node::NodeStack;
 use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{Score, MAX_PLY};
+use crate::search::{score, MAX_PLY};
 #[cfg(debug_assertions)]
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
@@ -70,7 +70,7 @@ impl Default for ThreadData {
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
-            best_score: Score::MIN,
+            best_score: score::MIN,
         }
     }
 }

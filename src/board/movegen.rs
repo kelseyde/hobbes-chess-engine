@@ -1,14 +1,14 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList, MoveListEntry};
+use crate::board::moves::{MoveFlag, MoveList};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
-use crate::board::Board;
 use crate::board::{attacks, castling, ray};
+use crate::board::{setwise, Board};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {
@@ -23,14 +23,11 @@ impl Board {
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
     pub fn gen_legal_moves(&self) -> MoveList {
-        let mut moves = self.gen_moves(MoveFilter::All);
+        let moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add(MoveListEntry {
-                    mv: entry.mv,
-                    score: 0,
-                })
+                legal_moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
             }
         }
         legal_moves
@@ -52,9 +49,14 @@ impl Board {
         let filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
             MoveFilter::Quiets => !them,
-            MoveFilter::Noisies => them,
-            MoveFilter::Captures => them,
+            MoveFilter::Noisies | MoveFilter::Captures => them,
         };
+
+        let gen_quiets = matches!(filter, MoveFilter::All | MoveFilter::Quiets);
+        let gen_noisies = matches!(
+            filter,
+            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
+        );
 
         // Generate king moves first
         self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
@@ -65,8 +67,8 @@ impl Board {
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, filter, &mut moves);
-        if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, &mut moves);
+        if gen_quiets {
             gen_castle_moves(self, side, &mut moves);
         }
 
@@ -86,22 +88,15 @@ impl Board {
         let king = self.king(side);
         let occ = self.occ() ^ king;
         let them = !side;
+
+        let pawns = self.pawns(them);
+        let knights = self.knights(them);
+        let diags = self.diags(them);
+        let orthos = self.orthos(them);
         let mut threats = Bitboard::empty();
 
-        threats |= attacks::pawn_attacks(self.pawns(them), them);
-
-        for sq in self.knights(them) {
-            threats |= attacks::knight(sq);
-        }
-
-        for sq in self.diags(them) {
-            threats |= attacks::bishop(sq, occ);
-        }
-
-        for sq in self.orthos(them) {
-            threats |= attacks::rook(sq, occ);
-        }
-
+        threats |= attacks::pawn_attacks(pawns, them);
+        threats |= setwise::knights_and_sliders_setwise(knights, orthos, diags, occ);
         threats |= attacks::king(self.king_sq(them));
 
         threats
@@ -149,19 +144,20 @@ fn gen_pawn_moves(
     side: Side,
     occ: Bitboard,
     them: Bitboard,
-    filter: MoveFilter,
+    gen_quiets: bool,
+    gen_noisies: bool,
     moves: &mut MoveList,
 ) {
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
     // Quiet pawn moves (single and double pushes).
-    if filter != MoveFilter::Captures && filter != MoveFilter::Noisies {
+    if gen_quiets {
         add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
         add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
     }
 
     // Noisy pawn moves (captures, promos, en passant).
-    if filter != MoveFilter::Quiets {
+    if gen_noisies {
         add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
         add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
 

@@ -12,6 +12,41 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod setwise {
+    #[cfg(target_feature = "avx512f")]
+    mod avx512;
+    #[cfg(target_feature = "avx512f")]
+    pub use crate::board::setwise::avx512::*;
+
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    mod avx2;
+    #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+    pub use crate::board::setwise::avx2::*;
+
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    mod neon;
+    #[cfg(all(
+        target_feature = "neon",
+        not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    pub use neon::*;
+
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    mod scalar;
+    #[cfg(not(any(
+        target_feature = "avx512f",
+        target_feature = "avx2",
+        target_feature = "neon"
+    )))]
+    pub use crate::board::setwise::scalar::*;
+}
 
 use crate::board::castling::Rights;
 use crate::board::zobrist::{Keys, Zobrist};
@@ -27,21 +62,22 @@ use square::Square;
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
 /// and 'unmake' moves on the board. Uses bitboards to represent the pieces and 'toggling' functions
 /// to set and unset pieces.
+#[rustfmt::skip]
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8], // bitboards for each piece type (0-5) and for both colours (6-7)
-    pub pcs: [Option<Piece>; 64], // piece type on each square
-    pub stm: Side,         // side to move (White or Black)
-    pub hm: u8,            // number of half moves since last capture or pawn move
-    pub fm: u8,            // number of full moves
-    pub ep_sq: Option<Square>, // en passant square (0-63)
+    pub bb: [Bitboard; 8],            // bitboards for each piece type (0-5) and both colours (6-7)
+    pub pcs: [Option<Piece>; 64],     // piece type on each square
+    pub stm: Side,                    // side to move (White or Black)
+    pub hm: u8,                       // number of half moves since last capture or pawn move
+    pub fm: u8,                       // number of full moves
+    pub ep_sq: Option<Square>,        // en passant square (0-63)
     pub recapture_sq: Option<Square>, // square where a recapture can occur
-    pub rights: Rights,    // encoded castle rights
-    pub keys: Keys,        // zobrist hashes
-    pub frc: bool,         // whether the game is Fischer Random Chess
-    pub threats: Bitboard, // squares attacked by the opponent
-    pub checkers: Bitboard, // opponent pieces checking the king
-    pub pinned: [Bitboard; 2], // pinned pieces for both sides
+    pub rights: Rights,               // encoded castle rights
+    pub keys: Keys,                   // zobrist hashes
+    pub frc: bool,                    // whether the game is Fischer Random Chess
+    pub threats: Bitboard,            // squares attacked by the opponent
+    pub checkers: Bitboard,           // opponent pieces checking the king
+    pub pinned: [Bitboard; 2],        // pinned pieces for both sides
 }
 
 impl Default for Board {
@@ -51,10 +87,12 @@ impl Default for Board {
 }
 
 impl Board {
+    /// Creates a new board in the standard chess starting position.
     pub fn new() -> Board {
         Board::from_fen(fen::STARTPOS).unwrap()
     }
 
+    /// Creates a completely empty board with no pieces, no castling rights, and no en passant.
     pub fn empty() -> Board {
         Board {
             bb: [Bitboard::empty(); 8],
@@ -73,6 +111,10 @@ impl Board {
         }
     }
 
+    /// Applies a move to the board, updating all state: piece positions, side to move, castling
+    /// rights, en passant square, half-move clock, Zobrist hashes, threats, checkers, and pinned
+    /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
+    #[rustfmt::skip]
     pub fn make(&mut self, m: &Move) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
@@ -108,18 +150,10 @@ impl Board {
         }
 
         self.ep_sq = self.calc_ep(flag, to);
-        self.recapture_sq = if captured.is_some() {
-            Some(m.to())
-        } else {
-            None
-        };
+        self.recapture_sq = captured.map(|_| m.to());
         self.rights = self.calc_castle_rights(from, to, pc);
-        self.fm += if side == Black { 1 } else { 0 };
-        self.hm = if captured.is_some() || pc == Piece::Pawn {
-            0
-        } else {
-            self.hm + 1
-        };
+        self.fm += (side == Black) as u8;
+        self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
         self.keys.hash ^= Zobrist::stm();
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
@@ -127,6 +161,10 @@ impl Board {
         self.pinned = self.calc_both_pinned();
     }
 
+    /// Toggles a single piece on or off a given square for the given side.
+    ///
+    /// Flips the relevant piece-type and colour bitboards, updates the per-square piece array,
+    /// and XORs all affected Zobrist keys.
     #[inline]
     pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
         let bb: Bitboard = Bitboard::of_sq(sq);
@@ -150,12 +188,17 @@ impl Board {
         }
     }
 
+    /// Toggles a piece off `from` and on to `to` in a single call.
     #[inline]
     pub fn toggle_sqs(&mut self, from: Square, to: Square, piece: Piece, side: Side) {
         self.toggle_sq(from, piece, side);
         self.toggle_sq(to, piece, side);
     }
 
+    /// Returns the `(rook_from, rook_to)` squares needed to relocate the rook during castling.
+    ///
+    /// In standard chess the rook starts on its usual corner square. In Fischer Random Chess,
+    /// castling moves are encoded as "king captures rook".
     #[inline]
     fn rook_sqs(&self, king_to_sq: Square, kingside: bool) -> (Square, Square) {
         let rook_from = if self.is_frc() {
@@ -168,6 +211,7 @@ impl Board {
         (rook_from, rook_to)
     }
 
+    /// Returns the square of the pawn that would be captured by an en passant capture.
     #[inline]
     fn ep_capture_sq(&self, to: Square) -> Square {
         if self.stm == White {
@@ -177,15 +221,18 @@ impl Board {
         }
     }
 
+    /// Returns the piece that will occupy the destination square after the move.
+    /// For promotions this is the promotion piece; for all other moves it is `pc` unchanged.
     #[inline]
     fn new_pc(&self, m: &Move, pc: Piece) -> Piece {
-        if let Some(promo) = m.promo_piece() {
-            promo
-        } else {
-            pc
-        }
+        m.promo_piece().unwrap_or(pc)
     }
 
+    /// Returns the square the king will land on after the move.
+    ///
+    /// In Fischer Random Chess, a castling move is encoded as "king captures rook", so the
+    /// encoded destination square is the rook's square, not the king's final square. This
+    /// method resolves the true king destination in that case.
     #[inline]
     fn new_to(&self, m: &Move, from: Square, to: Square) -> Square {
         if m.is_castle() && self.is_frc() {
@@ -196,6 +243,12 @@ impl Board {
         }
     }
 
+    /// Recomputes castling rights after a move and updates the Zobrist hash accordingly.
+    ///
+    /// Rights are removed when:
+    /// - The king moves (both rights for that side are cleared).
+    /// - Any move originates from or lands on a rook's starting square (the corresponding
+    ///   corner right is cleared).
     #[inline]
     fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> Rights {
         let original_rights = self.rights;
@@ -227,6 +280,7 @@ impl Board {
         new_rights
     }
 
+    /// Recomputes the en passant square after a move and keeps the Zobrist hash in sync.
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
         if let Some(old_ep) = self.ep_sq {
@@ -243,11 +297,14 @@ impl Board {
         ep_sq
     }
 
+    /// Returns pinned-piece bitboards for both sides as `[white_pinned, black_pinned]`.
     #[inline]
     pub fn calc_both_pinned(&self) -> [Bitboard; 2] {
         [self.calc_pinned(White), self.calc_pinned(Black)]
     }
 
+    /// Computes the set of `side`'s pieces that are absolutely pinned to their king.
+    /// A piece is pinned iff it is the only piece standing between the king and a sliding attacker.
     #[inline]
     pub fn calc_pinned(&self, side: Side) -> Bitboard {
         let king = self.king_sq(side);
@@ -284,6 +341,7 @@ impl Board {
         self.rights.queenside(side).is_some()
     }
 
+    /// Makes a null move: passes the turn to the opponent without moving any piece.
     pub fn make_null_move(&mut self) {
         self.hm = 0;
         self.stm = !self.stm;
@@ -356,6 +414,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn pieces(&self, pc: Piece) -> Bitboard {
+        self.pcs(pc)
+    }
+
+    #[inline]
     pub fn side(&self, side: Side) -> Bitboard {
         self.bb[side.idx()]
     }
@@ -395,10 +458,7 @@ impl Board {
         self.pcs[sq]
     }
 
-    pub fn pieces(&self, pc: Piece) -> Bitboard {
-        self.bb[pc]
-    }
-
+    /// Returns the piece captured by `mv`, or `None` if the move is not a capture.
     #[inline]
     pub fn captured(&self, mv: &Move) -> Option<Piece> {
         if mv.is_castle() {
@@ -415,18 +475,42 @@ impl Board {
         mv.is_promo() || self.captured(mv).is_some()
     }
 
+    /// Returns the square occupied by the side to move's king.
+    #[inline]
+    pub fn our_king_sq(&self) -> Square {
+        self.king_sq(self.stm)
+    }
+
+    /// Returns the set of the side to move's pieces that are absolutely pinned to their king.
+    #[inline]
+    pub fn our_pinned(&self) -> Bitboard {
+        self.pinned[self.stm]
+    }
+
+    /// Returns `true` if `mv` lands on the square of the last capture, making it a recapture.
+    #[inline]
+    pub fn is_recapture(&self, mv: &Move) -> bool {
+        self.recapture_sq.is_some_and(|sq| sq == mv.to())
+    }
+
+    /// Returns the side that occupies `sq`, or `None` if the square is empty.
     pub fn side_at(&self, sq: Square) -> Option<Side> {
-        if !(self.bb[White.idx()] & Bitboard::of_sq(sq)).is_empty() {
+        let bb = Bitboard::of_sq(sq);
+        if !(self.bb[White.idx()] & bb).is_empty() {
             Some(White)
-        } else if !(self.bb[Black.idx()] & Bitboard::of_sq(sq)).is_empty() {
+        } else if !(self.bb[Black.idx()] & bb).is_empty() {
             Some(Black)
         } else {
             None
         }
     }
 
+    /// Returns `true` if the side to move has at least one piece other than the king and pawns.
+    ///
+    /// Used in Null Move Pruning to avoid making null moves in king-and-pawn endings, where
+    /// the assumption that passing the turn is always worse breaks down due to zugzwang.
     pub fn has_non_pawns(&self) -> bool {
-        self.our(Piece::King) | self.our(Piece::Pawn) != self.us()
+        (self.our(Piece::King) | self.our(Piece::Pawn)) != self.us()
     }
 
     pub const fn is_fifty_move_rule(&self) -> bool {
