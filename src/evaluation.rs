@@ -1,7 +1,7 @@
 mod accumulator;
 mod cache;
 mod feature;
-pub mod forward;
+mod forward;
 mod sparse;
 pub mod stats;
 
