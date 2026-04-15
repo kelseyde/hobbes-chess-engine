@@ -185,6 +185,29 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m256i; N]) -> i32 {
 }
 
 #[inline(always)]
+pub unsafe fn dpbusdx2(
+    acc: __m256i,
+    u1: __m256i, w1: __m256i,
+    u2: __m256i, w2: __m256i,
+) -> __m256i {
+    let p1 = _mm256_maddubs_epi16(u1, w1);
+    let p2 = _mm256_maddubs_epi16(u2, w2);
+    let combined = _mm256_adds_epi16(p1, p2);
+    let ones = _mm256_set1_epi16(1);
+    _mm256_add_epi32(acc, _mm256_madd_epi16(combined, ones))
+}
+
+#[inline(always)]
+pub unsafe fn shift_right_i32<const SHIFT: u32>(a: __m256i) -> __m256i {
+    _mm256_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shift_left_i32<const SHIFT: u32>(a: __m256i) -> __m256i {
+    _mm256_slli_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
 pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m256i, __m256i, __m256i, __m256i) {
     (
         _mm256_loadu_si256(ptr as *const __m256i),
@@ -199,3 +222,16 @@ pub unsafe fn splat_i32_x4(a: i32) -> (__m256i, __m256i, __m256i, __m256i) {
     let v = _mm256_set1_epi32(a);
     (v, v, v, v)
 }
+
+#[inline(always)]
+pub unsafe fn splat_i32_as_u8(a: i32) -> __m256i {
+    _mm256_set1_epi32(a)
+}
+
+#[inline(always)]
+pub unsafe fn extract_i32(v: __m256i, lane: usize) -> i32 {
+    let mut tmp = [0i32; 8];
+    _mm256_storeu_si256(tmp.as_mut_ptr() as *mut __m256i, v);
+    tmp[lane]
+}
+

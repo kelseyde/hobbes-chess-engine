@@ -53,7 +53,7 @@ pub struct UntransposedNetwork {
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
     pub l0_biases:  [i16; L1_SIZE],
-    pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l1_weights: [[[i8; L2_SIZE * 4]; L1_SIZE / 4]; OUTPUT_BUCKET_COUNT],
     pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE * 2]; OUTPUT_BUCKET_COUNT],
     pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],

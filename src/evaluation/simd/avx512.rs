@@ -87,6 +87,18 @@ pub unsafe fn splat_i32_x4(a: i32) -> (__m512i, __m512i, __m512i, __m512i) {
 }
 
 #[inline(always)]
+pub unsafe fn splat_i32_as_u8(a: i32) -> __m512i {
+    _mm512_set1_epi32(a)
+}
+
+#[inline(always)]
+pub unsafe fn extract_i32(v: __m512i, lane: usize) -> i32 {
+    let mut tmp = [0i32; 16];
+    _mm512_storeu_si512(tmp.as_mut_ptr() as *mut __m512i, v);
+    tmp[lane]
+}
+
+#[inline(always)]
 pub unsafe fn load_i32(ptr: *const i32) -> __m512i {
     _mm512_loadu_si512(ptr as *const __m512i)
 }
@@ -182,6 +194,29 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m512i; N]) -> i32 {
         acc = _mm512_add_epi32(acc, a[i]);
     }
     horizontal_sum_i32_single(acc)
+}
+
+#[inline(always)]
+pub unsafe fn dpbusdx2(
+    acc: __m512i,
+    u1: __m512i, w1: __m512i,
+    u2: __m512i, w2: __m512i,
+) -> __m512i {
+    let p1 = _mm512_maddubs_epi16(u1, w1);
+    let p2 = _mm512_maddubs_epi16(u2, w2);
+    let combined = _mm512_adds_epi16(p1, p2);
+    let ones = _mm512_set1_epi16(1);
+    _mm512_add_epi32(acc, _mm512_madd_epi16(combined, ones))
+}
+
+#[inline(always)]
+pub unsafe fn shift_right_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
+    _mm512_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shift_left_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
+    _mm512_slli_epi32::<SHIFT>(a)
 }
 
 #[inline(always)]

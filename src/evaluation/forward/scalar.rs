@@ -40,7 +40,9 @@ pub fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZ
     // L1 matrix multiplication
     for output_idx in 0..L2_SIZE {
         for input_idx in 0..L1_SIZE {
-            let weight: i32 = weights[output_idx][input_idx] as i32;
+            let in_block = input_idx / 4;
+            let k = input_idx % 4;
+            let weight: i32 = weights[in_block][output_idx * 4 + k] as i32;
             intermediate[output_idx] += input[input_idx] as i32 * weight;
         }
     }

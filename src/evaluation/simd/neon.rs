@@ -35,6 +35,11 @@ pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
 }
 
 #[inline(always)]
+pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
+    vld1q_s8(ptr)
+}
+
+#[inline(always)]
 pub unsafe fn store_u8(ptr: *mut u8, v: uint8x16_t) {
     vst1q_u8(ptr, v)
 }
@@ -78,6 +83,18 @@ pub unsafe fn splat_i32(a: i32) -> int32x4_t {
 pub unsafe fn splat_i32_x4(a: i32) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
     let v = vdupq_n_s32(a);
     (v, v, v, v)
+}
+
+#[inline(always)]
+pub unsafe fn splat_i32_as_u8(a: i32) -> int8x16_t {
+    vreinterpretq_s8_s32(vdupq_n_s32(a))
+}
+
+#[inline(always)]
+pub unsafe fn extract_i32(v: int32x4_t, lane: usize) -> i32 {
+    let mut tmp = [0i32; 4];
+    vst1q_s32(tmp.as_mut_ptr(), v);
+    tmp[lane]
 }
 
 #[inline(always)]
@@ -187,6 +204,40 @@ pub unsafe fn dpbusd_x4(
 #[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
     vaddvq_s32(a)
+}
+
+#[inline(always)]
+pub unsafe fn dpbusdx2(
+    acc: int32x4_t,
+    u1: int8x16_t, w1: int8x16_t,
+    u2: int8x16_t, w2: int8x16_t,
+) -> int32x4_t {
+    #[cfg(target_feature = "dotprod")]
+    {
+        dpbusd(dpbusd(acc, u1, w1), u2, w2)
+    }
+    #[cfg(not(target_feature = "dotprod"))]
+    {
+        let lo1 = vmull_s8(vget_low_s8(u1), vget_low_s8(w1));
+        let hi1 = vmull_high_s8(u1, w1);
+        let p1  = vpaddq_s16(lo1, hi1);
+
+        let lo2 = vmull_s8(vget_low_s8(u2), vget_low_s8(w2));
+        let hi2 = vmull_high_s8(u2, w2);
+        let p2  = vpaddq_s16(lo2, hi2);
+
+        vpadalq_s16(acc, vaddq_s16(p1, p2))
+    }
+}
+
+#[inline(always)]
+pub unsafe fn shift_right_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshrq_n_s32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shift_left_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshlq_n_s32::<SHIFT>(a)
 }
 
 #[inline(always)]
