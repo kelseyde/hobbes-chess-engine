@@ -95,6 +95,7 @@ impl CorrectionHistories {
         self.follow_up_move_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
+        self.kings_corrhist.clear();
     }
 }
 
