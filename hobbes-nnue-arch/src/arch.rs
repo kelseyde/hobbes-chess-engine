@@ -38,13 +38,13 @@ pub type FeatureWeights = [i16; L0_SIZE * L1_SIZE];
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
-    pub l0_biases:  [i16; L1_SIZE],
+    pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE]; OUTPUT_BUCKET_COUNT]; L1_SIZE],
-    pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l2_weights: [[[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT]; L2_SIZE * 2],
-    pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_biases: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_weights: [[[i32; 1]; OUTPUT_BUCKET_COUNT]; L3_SIZE],
-    pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
+    pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
 }
 
 /// The `Network` represents the net in the optimal format for inference, with weights and biases
@@ -52,13 +52,13 @@ pub struct UntransposedNetwork {
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_weights: [FeatureWeights; INPUT_BUCKET_COUNT],
-    pub l0_biases:  [i16; L1_SIZE],
-    pub l1_weights: [[[i8; L1_SIZE]; L2_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l1_biases:  [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l0_biases: [i16; L1_SIZE],
+    pub l1_weights: [[[i8; L2_SIZE * 4]; L1_SIZE / 4]; OUTPUT_BUCKET_COUNT],
+    pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l2_weights: [[[i32; L3_SIZE]; L2_SIZE * 2]; OUTPUT_BUCKET_COUNT],
-    pub l2_biases:  [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
+    pub l2_biases: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
     pub l3_weights: [[i32; L3_SIZE]; OUTPUT_BUCKET_COUNT],
-    pub l3_biases:  [i32; OUTPUT_BUCKET_COUNT],
+    pub l3_biases: [i32; OUTPUT_BUCKET_COUNT],
 }
 
 pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
@@ -72,4 +72,3 @@ pub const fn get_num_buckets<const N: usize>(arr: &[usize; N]) -> usize {
     }
     max + 1
 }
-
