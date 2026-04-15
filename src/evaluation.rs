@@ -1,8 +1,8 @@
-pub mod stats;
 mod accumulator;
 mod cache;
 mod feature;
 mod sparse;
+pub mod stats;
 
 mod forward {
     use hobbes_nnue_arch::{L1_SIZE, L2_SIZE, L3_SIZE};
@@ -65,6 +65,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
+use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
@@ -73,7 +74,6 @@ use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
-use crate::evaluation::forward::{inference, Forward};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 

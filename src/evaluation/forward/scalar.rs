@@ -38,7 +38,7 @@ impl Forward for Scalar {
     #[inline(always)]
     unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
         let weights = &NETWORK.l1_weights[output_bucket];
-        let biases  = &NETWORK.l1_biases[output_bucket];
+        let biases = &NETWORK.l1_biases[output_bucket];
 
         // Unactivated L1 outputs in the quantized space L0_QUANT * L1_QUANT
         let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
@@ -66,7 +66,7 @@ impl Forward for Scalar {
             out += bias;
 
             // crelu activation: clamp(x, 0, Q)
-            let crelu:  i32 = out.clamp(0, Q as i32) << Q_BITS;
+            let crelu: i32 = out.clamp(0, Q as i32) << Q_BITS;
 
             // csrelu activation: clamp(x^2, 0, Q^2)
             let csrelu: i32 = (out * out).clamp(0, (Q * Q) as i32);
@@ -99,7 +99,7 @@ impl Forward for Scalar {
     #[inline(always)]
     unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
         let weights = &NETWORK.l3_weights[output_bucket];
-        let bias    = NETWORK.l3_biases[output_bucket];
+        let bias = NETWORK.l3_biases[output_bucket];
 
         let mut output: i32 = bias;
         for (&input, &weight) in input.iter().zip(weights.iter()) {
