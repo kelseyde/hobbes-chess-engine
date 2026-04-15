@@ -1,20 +1,9 @@
-pub mod accumulator;
-pub mod cache;
-pub mod feature;
+mod accumulator;
+mod cache;
+mod feature;
+mod forward;
 mod sparse;
 pub mod stats;
-
-mod forward {
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    mod vectorised;
-    #[cfg(any(target_feature = "avx2", target_feature = "neon"))]
-    pub use vectorised::*;
-
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
-    mod scalar;
-    #[cfg(not(any(target_feature = "avx2", target_feature = "neon")))]
-    pub use scalar::*;
-}
 
 mod simd {
     #[cfg(target_feature = "avx512f")]
@@ -50,6 +39,7 @@ use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
+use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
@@ -95,10 +85,10 @@ impl NNUE {
 
         let output_bucket = get_output_bucket(board);
         let raw = unsafe {
-            let l0_outputs = forward::activate_l0(us, them);
-            let l1_outputs = forward::propagate_l1(&l0_outputs, output_bucket);
-            let l2_outputs = forward::propagate_l2(&l1_outputs, output_bucket);
-            forward::propagate_l3(&l2_outputs, output_bucket)
+            let l0_outputs = inference::activate_l0(us, them);
+            let l1_outputs = inference::propagate_l1(&l0_outputs, output_bucket);
+            let l2_outputs = inference::propagate_l2(&l1_outputs, output_bucket);
+            inference::propagate_l3(&l2_outputs, output_bucket)
         };
 
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
