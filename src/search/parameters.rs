@@ -108,6 +108,7 @@ tunable_params! {
     lmr_deeper_base              = 23, 0..=100,            true;
     lmr_deeper_scale             = 555, 350..=600,         true;
     lmr_deeper_div               = 166, 64..=256,          true;
+    lmr_even_deeper_margin       = 500, 0..=1000,          true;
     lmr_cont_1_bonus_scale       = 226, 80..=280,          true;
     lmr_cont_1_bonus_offset      = 137, 0..=200,           true;
     lmr_cont_1_bonus_max         = 1163, 1000..=1600,      true;

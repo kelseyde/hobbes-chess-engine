@@ -635,8 +635,10 @@ fn alpha_beta<NODE: NodeType>(
             if score > alpha && new_depth > reduced_depth {
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
+                let do_even_deeper_margin = best_score + lmr_even_deeper_margin();
                 let do_shallower_margin = best_score + new_depth;
                 new_depth += (score > do_deeper_margin) as i32;
+                new_depth += (score > do_even_deeper_margin) as i32;
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
