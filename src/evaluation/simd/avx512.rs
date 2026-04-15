@@ -4,11 +4,8 @@ use std::{arch::x86_64::*, mem::size_of};
 pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
-pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
 pub type VecI32 = __m512i;
-pub type VecI8 = __m512i;
-pub type VecU16 = __m128i;
 
 #[inline(always)]
 pub unsafe fn splat_u16(a: u16) -> __m128i {
@@ -28,11 +25,6 @@ pub unsafe fn add_u16(a: __m128i, b: __m128i) -> __m128i {
 #[inline(always)]
 pub unsafe fn store_u16(ptr: *mut u16, v: __m128i) {
     _mm_storeu_si128(ptr as *mut __m128i, v)
-}
-
-#[inline(always)]
-pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
-    _mm512_loadu_si512(ptr as *const __m512i)
 }
 
 #[inline(always)]
@@ -81,21 +73,8 @@ pub unsafe fn splat_i32(a: i32) -> __m512i {
 }
 
 #[inline(always)]
-pub unsafe fn splat_i32_x4(a: i32) -> (__m512i, __m512i, __m512i, __m512i) {
-    let v = _mm512_set1_epi32(a);
-    (v, v, v, v)
-}
-
-#[inline(always)]
 pub unsafe fn splat_i32_as_u8(a: i32) -> __m512i {
     _mm512_set1_epi32(a)
-}
-
-#[inline(always)]
-pub unsafe fn extract_i32(v: __m512i, lane: usize) -> i32 {
-    let mut tmp = [0i32; 16];
-    _mm512_storeu_si512(tmp.as_mut_ptr() as *mut __m512i, v);
-    tmp[lane]
 }
 
 #[inline(always)]
@@ -160,29 +139,6 @@ pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
 }
 
 #[inline(always)]
-pub unsafe fn dpbusd_x4(
-    a0: __m512i,
-    a1: __m512i,
-    a2: __m512i,
-    a3: __m512i,
-    u0: __m512i,
-    u1: __m512i,
-    u2: __m512i,
-    u3: __m512i,
-    w0: __m512i,
-    w1: __m512i,
-    w2: __m512i,
-    w3: __m512i,
-) -> (__m512i, __m512i, __m512i, __m512i) {
-    (
-        dpbusd(a0, u0, w0),
-        dpbusd(a1, u1, w1),
-        dpbusd(a2, u2, w2),
-        dpbusd(a3, u3, w3),
-    )
-}
-
-#[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: __m512i) -> i32 {
     _mm512_reduce_add_epi32(a)
 }
@@ -217,14 +173,4 @@ pub unsafe fn shift_right_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
 #[inline(always)]
 pub unsafe fn shift_left_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
     _mm512_slli_epi32::<SHIFT>(a)
-}
-
-#[inline(always)]
-pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m512i, __m512i, __m512i, __m512i) {
-    (
-        _mm512_loadu_si512(ptr as *const __m512i),
-        _mm512_loadu_si512(ptr.add(stride) as *const __m512i),
-        _mm512_loadu_si512(ptr.add(2 * stride) as *const __m512i),
-        _mm512_loadu_si512(ptr.add(3 * stride) as *const __m512i),
-    )
 }

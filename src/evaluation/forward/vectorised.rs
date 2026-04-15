@@ -166,21 +166,3 @@ pub unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 
 
     simd::horizontal_sum_i32(acc) + bias
 }
-
-/// Dual activation for L1 outputs:
-/// - crelu: clamp(x, 0, Q) << Q_BITS
-/// - csrelu: clamp(x^2, 0, Q^2)
-unsafe fn dual_activation(
-    acc1: simd::VecI32,
-    acc2: simd::VecI32,
-    acc3: simd::VecI32,
-    acc4: simd::VecI32,
-    biases: &[i32; L2_SIZE],
-    out_idx: usize,
-) -> (i32, i32) {
-    let combined = simd::add_i32(simd::add_i32(acc1, acc2), simd::add_i32(acc3, acc4));
-    let shifted = (simd::horizontal_sum_i32_single(combined) >> L1_SHIFT) + biases[out_idx];
-    let crelu = shifted.clamp(0, Q as i32) << Q_BITS;
-    let csrelu = (shifted * shifted).clamp(0, (Q * Q) as i32);
-    (crelu, csrelu)
-}

@@ -6,8 +6,6 @@ pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
 pub type VecI32 = int32x4_t;
-pub type VecI8 = int8x16_t;
-pub type VecU16 = uint16x8_t;
 
 #[inline(always)]
 pub unsafe fn splat_u16(a: u16) -> uint16x8_t {
@@ -27,11 +25,6 @@ pub unsafe fn add_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
 #[inline(always)]
 pub unsafe fn store_u16(ptr: *mut u16, v: uint16x8_t) {
     vst1q_u16(ptr, v)
-}
-
-#[inline(always)]
-pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
-    vreinterpretq_s8_u8(vld1q_u8(ptr))
 }
 
 #[inline(always)]
@@ -80,21 +73,8 @@ pub unsafe fn splat_i32(a: i32) -> int32x4_t {
 }
 
 #[inline(always)]
-pub unsafe fn splat_i32_x4(a: i32) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
-    let v = vdupq_n_s32(a);
-    (v, v, v, v)
-}
-
-#[inline(always)]
 pub unsafe fn splat_i32_as_u8(a: i32) -> int8x16_t {
     vreinterpretq_s8_s32(vdupq_n_s32(a))
-}
-
-#[inline(always)]
-pub unsafe fn extract_i32(v: int32x4_t, lane: usize) -> i32 {
-    let mut tmp = [0i32; 4];
-    vst1q_s32(tmp.as_mut_ptr(), v);
-    tmp[lane]
 }
 
 #[inline(always)]
@@ -178,30 +158,6 @@ pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_
 }
 
 #[inline(always)]
-#[allow(clippy::too_many_arguments)]
-pub unsafe fn dpbusd_x4(
-    a0: int32x4_t,
-    a1: int32x4_t,
-    a2: int32x4_t,
-    a3: int32x4_t,
-    u0: int8x16_t,
-    u1: int8x16_t,
-    u2: int8x16_t,
-    u3: int8x16_t,
-    w0: int8x16_t,
-    w1: int8x16_t,
-    w2: int8x16_t,
-    w3: int8x16_t,
-) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
-    (
-        dpbusd(a0, u0, w0),
-        dpbusd(a1, u1, w1),
-        dpbusd(a2, u2, w2),
-        dpbusd(a3, u3, w3),
-    )
-}
-
-#[inline(always)]
 pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
     vaddvq_s32(a)
 }
@@ -247,17 +203,4 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
         acc = vaddq_s32(acc, lane);
     }
     horizontal_sum_i32_single(acc)
-}
-
-#[inline(always)]
-pub unsafe fn load_i8x4(
-    ptr: *const i8,
-    stride: usize,
-) -> (int8x16_t, int8x16_t, int8x16_t, int8x16_t) {
-    (
-        vld1q_s8(ptr),
-        vld1q_s8(ptr.add(stride)),
-        vld1q_s8(ptr.add(2 * stride)),
-        vld1q_s8(ptr.add(3 * stride)),
-    )
 }
