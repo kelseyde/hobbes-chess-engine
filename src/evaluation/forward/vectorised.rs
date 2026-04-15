@@ -51,21 +51,16 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
 
     let mut nnz = 0;
     while nnz + 2 * UNROLL <= num_nonzero_indices {
-        let mut b = [0usize; 2 * UNROLL];
-        let mut ft = [simd::splat_i32_as_u8(0); 2 * UNROLL];
-        for k in 0..2 * UNROLL {
-            b[k] = nonzero_indices[nnz + k].assume_init() as usize;
-            ft[k] = simd::splat_i32_as_u8(*input_i32.add(b[k]));
-        }
-
         for lane in 0..ACC_LANES {
             let off = lane * WEIGHT_STRIDE;
             for sub in 0..UNROLL {
-                let i1 = b[2 * sub];
-                let i2 = b[2 * sub + 1];
+                let i1 = nonzero_indices[nnz + 2 * sub    ].assume_init() as usize;
+                let i2 = nonzero_indices[nnz + 2 * sub + 1].assume_init() as usize;
+                let ft1 = simd::splat_i32_as_u8(*input_i32.add(i1));
+                let ft2 = simd::splat_i32_as_u8(*input_i32.add(i2));
                 let w1 = simd::load_i8(w_base.add(i1 * L2_SIZE * 4 + off));
                 let w2 = simd::load_i8(w_base.add(i2 * L2_SIZE * 4 + off));
-                acc[lane][sub] = simd::dpbusdx2(acc[lane][sub], ft[2 * sub], w1, ft[2 * sub + 1], w2);
+                acc[lane][sub] = simd::dpbusdx2(acc[lane][sub], ft1, w1, ft2, w2);
             }
         }
         nnz += 2 * UNROLL;
@@ -87,7 +82,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     let hi       = simd::splat_i32(Q as i32);
     let hi2      = simd::splat_i32((Q * Q) as i32);
 
-    let mut output = [0i32; L2_SIZE * 2];
+    let mut output = std::mem::MaybeUninit::<[i32; L2_SIZE * 2]>::uninit();
     let out_ptr    = output.as_mut_ptr() as *mut simd::VecI32;
 
     for lane in 0..ACC_LANES {
@@ -106,7 +101,7 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
         simd::store_i32(out_ptr.add(lane + ACC_LANES) as *mut i32, csrelu);
     }
 
-    output
+    output.assume_init()
 }
 
 /// L2 propagation
