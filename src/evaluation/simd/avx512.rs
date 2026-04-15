@@ -1,15 +1,30 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
-pub const I8_LANES: usize = size_of::<__m512i>() / size_of::<i8>();
 
-pub type I32Vec = __m512i;
+pub type VecI32 = __m512i;
 
 #[inline(always)]
-pub unsafe fn load_u8(ptr: *const u8) -> __m512i {
-    _mm512_loadu_si512(ptr as *const __m512i)
+pub unsafe fn splat_u16(a: u16) -> __m128i {
+    _mm_set1_epi16(a as i16)
+}
+
+#[inline(always)]
+pub unsafe fn load_u16(ptr: *const u16) -> __m128i {
+    _mm_loadu_si128(ptr as *const __m128i)
+}
+
+#[inline(always)]
+pub unsafe fn add_u16(a: __m128i, b: __m128i) -> __m128i {
+    _mm_add_epi16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn store_u16(ptr: *mut u16, v: __m128i) {
+    _mm_storeu_si128(ptr as *mut __m128i, v)
 }
 
 #[inline(always)]
@@ -58,9 +73,8 @@ pub unsafe fn splat_i32(a: i32) -> __m512i {
 }
 
 #[inline(always)]
-pub unsafe fn splat_i32_x4(a: i32) -> (__m512i, __m512i, __m512i, __m512i) {
-    let v = _mm512_set1_epi32(a);
-    (v, v, v, v)
+pub unsafe fn splat_i32_as_u8(a: i32) -> __m512i {
+    _mm512_set1_epi32(a)
 }
 
 #[inline(always)]
@@ -101,6 +115,17 @@ pub unsafe fn shift_left_mul_high_i16(a: __m512i, b: __m512i) -> __m512i {
 }
 
 #[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: __m512i) -> u16 {
+    _mm512_cmpgt_epi32_mask(vec, _mm512_setzero_si512()) as u16
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
+    let chunk = _mm512_loadu_si512(ptr as *const __m512i);
+    nonzero_mask_i32(chunk) as u32
+}
+
+#[inline(always)]
 pub unsafe fn packus(a: __m512i, b: __m512i) -> __m512i {
     _mm512_packus_epi16(a, b)
 }
@@ -111,29 +136,6 @@ pub unsafe fn dpbusd(acc: __m512i, u8s: __m512i, i8s: __m512i) -> __m512i {
     let ones = _mm512_set1_epi16(1);
     let summed = _mm512_madd_epi16(products, ones);
     _mm512_add_epi32(acc, summed)
-}
-
-#[inline(always)]
-pub unsafe fn dpbusd_x4(
-    a0: __m512i,
-    a1: __m512i,
-    a2: __m512i,
-    a3: __m512i,
-    u0: __m512i,
-    u1: __m512i,
-    u2: __m512i,
-    u3: __m512i,
-    w0: __m512i,
-    w1: __m512i,
-    w2: __m512i,
-    w3: __m512i,
-) -> (__m512i, __m512i, __m512i, __m512i) {
-    (
-        dpbusd(a0, u0, w0),
-        dpbusd(a1, u1, w1),
-        dpbusd(a2, u2, w2),
-        dpbusd(a3, u3, w3),
-    )
 }
 
 #[inline(always)]
@@ -151,11 +153,26 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [__m512i; N]) -> i32 {
 }
 
 #[inline(always)]
-pub unsafe fn load_i8x4(ptr: *const i8, stride: usize) -> (__m512i, __m512i, __m512i, __m512i) {
-    (
-        _mm512_loadu_si512(ptr as *const __m512i),
-        _mm512_loadu_si512(ptr.add(stride) as *const __m512i),
-        _mm512_loadu_si512(ptr.add(2 * stride) as *const __m512i),
-        _mm512_loadu_si512(ptr.add(3 * stride) as *const __m512i),
-    )
+pub unsafe fn dpbusdx2(
+    acc: __m512i,
+    u1: __m512i,
+    w1: __m512i,
+    u2: __m512i,
+    w2: __m512i,
+) -> __m512i {
+    let p1 = _mm512_maddubs_epi16(u1, w1);
+    let p2 = _mm512_maddubs_epi16(u2, w2);
+    let combined = _mm512_adds_epi16(p1, p2);
+    let ones = _mm512_set1_epi16(1);
+    _mm512_add_epi32(acc, _mm512_madd_epi16(combined, ones))
+}
+
+#[inline(always)]
+pub unsafe fn shift_right_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
+    _mm512_srai_epi32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shift_left_i32<const SHIFT: u32>(a: __m512i) -> __m512i {
+    _mm512_slli_epi32::<SHIFT>(a)
 }

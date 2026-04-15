@@ -1,6 +1,7 @@
 pub mod accumulator;
 pub mod cache;
 pub mod feature;
+mod sparse;
 pub mod stats;
 
 mod forward {

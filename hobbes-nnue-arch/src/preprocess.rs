@@ -16,7 +16,10 @@ static ORDER: &[u8] = &[];
 
 pub const fn permute_config() -> PermuteConfig {
     let needs_permuting = cfg!(target_feature = "avx512f") || cfg!(target_feature = "avx2");
-    PermuteConfig { needs_permuting, order: ORDER }
+    PermuteConfig {
+        needs_permuting,
+        order: ORDER,
+    }
 }
 
 /// Convert an `UntransposedNetwork` (the output format from Bullet) into a `Network` (the optimal
@@ -49,10 +52,12 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         permute_i16s(&mut dst.l0_biases, order, chunk_size, block_size);
     }
 
-    for input_idx in 0..L1_SIZE {
-        for bucket in 0..OUTPUT_BUCKET_COUNT {
+    for bucket in 0..OUTPUT_BUCKET_COUNT {
+        for input_idx in 0..L1_SIZE {
+            let in_block = input_idx / 4;
+            let k = input_idx % 4;
             for output_idx in 0..L2_SIZE {
-                dst.l1_weights[bucket][output_idx][input_idx] =
+                dst.l1_weights[bucket][in_block][output_idx * 4 + k] =
                     src.l1_weights[input_idx][bucket][output_idx];
             }
         }

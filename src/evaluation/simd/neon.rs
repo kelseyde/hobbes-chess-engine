@@ -1,14 +1,35 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::aarch64::*, mem::size_of};
 
+pub const U8_LANES: usize = size_of::<int8x16_t>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<int16x8_t>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
-pub type I32Vec = int32x4_t;
+pub type VecI32 = int32x4_t;
 
 #[inline(always)]
-pub unsafe fn load_u8(ptr: *const u8) -> int8x16_t {
-    vreinterpretq_s8_u8(vld1q_u8(ptr))
+pub unsafe fn splat_u16(a: u16) -> uint16x8_t {
+    vdupq_n_u16(a)
+}
+
+#[inline(always)]
+pub unsafe fn load_u16(ptr: *const u16) -> uint16x8_t {
+    vld1q_u16(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn add_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
+    vaddq_u16(a, b)
+}
+
+#[inline(always)]
+pub unsafe fn store_u16(ptr: *mut u16, v: uint16x8_t) {
+    vst1q_u16(ptr, v)
+}
+
+#[inline(always)]
+pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
+    vld1q_s8(ptr)
 }
 
 #[inline(always)]
@@ -52,9 +73,8 @@ pub unsafe fn splat_i32(a: i32) -> int32x4_t {
 }
 
 #[inline(always)]
-pub unsafe fn splat_i32_x4(a: i32) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
-    let v = vdupq_n_s32(a);
-    (v, v, v, v)
+pub unsafe fn splat_i32_as_u8(a: i32) -> int8x16_t {
+    vreinterpretq_s8_s32(vdupq_n_s32(a))
 }
 
 #[inline(always)]
@@ -96,6 +116,19 @@ pub unsafe fn shift_left_mul_high_i16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
 }
 
 #[inline(always)]
+pub unsafe fn nonzero_mask_i32(vec: int32x4_t) -> u16 {
+    const MASK: [u32; 4] = [1, 2, 4, 8];
+    let a = std::mem::transmute::<int32x4_t, uint32x4_t>(vec);
+    vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(MASK.as_ptr()))) as u16
+}
+
+#[inline(always)]
+pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
+    let chunk = vreinterpretq_s32_u8(vld1q_u8(ptr));
+    nonzero_mask_i32(chunk) as u32
+}
+
+#[inline(always)]
 pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> uint8x16_t {
     vcombine_u8(vqmovun_s16(a), vqmovun_s16(b))
 }
@@ -125,32 +158,44 @@ pub unsafe fn dpbusd(acc: int32x4_t, u8s: int8x16_t, i8s: int8x16_t) -> int32x4_
 }
 
 #[inline(always)]
-#[allow(clippy::too_many_arguments)]
-pub unsafe fn dpbusd_x4(
-    a0: int32x4_t,
-    a1: int32x4_t,
-    a2: int32x4_t,
-    a3: int32x4_t,
-    u0: int8x16_t,
-    u1: int8x16_t,
-    u2: int8x16_t,
-    u3: int8x16_t,
-    w0: int8x16_t,
-    w1: int8x16_t,
-    w2: int8x16_t,
-    w3: int8x16_t,
-) -> (int32x4_t, int32x4_t, int32x4_t, int32x4_t) {
-    (
-        dpbusd(a0, u0, w0),
-        dpbusd(a1, u1, w1),
-        dpbusd(a2, u2, w2),
-        dpbusd(a3, u3, w3),
-    )
+pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
+    vaddvq_s32(a)
 }
 
 #[inline(always)]
-pub unsafe fn horizontal_sum_i32_single(a: int32x4_t) -> i32 {
-    vaddvq_s32(a)
+pub unsafe fn dpbusdx2(
+    acc: int32x4_t,
+    u1: int8x16_t,
+    w1: int8x16_t,
+    u2: int8x16_t,
+    w2: int8x16_t,
+) -> int32x4_t {
+    #[cfg(target_feature = "dotprod")]
+    {
+        dpbusd(dpbusd(acc, u1, w1), u2, w2)
+    }
+    #[cfg(not(target_feature = "dotprod"))]
+    {
+        let lo1 = vmull_s8(vget_low_s8(u1), vget_low_s8(w1));
+        let hi1 = vmull_high_s8(u1, w1);
+        let p1 = vpaddq_s16(lo1, hi1);
+
+        let lo2 = vmull_s8(vget_low_s8(u2), vget_low_s8(w2));
+        let hi2 = vmull_high_s8(u2, w2);
+        let p2 = vpaddq_s16(lo2, hi2);
+
+        vpadalq_s16(acc, vaddq_s16(p1, p2))
+    }
+}
+
+#[inline(always)]
+pub unsafe fn shift_right_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshrq_n_s32::<SHIFT>(a)
+}
+
+#[inline(always)]
+pub unsafe fn shift_left_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
+    vshlq_n_s32::<SHIFT>(a)
 }
 
 #[inline(always)]
@@ -160,17 +205,4 @@ pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
         acc = vaddq_s32(acc, lane);
     }
     horizontal_sum_i32_single(acc)
-}
-
-#[inline(always)]
-pub unsafe fn load_i8x4(
-    ptr: *const i8,
-    stride: usize,
-) -> (int8x16_t, int8x16_t, int8x16_t, int8x16_t) {
-    (
-        vld1q_s8(ptr),
-        vld1q_s8(ptr.add(stride)),
-        vld1q_s8(ptr.add(2 * stride)),
-        vld1q_s8(ptr.add(3 * stride)),
-    )
 }
