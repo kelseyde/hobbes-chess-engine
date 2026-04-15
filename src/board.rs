@@ -57,6 +57,7 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
+use crate::board::piece::Piece::King;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -184,6 +185,9 @@ impl Board {
             }
             if pc.is_minor() {
                 self.keys.minor_hash ^= hash;
+            }
+            if pc == King {
+                self.keys.kings_hash ^= hash;
             }
         }
     }

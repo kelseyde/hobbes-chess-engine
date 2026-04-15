@@ -209,6 +209,10 @@ tunable_params! {
     corr_minor_bonus_div         = 106, 64..=256,          true;
     corr_minor_bonus_min         = -4366, -6000..=-2000,   true;
     corr_minor_bonus_max         = 3346, 2000..=6000,      true;
+    corr_kings_bonus_mult        = 220, 100..=300,         true;
+    corr_kings_bonus_div         = 92, 64..=256,           true;
+    corr_kings_bonus_min         = -4198, -6000..=-2000,   true;
+    corr_kings_bonus_max         = 3279, 2000..=6000,      true;
     corr_counter_bonus_mult      = 213, 100..=300,         true;
     corr_counter_bonus_div       = 111, 64..=256,          true;
     corr_counter_bonus_min       = -4225, -6000..=-2000,   true;
@@ -221,6 +225,7 @@ tunable_params! {
     corr_non_pawn_weight         = 92, 0..=200,            true;
     corr_major_weight            = 85, 0..=200,            true;
     corr_minor_weight            = 72, 0..=200,            true;
+    corr_kings_weight            = 100, 0..=200,            true;
     corr_counter_weight          = 104, 0..=200,           true;
     corr_follow_up_weight        = 129, 0..=200,           true;
     see_value_pawn_pruning       = 103, 50..=150,          true;
@@ -239,6 +244,7 @@ tunable_params! {
     scale_value_rook             = 637, 500..=700,         true;
     scale_value_queen            = 1252, 1000..=1400,      true;
     material_scaling_base        = 16319, 10000..=40000,   true;
+    corr_kings_scaling_base      = 16319, 10000..=40000,   true;
     qs_futility_threshold        = 172, 80..=250,          true;
     qs_see_threshold             = -91, -200..=100,        true;
     movepick_see_divisor         = 44, 30..=60,            true;

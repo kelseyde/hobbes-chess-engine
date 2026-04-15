@@ -376,7 +376,7 @@ fn scale_evaluation(board: &Board, eval: i32) -> i32 {
 }
 
 #[inline]
-fn material_phase(board: &Board) -> i32 {
+pub fn material_phase(board: &Board) -> i32 {
     let pawns = board.pieces(Pawn).count();
     let knights = board.pieces(Knight).count();
     let bishops = board.pieces(Bishop).count();
@@ -388,4 +388,13 @@ fn material_phase(board: &Board) -> i32 {
         + scale_value_bishop() * bishops as i32
         + scale_value_rook() * rooks as i32
         + scale_value_queen() * queens as i32
+}
+
+#[inline]
+pub fn max_phase() -> i32 {
+    scale_value_pawn() * 16
+        + scale_value_knight() * 4
+        + scale_value_bishop() * 4
+        + scale_value_rook() * 4
+        + scale_value_queen() * 2
 }

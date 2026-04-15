@@ -125,6 +125,7 @@ impl Board {
         board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.keys.major_hash = Zobrist::get_major_hash(&board);
         board.keys.minor_hash = Zobrist::get_minor_hash(&board);
+        board.keys.kings_hash = Zobrist::get_kings_hash(&board);
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
         board.pinned = board.calc_both_pinned();
@@ -200,6 +201,7 @@ impl Board {
         board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
         board.keys.major_hash = Zobrist::get_major_hash(&board);
         board.keys.minor_hash = Zobrist::get_minor_hash(&board);
+        board.keys.kings_hash = Zobrist::get_kings_hash(&board);
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
         board.pinned = board.calc_both_pinned();
