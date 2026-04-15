@@ -1,6 +1,8 @@
 use crate::evaluation::simd;
 use hobbes_nnue_arch::L1_SIZE;
 
+// Credit to Pawnocchio and Viridithas authors from whom this implementation was shamelessly yoinked.
+
 #[derive(Debug, Clone, Copy)]
 #[repr(C, align(16))]
 pub struct NNZEntry {
