@@ -1,4 +1,4 @@
-use crate::evaluation::{simd, NETWORK};
+use crate::evaluation::{simd, sparse, NETWORK};
 use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
 /// L0 ('feature transformer') activation
@@ -40,6 +40,8 @@ pub unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32;
     let biases = &NETWORK.l1_biases[output_bucket];
 
     let mut output = [0i32; L2_SIZE * 2];
+
+    let (nonzero_indices, num_nonzero_indices) = sparse::find_nonzero_indices(input);
 
     const STRIDE: usize = simd::I32_LANES * 4;
     const OUT_UNROLL: usize = 8;

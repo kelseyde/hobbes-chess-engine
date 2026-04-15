@@ -62,3 +62,84 @@ pub unsafe fn find_nonzero_indices(
 
     (indices, count)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hobbes_nnue_arch::L1_SIZE;
+
+    /// Brute-force reference: collect the indices of every i32-block (group of 4 bytes)
+    /// that contains at least one non-zero byte.
+    fn reference_nonzero_i32_blocks(input: &[u8; L1_SIZE]) -> Vec<u16> {
+        (0..L1_SIZE / 4)
+            .filter(|&i| input[i * 4..i * 4 + 4].iter().any(|&b| b != 0))
+            .map(|i| i as u16)
+            .collect()
+    }
+
+    fn check(input: &[u8; L1_SIZE]) {
+        let expected = reference_nonzero_i32_blocks(input);
+        let (raw, count) = unsafe { find_nonzero_indices(input) };
+        let got: Vec<u16> = raw[..count]
+            .iter()
+            .map(|x| unsafe { x.assume_init() })
+            .collect();
+        assert_eq!(
+            got, expected,
+            "mismatch: got {got:?}, expected {expected:?}"
+        );
+    }
+
+    #[test]
+    fn all_zeros() {
+        check(&[0u8; L1_SIZE]);
+    }
+
+    #[test]
+    fn all_nonzero() {
+        check(&[1u8; L1_SIZE]);
+    }
+
+    #[test]
+    fn first_block_only() {
+        let mut input = [0u8; L1_SIZE];
+        input[0] = 42; // block 0
+        check(&input);
+    }
+
+    #[test]
+    fn last_block_only() {
+        let mut input = [0u8; L1_SIZE];
+        input[L1_SIZE - 1] = 7; // last block
+        check(&input);
+    }
+
+    #[test]
+    fn every_other_block() {
+        let mut input = [0u8; L1_SIZE];
+        // set byte 0 of every even-numbered i32-block
+        for i in (0..L1_SIZE / 4).step_by(2) {
+            input[i * 4] = 1;
+        }
+        check(&input);
+    }
+
+    #[test]
+    fn non_zero_in_second_byte_of_block() {
+        // non-zero value is in byte index 1 of block 3
+        let mut input = [0u8; L1_SIZE];
+        input[3 * 4 + 1] = 99;
+        check(&input);
+    }
+
+    #[test]
+    fn sparse_pattern() {
+        let mut input = [0u8; L1_SIZE];
+        // non-zero blocks at positions 0, 5, 17, 100, L1_SIZE/4 - 1
+        for &block in &[0usize, 5, 17, 100, L1_SIZE / 4 - 1] {
+            input[block * 4] = 1;
+        }
+        check(&input);
+    }
+}
+
