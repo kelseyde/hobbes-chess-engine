@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
-use crate::board::{movegen, Board};
+use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::BadNoisies;
@@ -146,7 +146,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Determine if we are currently in check.
     let threats = board.threats;
-    let in_check = threats.contains(board.king_sq(board.stm));
+    let in_check = threats.contains(board.our_king_sq());
     td.stack[ply].threats = threats;
 
     // Update the selective search depth
@@ -488,7 +488,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
-        let lmr_depth = depth.saturating_sub(base_reduction);
+        let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
 
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
@@ -777,6 +777,9 @@ fn alpha_beta<NODE: NodeType>(
         let cont_2_malus = cont_history_2_malus(depth)
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
 
+        let cont_bonuses = [cont_1_bonus, cont_2_bonus];
+        let cont_maluses = [cont_1_malus, cont_2_malus];
+
         let from_bonus = from_history_bonus(depth);
         let from_malus = from_history_malus(depth);
         let to_bonus = to_history_bonus(depth);
@@ -790,7 +793,7 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
-            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &[cont_1_bonus, cont_2_bonus]);
+            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &cont_bonuses);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
@@ -800,7 +803,7 @@ fn alpha_beta<NODE: NodeType>(
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
                         .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
-                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &[cont_1_malus, cont_2_malus]);
+                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
@@ -896,7 +899,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Determine if we are currently in check.
     let threats = board.threats;
-    let in_check = threats.contains(board.king_sq(board.stm));
+    let in_check = threats.contains(board.our_king_sq());
     td.stack[ply].threats = threats;
 
     // Transposition Table Lookup
@@ -983,7 +986,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
-        let is_recapture = board.recapture_sq.is_some_and(|sq| sq == mv.to());
+        let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
@@ -1259,7 +1262,7 @@ fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveLi
 
 fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     println!("info error no legal moves");
-    let in_check = movegen::is_check(board, board.stm);
+    let in_check = board.threats.contains(board.our_king_sq());
     let score = if in_check { -score::MATE } else { score::DRAW };
     td.best_move = Move::NONE;
     td.best_score = score;
