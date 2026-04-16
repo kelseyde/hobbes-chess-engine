@@ -617,7 +617,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
-            r += lmr_complex() * (correction > lmr_complexity_margin()) as i32;
+            r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
