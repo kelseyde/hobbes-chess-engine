@@ -16,7 +16,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
-use crate::search::movepicker::Stage::BadNoisies;
+use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
 use crate::search::node::{NodeType, NonPV, Root, PV};
 use crate::search::score::{is_defined, is_mated, mate_in, mated_in};
 use crate::search::see::{see, SeeType};
@@ -608,6 +608,8 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
+            r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
+            r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;

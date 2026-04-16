@@ -94,6 +94,8 @@ tunable_params! {
     lmr_cut_node                 = 1862, 0..=2048,         true;
     lmr_capture                  = 1291, 0..=2048,         true;
     lmr_improving                = 811, 0..=2048,          true;
+    lmr_good_noisy               = 768, 0..=2048,          true;
+    lmr_bad_noisy                = 768, 0..=2048,          true;
     lmr_shallow                  = 929, 0..=2048,          true;
     lmr_killer                   = 975, 0..=2048,          true;
     lmr_quiet_see                = 1320, 0..=2048,         true;
