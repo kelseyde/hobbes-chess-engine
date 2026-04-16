@@ -229,6 +229,7 @@ fn alpha_beta<NODE: NodeType>(
     // extensions, reductions and pruning.
     let mut raw_eval = score::MIN;
     let mut static_eval = score::MIN;
+    let mut correction = 0;
 
     if !in_check {
         raw_eval = if singular_search {
@@ -241,13 +242,14 @@ fn alpha_beta<NODE: NodeType>(
         if !tt_hit {
             td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        let correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
     }
 
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
+    td.stack[ply + 2].num_fail_highs = 0;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
@@ -489,6 +491,7 @@ fn alpha_beta<NODE: NodeType>(
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
+        let to_threatened = threats.contains(mv.to());
 
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
@@ -604,21 +607,23 @@ fn alpha_beta<NODE: NodeType>(
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
             r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_tt_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
-            r -= lmr_ttpv_tt_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
+            r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
+            r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
+            r -= lmr_in_check() * in_check as i32;
+            r += lmr_gives_check() * original_board.gives_direct_check(mv) as i32;
+            r += lmr_improving() * !improving as i32;
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
-            r += lmr_improving() * !improving as i32;
+            r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
+            r += lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet 
-                && original_board.threats.contains(mv.to()) 
-                && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
@@ -637,9 +642,13 @@ fn alpha_beta<NODE: NodeType>(
             if score > alpha && new_depth > reduced_depth {
                 // Adjust the depth of the re-search based on the score from the reduced search.
                 let do_deeper_margin = best_score + lmr_deeper_base() + lmr_deeper_scale() * depth / lmr_deeper_div();
-                let do_shallower_margin = best_score + new_depth;
+                let do_even_deeper_margin = best_score + lmr_even_deeper_margin();
+                let do_shallower_margin = best_score + (lmr_shallower_base() + lmr_shallower_scale() * new_depth) / lmr_shallower_div();
                 new_depth += (score > do_deeper_margin) as i32;
+                new_depth += (score > do_even_deeper_margin) as i32;
                 new_depth -= (score < do_shallower_margin) as i32;
+
+                // (1153 + 1153 * new_depth >> 10);
 
                 if new_depth > reduced_depth {
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
@@ -719,6 +728,7 @@ fn alpha_beta<NODE: NodeType>(
             // further, and we can cut off the search.
             if score >= beta {
                 flag = Lower;
+                td.stack[ply].num_fail_highs += 1;
                 break;
             }
 
