@@ -621,6 +621,12 @@ fn alpha_beta<NODE: NodeType>(
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
             }
+            
+            if root_node {
+                td.root_reduction = r;
+            } else {
+                r += td.root_reduction / 128;
+            }
 
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);

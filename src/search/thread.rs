@@ -38,6 +38,7 @@ pub struct ThreadData {
     pub depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
+    pub root_reduction: i32,
     pub best_move: Move,
     pub best_score: i32,
 }
@@ -69,6 +70,7 @@ impl Default for ThreadData {
             depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
+            root_reduction: 0,
             best_move: Move::NONE,
             best_score: score::MIN,
         }
@@ -86,6 +88,7 @@ impl ThreadData {
         self.best_score = 0;
         self.best_move_stability = 0;
         self.score_stability = 0;
+        self.root_reduction = 0;
     }
 
     pub fn clear(&mut self) {
