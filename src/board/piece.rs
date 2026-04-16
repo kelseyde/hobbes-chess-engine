@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(u8)]
 pub enum Piece {
     Pawn = 0,
     Knight = 1,
