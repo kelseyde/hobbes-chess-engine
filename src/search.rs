@@ -648,8 +648,6 @@ fn alpha_beta<NODE: NodeType>(
                 new_depth += (score > do_even_deeper_margin) as i32;
                 new_depth -= (score < do_shallower_margin) as i32;
 
-                // (1153 + 1153 * new_depth >> 10);
-
                 if new_depth > reduced_depth {
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
