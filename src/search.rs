@@ -625,7 +625,7 @@ fn alpha_beta<NODE: NodeType>(
             if root_node {
                 td.root_reduction = r;
             } else {
-                r += td.root_reduction / 64;
+                r += td.root_reduction / 32;
             }
 
             let min_reduced_depth = 1;
