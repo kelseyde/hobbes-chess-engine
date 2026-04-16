@@ -463,6 +463,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut capture_count = 0;
     let mut best_score = score::MIN;
     let mut best_move = Move::NONE;
+    let mut best_history_score = score::MIN;
     let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
 
@@ -486,9 +487,14 @@ fn alpha_beta<NODE: NodeType>(
         let is_quiet = captured.is_none();
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
-        let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
+
+        let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
+        if history_score > best_history_score {
+            best_history_score = history_score;
+        }
+        let history_delta = history_score - best_history_score;
 
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
@@ -504,7 +510,8 @@ fn alpha_beta<NODE: NodeType>(
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
-            - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper();
+            - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper()
+            + ((history_delta + 23400) / 1300).max(-40);
         if !root_node
             && !in_check
             && is_quiet
