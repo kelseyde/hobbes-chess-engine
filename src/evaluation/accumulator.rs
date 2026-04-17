@@ -113,7 +113,7 @@ impl Accumulator {
         let mirror = self.mirrored[perspective as usize];
         let feats  = self.features_mut(perspective).as_mut_ptr();
         let wa     = unsafe { weights.as_ptr().add(add.index(perspective, mirror) * L1_SIZE) };
-        unsafe { update_features_inplace::<1, 0>(feats, [wa], []) };
+        unsafe { update_features::<1, 0>(feats, feats, [wa], []) };
     }
 
     #[inline]
@@ -121,7 +121,7 @@ impl Accumulator {
         let mirror = self.mirrored[perspective as usize];
         let feats  = self.features_mut(perspective).as_mut_ptr();
         let ws     = unsafe { weights.as_ptr().add(sub.index(perspective, mirror) * L1_SIZE) };
-        unsafe { update_features_inplace::<0, 1>(feats, [], [ws]) };
+        unsafe { update_features::<0, 1>(feats, feats, [], [ws]) };
     }
 
     #[inline]
@@ -140,7 +140,7 @@ impl Accumulator {
         let wa2    = unsafe { weights.as_ptr().add(add2.index(perspective, mirror) * L1_SIZE) };
         let wa3    = unsafe { weights.as_ptr().add(add3.index(perspective, mirror) * L1_SIZE) };
         let wa4    = unsafe { weights.as_ptr().add(add4.index(perspective, mirror) * L1_SIZE) };
-        unsafe { update_features_inplace::<4, 0>(feats, [wa1, wa2, wa3, wa4], []) };
+        unsafe { update_features::<4, 0>(feats, feats, [wa1, wa2, wa3, wa4], []) };
     }
 
     #[inline]
@@ -159,7 +159,7 @@ impl Accumulator {
         let ws2    = unsafe { weights.as_ptr().add(sub2.index(perspective, mirror) * L1_SIZE) };
         let ws3    = unsafe { weights.as_ptr().add(sub3.index(perspective, mirror) * L1_SIZE) };
         let ws4    = unsafe { weights.as_ptr().add(sub4.index(perspective, mirror) * L1_SIZE) };
-        unsafe { update_features_inplace::<0, 4>(feats, [], [ws1, ws2, ws3, ws4]) };
+        unsafe { update_features::<0, 4>(feats, feats, [], [ws1, ws2, ws3, ws4]) };
     }
 }
 
@@ -203,61 +203,6 @@ pub fn apply_update(
     }
 }
 
-#[inline(always)]
-unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
-    adds: [*const i16; ADDS],
-    subs: [*const i16; SUBS],
-) {
-    let mut i = 0;
-    while i + 4 * simd::I16_LANES <= L1_SIZE {
-        for k in 0..4usize {
-            let off = i + k * simd::I16_LANES;
-            let mut val = simd::load_i16(input_features.as_ptr().add(off));
-            for a in 0..ADDS {
-                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
-            }
-            for s in 0..SUBS {
-                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
-            }
-            simd::store_i16(output_features.as_mut_ptr().add(off), val);
-        }
-        i += 4 * simd::I16_LANES;
-    }
-}
-
-/// In-place variant: reads and writes through the same raw pointer, bypassing
-/// the borrow checker's aliasing rules. Safe as long as `feats` is valid for
-/// L1_SIZE i16 elements and the weight pointers don't overlap `feats`.
-#[inline(always)]
-unsafe fn update_features_inplace<const ADDS: usize, const SUBS: usize>(
-    feats: *mut i16,
-    adds: [*const i16; ADDS],
-    subs: [*const i16; SUBS],
-) {
-    let mut i = 0;
-    while i + 4 * simd::I16_LANES <= L1_SIZE {
-        for k in 0..4usize {
-            let off = i + k * simd::I16_LANES;
-            let mut val = simd::load_i16(feats.add(off));
-            for a in 0..ADDS {
-                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
-            }
-            for s in 0..SUBS {
-                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
-            }
-            simd::store_i16(feats.add(off), val);
-        }
-        i += 4 * simd::I16_LANES;
-    }
-}
-
-#[inline(always)]
-fn weight_ptr(weights: &FeatureWeights, feature: Feature, perspective: Side, mirror: bool) -> *const i16 {
-    unsafe { weights.as_ptr().add(feature.index(perspective, mirror) * L1_SIZE) }
-}
-
 #[inline]
 pub fn add(
     input_features: &[i16; L1_SIZE],
@@ -267,8 +212,10 @@ pub fn add(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa = weight_ptr(weights, add, perspective, mirror);
-    unsafe { update_features::<1, 0>(input_features, output_features, [wa], []) };
+    let in_ptr  = input_features.as_ptr();
+    let out_ptr = output_features.as_mut_ptr();
+    let wa      = weight_ptr(weights, add, perspective, mirror);
+    unsafe { update_features::<1, 0>(in_ptr, out_ptr, [wa], []) };
 }
 
 #[inline]
@@ -280,8 +227,10 @@ pub fn sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let ws = weight_ptr(weights, sub, perspective, mirror);
-    unsafe { update_features::<0, 1>(input_features, output_features, [], [ws]) };
+    let in_ptr  = input_features.as_ptr();
+    let out_ptr = output_features.as_mut_ptr();
+    let ws      = weight_ptr(weights, sub, perspective, mirror);
+    unsafe { update_features::<0, 1>(in_ptr, out_ptr, [], [ws]) };
 }
 
 #[inline]
@@ -294,9 +243,11 @@ pub fn add_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa = weight_ptr(weights, add, perspective, mirror);
-    let ws = weight_ptr(weights, sub, perspective, mirror);
-    unsafe { update_features::<1, 1>(input_features, output_features, [wa], [ws]) };
+    let in_ptr  = input_features.as_ptr();
+    let out_ptr = output_features.as_mut_ptr();
+    let wa      = weight_ptr(weights, add, perspective, mirror);
+    let ws      = weight_ptr(weights, sub, perspective, mirror);
+    unsafe { update_features::<1, 1>(in_ptr, out_ptr, [wa], [ws]) };
 }
 
 #[inline]
@@ -311,10 +262,12 @@ pub fn add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa  = weight_ptr(weights, add,  perspective, mirror);
-    let ws1 = weight_ptr(weights, sub1, perspective, mirror);
-    let ws2 = weight_ptr(weights, sub2, perspective, mirror);
-    unsafe { update_features::<1, 2>(input_features, output_features, [wa], [ws1, ws2]) };
+    let in_ptr  = input_features.as_ptr();
+    let out_ptr = output_features.as_mut_ptr();
+    let wa      = weight_ptr(weights, add,  perspective, mirror);
+    let ws1     = weight_ptr(weights, sub1, perspective, mirror);
+    let ws2     = weight_ptr(weights, sub2, perspective, mirror);
+    unsafe { update_features::<1, 2>(in_ptr, out_ptr, [wa], [ws1, ws2]) };
 }
 
 #[inline]
@@ -330,9 +283,40 @@ pub fn add_add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa1 = weight_ptr(weights, add1, perspective, mirror);
-    let wa2 = weight_ptr(weights, add2, perspective, mirror);
-    let ws1 = weight_ptr(weights, sub1, perspective, mirror);
-    let ws2 = weight_ptr(weights, sub2, perspective, mirror);
-    unsafe { update_features::<2, 2>(input_features, output_features, [wa1, wa2], [ws1, ws2]) };
+    let in_ptr  = input_features.as_ptr();
+    let out_ptr = output_features.as_mut_ptr();
+    let wa1     = weight_ptr(weights, add1, perspective, mirror);
+    let wa2     = weight_ptr(weights, add2, perspective, mirror);
+    let ws1     = weight_ptr(weights, sub1, perspective, mirror);
+    let ws2     = weight_ptr(weights, sub2, perspective, mirror);
+    unsafe { update_features::<2, 2>(in_ptr, out_ptr, [wa1, wa2], [ws1, ws2]) };
+}
+
+#[inline(always)]
+unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
+    input: *const i16,
+    output: *mut i16,
+    adds: [*const i16; ADDS],
+    subs: [*const i16; SUBS],
+) {
+    let mut i = 0;
+    while i + 4 * simd::I16_LANES <= L1_SIZE {
+        for k in 0..4 {
+            let off = i + k * simd::I16_LANES;
+            let mut val = simd::load_i16(input.add(off));
+            for a in 0..ADDS {
+                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
+            }
+            for s in 0..SUBS {
+                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
+            }
+            simd::store_i16(output.add(off), val);
+        }
+        i += 4 * simd::I16_LANES;
+    }
+}
+
+#[inline(always)]
+fn weight_ptr(weights: &FeatureWeights, feature: Feature, perspective: Side, mirror: bool) -> *const i16 {
+    unsafe { weights.as_ptr().add(feature.index(perspective, mirror) * L1_SIZE) }
 }
