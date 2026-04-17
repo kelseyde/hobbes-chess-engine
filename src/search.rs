@@ -258,21 +258,8 @@ fn alpha_beta<NODE: NodeType>(
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
-    if !in_check
-        && !root_node
-        && !singular_search
-        && td.stack[ply - 1].mv.is_some()
-        && td.stack[ply - 1].captured.is_none()
-        && is_defined(td.stack[ply - 1].static_eval) {
-
-        let prev_eval = td.stack[ply - 1].static_eval;
-        let prev_mv = td.stack[ply - 1].mv.unwrap();
-        let prev_pc = td.stack[ply - 1].pc.unwrap();
-        let prev_threats = td.stack[ply - 1].threats;
-
-        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
-        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
-        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
+    if !in_check && !root_node && !singular_search {
+        update_hindsight_history(td, board, ply, static_eval);
     }
 
     // Hindsight extension
@@ -414,10 +401,8 @@ fn alpha_beta<NODE: NodeType>(
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let is_quiet = board.captured(&tt_move).is_some();
-            let s_beta_base = se_beta_base(is_quiet);
-            let s_beta_scale = se_beta_scale(is_quiet);
-            let s_beta_div = se_beta_div(is_quiet);
-            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
+            let se = SeParams::new(is_quiet);
+            let s_beta_margin = (se.beta_base + se.beta_scale * (tt_pv && !pv_node) as i32) * depth / se.beta_div;
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
@@ -429,8 +414,8 @@ fn alpha_beta<NODE: NodeType>(
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 extension = 1;
-                extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
-                extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
+                extension += (!pv_node && singular_score < s_beta - se.dext_margin) as i32;
+                extension += (!pv_node && is_quiet && singular_score < s_beta - se.text_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
@@ -489,8 +474,6 @@ fn alpha_beta<NODE: NodeType>(
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
-
-        // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
         if in_check && extension == 0 {
             extension = is_quiet as i32;
@@ -739,73 +722,29 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
 
-        let quiet_bonus = quiet_history_bonus(depth)
-            - cut_node as i16 * quiet_hist_cutnode_offset() as i16
-            + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
-
-        let quiet_malus = quiet_history_malus(depth)
-            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
-
-        let quiet_factoriser_bonus = quiet_factoriser_bonus(depth)
-            - cut_node as i16 * quiet_fact_cutnode_offset() as i16
-            + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_fact_capture_mult() as i16;
-
-        let quiet_factoriser_malus = quiet_factoriser_malus(depth)
-            + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
-
-        let capt_bonus = capture_history_bonus(depth)
-            + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
-
-        let capt_malus = capture_history_malus(depth)
-            + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
-
-        let cont_1_bonus = cont_history_1_bonus(depth)
-            - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
-            + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_1_capture_mult() as i16;
-
-        let cont_1_malus = cont_history_1_malus(depth)
-            + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
-        
-        let cont_2_bonus = cont_history_2_bonus(depth)
-            - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
-            + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
-            + capture_count as i16 * cont_hist_2_capture_mult() as i16;
-
-        let cont_2_malus = cont_history_2_malus(depth)
-            + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
-
-        let cont_bonuses = [cont_1_bonus, cont_2_bonus];
-        let cont_maluses = [cont_1_malus, cont_2_malus];
-
-        let from_bonus = from_history_bonus(depth);
-        let from_malus = from_history_malus(depth);
-        let to_bonus = to_history_bonus(depth);
-        let to_malus = to_history_malus(depth);
+        let b = HistoryBonuses::compute(depth, cut_node, new_tt_move, capture_count as i32);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
+            td.history.capture_history.update(board.stm, pc, &best_move, captured, b.capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
-            td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
-            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &cont_bonuses);
-            td.history.from_history.update(board.stm, best_move.from(), from_bonus);
-            td.history.to_history.update(board.stm, best_move.to(), to_bonus);
+            td.history.quiet_history.update(board.stm, &best_move, pc, threats, b.quiet_bonus, b.quiet_factoriser_bonus);
+            td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &b.cont_bonuses);
+            td.history.from_history.update(board.stm, best_move.from(), b.from_bonus);
+            td.history.to_history.update(board.stm, best_move.to(), b.to_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
-                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
-                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
-                    td.history.from_history.update(board.stm, mv.from(), from_malus);
-                    td.history.to_history.update(board.stm, mv.to(), to_malus);
+                        .update(board.stm, mv, pc, threats, b.quiet_malus, b.quiet_factoriser_malus);
+                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &b.cont_maluses);
+                    td.history.from_history.update(board.stm, mv.from(), b.from_malus);
+                    td.history.to_history.update(board.stm, mv.to(), b.to_malus);
                 }
             }
         }
@@ -814,7 +753,7 @@ fn alpha_beta<NODE: NodeType>(
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
+                    td.history.capture_history.update(board.stm, pc, mv, captured, b.capt_malus);
                 }
             }
         }
@@ -1150,48 +1089,126 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     (factor0 + factor1 * depth * depth) / 1024
 }
 
-#[inline]
-fn se_beta_base(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_base()
-    } else {
-        se_beta_noisy_base()
+/// Bundles the quiet/noisy variants of every singular-extension tunable so they can be
+/// computed once and passed around rather than dispatched five times on `is_quiet`.
+struct SeParams {
+    beta_base:   i32,
+    beta_scale:  i32,
+    beta_div:    i32,
+    dext_margin: i32,
+    text_margin: i32,
+}
+
+impl SeParams {
+    fn new(is_quiet: bool) -> Self {
+        if is_quiet {
+            Self {
+                beta_base:   se_beta_quiet_base(),
+                beta_scale:  se_beta_quiet_scale(),
+                beta_div:    se_beta_quiet_div(),
+                dext_margin: se_dext_quiet_margin(),
+                text_margin: se_text_quiet_margin(),
+            }
+        } else {
+            Self {
+                beta_base:   se_beta_noisy_base(),
+                beta_scale:  se_beta_noisy_scale(),
+                beta_div:    se_beta_noisy_div(),
+                dext_margin: se_dext_noisy_margin(),
+                text_margin: se_text_noisy_margin(),
+            }
+        }
     }
 }
 
-#[inline]
-fn se_beta_scale(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_scale()
-    } else {
-        se_beta_noisy_scale()
+
+/// Pre-computed history bonuses/maluses for the best-move history update at the end of a node.
+/// Gathered once so the many `+` / `-` / `*` expressions don't clutter the call site.
+struct HistoryBonuses {
+    quiet_bonus:            i16,
+    quiet_malus:            i16,
+    quiet_factoriser_bonus: i16,
+    quiet_factoriser_malus: i16,
+    capt_bonus:             i16,
+    capt_malus:             i16,
+    cont_bonuses:           [i16; 2],
+    cont_maluses:           [i16; 2],
+    from_bonus:             i16,
+    from_malus:             i16,
+    to_bonus:               i16,
+    to_malus:               i16,
+}
+
+impl HistoryBonuses {
+    fn compute(depth: i32, cut_node: bool, new_tt_move: bool, capture_count: i32) -> Self {
+        let quiet_bonus = quiet_history_bonus(depth)
+            - cut_node as i16 * quiet_hist_cutnode_offset() as i16
+            + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
+            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+
+        let quiet_malus = quiet_history_malus(depth)
+            + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
+
+        let quiet_factoriser_bonus = quiet_factoriser_bonus(depth)
+            - cut_node as i16 * quiet_fact_cutnode_offset() as i16
+            + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
+            + capture_count as i16 * quiet_fact_capture_mult() as i16;
+
+        let quiet_factoriser_malus = quiet_factoriser_malus(depth)
+            + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
+
+        let capt_bonus = capture_history_bonus(depth)
+            + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
+
+        let capt_malus = capture_history_malus(depth)
+            + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
+
+        let cont_1_bonus = cont_history_1_bonus(depth)
+            - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
+            + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_1_capture_mult() as i16;
+
+        let cont_1_malus = cont_history_1_malus(depth)
+            + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
+
+        let cont_2_bonus = cont_history_2_bonus(depth)
+            - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
+            + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
+            + capture_count as i16 * cont_hist_2_capture_mult() as i16;
+
+        let cont_2_malus = cont_history_2_malus(depth)
+            + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
+
+        Self {
+            quiet_bonus,
+            quiet_malus,
+            quiet_factoriser_bonus,
+            quiet_factoriser_malus,
+            capt_bonus,
+            capt_malus,
+            cont_bonuses: [cont_1_bonus, cont_2_bonus],
+            cont_maluses: [cont_1_malus, cont_2_malus],
+            from_bonus:   from_history_bonus(depth),
+            from_malus:   from_history_malus(depth),
+            to_bonus:     to_history_bonus(depth),
+            to_malus:     to_history_malus(depth),
+        }
     }
 }
 
-#[inline]
-fn se_beta_div(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_div()
-    } else {
-        se_beta_noisy_div()
+/// Apply the hindsight history update: use the difference between the static eval in the current
+/// node and the parent node to reward or penalise the parent move.
+fn update_hindsight_history(td: &mut ThreadData, board: &Board, ply: usize, static_eval: i32) {
+    let prev = &td.stack[ply - 1];
+    if prev.captured.is_some() || !is_defined(prev.static_eval) {
+        return;
     }
-}
-
-#[inline]
-fn se_dext_margin(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_dext_quiet_margin()
-    } else {
-        se_dext_noisy_margin()
-    }
-}
-
-#[inline]
-fn se_text_margin(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_text_quiet_margin()
-    } else {
-        se_text_noisy_margin()
+    if let (Some(prev_mv), Some(prev_pc)) = (prev.mv, prev.pc) {
+        let prev_eval   = prev.static_eval;
+        let prev_threats = prev.threats;
+        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
+        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
+        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
     }
 }
 
