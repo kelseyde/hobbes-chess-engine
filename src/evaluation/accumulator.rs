@@ -14,6 +14,7 @@ pub struct Accumulator {
     pub update: AccumulatorUpdate,
 }
 
+/// Container for the features of the accumulator from the perspective of one side (white or black).
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct AccumulatorSide {
@@ -21,17 +22,6 @@ pub struct AccumulatorSide {
     pub computed: bool,
     pub needs_refresh: bool,
     pub mirrored: bool,
-}
-
-impl Default for AccumulatorSide {
-    fn default() -> Self {
-        AccumulatorSide {
-            features: NETWORK.l0_biases,
-            computed: false,
-            needs_refresh: false,
-            mirrored: false,
-        }
-    }
 }
 
 /// A single update to the `Accumulator` caused by a move. A standard move will add one feature (the
@@ -61,6 +51,18 @@ impl Default for Accumulator {
         Accumulator {
             sides: [AccumulatorSide::default(), AccumulatorSide::default()],
             update: AccumulatorUpdate::default(),
+        }
+    }
+}
+
+
+impl Default for AccumulatorSide {
+    fn default() -> Self {
+        AccumulatorSide {
+            features: NETWORK.l0_biases,
+            computed: false,
+            needs_refresh: false,
+            mirrored: false,
         }
     }
 }
