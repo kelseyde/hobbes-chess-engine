@@ -11,12 +11,28 @@ use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct Accumulator {
-    pub white_features: [i16; L1_SIZE],
-    pub black_features: [i16; L1_SIZE],
+    pub sides: [AccumulatorSide; 2],
     pub update: AccumulatorUpdate,
-    pub computed: [bool; 2],
-    pub needs_refresh: [bool; 2],
-    pub mirrored: [bool; 2],
+}
+
+#[derive(Clone, Copy)]
+#[repr(C, align(64))]
+pub struct AccumulatorSide {
+    pub features: [i16; L1_SIZE],
+    pub computed: bool,
+    pub needs_refresh: bool,
+    pub mirrored: bool,
+}
+
+impl Default for AccumulatorSide {
+    fn default() -> Self {
+        AccumulatorSide {
+            features: NETWORK.l0_biases,
+            computed: false,
+            needs_refresh: false,
+            mirrored: false,
+        }
+    }
 }
 
 /// A single update to the `Accumulator` caused by a move. A standard move will add one feature (the
@@ -44,12 +60,8 @@ pub enum AccumulatorUpdateType {
 impl Default for Accumulator {
     fn default() -> Self {
         Accumulator {
-            white_features: NETWORK.l0_biases,
-            black_features: NETWORK.l0_biases,
+            sides: [AccumulatorSide::default(), AccumulatorSide::default()],
             update: AccumulatorUpdate::default(),
-            computed: [false, false],
-            needs_refresh: [false, false],
-            mirrored: [false, false],
         }
     }
 }
@@ -83,41 +95,40 @@ impl AccumulatorUpdate {
 }
 
 impl Accumulator {
+    /// Get a reference to the `AccumulatorSide` for the given perspective.
+    #[inline(always)]
+    pub fn side(&self, perspective: Side) -> &AccumulatorSide {
+        &self.sides[perspective]
+    }
+
+    /// Get a mutable reference to the `AccumulatorSide` for the given perspective.
+    #[inline(always)]
+    pub fn side_mut(&mut self, perspective: Side) -> &mut AccumulatorSide {
+        &mut self.sides[perspective]
+    }
+
     /// Get a reference to the features for the given perspective.
     #[inline(always)]
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
-        match perspective {
-            White => &self.white_features,
-            Black => &self.black_features,
-        }
+        &self.side(perspective).features
     }
 
     /// Get a mutable reference to the features for the given perspective.
     #[inline(always)]
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
-        match perspective {
-            White => &mut self.white_features,
-            Black => &mut self.black_features,
-        }
+        &mut self.side_mut(perspective).features
     }
 
     /// Reset the features for the given perspective to the initial biases.
     #[inline]
     pub fn reset(&mut self, perspective: Side) {
-        let feats = match perspective {
-            White => &mut self.white_features,
-            Black => &mut self.black_features,
-        };
-        *feats = NETWORK.l0_biases;
+        self.side_mut(perspective).features = NETWORK.l0_biases;
     }
 
     /// Copy the features from another accumulator into this one, for the given perspective.
     #[inline]
     pub fn copy_from(&mut self, side: Side, features: &[i16; L1_SIZE]) {
-        match side {
-            White => self.white_features = *features,
-            Black => self.black_features = *features,
-        }
+        self.side_mut(side).features = *features;
     }
 
     /// Get a mutable and immutable reference to the features for the given perspective.

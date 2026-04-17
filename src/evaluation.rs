@@ -77,11 +77,9 @@ impl NNUE {
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         self.apply_lazy_updates(board);
 
+        let stm = board.stm;
         let acc = &self.stack[self.current];
-        let (us, them) = match board.stm {
-            White => (&acc.white_features, &acc.black_features),
-            Black => (&acc.black_features, &acc.white_features),
-        };
+        let (us, them) = (&acc.side(stm).features, &acc.side(!stm).features);
 
         let output_bucket = get_output_bucket(board);
         let raw = unsafe {
@@ -116,7 +114,7 @@ impl NNUE {
     /// features of the board that have changed since the last refresh.
     fn full_refresh(&mut self, board: &Board, idx: usize, side: Side, mirror: bool, bucket: usize) {
         let acc = &mut self.stack[idx];
-        acc.mirrored[side] = mirror;
+        acc.side_mut(side).mirrored = mirror;
         let cache_entry = self.cache.get(side, mirror, bucket);
         acc.copy_from(side, &cache_entry.features);
 
@@ -141,7 +139,7 @@ impl NNUE {
         }
 
         let weights = &NETWORK.l0_weights[bucket];
-        let mirror = acc.mirrored[side as usize];
+        let mirror = acc.side(side).mirrored;
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
@@ -176,8 +174,8 @@ impl NNUE {
             accumulator::sub1(input, output, sub, weights, side, mirror);
         }
 
-        acc.computed[side] = true;
-        acc.needs_refresh[side] = false;
+        acc.side_mut(side).computed = true;
+        acc.side_mut(side).needs_refresh = false;
 
         cache_entry.bitboards = board.bb;
         cache_entry.features = *acc.features(side);
@@ -188,10 +186,16 @@ impl NNUE {
     /// updated. The update is then stored on the accumulator to later be applied lazily.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
-        self.stack[self.current].needs_refresh = self.stack[self.current - 1].needs_refresh;
-        self.stack[self.current].mirrored = self.stack[self.current - 1].mirrored;
-        self.stack[self.current].computed[White] = false;
-        self.stack[self.current].computed[Black] = false;
+        self.stack[self.current].side_mut(White).needs_refresh =
+            self.stack[self.current - 1].side_mut(White).needs_refresh;
+        self.stack[self.current].side_mut(Black).needs_refresh =
+            self.stack[self.current - 1].side_mut(Black).needs_refresh;
+        self.stack[self.current].side_mut(White).mirrored =
+            self.stack[self.current - 1].side_mut(White).mirrored;
+        self.stack[self.current].side_mut(Black).mirrored =
+            self.stack[self.current - 1].side_mut(Black).mirrored;
+        self.stack[self.current].side_mut(White).computed = false;
+        self.stack[self.current].side_mut(Black).computed = false;
         let us = board.stm;
 
         let new_pc = mv.promo_piece().unwrap_or(pc);
@@ -200,7 +204,7 @@ impl NNUE {
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
-            self.stack[self.current].needs_refresh[us] = true;
+            self.stack[self.current].side_mut(us).needs_refresh = true;
         }
 
         self.stack[self.current].update = if mv.is_castle() {
@@ -219,7 +223,7 @@ impl NNUE {
     fn apply_lazy_updates(&mut self, board: &Board) {
         for side in [White, Black] {
             // If already up-to-date for this perspective, then there is nothing to do.
-            if self.stack[self.current].computed[side] {
+            if self.stack[self.current].side(side).computed {
                 continue;
             }
 
@@ -228,7 +232,7 @@ impl NNUE {
             let bucket = king_bucket(king_sq, side);
 
             // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
-            if self.stack[self.current].needs_refresh[side] {
+            if self.stack[self.current].side(side).needs_refresh {
                 self.full_refresh(board, self.current, side, mirror, bucket);
                 continue;
             }
@@ -236,14 +240,16 @@ impl NNUE {
             // Scan backwards to find the nearest parent accumulator that is computed for this
             // perspective, or requires a refresh.
             let mut curr = self.current - 1;
-            while !self.stack[curr].computed[side] && !self.stack[curr].needs_refresh[side] {
+            while !self.stack[curr].side(side).computed
+                && !self.stack[curr].side(side).needs_refresh
+            {
                 if curr == 0 {
                     break;
                 }
                 curr -= 1;
             }
 
-            if self.stack[curr].needs_refresh[side] {
+            if self.stack[curr].side(side).needs_refresh {
                 // If we found an accumulator that requires a full refresh, do that instead.
                 self.full_refresh(board, self.current, side, mirror, bucket);
             } else {
@@ -257,7 +263,7 @@ impl NNUE {
                     let prev_fts = prev_acc.features(side);
                     let next_fts = next_acc.features_mut(side);
                     accumulator::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
-                    next_acc.computed[side] = true;
+                    next_acc.side_mut(side).computed = true;
                     curr += 1;
                 }
             }
