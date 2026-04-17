@@ -115,18 +115,11 @@ impl NNUE {
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
     /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
     /// features of the board that have changed since the last refresh.
-    fn full_refresh(
-        &mut self,
-        board: &Board,
-        idx: usize,
-        perspective: Side,
-        mirror: bool,
-        bucket: usize,
-    ) {
+    fn full_refresh(&mut self, board: &Board, idx: usize, side: Side, mirror: bool, bucket: usize) {
         let acc = &mut self.stack[idx];
-        acc.mirrored[perspective] = mirror;
-        let cache_entry = self.cache.get(perspective, mirror, bucket);
-        acc.copy_from(perspective, &cache_entry.features);
+        acc.mirrored[side] = mirror;
+        let cache_entry = self.cache.get(side, mirror, bucket);
+        acc.copy_from(side, &cache_entry.features);
 
         let mut adds = ArrayVec::<_, 32>::new();
         let mut subs = ArrayVec::<_, 32>::new();
@@ -149,27 +142,46 @@ impl NNUE {
         }
 
         let weights = &NETWORK.l0_weights[bucket];
+        let mirror = acc.mirrored[side as usize];
 
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
-            acc.add_add_add_add(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            let (input, output) = acc.features_inplace(side);
+            accumulator::add4(
+                input,
+                output,
+                chunk.try_into().unwrap(),
+                weights,
+                side,
+                mirror,
+            );
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
-            acc.add(add, weights, perspective);
+            let (input, output) = acc.features_inplace(side);
+            accumulator::add1(input, output, add, weights, side, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
-            acc.sub_sub_sub_sub(chunk[0], chunk[1], chunk[2], chunk[3], weights, perspective);
+            let (input, output) = acc.features_inplace(side);
+            accumulator::sub4(
+                input,
+                output,
+                chunk.try_into().unwrap(),
+                weights,
+                side,
+                mirror,
+            );
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            acc.sub(sub, weights, perspective);
+            let (input, output) = acc.features_inplace(side);
+            accumulator::sub1(input, output, sub, weights, side, mirror);
         }
 
-        acc.computed[perspective] = true;
-        acc.needs_refresh[perspective] = false;
+        acc.computed[side] = true;
+        acc.needs_refresh[side] = false;
 
         cache_entry.bitboards = board.bb;
-        cache_entry.features = *acc.features(perspective);
+        cache_entry.features = *acc.features(side);
     }
 
     /// Efficiently update the accumulators for the current move. Depending on the nature of
