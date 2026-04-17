@@ -8,6 +8,8 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+mod rfp;
+mod hindsight;
 
 use std::time::Duration;
 
@@ -258,66 +260,66 @@ fn alpha_beta<NODE: NodeType>(
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
-    if !in_check
-        && !root_node
-        && !singular_search
-        && td.stack[ply - 1].mv.is_some()
-        && td.stack[ply - 1].captured.is_none()
-        && is_defined(td.stack[ply - 1].static_eval) {
-
-        let prev_eval = td.stack[ply - 1].static_eval;
-        let prev_mv = td.stack[ply - 1].mv.unwrap();
-        let prev_pc = td.stack[ply - 1].pc.unwrap();
-        let prev_threats = td.stack[ply - 1].threats;
-
-        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
-        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
-        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
+    if hindsight::should_update_history(
+        td,
+        root_node,
+        in_check,
+        singular_search,
+        ply
+    ) {
+        hindsight::update_history(td, board, ply, static_eval);
     }
 
     // Hindsight extension
     // If we reduced depth in the parent node, but now the static eval indicates the position is
     // improving, we correct the reduction 'in hindsight' by extending depth in the current node.
-    if !root_node
-        && !in_check
-        && !singular_search
-        && depth >= hindsight_ext_min_depth()
-        && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
-        && is_defined(td.stack[ply - 1].static_eval)
-        && static_eval + td.stack[ply - 1].static_eval < hindsight_ext_eval_diff() {
+    if hindsight::should_extend(
+        td,
+        root_node,
+        in_check,
+        singular_search,
+        static_eval,
+        depth,
+        ply)
+    {
         depth += 1;
     }
 
     // Hindsight reduction
     // If we reduced depth in the parent node, and now the static eval confirms the position is
     // improving, we affirm the parent node's reduction 'in hindsight' by reducing even further.
-    if !root_node
-        && !pv_node
-        && !in_check
-        && !singular_search
-        && depth >= hindsight_red_min_depth()
-        && td.stack[ply - 1].reduction >= hindsight_red_min_reduction()
-        && is_defined(td.stack[ply - 1].static_eval)
-        && static_eval + td.stack[ply - 1].static_eval > hindsight_red_eval_diff() {
+    if hindsight::should_reduce(
+        td,
+        root_node,
+        pv_node,
+        in_check,
+        singular_search,
+        static_eval,
+        depth,
+        ply
+    ) {
         depth -= 1;
+    }
+
+    // Reverse Futility Pruning
+    // Skip nodes where the static eval is far above beta and will thus likely fail high.
+    if rfp::is_futile(
+        root_node,
+        pv_node,
+        in_check,
+        singular_search,
+        improving,
+        tt_move_noisy,
+        tt_flag,
+        depth,
+        static_eval,
+        beta) {
+        return rfp::futility_value(static_eval, beta)
     }
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !root_node && !pv_node && !in_check && !singular_search {
-
-        // Reverse Futility Pruning
-        // Skip nodes where the static eval is far above beta and will thus likely fail high.
-        let futility_margin = rfp_base()
-            + rfp_scale() * depth
-            - rfp_improving_scale() * improving as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
-            && tt_flag != Upper {
-            return beta + (static_eval - beta) / 3;
-        }
-
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
         if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
