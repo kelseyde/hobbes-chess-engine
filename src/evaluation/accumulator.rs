@@ -1,5 +1,4 @@
 use crate::board::side::Side;
-use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
 use crate::evaluation::{simd, NETWORK};
 use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
