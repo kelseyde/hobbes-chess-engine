@@ -83,7 +83,6 @@ impl AccumulatorUpdate {
 }
 
 impl Accumulator {
-
     /// Get a reference to the features for the given perspective.
     #[inline(always)]
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
