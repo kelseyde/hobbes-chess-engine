@@ -110,38 +110,18 @@ impl Accumulator {
 
     #[inline]
     pub fn add(&mut self, add: Feature, weights: &FeatureWeights, perspective: Side) {
-        let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
-        let idx = add.index(perspective, mirror);
-        let feats = self.features_mut(perspective);
-        let weight_offset = idx * L1_SIZE;
-
-        let mut i = 0;
-        while i < L1_SIZE {
-            unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
-                let weight = *weights.get_unchecked(i + weight_offset);
-                *feat_ptr = feat_ptr.wrapping_add(weight);
-            }
-            i += 1;
-        }
+        let mirror = self.mirrored[perspective as usize];
+        let feats  = self.features_mut(perspective).as_mut_ptr();
+        let wa     = unsafe { weights.as_ptr().add(add.index(perspective, mirror) * L1_SIZE) };
+        unsafe { update_features_inplace::<1, 0>(feats, [wa], []) };
     }
 
     #[inline]
     pub fn sub(&mut self, sub: Feature, weights: &FeatureWeights, perspective: Side) {
-        let mirror = unsafe { *self.mirrored.get_unchecked(perspective as usize) };
-        let idx = sub.index(perspective, mirror);
-        let feats = self.features_mut(perspective);
-        let weight_offset = idx * L1_SIZE;
-
-        let mut i = 0;
-        while i < L1_SIZE {
-            unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
-                let weight = *weights.get_unchecked(i + weight_offset);
-                *feat_ptr = feat_ptr.wrapping_sub(weight);
-            }
-            i += 1;
-        }
+        let mirror = self.mirrored[perspective as usize];
+        let feats  = self.features_mut(perspective).as_mut_ptr();
+        let ws     = unsafe { weights.as_ptr().add(sub.index(perspective, mirror) * L1_SIZE) };
+        unsafe { update_features_inplace::<0, 1>(feats, [], [ws]) };
     }
 
     #[inline]
@@ -155,26 +135,12 @@ impl Accumulator {
         perspective: Side,
     ) {
         let mirror = self.mirrored[perspective as usize];
-
-        let add1_offset = add1.index(perspective, mirror) * L1_SIZE;
-        let add2_offset = add2.index(perspective, mirror) * L1_SIZE;
-        let add3_offset = add3.index(perspective, mirror) * L1_SIZE;
-        let add4_offset = add4.index(perspective, mirror) * L1_SIZE;
-
-        let feats = self.features_mut(perspective);
-
-        let mut i = 0;
-        while i < L1_SIZE {
-            unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
-                *feat_ptr = feat_ptr
-                    .wrapping_add(*weights.get_unchecked(i + add1_offset))
-                    .wrapping_add(*weights.get_unchecked(i + add2_offset))
-                    .wrapping_add(*weights.get_unchecked(i + add3_offset))
-                    .wrapping_add(*weights.get_unchecked(i + add4_offset));
-            }
-            i += 1;
-        }
+        let feats  = self.features_mut(perspective).as_mut_ptr();
+        let wa1    = unsafe { weights.as_ptr().add(add1.index(perspective, mirror) * L1_SIZE) };
+        let wa2    = unsafe { weights.as_ptr().add(add2.index(perspective, mirror) * L1_SIZE) };
+        let wa3    = unsafe { weights.as_ptr().add(add3.index(perspective, mirror) * L1_SIZE) };
+        let wa4    = unsafe { weights.as_ptr().add(add4.index(perspective, mirror) * L1_SIZE) };
+        unsafe { update_features_inplace::<4, 0>(feats, [wa1, wa2, wa3, wa4], []) };
     }
 
     #[inline]
@@ -188,26 +154,12 @@ impl Accumulator {
         perspective: Side,
     ) {
         let mirror = self.mirrored[perspective as usize];
-
-        let sub1_offset = sub1.index(perspective, mirror) * L1_SIZE;
-        let sub2_offset = sub2.index(perspective, mirror) * L1_SIZE;
-        let sub3_offset = sub3.index(perspective, mirror) * L1_SIZE;
-        let sub4_offset = sub4.index(perspective, mirror) * L1_SIZE;
-
-        let feats = self.features_mut(perspective);
-
-        let mut i = 0;
-        while i < L1_SIZE {
-            unsafe {
-                let feat_ptr = feats.get_unchecked_mut(i);
-                *feat_ptr = feat_ptr
-                    .wrapping_sub(*weights.get_unchecked(i + sub1_offset))
-                    .wrapping_sub(*weights.get_unchecked(i + sub2_offset))
-                    .wrapping_sub(*weights.get_unchecked(i + sub3_offset))
-                    .wrapping_sub(*weights.get_unchecked(i + sub4_offset));
-            }
-            i += 1;
-        }
+        let feats  = self.features_mut(perspective).as_mut_ptr();
+        let ws1    = unsafe { weights.as_ptr().add(sub1.index(perspective, mirror) * L1_SIZE) };
+        let ws2    = unsafe { weights.as_ptr().add(sub2.index(perspective, mirror) * L1_SIZE) };
+        let ws3    = unsafe { weights.as_ptr().add(sub3.index(perspective, mirror) * L1_SIZE) };
+        let ws4    = unsafe { weights.as_ptr().add(sub4.index(perspective, mirror) * L1_SIZE) };
+        unsafe { update_features_inplace::<0, 4>(feats, [], [ws1, ws2, ws3, ws4]) };
     }
 }
 
@@ -270,6 +222,32 @@ unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
                 val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
             }
             simd::store_i16(output_features.as_mut_ptr().add(off), val);
+        }
+        i += 4 * simd::I16_LANES;
+    }
+}
+
+/// In-place variant: reads and writes through the same raw pointer, bypassing
+/// the borrow checker's aliasing rules. Safe as long as `feats` is valid for
+/// L1_SIZE i16 elements and the weight pointers don't overlap `feats`.
+#[inline(always)]
+unsafe fn update_features_inplace<const ADDS: usize, const SUBS: usize>(
+    feats: *mut i16,
+    adds: [*const i16; ADDS],
+    subs: [*const i16; SUBS],
+) {
+    let mut i = 0;
+    while i + 4 * simd::I16_LANES <= L1_SIZE {
+        for k in 0..4usize {
+            let off = i + k * simd::I16_LANES;
+            let mut val = simd::load_i16(feats.add(off));
+            for a in 0..ADDS {
+                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
+            }
+            for s in 0..SUBS {
+                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
+            }
+            simd::store_i16(feats.add(off), val);
         }
         i += 4 * simd::I16_LANES;
     }
