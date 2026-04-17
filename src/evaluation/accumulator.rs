@@ -251,6 +251,35 @@ pub fn apply_update(
     }
 }
 
+#[inline(always)]
+unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
+    input_features: &[i16; L1_SIZE],
+    output_features: &mut [i16; L1_SIZE],
+    adds: [*const i16; ADDS],
+    subs: [*const i16; SUBS],
+) {
+    let mut i = 0;
+    while i + 4 * simd::I16_LANES <= L1_SIZE {
+        for k in 0..4usize {
+            let off = i + k * simd::I16_LANES;
+            let mut val = simd::load_i16(input_features.as_ptr().add(off));
+            for a in 0..ADDS {
+                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
+            }
+            for s in 0..SUBS {
+                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
+            }
+            simd::store_i16(output_features.as_mut_ptr().add(off), val);
+        }
+        i += 4 * simd::I16_LANES;
+    }
+}
+
+#[inline(always)]
+fn weight_ptr(weights: &FeatureWeights, feature: Feature, perspective: Side, mirror: bool) -> *const i16 {
+    unsafe { weights.as_ptr().add(feature.index(perspective, mirror) * L1_SIZE) }
+}
+
 #[inline]
 pub fn add(
     input_features: &[i16; L1_SIZE],
@@ -260,45 +289,8 @@ pub fn add(
     perspective: Side,
     mirror: bool,
 ) {
-    let w = unsafe {
-        weights
-            .as_ptr()
-            .add(add.index(perspective, mirror) * L1_SIZE)
-    };
-    unsafe {
-        let mut i = 0;
-        while i + 4 * simd::I16_LANES <= L1_SIZE {
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i),
-                simd::add_i16(
-                    simd::load_i16(input_features.as_ptr().add(i)),
-                    simd::load_i16(w.add(i)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + simd::I16_LANES),
-                simd::add_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + simd::I16_LANES)),
-                    simd::load_i16(w.add(i + simd::I16_LANES)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + 2 * simd::I16_LANES),
-                simd::add_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + 2 * simd::I16_LANES)),
-                    simd::load_i16(w.add(i + 2 * simd::I16_LANES)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + 3 * simd::I16_LANES),
-                simd::add_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + 3 * simd::I16_LANES)),
-                    simd::load_i16(w.add(i + 3 * simd::I16_LANES)),
-                ),
-            );
-            i += 4 * simd::I16_LANES;
-        }
-    }
+    let wa = weight_ptr(weights, add, perspective, mirror);
+    unsafe { update_features::<1, 0>(input_features, output_features, [wa], []) };
 }
 
 #[inline]
@@ -310,45 +302,8 @@ pub fn sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let w = unsafe {
-        weights
-            .as_ptr()
-            .add(sub.index(perspective, mirror) * L1_SIZE)
-    };
-    unsafe {
-        let mut i = 0;
-        while i + 4 * simd::I16_LANES <= L1_SIZE {
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i),
-                simd::sub_i16(
-                    simd::load_i16(input_features.as_ptr().add(i)),
-                    simd::load_i16(w.add(i)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + simd::I16_LANES),
-                simd::sub_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + simd::I16_LANES)),
-                    simd::load_i16(w.add(i + simd::I16_LANES)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + 2 * simd::I16_LANES),
-                simd::sub_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + 2 * simd::I16_LANES)),
-                    simd::load_i16(w.add(i + 2 * simd::I16_LANES)),
-                ),
-            );
-            simd::store_i16(
-                output_features.as_mut_ptr().add(i + 3 * simd::I16_LANES),
-                simd::sub_i16(
-                    simd::load_i16(input_features.as_ptr().add(i + 3 * simd::I16_LANES)),
-                    simd::load_i16(w.add(i + 3 * simd::I16_LANES)),
-                ),
-            );
-            i += 4 * simd::I16_LANES;
-        }
-    }
+    let ws = weight_ptr(weights, sub, perspective, mirror);
+    unsafe { update_features::<0, 1>(input_features, output_features, [], [ws]) };
 }
 
 #[inline]
@@ -361,33 +316,9 @@ pub fn add_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa = unsafe {
-        weights
-            .as_ptr()
-            .add(add.index(perspective, mirror) * L1_SIZE)
-    };
-    let ws = unsafe {
-        weights
-            .as_ptr()
-            .add(sub.index(perspective, mirror) * L1_SIZE)
-    };
-    unsafe {
-        let mut i = 0;
-        while i + 4 * simd::I16_LANES <= L1_SIZE {
-            for k in 0..4usize {
-                let off = i + k * simd::I16_LANES;
-                let f = simd::load_i16(input_features.as_ptr().add(off));
-                simd::store_i16(
-                    output_features.as_mut_ptr().add(off),
-                    simd::sub_i16(
-                        simd::add_i16(f, simd::load_i16(wa.add(off))),
-                        simd::load_i16(ws.add(off)),
-                    ),
-                );
-            }
-            i += 4 * simd::I16_LANES;
-        }
-    }
+    let wa = weight_ptr(weights, add, perspective, mirror);
+    let ws = weight_ptr(weights, sub, perspective, mirror);
+    unsafe { update_features::<1, 1>(input_features, output_features, [wa], [ws]) };
 }
 
 #[inline]
@@ -402,41 +333,10 @@ pub fn add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa = unsafe {
-        weights
-            .as_ptr()
-            .add(add.index(perspective, mirror) * L1_SIZE)
-    };
-    let ws1 = unsafe {
-        weights
-            .as_ptr()
-            .add(sub1.index(perspective, mirror) * L1_SIZE)
-    };
-    let ws2 = unsafe {
-        weights
-            .as_ptr()
-            .add(sub2.index(perspective, mirror) * L1_SIZE)
-    };
-    unsafe {
-        let mut i = 0;
-        while i + 4 * simd::I16_LANES <= L1_SIZE {
-            for k in 0..4usize {
-                let off = i + k * simd::I16_LANES;
-                let f = simd::load_i16(input_features.as_ptr().add(off));
-                simd::store_i16(
-                    output_features.as_mut_ptr().add(off),
-                    simd::sub_i16(
-                        simd::sub_i16(
-                            simd::add_i16(f, simd::load_i16(wa.add(off))),
-                            simd::load_i16(ws1.add(off)),
-                        ),
-                        simd::load_i16(ws2.add(off)),
-                    ),
-                );
-            }
-            i += 4 * simd::I16_LANES;
-        }
-    }
+    let wa  = weight_ptr(weights, add,  perspective, mirror);
+    let ws1 = weight_ptr(weights, sub1, perspective, mirror);
+    let ws2 = weight_ptr(weights, sub2, perspective, mirror);
+    unsafe { update_features::<1, 2>(input_features, output_features, [wa], [ws1, ws2]) };
 }
 
 #[inline]
@@ -452,47 +352,9 @@ pub fn add_add_sub_sub(
     perspective: Side,
     mirror: bool,
 ) {
-    let wa1 = unsafe {
-        weights
-            .as_ptr()
-            .add(add1.index(perspective, mirror) * L1_SIZE)
-    };
-    let wa2 = unsafe {
-        weights
-            .as_ptr()
-            .add(add2.index(perspective, mirror) * L1_SIZE)
-    };
-    let ws1 = unsafe {
-        weights
-            .as_ptr()
-            .add(sub1.index(perspective, mirror) * L1_SIZE)
-    };
-    let ws2 = unsafe {
-        weights
-            .as_ptr()
-            .add(sub2.index(perspective, mirror) * L1_SIZE)
-    };
-    unsafe {
-        let mut i = 0;
-        while i + 4 * simd::I16_LANES <= L1_SIZE {
-            for k in 0..4usize {
-                let off = i + k * simd::I16_LANES;
-                let f = simd::load_i16(input_features.as_ptr().add(off));
-                simd::store_i16(
-                    output_features.as_mut_ptr().add(off),
-                    simd::sub_i16(
-                        simd::sub_i16(
-                            simd::add_i16(
-                                simd::add_i16(f, simd::load_i16(wa1.add(off))),
-                                simd::load_i16(wa2.add(off)),
-                            ),
-                            simd::load_i16(ws1.add(off)),
-                        ),
-                        simd::load_i16(ws2.add(off)),
-                    ),
-                );
-            }
-            i += 4 * simd::I16_LANES;
-        }
-    }
+    let wa1 = weight_ptr(weights, add1, perspective, mirror);
+    let wa2 = weight_ptr(weights, add2, perspective, mirror);
+    let ws1 = weight_ptr(weights, sub1, perspective, mirror);
+    let ws2 = weight_ptr(weights, sub2, perspective, mirror);
+    unsafe { update_features::<2, 2>(input_features, output_features, [wa1, wa2], [ws1, ws2]) };
 }
