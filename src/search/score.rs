@@ -1,6 +1,6 @@
 use crate::search::MAX_PLY;
+use crate::search::thread::ThreadData;
 
-pub const DRAW: i32 = 0;
 pub const MAX: i32 = 32767;
 pub const MIN: i32 = -32767;
 pub const MATE: i32 = 32766;
@@ -33,6 +33,10 @@ pub const fn mate_in(ply: usize) -> i32 {
 #[inline]
 pub const fn mated_in(ply: usize) -> i32 {
     -MATE + ply as i32
+}
+
+pub const fn draw(td: &ThreadData) -> i32 {
+    (td.nodes % 5) as i32 - 2
 }
 
 /// Clamp a score to the valid [MIN, MAX] range.
