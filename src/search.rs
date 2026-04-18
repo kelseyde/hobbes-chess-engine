@@ -526,8 +526,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // History Pruning
         // Skip quiet moves that have a bad history score.
-        if !pv_node
-            && !root_node
+        if !root_node
             && !is_mated
             && !is_killer
             && is_quiet
