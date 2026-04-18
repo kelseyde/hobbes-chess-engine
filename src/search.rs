@@ -607,7 +607,6 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
-            r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
