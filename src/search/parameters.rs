@@ -103,7 +103,6 @@ tunable_params! {
     lmr_hist_offset              = 1019, -2048..=2048,     true;
     lmr_hist_divisor             = 18352, 8192..=32768,    true;
     lmr_mvv_divisor              = 3, 1..=5,               true;
-    lmr_extension_divisor        = 4, 1..=6,               true;
     lmr_deeper_base              = 23, 0..=100,            true;
     lmr_deeper_scale             = 555, 350..=600,         true;
     lmr_deeper_div               = 166, 64..=256,          true;
