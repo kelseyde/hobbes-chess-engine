@@ -27,11 +27,12 @@ pub const SIDE_KEY: u64 = 4747071328949516916;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Keys {
-    pub hash: u64,                 // Zobrist hash for the board
-    pub pawn_hash: u64,            // Zobrist hash for pawns
-    pub non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
-    pub major_hash: u64,           // Zobrist hash for major pieces
-    pub minor_hash: u64,           // Zobrist hash for minor pieces
+    pub hash: u64,                   // Zobrist hash for the board
+    pub pawn_hash: u64,              // Zobrist hash for pawns
+    pub fuzzy_pawn_hashes: [u64; 8], // Pawn hashes ignoring pawns on each file
+    pub non_pawn_hashes: [u64; 2],   // Zobrist hashes for non-pawns
+    pub major_hash: u64,             // Zobrist hash for major pieces
+    pub minor_hash: u64,             // Zobrist hash for minor pieces
 }
 
 pub struct Zobrist;
@@ -73,6 +74,25 @@ impl Zobrist {
         }
 
         hash
+    }
+
+    /// Computes 8 pawn hashes, one per file, each omitting pawns on that file.
+    pub fn get_fuzzy_pawn_hashes(board: &Board) -> [u64; 8] {
+        let mut hashes = [0u64; 8];
+
+        for pawn_sq in board.bb[Pawn] {
+            if let Some(side) = board.side_at(pawn_sq) {
+                let h = Self::sq(Pawn, side, pawn_sq);
+                let file = pawn_sq.file() as usize;
+                for f in 0..8 {
+                    if f != file {
+                        hashes[f] ^= h;
+                    }
+                }
+            }
+        }
+
+        hashes
     }
 
     pub fn get_non_pawn_hashes(board: &Board) -> [u64; 2] {

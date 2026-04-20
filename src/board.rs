@@ -177,6 +177,13 @@ impl Board {
         self.keys.hash ^= hash;
         if pc == Piece::Pawn {
             self.keys.pawn_hash ^= hash;
+            // Update every fuzzy hash except the one for this pawn's file
+            let file = sq.file() as usize;
+            for f in 0..8 {
+                if f != file {
+                    self.keys.fuzzy_pawn_hashes[f] ^= hash;
+                }
+            }
         } else {
             self.keys.non_pawn_hashes[side] ^= hash;
             if pc.is_major() {

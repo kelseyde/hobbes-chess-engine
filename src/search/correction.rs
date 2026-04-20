@@ -20,6 +20,7 @@ pub type FromToCorrectionHistory = CorrectionHistory<4096>;
 #[derive(Default)]
 pub struct CorrectionHistories {
     pawn_corrhist: HashCorrectionHistory,
+    fuzzy_pawn_corrhist: [HashCorrectionHistory; File::COUNT],
     nonpawn_corrhist: [HashCorrectionHistory; 2],
     countermove_corrhist: FromToCorrectionHistory,
     follow_up_move_corrhist: FromToCorrectionHistory,
@@ -48,6 +49,9 @@ impl CorrectionHistories {
         let minor_key = board.keys.minor_hash;
 
         self.pawn_corrhist.update(us, pawn_key, pawn_corr_bonus(diff, depth));
+        for (f, hist) in self.fuzzy_pawn_corrhist.iter_mut().enumerate() {
+            hist.update(us, board.keys.fuzzy_pawn_hashes[f], fuzzy_pawn_corr_bonus(diff, depth));
+        }
         self.nonpawn_corrhist[White].update(us, white_key, nonpawn_corr_bonus(diff, depth));
         self.nonpawn_corrhist[Black].update(us, black_key, nonpawn_corr_bonus(diff, depth));
         self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
@@ -66,6 +70,9 @@ impl CorrectionHistories {
         let us = board.stm;
 
         let pawn      = self.pawn_corrhist.get(us, board.keys.pawn_hash);
+        let fuzzy_pawn = self.fuzzy_pawn_corrhist.iter().enumerate()
+            .map(|(f, hist)| hist.get(us, board.keys.fuzzy_pawn_hashes[f]))
+            .sum::<i32>() / File::COUNT as i32;
         let white     = self.nonpawn_corrhist[White].get(us, board.keys.non_pawn_hashes[White]);
         let black     = self.nonpawn_corrhist[Black].get(us, board.keys.non_pawn_hashes[Black]);
         let major     = self.major_corrhist.get(us, board.keys.major_hash);
@@ -74,6 +81,7 @@ impl CorrectionHistories {
         let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
 
         ((pawn * 100 / corr_pawn_weight())
+            + (fuzzy_pawn * 100 / corr_fuzzy_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
@@ -85,6 +93,7 @@ impl CorrectionHistories {
 
     pub fn clear(&mut self) {
         self.pawn_corrhist.clear();
+        self.fuzzy_pawn_corrhist.iter_mut().for_each(|h| h.clear());
         self.nonpawn_corrhist.iter_mut().for_each(|h| h.clear());
         self.countermove_corrhist.clear();
         self.follow_up_move_corrhist.clear();
@@ -151,11 +160,13 @@ mod bonuses {
         };
     }
 
-    corr_bonus!(pawn_corr_bonus,      corr_pawn_bonus_mult,      corr_pawn_bonus_div,      corr_pawn_bonus_min,      corr_pawn_bonus_max);
-    corr_bonus!(nonpawn_corr_bonus,   corr_nonpawn_bonus_mult,   corr_nonpawn_bonus_div,   corr_nonpawn_bonus_min,   corr_nonpawn_bonus_max);
-    corr_bonus!(major_corr_bonus,     corr_major_bonus_mult,     corr_major_bonus_div,     corr_major_bonus_min,     corr_major_bonus_max);
-    corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
-    corr_bonus!(counter_corr_bonus,   corr_counter_bonus_mult,   corr_counter_bonus_div,   corr_counter_bonus_min,   corr_counter_bonus_max);
-    corr_bonus!(follow_up_corr_bonus, corr_follow_up_bonus_mult, corr_follow_up_bonus_div, corr_follow_up_bonus_min, corr_follow_up_bonus_max);
+    corr_bonus!(pawn_corr_bonus,       corr_pawn_bonus_mult,       corr_pawn_bonus_div,       corr_pawn_bonus_min,       corr_pawn_bonus_max);
+    corr_bonus!(fuzzy_pawn_corr_bonus, corr_fuzzy_pawn_bonus_mult, corr_fuzzy_pawn_bonus_div, corr_fuzzy_pawn_bonus_min, corr_fuzzy_pawn_bonus_max);
+    corr_bonus!(nonpawn_corr_bonus,    corr_nonpawn_bonus_mult,    corr_nonpawn_bonus_div,    corr_nonpawn_bonus_min,    corr_nonpawn_bonus_max);
+    corr_bonus!(major_corr_bonus,      corr_major_bonus_mult,      corr_major_bonus_div,      corr_major_bonus_min,      corr_major_bonus_max);
+    corr_bonus!(minor_corr_bonus,      corr_minor_bonus_mult,      corr_minor_bonus_div,      corr_minor_bonus_min,      corr_minor_bonus_max);
+    corr_bonus!(counter_corr_bonus,    corr_counter_bonus_mult,    corr_counter_bonus_div,    corr_counter_bonus_min,    corr_counter_bonus_max);
+    corr_bonus!(follow_up_corr_bonus,  corr_follow_up_bonus_mult,  corr_follow_up_bonus_div,  corr_follow_up_bonus_min,  corr_follow_up_bonus_max);
 }
 use bonuses::*;
+use crate::board::file::File;

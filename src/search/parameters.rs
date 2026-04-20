@@ -195,6 +195,10 @@ tunable_params! {
     corr_pawn_bonus_div          = 98, 64..=256,           true;
     corr_pawn_bonus_min          = -4626, -6000..=-2000,   true;
     corr_pawn_bonus_max          = 3107, 2000..=6000,      true;
+    corr_fuzzy_pawn_bonus_mult   = 236, 100..=300,         true;
+    corr_fuzzy_pawn_bonus_div    = 98, 64..=256,           true;
+    corr_fuzzy_pawn_bonus_min    = -4626, -6000..=-2000,   true;
+    corr_fuzzy_pawn_bonus_max    = 3107, 2000..=6000,      true;
     corr_nonpawn_bonus_mult      = 213, 100..=300,         true;
     corr_nonpawn_bonus_div       = 89, 64..=256,           true;
     corr_nonpawn_bonus_min       = -4232, -6000..=-2000,   true;
@@ -216,6 +220,7 @@ tunable_params! {
     corr_follow_up_bonus_min     = -4341, -6000..=-2000,   true;
     corr_follow_up_bonus_max     = 3302, 2000..=6000,      true;
     corr_pawn_weight             = 96, 0..=200,            true;
+    corr_fuzzy_pawn_weight       = 96, 0..=200,            true;
     corr_non_pawn_weight         = 92, 0..=200,            true;
     corr_major_weight            = 85, 0..=200,            true;
     corr_minor_weight            = 72, 0..=200,            true;
