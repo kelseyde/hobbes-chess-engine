@@ -312,9 +312,7 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth()
-            && static_eval - futility_margin >= beta
-            && tt_flag != Upper {
+        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return beta + (static_eval - beta) / 3;
         }
 
@@ -528,8 +526,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // History Pruning
         // Skip quiet moves that have a bad history score.
-        if !pv_node
-            && !root_node
+        if !root_node
             && !is_mated
             && !is_killer
             && is_quiet
@@ -609,9 +606,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r += lmr_improving() * !improving as i32;
-            r -= lmr_shallow() * (depth == lmr_min_depth()) as i32;
             r -= lmr_killer() * is_killer as i32;
-            r -= (legal_moves == 1) as i32 * extension * 1024 / lmr_extension_divisor();
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet 
