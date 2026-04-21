@@ -101,7 +101,6 @@ tunable_params! {
     lmr_good_noisy               = 792, 0..=2048,          true;
     lmr_bad_noisy                = 733, 0..=2048,          true;
     lmr_fail_highs               = 61, 0..=2048,            true;
-    lmr_shallow                  = 885, 0..=2048,          true;
     lmr_killer                   = 1001, 0..=2048,          true;
     lmr_quiet_see                = 1313, 0..=2048,         true;
     lmr_se_mult                  = 527, 256..=1024,        true;
@@ -111,7 +110,6 @@ tunable_params! {
     lmr_hist_offset              = 946, -2048..=2048,     true;
     lmr_hist_divisor             = 18433, 8192..=32768,    true;
     lmr_mvv_divisor              = 3, 1..=5,               true;
-    lmr_extension_divisor        = 4, 1..=6,               true;
     lmr_deeper_base              = 24, 0..=100,            true;
     lmr_deeper_scale             = 552, 350..=600,         true;
     lmr_deeper_div               = 169, 64..=256,          true;
