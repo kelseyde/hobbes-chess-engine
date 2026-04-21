@@ -6,8 +6,10 @@ use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
 use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
+    capt_fact_bonus_max, capt_fact_bonus_offset, capt_fact_bonus_scale, capt_fact_malus_max,
+    capt_fact_malus_offset, capt_fact_malus_scale, capt_hist_bonus_max, capt_hist_bonus_offset,
+    capt_hist_bonus_scale, capt_hist_lerp_factor, capt_hist_malus_max, capt_hist_malus_offset,
+    capt_hist_malus_scale, cont_hist_1_bonus_max,
     cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
     cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
     cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
@@ -48,11 +50,20 @@ pub struct QuietHistory {
     piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
 }
 
+/// Container for a factoriser and per-captured-piece bucket used in capture history.
+/// The factoriser is updated for all captured piece types, while the bucket is indexed by
+/// the specific captured piece type.
+#[derive(Default, Copy, Clone)]
+struct CaptureHistoryEntry {
+    factoriser: i16,
+    bucket: [i16; 6],
+}
+
 /// History table for captures. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
 /// tables, with the piece/to table additionally indexed by the captured piece type. The from/to
 /// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
-    piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<CaptureHistoryEntry>; 2]>,
     from_to_entries: Box<[FromToHistory<i16>; 2]>,
 }
 
@@ -270,23 +281,30 @@ impl QuietHistory {
 impl CaptureHistory {
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+    const FACTORISER_MAX: i32 = 8192;
+    const FACT_BONUS_MAX: i16 = Self::FACTORISER_MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
+        let entry = &self.piece_to_entries[stm][pc][mv.to()];
+        let piece_to_score = (entry.factoriser + entry.bucket[captured]) as i32;
         let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
         lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
+    pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16, fact_bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
+        let fact_bonus = fact_bonus.clamp(-Self::FACT_BONUS_MAX, Self::FACT_BONUS_MAX);
+
+        let entry = &mut self.piece_to_entries[stm][pc][mv.to()];
+        update_entry(&mut entry.bucket[captured], bonus, Self::MAX);
+        update_entry(&mut entry.factoriser, fact_bonus, Self::FACTORISER_MAX);
+
         let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
-        update_entry(pt_entry, bonus, Self::MAX);
         update_entry(ft_entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
+        self.piece_to_entries = unsafe { boxed_and_zeroed() };
         self.from_to_entries = Box::new([[[0; 64]; 64]; 2]);
     }
 }
@@ -420,6 +438,8 @@ mod bonuses {
                      quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_offset,    quiet_fact_malus_max));
     history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_offset,     capt_hist_bonus_max),
                      capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_offset,     capt_hist_malus_max));
+    history_bonuses!(capture_factoriser_bonus  (capt_fact_bonus_scale,     capt_fact_bonus_offset,     capt_fact_bonus_max),
+                     capture_factoriser_malus  (capt_fact_malus_scale,     capt_fact_malus_offset,     capt_fact_malus_max));
     history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max),
                      cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
     history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
