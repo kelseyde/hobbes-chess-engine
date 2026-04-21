@@ -334,6 +334,7 @@ fn alpha_beta<NODE: NodeType>(
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
+                + 1024 * cut_node as i32
                 + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
                 / 1024;
 
