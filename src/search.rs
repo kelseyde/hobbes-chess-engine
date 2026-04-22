@@ -28,6 +28,7 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
+use crate::board::piece::Piece::Knight;
 
 pub const MAX_PLY: usize = 256;
 
@@ -330,7 +331,10 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && tt_flag != Upper
+            && !(tt_flag == Lower
+                && board.piece_at(tt_move.to())
+                    .is_some_and(|pc| see::value(pc, Ordering) >= see::value(Knight, Ordering))) {
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
