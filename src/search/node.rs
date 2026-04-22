@@ -48,6 +48,7 @@ pub struct Node {
     pub static_eval: i32,
     pub reduction: i32,
     pub num_fail_highs: i32,
+    pub tt_pv: bool,
 }
 
 impl Default for NodeStack {
@@ -64,6 +65,7 @@ impl Default for NodeStack {
                 static_eval: score::MIN,
                 reduction: 0,
                 num_fail_highs: 0,
+                tt_pv: false,
             }; MAX_PLY + 8],
         }
     }

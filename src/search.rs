@@ -246,6 +246,7 @@ fn alpha_beta<NODE: NodeType>(
         static_eval = raw_eval + correction;
     }
 
+    td.stack[ply].tt_pv = tt_pv;
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
@@ -858,6 +859,11 @@ fn alpha_beta<NODE: NodeType>(
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
         td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
     }
+
+    if !root_node && best_score <= alpha {
+        tt_pv = tt_pv || td.stack[ply - 1].tt_pv;
+    }
+    td.stack[ply].tt_pv = tt_pv;
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
