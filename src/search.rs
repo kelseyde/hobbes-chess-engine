@@ -721,7 +721,7 @@ fn alpha_beta<NODE: NodeType>(
             // further, and we can cut off the search.
             if score >= beta {
                 flag = Lower;
-                td.stack[ply].num_fail_highs += 1;
+                td.stack[ply].num_fail_highs += ((extension < 2) || pv_node) as i32;
                 break;
             }
 
