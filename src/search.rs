@@ -400,6 +400,7 @@ fn alpha_beta<NODE: NodeType>(
 
     let mut extension = 0;
     let mut singular_score = score::MIN;
+    let mut alternative_move = Move::NONE;
 
     // Singular Extensions
     // Do a reduced-depth search with the TT move excluded. If the result of that search plus
@@ -425,6 +426,7 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].singular = Some(tt_move);
             singular_score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.stack[ply].singular = None;
+            alternative_move = td.stack[ply].mv.unwrap_or(Move::NONE);
 
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
@@ -607,6 +609,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
+            r += 1024 * (!tt_pv && cut_node && alternative_move.is_null()) as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * original_board.gives_direct_check(mv) as i32;
