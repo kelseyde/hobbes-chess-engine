@@ -218,6 +218,13 @@ fn alpha_beta<NODE: NodeType>(
                 && !pv_node
                 && tt_depth >= depth
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
+                if tt_score >= beta && tt_move.exists() && !tt_move_noisy {
+                    let pc = board.piece_at(tt_move.from()).unwrap();
+                    let bonus = tt_cutoff_quiet_bonus(depth);
+                    let factoriser_bonus = tt_cutoff_factoriser_bonus(depth);
+                    td.history.quiet_history
+                        .update(board.stm, &tt_move, pc, threats, bonus, factoriser_bonus);
+                }
                 return tt_score;
             }
         }

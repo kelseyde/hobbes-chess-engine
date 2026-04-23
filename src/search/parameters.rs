@@ -196,6 +196,12 @@ tunable_params! {
     pcm_bonus_scale              = 243, 80..=300,          true;
     pcm_bonus_offset             = 79, 0..=200,            true;
     pcm_bonus_max                = 1389, 1000..=1600,      true;
+    tt_cut_quiet_bonus_scale     = 218, 80..=280,          true;
+    tt_cut_quiet_bonus_offset    = 75, 0..=200,            true;
+    tt_cut_quiet_bonus_max       = 1097, 800..=1600,       true;
+    tt_cut_fact_bonus_scale      = 218, 80..=280,          true;
+    tt_cut_fact_bonus_offset     = 75, 0..=200,            true;
+    tt_cut_fact_bonus_max        = 1097, 800..=1600,       true;
     qs_capt_hist_bonus_scale     = 250, 80..=360,          true;
     qs_capt_hist_bonus_offset    = 8, 0..=200,             true;
     qs_capt_hist_bonus_max       = 1450, 1000..=1600,      true;
