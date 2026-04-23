@@ -26,6 +26,7 @@ use crate::search::parameters::{
     to_hist_malus_offset, to_hist_malus_scale,
 };
 use crate::tools::utils::boxed_and_zeroed;
+use crate::tools::utils::lerp;
 
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
 /// Also known as 'butterfly' history.
@@ -433,5 +434,3 @@ mod bonuses {
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
 pub use bonuses::*;
-use utils::lerp;
-use crate::tools::utils;
