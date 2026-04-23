@@ -486,6 +486,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_quiet = captured.is_none();
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let gives_check = board.gives_direct_check(mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
@@ -544,6 +545,7 @@ fn alpha_beta<NODE: NodeType>(
         let futility_margin = static_eval + bnp_scale() * lmr_depth;
         if !pv_node
             && !in_check
+            && !gives_check
             && lmr_depth < bnp_max_depth()
             && move_picker.stage == BadNoisies
             && futility_margin <= alpha {
@@ -609,7 +611,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
-            r -= lmr_gives_check() * original_board.gives_direct_check(mv) as i32;
+            r -= lmr_gives_check() * gives_check as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
