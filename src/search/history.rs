@@ -390,11 +390,6 @@ fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
 }
 
-/// Linearly interpolate between two history scores, using the provided factor (0-100).
-fn lerp(a: i32, b: i32, factor: i32) -> i32 {
-    (a * (100 - factor) + b * factor) / 100
-}
-
 #[rustfmt::skip]
 mod bonuses {
     use super::*;
@@ -438,3 +433,5 @@ mod bonuses {
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
 pub use bonuses::*;
+use utils::lerp;
+use crate::tools::utils;
