@@ -55,7 +55,7 @@ tunable_params! {
     hp_scale                     = -2308, -3072..=-1024,   true;
     bnp_max_depth                = 6, 4..=10,              false;
     bnp_scale                    = 149, 64..=256,          true;
-    see_max_depth                = 8, 6..=10,              false;
+    see_max_depth                = 10, 6..=10,              false;
     see_quiet_mult1              = -16, -24..=-8,          true;
     see_quiet_mult2              = 51, 32..=80,            true;
     see_quiet_offset             = 27, 0..=40,             true;
