@@ -53,7 +53,7 @@ pub struct QuietHistory {
 /// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
     piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
-    from_to_entries: Box<[FromToHistory<i16>; 2]>,
+    from_to_entries: Box<[FromToHistory<[i16; 6]>; 2]>,
 }
 
 /// Continuation history table for quiet moves, indexed by the previous move and the current move.
@@ -273,21 +273,21 @@ impl CaptureHistory {
 
     pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
         let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
+        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()][captured] as i32;
         lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
     }
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
-        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()][captured];
         update_entry(pt_entry, bonus, Self::MAX);
         update_entry(ft_entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
         self.piece_to_entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
-        self.from_to_entries = Box::new([[[0; 64]; 64]; 2]);
+        self.from_to_entries = Box::new([[[[0; 6]; 64]; 64]; 2]);
     }
 }
 
