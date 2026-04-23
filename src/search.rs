@@ -316,7 +316,7 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
-            return lerp(beta, static_eval, 33);
+            return lerp(beta, static_eval, rfp_lerp_factor());
         }
 
         // Razoring
