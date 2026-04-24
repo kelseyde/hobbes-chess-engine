@@ -790,9 +790,9 @@ fn alpha_beta<NODE: NodeType>(
         let to_bonus = to_history_bonus(depth);
         let to_malus = to_history_malus(depth);
 
-        if let Some(captured) = board.captured(&best_move) {
+        if board.captured(&best_move).is_some() {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
+            td.history.capture_history.update(board.stm, pc, &best_move, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
@@ -818,8 +818,8 @@ fn alpha_beta<NODE: NodeType>(
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
         for mv in captures.iter() {
             if mv != &best_move {
-                if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
+                if board.captured(mv).is_some() {
+                    td.history.capture_history.update(board.stm, pc, mv, capt_malus);
                 }
             }
         }
