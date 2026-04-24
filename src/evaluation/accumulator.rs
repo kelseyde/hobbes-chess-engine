@@ -27,8 +27,8 @@ pub struct Accumulator {
 pub struct AccumulatorUpdate {
     pub add_count: usize,
     pub sub_count: usize,
-    pub adds: [Option<Feature>; 2],
-    pub subs: [Option<Feature>; 2],
+    pub adds: [Feature; 2],
+    pub subs: [Feature; 2],
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,8 +60,8 @@ impl AccumulatorUpdate {
         AccumulatorUpdate {
             add_count: 1,
             sub_count: 1,
-            adds: [Some(add), None],
-            subs: [Some(sub), None],
+            adds: [add, Feature::default()],
+            subs: [sub, Feature::default()],
         }
     }
 
@@ -69,8 +69,8 @@ impl AccumulatorUpdate {
         AccumulatorUpdate {
             add_count: 1,
             sub_count: 2,
-            adds: [Some(add), None],
-            subs: [Some(sub1), Some(sub2)],
+            adds: [add, Feature::default()],
+            subs: [sub1, sub2],
         }
     }
 
@@ -78,8 +78,8 @@ impl AccumulatorUpdate {
         AccumulatorUpdate {
             add_count: 2,
             sub_count: 2,
-            adds: [Some(add1), Some(add2)],
-            subs: [Some(sub1), Some(sub2)],
+            adds: [add1, add2],
+            subs: [sub1, sub2],
         }
     }
 
@@ -160,29 +160,29 @@ pub fn apply_update(
     match update.update_type() {
         AccumulatorUpdateType::None => {}
         AccumulatorUpdateType::Add => {
-            let add = unsafe { update.adds[0].unwrap_unchecked() };
+            let add = update.adds[0];
             add1(input_features, output_features, add, weights, perspective, mirror);
         }
         AccumulatorUpdateType::Sub => {
-            let sub = unsafe { update.subs[0].unwrap_unchecked() };
+            let sub = update.subs[0];
             sub1(input_features, output_features, sub, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddSub => {
-            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
-            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
+            let add1 = update.adds[0];
+            let sub1 = update.subs[0];
             add1_sub1(input_features, output_features, add1, sub1, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddSubSub => {
-            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
-            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
-            let sub2 = unsafe { update.subs[1].unwrap_unchecked() };
+            let add1 = update.adds[0];
+            let sub1 = update.subs[0];
+            let sub2 = update.subs[1];
             add1_sub2(input_features, output_features, add1, sub1, sub2, weights, perspective, mirror);
         }
         AccumulatorUpdateType::AddAddSubSub => {
-            let add1 = unsafe { update.adds[0].unwrap_unchecked() };
-            let add2 = unsafe { update.adds[1].unwrap_unchecked() };
-            let sub1 = unsafe { update.subs[0].unwrap_unchecked() };
-            let sub2 = unsafe { update.subs[1].unwrap_unchecked() };
+            let add1 = update.adds[0];
+            let add2 = update.adds[1];
+            let sub1 = update.subs[0];
+            let sub2 = update.subs[1];
             add2_sub2(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
         }
     }
