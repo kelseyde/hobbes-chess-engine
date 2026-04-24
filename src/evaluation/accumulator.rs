@@ -83,20 +83,6 @@ impl AccumulatorUpdate {
         }
     }
 
-    pub fn push_add(&mut self, feature: Feature) {
-        if self.add_count < 2 {
-            self.adds[self.add_count] = Some(feature);
-            self.add_count += 1;
-        }
-    }
-
-    pub fn push_sub(&mut self, feature: Feature) {
-        if self.sub_count < 2 {
-            self.subs[self.sub_count] = Some(feature);
-            self.sub_count += 1;
-        }
-    }
-
     pub fn update_type(&self) -> AccumulatorUpdateType {
         match (self.add_count, self.sub_count) {
             (0, 0) => AccumulatorUpdateType::None,
