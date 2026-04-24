@@ -72,6 +72,12 @@ macro_rules! tunable_params {
 
 }
 
+/// Linearly interpolate between two scores, using the provided factor (0-100).
+#[inline]
+pub const fn lerp(a: i32, b: i32, factor: i32) -> i32 {
+    (a * (100 - factor) + b * factor) / 100
+}
+
 // Credit to Akimbo author - necessary for boxing large arrays
 // without exploding the stack on initialisation.
 /// # Safety

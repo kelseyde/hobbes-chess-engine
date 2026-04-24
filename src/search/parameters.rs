@@ -12,6 +12,7 @@ tunable_params! {
     rfp_scale                    = 61, 40..=100,           true;
     rfp_improving_scale          = 56, 40..=100,           true;
     rfp_tt_move_noisy_scale      = 6, 0..=70,              true;
+    rfp_lerp_factor              = 33, 0..=100,            true;
     razor_base                   = 287, 200..=500,         true;
     razor_scale                  = 263, 100..=400,         true;
     nmp_min_depth                = 3, 0..=8,               false;
@@ -250,6 +251,8 @@ tunable_params! {
     material_scaling_base        = 15739, 10000..=40000,   true;
     qs_futility_threshold        = 173, 80..=250,          true;
     qs_see_threshold             = -95, -200..=100,        true;
+    qs_stand_pat_lerp_factor     = 50, 0..=100,            true;
+    qs_fail_high_lerp_factor     = 50, 0..=100,            true;
     movepick_see_divisor         = 44, 30..=60,            true;
     movepick_see_offset          = 117, 80..=200,          true;
     score_stability_threshold    = 14, 4..=24,             true;

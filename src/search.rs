@@ -28,6 +28,7 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
+use crate::tools::utils::lerp;
 
 pub const MAX_PLY: usize = 256;
 
@@ -315,7 +316,7 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
-            return beta + (static_eval - beta) / 3;
+            return lerp(beta, static_eval, rfp_lerp_factor());
         }
 
         // Razoring
@@ -958,7 +959,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             alpha = static_eval
         }
         if alpha >= beta {
-            return (alpha + beta) / 2;
+            return lerp(alpha, beta, qs_stand_pat_lerp_factor())
         }
     }
 
@@ -1085,7 +1086,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     if best_score >= beta && is_defined(best_score) {
-        best_score = (best_score + beta) / 2;
+        best_score = lerp(beta, best_score, qs_fail_high_lerp_factor());
     }
 
     // Write to transposition table

@@ -26,6 +26,7 @@ use crate::search::parameters::{
     to_hist_malus_offset, to_hist_malus_scale,
 };
 use crate::tools::utils::boxed_and_zeroed;
+use crate::tools::utils::lerp;
 
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
 /// Also known as 'butterfly' history.
@@ -388,11 +389,6 @@ fn gravity(current: i32, update: i32, max: i32) -> i32 {
 /// Gravity formula for history updates, weighting the update by the current value of the entry.
 fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
-}
-
-/// Linearly interpolate between two history scores, using the provided factor (0-100).
-fn lerp(a: i32, b: i32, factor: i32) -> i32 {
-    (a * (100 - factor) + b * factor) / 100
 }
 
 #[rustfmt::skip]
