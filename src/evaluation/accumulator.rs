@@ -109,13 +109,13 @@ pub fn apply_update(
     match update {
         AccumulatorUpdate::None => {}
         AccumulatorUpdate::AddSub(add, sub) => {
-            add1_sub1(input_features, output_features, add, sub, weights, perspective, mirror);
+            add1_sub1(input_features, output_features, *add, *sub, weights, perspective, mirror);
         }
         AccumulatorUpdate::AddSubSub(add, sub1, sub2) => {
-            add1_sub2(input_features, output_features, add, sub1, sub2, weights, perspective, mirror);
+            add1_sub2(input_features, output_features, *add, *sub1, *sub2, weights, perspective, mirror);
         }
         AccumulatorUpdate::AddAddSubSub(add1, add2, sub1, sub2) => {
-            add2_sub2(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
+            add2_sub2(input_features, output_features, *add1, *add2, *sub1, *sub2, weights, perspective, mirror);
         }
     }
 }
@@ -124,7 +124,7 @@ pub fn apply_update(
 pub fn add1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: &Feature,
+    add: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
@@ -139,7 +139,7 @@ pub fn add1(
 pub fn sub1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    sub: &Feature,
+    sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
@@ -154,8 +154,8 @@ pub fn sub1(
 pub fn add1_sub1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: &Feature,
-    sub: &Feature,
+    add: Feature,
+    sub: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
@@ -172,9 +172,9 @@ pub fn add1_sub1(
 pub fn add1_sub2(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: &Feature,
-    sub1: &Feature,
-    sub2: &Feature,
+    add: Feature,
+    sub1: Feature,
+    sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
@@ -192,10 +192,10 @@ pub fn add1_sub2(
 pub fn add2_sub2(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add1: &Feature,
-    add2: &Feature,
-    sub1: &Feature,
-    sub2: &Feature,
+    add1: Feature,
+    add2: Feature,
+    sub1: Feature,
+    sub2: Feature,
     weights: &FeatureWeights,
     perspective: Side,
     mirror: bool,
@@ -220,10 +220,10 @@ pub fn add4(
 ) {
     let in_ptr = input_features.as_ptr();
     let out_ptr = output_features.as_mut_ptr();
-    let wa1 = weight_ptr(weights, &adds[0], perspective, mirror);
-    let wa2 = weight_ptr(weights, &adds[1], perspective, mirror);
-    let wa3 = weight_ptr(weights, &adds[2], perspective, mirror);
-    let wa4 = weight_ptr(weights, &adds[3], perspective, mirror);
+    let wa1 = weight_ptr(weights, adds[0], perspective, mirror);
+    let wa2 = weight_ptr(weights, adds[1], perspective, mirror);
+    let wa3 = weight_ptr(weights, adds[2], perspective, mirror);
+    let wa4 = weight_ptr(weights, adds[3], perspective, mirror);
     unsafe { update_features::<4, 0>(in_ptr, out_ptr, [wa1, wa2, wa3, wa4], []) };
 }
 
@@ -238,10 +238,10 @@ pub fn sub4(
 ) {
     let in_ptr = input_features.as_ptr();
     let out_ptr = output_features.as_mut_ptr();
-    let ws1 = weight_ptr(weights, &subs[0], perspective, mirror);
-    let ws2 = weight_ptr(weights, &subs[1], perspective, mirror);
-    let ws3 = weight_ptr(weights, &subs[2], perspective, mirror);
-    let ws4 = weight_ptr(weights, &subs[3], perspective, mirror);
+    let ws1 = weight_ptr(weights, subs[0], perspective, mirror);
+    let ws2 = weight_ptr(weights, subs[1], perspective, mirror);
+    let ws3 = weight_ptr(weights, subs[2], perspective, mirror);
+    let ws4 = weight_ptr(weights, subs[3], perspective, mirror);
     unsafe { update_features::<0, 4>(in_ptr, out_ptr, [], [ws1, ws2, ws3, ws4]) };
 }
 
@@ -272,7 +272,7 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
 #[inline(always)]
 pub fn weight_ptr(
     weights: &FeatureWeights,
-    feature: &Feature,
+    feature: Feature,
     perspective: Side,
     mirror: bool,
 ) -> *const i16 {

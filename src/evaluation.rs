@@ -155,7 +155,7 @@ impl NNUE {
                 mirror,
             );
         }
-        for add in adds.as_slice().chunks_exact(4).remainder() {
+        for &add in adds.as_slice().chunks_exact(4).remainder() {
             let (input, output) = acc.features_inplace(side);
             accumulator::add1(input, output, add, weights, side, mirror);
         }
@@ -171,7 +171,7 @@ impl NNUE {
                 mirror,
             );
         }
-        for sub in subs.as_slice().chunks_exact(4).remainder() {
+        for &sub in subs.as_slice().chunks_exact(4).remainder() {
             let (input, output) = acc.features_inplace(side);
             accumulator::sub1(input, output, sub, weights, side, mirror);
         }
