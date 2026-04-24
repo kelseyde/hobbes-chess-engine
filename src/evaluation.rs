@@ -268,7 +268,7 @@ impl NNUE {
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
     fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
-        AccumulatorUpdate::new_standard(
+        AccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side)
         )
@@ -289,7 +289,7 @@ impl NNUE {
         } else {
             mv.to()
         };
-        AccumulatorUpdate::new_capture(
+        AccumulatorUpdate::AddSubSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
             Feature::new(captured, capture_sq, !side),
@@ -313,7 +313,7 @@ impl NNUE {
         };
         let rook_to = castling::rook_to(us, kingside);
 
-        AccumulatorUpdate::new_castle(
+        AccumulatorUpdate::AddAddSubSub(
             Feature::new(King, king_to, us),
             Feature::new(Rook, rook_to, us),
             Feature::new(King, king_from, us),

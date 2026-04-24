@@ -24,21 +24,12 @@ pub struct Accumulator {
 /// Captures require one extra feature (removing the captured piece), and castling requires two extra
 /// features (moving the rook).
 #[derive(Clone, Copy, Default)]
-pub struct AccumulatorUpdate {
-    pub add_count: usize,
-    pub sub_count: usize,
-    pub adds: [Feature; 2],
-    pub subs: [Feature; 2],
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum AccumulatorUpdateType {
+pub enum AccumulatorUpdate {
+    #[default]
     None,
-    Add,
-    Sub,
-    AddSub,
-    AddSubSub,
-    AddAddSubSub,
+    AddSub(Feature, Feature),
+    AddSubSub(Feature, Feature, Feature),
+    AddAddSubSub(Feature, Feature, Feature, Feature),
 }
 
 impl Default for Accumulator {
@@ -50,48 +41,6 @@ impl Default for Accumulator {
             computed: [false, false],
             needs_refresh: [false, false],
             mirrored: [false, false],
-        }
-    }
-}
-
-impl AccumulatorUpdate {
-
-    pub fn new_standard(add: Feature, sub: Feature) -> Self {
-        AccumulatorUpdate {
-            add_count: 1,
-            sub_count: 1,
-            adds: [add, Feature::default()],
-            subs: [sub, Feature::default()],
-        }
-    }
-
-    pub fn new_capture(add: Feature, sub1: Feature, sub2: Feature) -> Self {
-        AccumulatorUpdate {
-            add_count: 1,
-            sub_count: 2,
-            adds: [add, Feature::default()],
-            subs: [sub1, sub2],
-        }
-    }
-
-    pub fn new_castle(add1: Feature, add2: Feature, sub1: Feature, sub2: Feature) -> Self {
-        AccumulatorUpdate {
-            add_count: 2,
-            sub_count: 2,
-            adds: [add1, add2],
-            subs: [sub1, sub2],
-        }
-    }
-
-    pub fn update_type(&self) -> AccumulatorUpdateType {
-        match (self.add_count, self.sub_count) {
-            (0, 0) => AccumulatorUpdateType::None,
-            (1, 0) => AccumulatorUpdateType::Add,
-            (0, 1) => AccumulatorUpdateType::Sub,
-            (1, 1) => AccumulatorUpdateType::AddSub,
-            (1, 2) => AccumulatorUpdateType::AddSubSub,
-            (2, 2) => AccumulatorUpdateType::AddAddSubSub,
-            _ => AccumulatorUpdateType::None,
         }
     }
 }
@@ -157,32 +106,15 @@ pub fn apply_update(
     perspective: Side,
     mirror: bool,
 ) {
-    match update.update_type() {
-        AccumulatorUpdateType::None => {}
-        AccumulatorUpdateType::Add => {
-            let add = update.adds[0];
-            add1(input_features, output_features, add, weights, perspective, mirror);
+    match *update {
+        AccumulatorUpdate::None => {}
+        AccumulatorUpdate::AddSub(add, sub) => {
+            add1_sub1(input_features, output_features, add, sub, weights, perspective, mirror);
         }
-        AccumulatorUpdateType::Sub => {
-            let sub = update.subs[0];
-            sub1(input_features, output_features, sub, weights, perspective, mirror);
+        AccumulatorUpdate::AddSubSub(add, sub1, sub2) => {
+            add1_sub2(input_features, output_features, add, sub1, sub2, weights, perspective, mirror);
         }
-        AccumulatorUpdateType::AddSub => {
-            let add1 = update.adds[0];
-            let sub1 = update.subs[0];
-            add1_sub1(input_features, output_features, add1, sub1, weights, perspective, mirror);
-        }
-        AccumulatorUpdateType::AddSubSub => {
-            let add1 = update.adds[0];
-            let sub1 = update.subs[0];
-            let sub2 = update.subs[1];
-            add1_sub2(input_features, output_features, add1, sub1, sub2, weights, perspective, mirror);
-        }
-        AccumulatorUpdateType::AddAddSubSub => {
-            let add1 = update.adds[0];
-            let add2 = update.adds[1];
-            let sub1 = update.subs[0];
-            let sub2 = update.subs[1];
+        AccumulatorUpdate::AddAddSubSub(add1, add2, sub1, sub2) => {
             add2_sub2(input_features, output_features, add1, add2, sub1, sub2, weights, perspective, mirror);
         }
     }
@@ -325,11 +257,11 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
         for k in 0..4 {
             let off = i + k * simd::I16_LANES;
             let mut val = simd::load_i16(input.add(off));
-            for a in 0..ADDS {
-                val = simd::add_i16(val, simd::load_i16(adds[a].add(off)));
+            for &a in adds.iter() {
+                val = simd::add_i16(val, simd::load_i16(a.add(off)));
             }
-            for s in 0..SUBS {
-                val = simd::sub_i16(val, simd::load_i16(subs[s].add(off)));
+            for &s in subs.iter() {
+                val = simd::sub_i16(val, simd::load_i16(s.add(off)));
             }
             simd::store_i16(output.add(off), val);
         }
