@@ -17,16 +17,6 @@ pub struct Feature {
 const PIECE_OFFSET: usize = 64;
 const SIDE_OFFSET: usize = 64 * 6;
 
-impl Default for Feature {
-    fn default() -> Self {
-        Feature {
-            pc: Piece::Pawn,
-            sq: Square(0),
-            side: White,
-        }
-    }
-}
-
 impl Feature {
     #[inline]
     pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
