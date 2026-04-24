@@ -55,6 +55,34 @@ impl Default for Accumulator {
 }
 
 impl AccumulatorUpdate {
+
+    pub fn new_standard(add: Feature, sub: Feature) -> Self {
+        AccumulatorUpdate {
+            add_count: 1,
+            sub_count: 1,
+            adds: [Some(add), None],
+            subs: [Some(sub), None],
+        }
+    }
+
+    pub fn new_capture(add: Feature, sub1: Feature, sub2: Feature) -> Self {
+        AccumulatorUpdate {
+            add_count: 1,
+            sub_count: 2,
+            adds: [Some(add), None],
+            subs: [Some(sub1), Some(sub2)],
+        }
+    }
+
+    pub fn new_castle(add1: Feature, add2: Feature, sub1: Feature, sub2: Feature) -> Self {
+        AccumulatorUpdate {
+            add_count: 2,
+            sub_count: 2,
+            adds: [Some(add1), Some(add2)],
+            subs: [Some(sub1), Some(sub2)],
+        }
+    }
+
     pub fn push_add(&mut self, feature: Feature) {
         if self.add_count < 2 {
             self.adds[self.add_count] = Some(feature);
