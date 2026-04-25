@@ -255,5 +255,8 @@ tunable_params! {
     qs_fail_high_lerp_factor     = 50, 0..=100,            true;
     movepick_see_divisor         = 44, 30..=60,            true;
     movepick_see_offset          = 117, 80..=200,          true;
+    movepick_quiet_weight        = 1536, 512..=2048,       true;
+    movepick_cont1_weight        = 1024, 512..=2048,       true;
+    movepick_cont2_weight        = 1024, 512..=2048,       true;
     score_stability_threshold    = 14, 4..=24,             true;
 }

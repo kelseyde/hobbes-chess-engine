@@ -5,7 +5,7 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{movepick_cont1_weight, movepick_cont2_weight, movepick_quiet_weight, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -225,9 +225,9 @@ fn score_move(
             0
         };
         entry.score = killer_bonus
-            + 2048 * quiet_score / 1024
-            + 1536 * cont1_score / 1024
-            + cont2_score;
+            + movepick_quiet_weight() * quiet_score / 1024
+            + movepick_cont1_weight() * cont1_score / 1024
+            + movepick_cont2_weight() * cont2_score / 1024;
     }
 }
 
