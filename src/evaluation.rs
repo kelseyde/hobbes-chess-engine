@@ -268,10 +268,10 @@ impl NNUE {
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
     fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
-        let mut update = AccumulatorUpdate::default();
-        update.push_sub(Feature::new(pc, mv.from(), side));
-        update.push_add(Feature::new(new_pc, mv.to(), side));
-        update
+        AccumulatorUpdate::AddSub(
+            Feature::new(new_pc, mv.to(), side),
+            Feature::new(pc, mv.from(), side)
+        )
     }
 
     /// Update the accumulator for a capture move. The old piece is removed from the starting
@@ -289,12 +289,11 @@ impl NNUE {
         } else {
             mv.to()
         };
-
-        let mut update = AccumulatorUpdate::default();
-        update.push_sub(Feature::new(pc, mv.from(), side));
-        update.push_add(Feature::new(new_pc, mv.to(), side));
-        update.push_sub(Feature::new(captured, capture_sq, !side));
-        update
+        AccumulatorUpdate::AddSubSub(
+            Feature::new(new_pc, mv.to(), side),
+            Feature::new(pc, mv.from(), side),
+            Feature::new(captured, capture_sq, !side),
+        )
     }
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
@@ -314,12 +313,12 @@ impl NNUE {
         };
         let rook_to = castling::rook_to(us, kingside);
 
-        let mut update = AccumulatorUpdate::default();
-        update.push_sub(Feature::new(King, king_from, us));
-        update.push_add(Feature::new(King, king_to, us));
-        update.push_sub(Feature::new(Rook, rook_from, us));
-        update.push_add(Feature::new(Rook, rook_to, us));
-        update
+        AccumulatorUpdate::AddAddSubSub(
+            Feature::new(King, king_to, us),
+            Feature::new(Rook, rook_to, us),
+            Feature::new(King, king_from, us),
+            Feature::new(Rook, rook_from, us),
+        )
     }
 
     /// Undo the last move by decrementing the current accumulator index.
