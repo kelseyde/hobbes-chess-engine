@@ -40,8 +40,9 @@ tunable_params! {
     fp_max_depth                 = 8, 4..=10,              false;
     fp_base                      = 166, 50..=250,          true;
     fp_scale                     = 96, 50..=200,           true;
-    fp_pv_node                   = -3, -50..=100,           true;
+    fp_pv_node                   = -3, -50..=100,          true;
     fp_movecount_mult            = 4, 2..=8,               false;
+    fp_correction_mult           = 560, 0..=1024,          true;
     fp_history_divisor           = 79, 64..=256,           true;
     fp_killer                    = 19, 0..=100,            true;
     fp_tt_upper                  = 20, 0..=100,            true;
