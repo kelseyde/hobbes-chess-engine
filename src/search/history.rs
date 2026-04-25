@@ -132,6 +132,9 @@ impl Histories {
     }
 
     pub fn conthist_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize, cont_ply: usize) -> i32 {
+        if ply < cont_ply {
+            return 0;
+        }
         let pc = board.piece_at(mv.from()).unwrap();
         let prev = ss[ply - cont_ply];
         let (prev_mv, prev_pc) = (prev.mv, prev.pc);
