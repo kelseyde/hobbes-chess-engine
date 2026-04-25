@@ -5,7 +5,7 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_cont_weight, movepick_quiet_weight, movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{movepick_cont1_weight, movepick_cont2_weight, movepick_quiet_weight, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -217,7 +217,8 @@ fn score_move(
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
-        let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+        let cont1_score = td.history.conthist_score(board, &td.stack, mv, ply, 1);
+        let cont2_score = td.history.conthist_score(board, &td.stack, mv, ply, 2);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             KILLER_BONUS
         } else {
@@ -225,7 +226,8 @@ fn score_move(
         };
         entry.score = killer_bonus
             + movepick_quiet_weight() * quiet_score / 1024
-            + movepick_cont_weight() *  cont_score / 1024;
+            + movepick_cont1_weight() * cont1_score / 1024
+            + movepick_cont2_weight() * cont2_score / 1024;
     }
 }
 
