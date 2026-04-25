@@ -217,13 +217,17 @@ fn score_move(
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
-        let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+        let cont1_score = td.history.cont_history_score_single(board, &td.stack, mv, ply, 1);
+        let cont2_score = td.history.cont_history_score_single(board, &td.stack, mv, ply, 2);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             KILLER_BONUS
         } else {
             0
         };
-        entry.score = killer_bonus + quiet_score + cont_score;
+        entry.score = killer_bonus
+            + 2048 * quiet_score / 1024
+            + 1536 * cont1_score / 1024
+            + cont2_score;
     }
 }
 

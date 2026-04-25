@@ -119,16 +119,23 @@ impl Histories {
     }
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
-        let pc = board.piece_at(mv.from()).unwrap();
         ContinuationHistory::PLIES
             .iter()
-            .filter(|&&prev_ply| ply >= prev_ply)
-            .filter_map(|&prev_ply| {
-                let prev = ss[ply - prev_ply];
-                let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
-                Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
-            })
+            .map(|&prev_ply| self.cont_history_score_single(board, ss, mv, ply, prev_ply))
             .sum()
+    }
+
+    pub fn cont_history_score_single(
+        &self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize, prev_ply: usize
+    ) -> i32 {
+        let pc = board.piece_at(mv.from()).unwrap();
+        if ply >= prev_ply {
+            let prev = ss[ply - prev_ply];
+            if let (Some(prev_mv), Some(prev_pc)) = (prev.mv, prev.pc) {
+                return self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32;
+            }
+        }
+        0
     }
 
     pub fn capture_history_score(
