@@ -135,7 +135,7 @@ tunable_params! {
     lmr_cont_4_bonus_max         = 1105, 1000..=1600,      true;
     lmr_cont_4_malus_scale       = 193, 80..=280,          true;
     lmr_cont_4_malus_offset      = 72, 0..=200,            true;
-    lmr_cont_4_malus_max         = 1287, 1000..=1600,
+    lmr_cont_4_malus_max         = 1287, 1000..=1600,      true;
     alpha_raise_min_depth        = 2, 0..=6,               false;
     alpha_raise_max_depth        = 12, 8..=16,             false;
     quiet_hist_bonus_scale       = 218, 80..=280,          true;
@@ -193,7 +193,7 @@ tunable_params! {
     cont_hist_4_bonus_max        = 1024, 800..=1600,       true;
     cont_hist_4_malus_scale      = 100, 80..=280,          true;
     cont_hist_4_malus_offset     = 100, 0..=200,           true;
-    cont_hist_4_malus_max        = 1024, 800..=1600,
+    cont_hist_4_malus_max        = 1024, 800..=1600,       true;
     from_hist_bonus_scale        = 204, 80..=280,          true;
     from_hist_bonus_offset       = 87, 0..=200,            true;
     from_hist_bonus_max          = 975, 800..=1600,        true;

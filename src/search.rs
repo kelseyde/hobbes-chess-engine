@@ -790,9 +790,6 @@ fn alpha_beta<NODE: NodeType>(
         let cont_bonuses = [cont_1_bonus, cont_2_bonus, cont_4_bonus];
         let cont_maluses = [cont_1_malus, cont_2_malus, cont_4_malus];
 
-        let cont_bonuses = [cont_1_bonus, cont_2_bonus];
-        let cont_maluses = [cont_1_malus, cont_2_malus];
-
         let from_bonus = from_history_bonus(depth);
         let from_malus = from_history_malus(depth);
         let to_bonus = to_history_bonus(depth);
