@@ -26,29 +26,50 @@ use crate::search::parameters::{
     to_hist_malus_offset, to_hist_malus_scale,
 };
 use crate::tools::utils::boxed_and_zeroed;
+use crate::tools::utils::lerp;
 
+/// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
+/// Also known as 'butterfly' history.
 type FromToHistory<T> = [[T; 64]; 64];
+
+/// History table storing values of type `T`, indexed by the type of piece being moved, and the 'to'
+/// square of a move.
 type PieceToHistory<T> = [[T; 64]; 6];
+
+/// A threat bucket stores four values of type `T`, indexed by whether the 'from' and 'to' squares
+/// of a move are threatened by enemy pieces.
 type ThreatBucket<T> = [[T; 2]; 2];
 
+/// History table for quiet moves. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
+/// tables. Each [`QuietHistoryEntry`] contains a [`ThreatBucket`] as well as a factoriser which is
+/// updated regardless of the threat bucket index. The from/to and piece/to entries are linearly
+/// interpolated to get the final score for the move.
 pub struct QuietHistory {
     from_to_entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
     piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
 }
 
+/// History table for captures. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
+/// tables, with the piece/to table additionally indexed by the captured piece type. The from/to
+/// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
     piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
     from_to_entries: Box<[FromToHistory<i16>; 2]>,
 }
 
+/// Continuation history table for quiet moves, indexed by the previous move and the current move.
+/// Stores one table per continuation ply (1, 2), each indexed by the previous piece/to and current
+/// piece/to.
 pub struct ContinuationHistory {
     entries: Box<[[PieceToHistory<PieceToHistory<i16>>; 2]; 2]>,
 }
 
+/// History table indexed by a single square (either the 'from' or 'to' square of a move).
 pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
 
+/// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each quiet move.
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
     factoriser: i16,
@@ -130,7 +151,7 @@ impl Histories {
         bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
         let total_score = self.cont_history_score(board, ss, mv, ply);
-        let updates = ContinuationHistory::PLIES
+        ContinuationHistory::PLIES
             .iter()
             .zip(bonuses)
             .filter(|(&prev_ply, _)| ply >= prev_ply)
@@ -138,12 +159,11 @@ impl Histories {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
                 Some((prev_mv, prev_pc, bonus, prev_ply))
+            })
+            .for_each(|(prev_mv, prev_pc, bonus, prev_ply)| {
+                self.cont_history
+                    .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply)
             });
-
-        for (prev_mv, prev_pc, bonus, prev_ply) in updates {
-            self.cont_history
-                .update(board.stm, &prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply);
-        }
     }
 
     pub fn clear(&mut self) {
@@ -260,16 +280,10 @@ impl CaptureHistory {
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        update_entry(
-            &mut self.piece_to_entries[stm][pc][mv.to()][captured],
-            bonus,
-            Self::MAX,
-        );
-        update_entry(
-            &mut self.from_to_entries[stm][mv.from()][mv.to()],
-            bonus,
-            Self::MAX,
-        );
+        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
+        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        update_entry(pt_entry, bonus, Self::MAX);
+        update_entry(ft_entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
@@ -384,15 +398,9 @@ fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
 }
 
-/// Linearly interpolate between two history scores, using the provided factor (0-100).
-fn lerp(a: i32, b: i32, factor: i32) -> i32 {
-    (a * (100 - factor) + b * factor) / 100
-}
-
 #[rustfmt::skip]
 mod bonuses {
-use crate::search::parameters::{cont_hist_4_bonus_max, cont_hist_4_bonus_offset, cont_hist_4_bonus_scale, cont_hist_4_malus_max, cont_hist_4_malus_offset, cont_hist_4_malus_scale, lmr_cont_4_bonus_max, lmr_cont_4_bonus_offset, lmr_cont_4_bonus_scale, lmr_cont_4_malus_max, lmr_cont_4_malus_offset, lmr_cont_4_malus_scale};
-use super::*;
+    use super::*;
 
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {

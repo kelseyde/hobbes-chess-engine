@@ -193,6 +193,8 @@ impl MovePicker {
     }
 }
 
+const KILLER_BONUS: i32 = 10_000_000;
+
 /// Assign a score to a move, determining the order in which moves are selected. Captures are scored
 /// based on the value of the victim and the history score. Quiet moves are scored based on their
 /// history scores, and given an additional bonus if they are a killer move.
@@ -217,7 +219,7 @@ fn score_move(
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
-            10_000_000
+            KILLER_BONUS
         } else {
             0
         };
@@ -238,7 +240,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
             .is_some_and(|p| p == Queen || p == Knight)
     } else {
         // Captures are sorted based on whether they pass a SEE threshold
-        if !split_noisies {
+        if !split_noisies || entry.score >= KILLER_BONUS {
             true
         } else {
             let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
