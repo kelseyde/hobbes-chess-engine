@@ -232,23 +232,16 @@ fn score_move(
 /// move's history score.
 #[inline(always)]
 fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
-    if entry.mv.is_promo() {
-        // Queen and knight promos are treated as good noisies
-        entry
-            .mv
-            .promo_piece()
-            .is_some_and(|p| p == Queen || p == Knight)
-    } else {
-        // Captures are sorted based on whether they pass a SEE threshold
-        if !split_noisies || entry.score >= KILLER_BONUS {
-            true
-        } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
-            match threshold {
-                t if t > see::value(Queen, SeeType::Ordering) => false,
-                t if t < -see::value(Queen, SeeType::Ordering) => true,
-                _ => see(board, &entry.mv, threshold, SeeType::Ordering),
-            }
-        }
+    if !split_noisies
+        || entry.score >= KILLER_BONUS
+        || entry.mv.promo_piece().is_some_and(|p| p == Queen || p == Knight) {
+        return true;
+    }
+
+    let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+    match threshold {
+        t if t > see::value(Queen, SeeType::Ordering) => false,
+        t if t < -see::value(Queen, SeeType::Ordering) => true,
+        _ => see(board, &entry.mv, threshold, SeeType::Ordering),
     }
 }
