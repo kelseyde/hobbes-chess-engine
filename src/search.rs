@@ -997,7 +997,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
+        if !tt_pv && !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
             break;
         }
 
