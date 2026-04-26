@@ -255,6 +255,6 @@ tunable_params! {
     qs_fail_high_lerp_factor     = 50, 0..=100,            true;
     mp_see_divisor               = 44, 30..=60,            true;
     mp_see_offset                = 117, 80..=200,          true;
-    mp_direct_check_bonus        = 4096, 0..=8192,         true;
+    mp_direct_check_bonus        = 12288, 8192..=16384,    true;
     score_stability_threshold    = 14, 4..=24,             true;
 }
