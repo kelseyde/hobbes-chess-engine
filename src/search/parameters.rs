@@ -253,7 +253,8 @@ tunable_params! {
     qs_see_threshold             = -95, -200..=100,        true;
     qs_stand_pat_lerp_factor     = 50, 0..=100,            true;
     qs_fail_high_lerp_factor     = 50, 0..=100,            true;
-    movepick_see_divisor         = 44, 30..=60,            true;
-    movepick_see_offset          = 117, 80..=200,          true;
+    mp_see_divisor               = 44, 30..=60,            true;
+    mp_see_offset                = 117, 80..=200,          true;
+    mp_direct_check_bonus        = 4096, 0..=8192,         true;
     score_stability_threshold    = 14, 4..=24,             true;
 }

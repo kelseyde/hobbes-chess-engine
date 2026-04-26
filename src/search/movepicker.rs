@@ -5,7 +5,7 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{mp_direct_check_bonus, mp_see_divisor, mp_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -223,7 +223,12 @@ fn score_move(
         } else {
             0
         };
-        entry.score = killer_bonus + quiet_score + cont_score;
+        let direct_check_bonus = if board.gives_direct_check(*mv) {
+            mp_direct_check_bonus()
+        } else {
+            0
+        };
+        entry.score = killer_bonus + quiet_score + cont_score + direct_check_bonus;
     }
 }
 
@@ -243,7 +248,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies || entry.score >= KILLER_BONUS {
             true
         } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = -entry.score / mp_see_divisor() + mp_see_offset();
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
