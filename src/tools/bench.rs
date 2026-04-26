@@ -4,7 +4,7 @@ use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
 use std::time::Instant;
 
-const BENCH_DEPTH: u64 = 13;
+const BENCH_DEPTH: u64 = 12;
 
 const FENS: [&str; 50] = [
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
