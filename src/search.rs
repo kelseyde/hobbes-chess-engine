@@ -743,44 +743,55 @@ fn alpha_beta<NODE: NodeType>(
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
     if best_move.exists() {
         let pc = board.piece_at(best_move.from()).unwrap();
+        let fail_high = flag == Lower;
         let new_tt_move = tt_move.exists() && best_move != tt_move;
 
         let quiet_bonus = quiet_history_bonus(depth)
+            + fail_high as i16 * 64
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
             + capture_count as i16 * quiet_hist_capture_mult() as i16;
 
         let quiet_malus = quiet_history_malus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
 
         let quiet_factoriser_bonus = quiet_factoriser_bonus(depth)
+            + fail_high as i16 * 64
             - cut_node as i16 * quiet_fact_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_fact_ttmove_bonus() as i16
             + capture_count as i16 * quiet_fact_capture_mult() as i16;
 
         let quiet_factoriser_malus = quiet_factoriser_malus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * quiet_fact_ttmove_malus() as i16;
 
         let capt_bonus = capture_history_bonus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * capt_hist_ttmove_bonus() as i16;
 
         let capt_malus = capture_history_malus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * capt_hist_ttmove_malus() as i16;
 
         let cont_1_bonus = cont_history_1_bonus(depth)
+            + fail_high as i16 * 64
             - cut_node as i16 * cont_hist_1_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_1_ttmove_bonus() as i16
             + capture_count as i16 * cont_hist_1_capture_mult() as i16;
 
         let cont_1_malus = cont_history_1_malus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
         
         let cont_2_bonus = cont_history_2_bonus(depth)
+            + fail_high as i16 * 64
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
             + capture_count as i16 * cont_hist_2_capture_mult() as i16;
 
         let cont_2_malus = cont_history_2_malus(depth)
+            + fail_high as i16 * 64
             + new_tt_move as i16 * cont_hist_2_ttmove_malus() as i16;
 
         let cont_bonuses = [cont_1_bonus, cont_2_bonus];
