@@ -233,7 +233,7 @@ tunable_params! {
     corr_minor_weight            = 75, 0..=200,            true;
     corr_counter_weight          = 100, 0..=200,           true;
     corr_follow_up_weight        = 125, 0..=200,           true;
-    see_value_pawn_pruning       = 99, 50..=150,          true;
+    see_value_pawn_pruning       = 99, 50..=150,           true;
     see_value_knight_pruning     = 283, 200..=500,         true;
     see_value_bishop_pruning     = 319, 200..=500,         true;
     see_value_rook_pruning       = 541, 400..=700,         true;
