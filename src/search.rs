@@ -669,12 +669,14 @@ fn alpha_beta<NODE: NodeType>(
         }
 
         // Register the current move, to update its history score later
-        if is_quiet && quiet_count < 32 {
-            quiets.push(mv);
-            quiet_count += 1;
-        } else if captured.is_some() && capture_count < 32 {
-            captures.push(mv);
-            capture_count += 1;
+        if mv != best_move {
+            if is_quiet && quiet_count < 32 {
+                quiets.push(mv);
+                quiet_count += 1;
+            } else if captured.is_some() && capture_count < 32 {
+                captures.push(mv);
+                capture_count += 1;
+            }
         }
 
         td.stack[ply].mv = None;
@@ -805,23 +807,19 @@ fn alpha_beta<NODE: NodeType>(
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
-                if mv != &best_move {
-                    let pc = board.piece_at(mv.from()).unwrap();
-                    td.history.quiet_history
-                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
-                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
-                    td.history.from_history.update(board.stm, mv.from(), from_malus);
-                    td.history.to_history.update(board.stm, mv.to(), to_malus);
-                }
+                let pc = board.piece_at(mv.from()).unwrap();
+                td.history.quiet_history
+                    .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
+                td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
+                td.history.from_history.update(board.stm, mv.from(), from_malus);
+                td.history.to_history.update(board.stm, mv.to(), to_malus);
             }
         }
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
         for mv in captures.iter() {
-            if mv != &best_move {
-                if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
-                }
+            if let Some(captured) = board.captured(mv) {
+                td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
             }
         }
     }
