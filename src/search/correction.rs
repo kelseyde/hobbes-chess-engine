@@ -11,7 +11,7 @@ const CORRECTION_SCALE: i32 = 280;
 /// score. We can use this information to 'correct' the current static eval based on the diff between
 /// the static eval and the search score of previously searched positions.
 pub struct CorrectionHistory<const N: usize> {
-    entries: Box<[[i32; N]; 2]>,
+    entries: Box<[[[i32; N]; 2]; 16]>,
 }
 
 pub type HashCorrectionHistory = CorrectionHistory<16384>;
@@ -40,6 +40,7 @@ impl CorrectionHistories {
     ) {
         let us = board.stm;
         let diff = best_score - static_eval;
+        let bucket = board.halfmove_clock_bucket();
 
         let pawn_key = board.keys.pawn_hash;
         let white_key = board.keys.non_pawn_hashes[White];
@@ -47,31 +48,32 @@ impl CorrectionHistories {
         let major_key = board.keys.major_hash;
         let minor_key = board.keys.minor_hash;
 
-        self.pawn_corrhist.update(us, pawn_key, pawn_corr_bonus(diff, depth));
-        self.nonpawn_corrhist[White].update(us, white_key, nonpawn_corr_bonus(diff, depth));
-        self.nonpawn_corrhist[Black].update(us, black_key, nonpawn_corr_bonus(diff, depth));
-        self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
-        self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
+        self.pawn_corrhist.update(bucket, us, pawn_key, pawn_corr_bonus(diff, depth));
+        self.nonpawn_corrhist[White].update(bucket, us, white_key, nonpawn_corr_bonus(diff, depth));
+        self.nonpawn_corrhist[Black].update(bucket, us, black_key, nonpawn_corr_bonus(diff, depth));
+        self.major_corrhist.update(bucket, us, major_key, major_corr_bonus(diff, depth));
+        self.minor_corrhist.update(bucket, us, minor_key, minor_corr_bonus(diff, depth));
 
         if let Some(key) = prev_move_key(ss, ply, 1) {
-            self.countermove_corrhist.update(us, key, counter_corr_bonus(diff, depth));
+            self.countermove_corrhist.update(bucket, us, key, counter_corr_bonus(diff, depth));
         }
         if let Some(key) = prev_move_key(ss, ply, 2) {
-            self.follow_up_move_corrhist.update(us, key, follow_up_corr_bonus(diff, depth));
+            self.follow_up_move_corrhist.update(bucket, us, key, follow_up_corr_bonus(diff, depth));
         }
     }
 
     #[rustfmt::skip]
     pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
         let us = board.stm;
+        let bucket = board.halfmove_clock_bucket();
 
-        let pawn      = self.pawn_corrhist.get(us, board.keys.pawn_hash);
-        let white     = self.nonpawn_corrhist[White].get(us, board.keys.non_pawn_hashes[White]);
-        let black     = self.nonpawn_corrhist[Black].get(us, board.keys.non_pawn_hashes[Black]);
-        let major     = self.major_corrhist.get(us, board.keys.major_hash);
-        let minor     = self.minor_corrhist.get(us, board.keys.minor_hash);
-        let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(us, k));
-        let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
+        let pawn      = self.pawn_corrhist.get(bucket, us, board.keys.pawn_hash);
+        let white     = self.nonpawn_corrhist[White].get(bucket, us, board.keys.non_pawn_hashes[White]);
+        let black     = self.nonpawn_corrhist[Black].get(bucket, us, board.keys.non_pawn_hashes[Black]);
+        let major     = self.major_corrhist.get(bucket, us, board.keys.major_hash);
+        let minor     = self.minor_corrhist.get(bucket, us, board.keys.minor_hash);
+        let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(bucket, us, k));
+        let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(bucket, us, k));
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -106,22 +108,25 @@ impl<const N: usize> CorrectionHistory<N> {
     const MASK: usize = N - 1;
 
     /// Returns the correction value for the given key and side.
-    pub fn get(&self, stm: Side, key: u64) -> i32 {
+    pub fn get(&self, bucket: usize, stm: Side, key: u64) -> i32 {
         let index = Self::index(key);
-        self.entries[stm][index]
+        self.entries[bucket][stm][index]
     }
 
     /// Updates the correction value for the given key and side.
-    pub fn update(&mut self, stm: Side, key: u64, bonus: i32) {
+    pub fn update(&mut self, bucket: usize, stm: Side, key: u64, bonus: i32) {
         let index = Self::index(key);
-        let entry = &mut self.entries[stm][index];
+        let entry = &mut self.entries[bucket][stm][index];
         *entry += bonus - bonus.abs() * (*entry) / Self::MAX_HISTORY;
     }
 
     /// Clears the correction history tables.
     pub fn clear(&mut self) {
-        self.entries[0].fill(0);
-        self.entries[1].fill(0);
+        self.entries.iter_mut().for_each(|bucket| {
+            bucket.iter_mut().for_each(|side| {
+                side.fill(0);
+            })
+        });
     }
 
     #[inline(always)]

@@ -589,6 +589,10 @@ impl Board {
     pub const fn set_frc(&mut self, frc: bool) {
         self.frc = frc;
     }
+
+    pub fn halfmove_clock_bucket(&self) -> usize {
+        (self.hm.saturating_sub(8) as usize / 8).min(15)
+    }
 }
 
 #[cfg(test)]
