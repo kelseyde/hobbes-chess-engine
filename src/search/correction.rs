@@ -23,7 +23,7 @@ pub struct CorrectionHistories {
     nonpawn_corrhist: [HashCorrectionHistory; 2],
     prev_move_1_corrhist: FromToCorrectionHistory,
     prev_move_2_corrhist: FromToCorrectionHistory,
-    prev_move_4_corrhist: FromToCorrectionHistory,
+    prev_move_3_corrhist: FromToCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
 }
@@ -60,8 +60,8 @@ impl CorrectionHistories {
         if let Some(key) = prev_move_key(ss, ply, 2) {
             self.prev_move_2_corrhist.update(us, key, prev2_corr_bonus(diff, depth));
         }
-        if let Some(key) = prev_move_key(ss, ply, 4) {
-            self.prev_move_4_corrhist.update(us, key, prev4_corr_bonus(diff, depth));
+        if let Some(key) = prev_move_key(ss, ply, 3) {
+            self.prev_move_3_corrhist.update(us, key, prev3_corr_bonus(diff, depth));
         }
     }
 
@@ -76,7 +76,7 @@ impl CorrectionHistories {
         let minor     = self.minor_corrhist.get(us, board.keys.minor_hash);
         let prev1     = prev_move_key(ss, ply, 1).map_or(0, |k| self.prev_move_1_corrhist.get(us, k));
         let prev2     = prev_move_key(ss, ply, 2).map_or(0, |k| self.prev_move_2_corrhist.get(us, k));
-        let prev4     = prev_move_key(ss, ply, 4).map_or(0, |k| self.prev_move_4_corrhist.get(us, k));
+        let prev3     = prev_move_key(ss, ply, 3).map_or(0, |k| self.prev_move_3_corrhist.get(us, k));
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -85,7 +85,7 @@ impl CorrectionHistories {
             + (minor * 100 / corr_minor_weight())
             + (prev1 * 100 / corr_prev1_weight())
             + (prev2 * 100 / corr_prev2_weight())
-            + (prev4 * 100 / corr_prev4_weight()))
+            + (prev3 * 100 / corr_prev3_weight()))
             / CORRECTION_SCALE
     }
 
@@ -94,7 +94,7 @@ impl CorrectionHistories {
         self.nonpawn_corrhist.iter_mut().for_each(|h| h.clear());
         self.prev_move_1_corrhist.clear();
         self.prev_move_2_corrhist.clear();
-        self.prev_move_4_corrhist.clear();
+        self.prev_move_3_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
     }
@@ -164,6 +164,6 @@ mod bonuses {
     corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
     corr_bonus!(prev1_corr_bonus,     corr_prev1_bonus_mult,     corr_prev1_bonus_div,     corr_prev1_bonus_min,     corr_prev1_bonus_max);
     corr_bonus!(prev2_corr_bonus,     corr_prev2_bonus_mult,     corr_prev2_bonus_div,     corr_prev2_bonus_min,     corr_prev2_bonus_max);
-    corr_bonus!(prev4_corr_bonus,     corr_prev4_bonus_mult,     corr_prev4_bonus_div,     corr_prev4_bonus_min,     corr_prev4_bonus_max);
+    corr_bonus!(prev3_corr_bonus,     corr_prev3_bonus_mult,     corr_prev3_bonus_div,     corr_prev3_bonus_min,     corr_prev3_bonus_max);
 }
 use bonuses::*;
