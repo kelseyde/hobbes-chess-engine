@@ -617,6 +617,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= lmr_killer() * is_killer as i32;
+            r += 1024 * tt_move_noisy as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
