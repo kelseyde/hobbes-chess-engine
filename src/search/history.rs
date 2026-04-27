@@ -25,7 +25,7 @@ use crate::search::parameters::{
     to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
     to_hist_malus_offset, to_hist_malus_scale,
 };
-use crate::tools::utils::boxed_and_zeroed;
+use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 use crate::tools::utils::lerp;
 
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
@@ -379,16 +379,6 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 #[inline]
 fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
     *entry = gravity(*entry as i32, bonus as i32, max) as i16;
-}
-
-/// Gravity formula for history updates, using the current value of the entry as the base for the update.
-fn gravity(current: i32, update: i32, max: i32) -> i32 {
-    gravity_with_base(current, update, current, max)
-}
-
-/// Gravity formula for history updates, weighting the update by the current value of the entry.
-fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
-    current + update - base * update.abs() / max
 }
 
 #[rustfmt::skip]

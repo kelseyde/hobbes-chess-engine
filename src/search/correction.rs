@@ -2,7 +2,7 @@ use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::node::NodeStack;
 use crate::search::parameters::*;
-use crate::tools::utils::boxed_and_zeroed;
+use crate::tools::utils::{boxed_and_zeroed, gravity};
 use Side::{Black, White};
 
 const CORRECTION_SCALE: i32 = 280;
@@ -115,7 +115,7 @@ impl<const N: usize> CorrectionHistory<N> {
     pub fn update(&mut self, stm: Side, key: u64, bonus: i32) {
         let index = Self::index(key);
         let entry = &mut self.entries[stm][index];
-        *entry += bonus - bonus.abs() * (*entry) / Self::MAX_HISTORY;
+        *entry = gravity(*entry, bonus, Self::MAX_HISTORY);
     }
 
     /// Clears the correction history tables.

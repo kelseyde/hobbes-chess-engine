@@ -72,6 +72,16 @@ macro_rules! tunable_params {
 
 }
 
+/// Gravity formula for history updates, using the current value of the entry as the base for the update.
+pub fn gravity(current: i32, update: i32, max: i32) -> i32 {
+    gravity_with_base(current, update, current, max)
+}
+
+/// Gravity formula for history updates, weighting the update by the current value of the entry.
+pub fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
+    current + update - base * update.abs() / max
+}
+
 /// Linearly interpolate between two scores, using the provided factor (0-100).
 #[inline]
 pub const fn lerp(a: i32, b: i32, factor: i32) -> i32 {
