@@ -21,8 +21,9 @@ pub type FromToCorrectionHistory = CorrectionHistory<4096>;
 pub struct CorrectionHistories {
     pawn_corrhist: HashCorrectionHistory,
     nonpawn_corrhist: [HashCorrectionHistory; 2],
-    countermove_corrhist: FromToCorrectionHistory,
-    follow_up_move_corrhist: FromToCorrectionHistory,
+    prev_move_1_corrhist: FromToCorrectionHistory,
+    prev_move_2_corrhist: FromToCorrectionHistory,
+    prev_move_4_corrhist: FromToCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
 }
@@ -54,10 +55,13 @@ impl CorrectionHistories {
         self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
 
         if let Some(key) = prev_move_key(ss, ply, 1) {
-            self.countermove_corrhist.update(us, key, counter_corr_bonus(diff, depth));
+            self.prev_move_1_corrhist.update(us, key, prev1_corr_bonus(diff, depth));
         }
         if let Some(key) = prev_move_key(ss, ply, 2) {
-            self.follow_up_move_corrhist.update(us, key, follow_up_corr_bonus(diff, depth));
+            self.prev_move_2_corrhist.update(us, key, prev2_corr_bonus(diff, depth));
+        }
+        if let Some(key) = prev_move_key(ss, ply, 4) {
+            self.prev_move_4_corrhist.update(us, key, prev4_corr_bonus(diff, depth));
         }
     }
 
@@ -70,24 +74,27 @@ impl CorrectionHistories {
         let black     = self.nonpawn_corrhist[Black].get(us, board.keys.non_pawn_hashes[Black]);
         let major     = self.major_corrhist.get(us, board.keys.major_hash);
         let minor     = self.minor_corrhist.get(us, board.keys.minor_hash);
-        let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(us, k));
-        let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
+        let prev1     = prev_move_key(ss, ply, 1).map_or(0, |k| self.prev_move_1_corrhist.get(us, k));
+        let prev2     = prev_move_key(ss, ply, 2).map_or(0, |k| self.prev_move_2_corrhist.get(us, k));
+        let prev4     = prev_move_key(ss, ply, 4).map_or(0, |k| self.prev_move_4_corrhist.get(us, k));
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
             + (minor * 100 / corr_minor_weight())
-            + (counter * 100 / corr_counter_weight())
-            + (follow_up * 100 / corr_follow_up_weight()))
+            + (prev1 * 100 / corr_prev1_weight())
+            + (prev2 * 100 / corr_prev2_weight())
+            + (prev4 * 100 / corr_prev4_weight()))
             / CORRECTION_SCALE
     }
 
     pub fn clear(&mut self) {
         self.pawn_corrhist.clear();
         self.nonpawn_corrhist.iter_mut().for_each(|h| h.clear());
-        self.countermove_corrhist.clear();
-        self.follow_up_move_corrhist.clear();
+        self.prev_move_1_corrhist.clear();
+        self.prev_move_2_corrhist.clear();
+        self.prev_move_4_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
     }
@@ -155,7 +162,8 @@ mod bonuses {
     corr_bonus!(nonpawn_corr_bonus,   corr_nonpawn_bonus_mult,   corr_nonpawn_bonus_div,   corr_nonpawn_bonus_min,   corr_nonpawn_bonus_max);
     corr_bonus!(major_corr_bonus,     corr_major_bonus_mult,     corr_major_bonus_div,     corr_major_bonus_min,     corr_major_bonus_max);
     corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
-    corr_bonus!(counter_corr_bonus,   corr_counter_bonus_mult,   corr_counter_bonus_div,   corr_counter_bonus_min,   corr_counter_bonus_max);
-    corr_bonus!(follow_up_corr_bonus, corr_follow_up_bonus_mult, corr_follow_up_bonus_div, corr_follow_up_bonus_min, corr_follow_up_bonus_max);
+    corr_bonus!(prev1_corr_bonus,     corr_prev1_bonus_mult,     corr_prev1_bonus_div,     corr_prev1_bonus_min,     corr_prev1_bonus_max);
+    corr_bonus!(prev2_corr_bonus,     corr_prev2_bonus_mult,     corr_prev2_bonus_div,     corr_prev2_bonus_min,     corr_prev2_bonus_max);
+    corr_bonus!(prev4_corr_bonus,     corr_prev4_bonus_mult,     corr_prev4_bonus_div,     corr_prev4_bonus_min,     corr_prev4_bonus_max);
 }
 use bonuses::*;
