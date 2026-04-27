@@ -1006,6 +1006,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check
             && !is_mate_score
             && !is_killer
+            && !is_recapture
             && futility_margin <= alpha
             && !see::see(board, &mv, 1, Pruning)
         {
