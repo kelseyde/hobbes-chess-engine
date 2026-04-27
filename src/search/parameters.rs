@@ -227,12 +227,17 @@ tunable_params! {
     corr_follow_up_bonus_div     = 116, 64..=256,          true;
     corr_follow_up_bonus_min     = -4401, -6000..=-2000,   true;
     corr_follow_up_bonus_max     = 3244, 2000..=6000,      true;
+    corr_tt_move_bonus_mult      = 213, 100..=300,         true;
+    corr_tt_move_bonus_div       = 113, 64..=256,          true;
+    corr_tt_move_bonus_min       = -4150, -6000..=-2000,   true;
+    corr_tt_move_bonus_max       = 3410, 2000..=6000,      true;
     corr_pawn_weight             = 93, 0..=200,            true;
     corr_non_pawn_weight         = 97, 0..=200,            true;
     corr_major_weight            = 85, 0..=200,            true;
     corr_minor_weight            = 75, 0..=200,            true;
     corr_counter_weight          = 100, 0..=200,           true;
     corr_follow_up_weight        = 125, 0..=200,           true;
+    corr_tt_move_weight          = 100, 0..=200,           true;
     see_value_pawn_pruning       = 99, 50..=150,           true;
     see_value_knight_pruning     = 283, 200..=500,         true;
     see_value_bishop_pruning     = 319, 200..=500,         true;
