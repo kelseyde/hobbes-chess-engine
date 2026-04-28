@@ -10,21 +10,21 @@ use crate::board::Board;
 #[rustfmt::skip]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Hashes {
-    hash: u64,                 // Zobrist hash for the board
-    pawn_hash: u64,            // Zobrist hash for pawns
-    non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
-    major_hash: u64,           // Zobrist hash for major pieces
-    minor_hash: u64,           // Zobrist hash for minor pieces
+    board: u64,           // Zobrist hash for the entire board
+    pawn: u64,            // Zobrist hash for pawns
+    non_pawn: [u64; 2],   // Zobrist hashes for non-pawns
+    major: u64,           // Zobrist hash for major pieces
+    minor: u64,           // Zobrist hash for minor pieces
 }
 
 /// Represents the set of random numbers used to generate the zobrist hashes.
 #[rustfmt::skip]
 pub struct Keys {
-    pieces: [[u64; 64]; 12],    // Zobrist keys for pieces on squares
-    ep: [u64; 64],              // Zobrist keys for en passant squares
-    castle: [u64; 16],          // Zobrist keys for castling rights
-    side: u64,                  // Zobrist key for side to move
-    hm: [u64; 16]               // Zobrist keys for the half-move clock buckets
+    pieces: [[u64; 64]; 12], // Zobrist keys for pieces on squares
+    ep: [u64; 64],           // Zobrist keys for en passant squares
+    castle: [u64; 16],       // Zobrist keys for castling rights
+    side: u64,               // Zobrist key for side to move
+    hm: [u64; 16]            // Zobrist keys for the half-move clock buckets
 }
 
 pub const KEYS: Keys = {
@@ -50,56 +50,56 @@ pub const KEYS: Keys = {
 impl Hashes {
     pub fn new(board: &Board) -> Self {
         Self {
-            hash: Keys::get_hash(board),
-            pawn_hash: Keys::get_pawn_hash(board),
-            non_pawn_hashes: Keys::get_non_pawn_hashes(board),
-            major_hash: Keys::get_major_hash(board),
-            minor_hash: Keys::get_minor_hash(board),
+            board: Keys::get_hash(board),
+            pawn: Keys::get_pawn_hash(board),
+            non_pawn: Keys::get_non_pawn_hashes(board),
+            major: Keys::get_major_hash(board),
+            minor: Keys::get_minor_hash(board),
         }
     }
 
     pub fn flip_stm(&mut self) {
-        self.hash ^= KEYS.side;
+        self.board ^= KEYS.side;
     }
 
     pub fn update_hash(&mut self, hash: u64) {
-        self.hash ^= hash;
+        self.board ^= hash;
     }
 
     pub fn update_pawn_hash(&mut self, hash: u64) {
-        self.pawn_hash ^= hash;
+        self.pawn ^= hash;
     }
 
     pub fn update_non_pawn_hash(&mut self, side: Side, hash: u64) {
-        self.non_pawn_hashes[side] ^= hash;
+        self.non_pawn[side] ^= hash;
     }
 
     pub fn update_major_hash(&mut self, hash: u64) {
-        self.major_hash ^= hash;
+        self.major ^= hash;
     }
 
     pub fn update_minor_hash(&mut self, hash: u64) {
-        self.minor_hash ^= hash;
+        self.minor ^= hash;
     }
 
     pub const fn hash(&self) -> u64 {
-        self.hash
+        self.board
     }
 
     pub const fn pawn_hash(&self) -> u64 {
-        self.pawn_hash
+        self.pawn
     }
 
     pub fn non_pawn_hash(&self, side: Side) -> u64 {
-        self.non_pawn_hashes[side]
+        self.non_pawn[side]
     }
 
     pub const fn major_hash(&self) -> u64 {
-        self.major_hash
+        self.major
     }
 
     pub const fn minor_hash(&self) -> u64 {
-        self.minor_hash
+        self.minor
     }
 }
 
