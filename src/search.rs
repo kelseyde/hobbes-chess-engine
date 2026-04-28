@@ -331,7 +331,7 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval >= beta + nmp_margin()
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
-            && tt_flag != Upper {
+            && !(tt_flag == Upper && tt_score < beta) {
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
