@@ -385,6 +385,10 @@ impl Board {
     }
 
     pub fn hash(&self) -> u64 {
+        self.hashes.hash()
+    }
+
+    pub fn hash_with_50mr_bucket(&self) -> u64 {
         self.hashes.hash() ^ Keys::hm(self.hm_bucket())
     }
 
