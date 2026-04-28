@@ -57,26 +57,6 @@ impl Hashes {
             minor_hash: Keys::get_minor_hash(board),
         }
     }
-
-    pub fn hash(&self) -> u64 {
-        self.hash
-    }
-
-    pub fn pawn_hash(&self) -> u64 {
-        self.pawn_hash
-    }
-
-    pub fn non_pawn_hash(&self, side: Side) -> u64 {
-        self.non_pawn_hashes[side]
-    }
-
-    pub fn major_hash(&self) -> u64 {
-        self.major_hash
-    }
-
-    pub fn minor_hash(&self) -> u64 {
-        self.minor_hash
-    }
 }
 
 impl Keys {
