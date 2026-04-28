@@ -49,7 +49,7 @@ pub mod setwise {
 }
 
 use crate::board::castling::Rights;
-use crate::board::zobrist::{Keys, Zobrist};
+use crate::board::zobrist::{Hashes, Keys};
 use crate::tools::fen;
 use bitboard::Bitboard;
 use moves::{Move, MoveFlag};
@@ -73,7 +73,7 @@ pub struct Board {
     pub ep_sq: Option<Square>,        // en passant square (0-63)
     pub recapture_sq: Option<Square>, // square where a recapture can occur
     pub rights: Rights,               // encoded castle rights
-    pub keys: Keys,                   // zobrist hashes
+    pub hashes: Hashes,               // zobrist hashes
     pub frc: bool,                    // whether the game is Fischer Random Chess
     pub threats: Bitboard,            // squares attacked by the opponent
     pub checkers: Bitboard,           // opponent pieces checking the king
@@ -105,7 +105,7 @@ impl Board {
             ep_sq: None,
             recapture_sq: None,
             rights: Rights::default(),
-            keys: Keys::default(),
+            hashes: Hashes::default(),
             frc: false,
             threats: Bitboard::empty(),
             checkers: Bitboard::empty(),
@@ -157,7 +157,7 @@ impl Board {
         self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += (side == Black) as u8;
         self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
-        self.keys.hash ^= Zobrist::stm();
+        self.hashes.flip_stm();
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
@@ -177,17 +177,17 @@ impl Board {
         let cur = self.pcs[sq];
         self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
 
-        let hash = Zobrist::sq(pc, side, sq);
-        self.keys.hash ^= hash;
+        let hash = Keys::sq(pc, side, sq);
+        self.hashes.update_hash(hash);
         if pc == Piece::Pawn {
-            self.keys.pawn_hash ^= hash;
+            self.hashes.update_pawn_hash(hash);
         } else {
-            self.keys.non_pawn_hashes[side] ^= hash;
+            self.hashes.update_non_pawn_hash(side, hash);
             if pc.is_major() {
-                self.keys.major_hash ^= hash;
+                self.hashes.update_major_hash(hash);
             }
             if pc.is_minor() {
-                self.keys.minor_hash ^= hash;
+                self.hashes.update_minor_hash(hash);
             }
         }
     }
@@ -279,8 +279,8 @@ impl Board {
             new_rights.clear_side(Black, false);
         }
 
-        self.keys.hash ^=
-            Zobrist::castle(original_rights.hash()) ^ Zobrist::castle(new_rights.hash());
+        let castle_hash = Keys::castle(original_rights.hash()) ^ Keys::castle(new_rights.hash());
+        self.hashes.update_hash(castle_hash);
         new_rights
     }
 
@@ -288,7 +288,7 @@ impl Board {
     #[inline]
     fn calc_ep(&mut self, flag: MoveFlag, sq: Square) -> Option<Square> {
         if let Some(old_ep) = self.ep_sq {
-            self.keys.hash ^= Zobrist::ep(old_ep);
+            self.hashes.update_hash(Keys::ep(old_ep));
         }
         let ep_sq = if flag == MoveFlag::DoublePush {
             Some(self.ep_capture_sq(sq))
@@ -296,7 +296,7 @@ impl Board {
             None
         };
         if let Some(new_ep) = ep_sq {
-            self.keys.hash ^= Zobrist::ep(new_ep);
+            self.hashes.update_hash(Keys::ep(new_ep));
         }
         ep_sq
     }
@@ -374,9 +374,9 @@ impl Board {
     pub fn make_null_move(&mut self) {
         self.hm = 0;
         self.stm = !self.stm;
-        self.keys.hash ^= Zobrist::stm();
+        self.hashes.flip_stm();
         if let Some(ep_sq) = self.ep_sq {
-            self.keys.hash ^= Zobrist::ep(ep_sq);
+            self.hashes.update_hash(Keys::ep(ep_sq));
             self.ep_sq = None;
         }
         self.threats = self.calc_threats(self.stm);
@@ -385,7 +385,7 @@ impl Board {
     }
 
     pub const fn hash(&self) -> u64 {
-        self.keys.hash
+        self.hashes.hash()
     }
 
     #[inline]
