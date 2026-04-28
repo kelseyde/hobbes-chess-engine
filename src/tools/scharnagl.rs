@@ -213,7 +213,7 @@ mod tests {
 
         for scharnagl in 0..960 {
             let board = Board::from_frc_idx(scharnagl);
-            let hash = board.hashes.hash;
+            let hash = board.hashes.hash();
 
             assert!(
                 hashes.insert(hash),

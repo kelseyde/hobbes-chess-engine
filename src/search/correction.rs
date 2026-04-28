@@ -41,11 +41,11 @@ impl CorrectionHistories {
         let us = board.stm;
         let diff = best_score - static_eval;
 
-        let pawn_key = board.hashes.pawn_hash;
-        let white_key = board.hashes.non_pawn_hashes[White];
-        let black_key = board.hashes.non_pawn_hashes[Black];
-        let major_key = board.hashes.major_hash;
-        let minor_key = board.hashes.minor_hash;
+        let pawn_key = board.hashes.pawn_hash();
+        let white_key = board.hashes.non_pawn_hash(White);
+        let black_key = board.hashes.non_pawn_hash(Black);
+        let major_key = board.hashes.major_hash();
+        let minor_key = board.hashes.minor_hash();
 
         self.pawn_corrhist.update(us, pawn_key, pawn_corr_bonus(diff, depth));
         self.nonpawn_corrhist[White].update(us, white_key, nonpawn_corr_bonus(diff, depth));
@@ -65,11 +65,11 @@ impl CorrectionHistories {
     pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
         let us = board.stm;
 
-        let pawn      = self.pawn_corrhist.get(us, board.hashes.pawn_hash);
-        let white     = self.nonpawn_corrhist[White].get(us, board.hashes.non_pawn_hashes[White]);
-        let black     = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hashes[Black]);
-        let major     = self.major_corrhist.get(us, board.hashes.major_hash);
-        let minor     = self.minor_corrhist.get(us, board.hashes.minor_hash);
+        let pawn      = self.pawn_corrhist.get(us, board.hashes.pawn_hash());
+        let white     = self.nonpawn_corrhist[White].get(us, board.hashes.non_pawn_hash(White));
+        let black     = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hash(Black));
+        let major     = self.major_corrhist.get(us, board.hashes.major_hash());
+        let minor     = self.minor_corrhist.get(us, board.hashes.minor_hash());
         let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(us, k));
         let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
 

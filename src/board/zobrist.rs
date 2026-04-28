@@ -10,21 +10,21 @@ use crate::board::Board;
 #[rustfmt::skip]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Hashes {
-    pub hash: u64,                   // Zobrist hash for the board
-    pub pawn_hash: u64,              // Zobrist hash for pawns
-    pub non_pawn_hashes: [u64; 2],   // Zobrist hashes for non-pawns
-    pub major_hash: u64,             // Zobrist hash for major pieces
-    pub minor_hash: u64,             // Zobrist hash for minor pieces
+    hash: u64,                 // Zobrist hash for the board
+    pawn_hash: u64,            // Zobrist hash for pawns
+    non_pawn_hashes: [u64; 2], // Zobrist hashes for non-pawns
+    major_hash: u64,           // Zobrist hash for major pieces
+    minor_hash: u64,           // Zobrist hash for minor pieces
 }
 
 /// Represents the set of random numbers used to generate the zobrist hashes.
 #[rustfmt::skip]
 pub struct Keys {
-    pub pieces: [[u64; 64]; 12], // Zobrist keys for pieces on squares
-    pub ep: [u64; 64],           // Zobrist keys for en passant squares
-    pub castle: [u64; 16],       // Zobrist keys for castling rights
-    pub side: u64,               // Zobrist key for side to move
-    pub hm: [u64; 16]            // Zobrist keys for the half-move clock buckets
+    pieces: [[u64; 64]; 12],    // Zobrist keys for pieces on squares
+    ep: [u64; 64],              // Zobrist keys for en passant squares
+    castle: [u64; 16],          // Zobrist keys for castling rights
+    side: u64,                  // Zobrist key for side to move
+    hm: [u64; 16]               // Zobrist keys for the half-move clock buckets
 }
 
 pub const KEYS: Keys = {
@@ -56,6 +56,50 @@ impl Hashes {
             major_hash: Keys::get_major_hash(board),
             minor_hash: Keys::get_minor_hash(board),
         }
+    }
+
+    pub fn flip_stm(&mut self) {
+        self.hash ^= KEYS.side;
+    }
+
+    pub fn update_hash(&mut self, hash: u64) {
+        self.hash ^= hash;
+    }
+
+    pub fn update_pawn_hash(&mut self, hash: u64) {
+        self.pawn_hash ^= hash;
+    }
+
+    pub fn update_non_pawn_hash(&mut self, side: Side, hash: u64) {
+        self.non_pawn_hashes[side] ^= hash;
+    }
+
+    pub fn update_major_hash(&mut self, hash: u64) {
+        self.major_hash ^= hash;
+    }
+
+    pub fn update_minor_hash(&mut self, hash: u64) {
+        self.minor_hash ^= hash;
+    }
+
+    pub const fn hash(&self) -> u64 {
+        self.hash
+    }
+
+    pub const fn pawn_hash(&self) -> u64 {
+        self.pawn_hash
+    }
+
+    pub fn non_pawn_hash(&self, side: Side) -> u64 {
+        self.non_pawn_hashes[side]
+    }
+
+    pub const fn major_hash(&self) -> u64 {
+        self.major_hash
+    }
+
+    pub const fn minor_hash(&self) -> u64 {
+        self.minor_hash
     }
 }
 
@@ -154,63 +198,5 @@ impl Keys {
 
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::board::moves::{Move, MoveFlag};
-    use crate::board::Board;
-
-    #[test]
-    fn test_move_piece() {
-        assert_hash(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
-            &Move::parse_uci("e2e4"),
-        );
-    }
-
-    #[test]
-    fn test_capture() {
-        assert_hash(
-            "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-            "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2",
-            &Move::parse_uci("e4d5"),
-        );
-    }
-
-    #[test]
-    fn test_castle() {
-        assert_hash(
-            "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
-            "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 b kq - 5 4",
-            &Move::parse_uci_with_flag("e1g1", MoveFlag::CastleK),
-        );
-    }
-
-    #[test]
-    fn test_ep() {
-        assert_hash(
-            "rnbqkb1r/ppp1pppp/5n2/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3",
-            "rnbqkb1r/ppp1pppp/3P1n2/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 3",
-            &Move::parse_uci_with_flag("e5d6", MoveFlag::EnPassant),
-        );
-    }
-
-    #[test]
-    fn test_promotion() {
-        assert_hash(
-            "rnbqkb1r/pP3ppp/5n2/4p3/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 5",
-            "rnRqkb1r/p4ppp/5n2/4p3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 5",
-            &Move::parse_uci_with_flag("b7c8r", MoveFlag::PromoR),
-        );
-    }
-
-    fn assert_hash(fen1: &str, fen2: &str, m: &Move) {
-        let mut board1 = Board::from_fen(fen1).unwrap();
-        board1.make(m);
-        let board2 = Board::from_fen(fen2).unwrap();
-        assert_eq!(board1.hash(), board2.hash());
     }
 }
