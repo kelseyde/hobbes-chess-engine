@@ -384,8 +384,12 @@ impl Board {
         self.check_zones = self.calc_check_zones();
     }
 
-    pub const fn hash(&self) -> u64 {
-        self.hashes.hash()
+    pub fn hash(&self) -> u64 {
+        self.hashes.hash() ^ Keys::hm(self.hm_bucket())
+    }
+
+    pub fn hm_bucket(&self) -> usize {
+        (self.hm.saturating_sub(8) as usize / 8).min(15)
     }
 
     #[inline]

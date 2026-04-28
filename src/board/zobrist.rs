@@ -199,4 +199,8 @@ impl Keys {
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
     }
+    
+    pub const fn hm(hm_bucket: usize) -> u64 {
+        KEYS.hm[hm_bucket]
+    }
 }
