@@ -248,6 +248,14 @@ fn alpha_beta<NODE: NodeType>(
         static_eval = raw_eval + correction;
     }
 
+        let mut score_estimate = static_eval;
+        if !in_check
+            && !singular_search
+            && tt_hit
+            && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
+            score_estimate = tt_score;
+        }
+
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
@@ -322,7 +330,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node && score_estimate < alpha - razor_base() - razor_scale() * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
