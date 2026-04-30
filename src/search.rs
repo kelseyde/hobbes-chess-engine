@@ -450,6 +450,12 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval <= alpha - ldse_margin()
             && tt_flag == Lower {
             extension = 1;
+            if !pv_node
+                && !tt_move_noisy
+                && tt_depth >= depth - 3
+                && static_eval < alpha - 42 {
+                extension += 1;
+            }
         }
 
     }
