@@ -393,7 +393,11 @@ impl Board {
     }
 
     pub fn hm_bucket(&self) -> usize {
-        (self.hm.saturating_sub(8) as usize / 8).min(15)
+        if self.hm < 50 {
+            0
+        } else {
+            (self.hm.saturating_sub(8) as usize / 8).min(15)
+        }
     }
 
     #[inline]
