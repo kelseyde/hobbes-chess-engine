@@ -248,13 +248,13 @@ fn alpha_beta<NODE: NodeType>(
         static_eval = raw_eval + correction;
     }
 
-        let mut score_estimate = static_eval;
-        if !in_check
-            && !singular_search
-            && tt_hit
-            && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
-            score_estimate = tt_score;
-        }
+    let mut score_estimate = static_eval;
+    if !in_check
+        && !singular_search
+        && tt_hit
+        && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
+        score_estimate = tt_score;
+    }
 
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
@@ -324,13 +324,17 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
-            return lerp(beta, static_eval, rfp_lerp_factor());
+        if depth <= rfp_max_depth() && score_estimate - futility_margin >= beta {
+            return if !is_mate(score_estimate) {
+                lerp(beta, score_estimate, rfp_lerp_factor())
+            } else {
+                beta
+            }
         }
 
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
-        if !pv_node && score_estimate < alpha - razor_base() - razor_scale() * depth * depth {
+        if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
             return qs(board, td, alpha, beta, ply);
         }
 
