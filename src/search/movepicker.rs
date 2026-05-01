@@ -210,10 +210,10 @@ fn score_move(
     if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
         // Score capture
         let victim_value = see::value(victim, SeeType::Ordering);
-        let capture_history_score = td.history.capture_history_score(board, mv, attacker, victim);
-        let quiet_history_score = td.history.quiet_history_score(board, mv, attacker, threats);
-        let history_score = capture_history_score
-            + quiet_history_score * 100 / movepick_capture_quiet_div();
+        let capture_score = td.history.capture_history_score(board, mv, attacker, victim);
+        let quiet_score = td.history.quiet_history_score(board, mv, attacker, threats);
+        let history_score = capture_score
+            + quiet_score * 100 / movepick_capture_quiet_div();
         entry.score = 16 * victim_value + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
