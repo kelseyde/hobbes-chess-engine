@@ -83,6 +83,8 @@ tunable_params! {
     se_text_noisy_margin         = 51, 20..=120,           true;
     ldse_max_depth               = 7, 1..=12,              false;
     ldse_margin                  = 25, 0..=80,             true;
+    ldse_dext_tt_depth_offset    = 3, 1..=5,               false;
+    ldse_dext_margin             = 42, 20..=80,            true;
     lmr_min_depth                = 2, 1..=5,               false;
     lmr_min_moves                = 2, 1..=4,               false;
     lmr_quiet_base               = 91, 50..=150,           true;
