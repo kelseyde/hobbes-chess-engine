@@ -450,10 +450,12 @@ fn alpha_beta<NODE: NodeType>(
             && static_eval <= alpha - ldse_margin()
             && tt_flag == Lower {
             extension = 1;
+
+            // If the static eval is very far below alpha, in some scenarios we can extend even further.
             if !pv_node
                 && !tt_move_noisy
-                && tt_depth >= depth - 3
-                && static_eval < alpha - 42 {
+                && tt_depth >= depth - ldse_dext_tt_depth_offset()
+                && static_eval < alpha - ldse_dext_margin() {
                 extension += 1;
             }
         }
