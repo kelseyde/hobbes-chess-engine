@@ -5,7 +5,7 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{movepick_capture_quiet_div, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -210,9 +210,10 @@ fn score_move(
     if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
         // Score capture
         let victim_value = see::value(victim, SeeType::Ordering);
-        let history_score = td
-            .history
-            .capture_history_score(board, mv, attacker, victim);
+        let capture_history_score = td.history.capture_history_score(board, mv, attacker, victim);
+        let quiet_history_score = td.history.quiet_history_score(board, mv, attacker, threats);
+        let history_score = capture_history_score
+            + quiet_history_score * 100 / movepick_capture_quiet_div();
         entry.score = 16 * victim_value + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
