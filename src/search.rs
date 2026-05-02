@@ -621,6 +621,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * original_board.gives_direct_check(mv) as i32;
             r += lmr_improving() * !improving as i32;
+            r += 1024 * (tt_flag == Exact) as i32;
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
