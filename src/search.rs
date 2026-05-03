@@ -145,6 +145,11 @@ fn alpha_beta<NODE: NodeType>(
         td.pv.clear(ply);
     }
 
+    // If depth is reached, drop into quiescence search
+    if depth <= 0 {
+        return qs(board, td, alpha, beta, ply);
+    }
+
     // Determine if we are currently in check.
     let threats = board.threats;
     let in_check = threats.contains(board.our_king_sq());
@@ -153,11 +158,6 @@ fn alpha_beta<NODE: NodeType>(
     // Update the selective search depth
     if ply + 1 > td.seldepth {
         td.seldepth = ply + 1;
-    }
-
-    // If depth is reached, drop into quiescence search
-    if depth <= 0 && !in_check {
-        return qs(board, td, alpha, beta, ply);
     }
 
     // Ensure depth is not negative
