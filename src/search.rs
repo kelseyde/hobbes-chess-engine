@@ -844,7 +844,7 @@ fn alpha_beta<NODE: NodeType>(
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             if let Some(captured) = td.stack[ply - 1].captured {
                 let noisy_bonus = prior_noisy_bonus(depth);
-                td.history.capture_history.update(board.stm, prev_pc, &prev_mv, captured, noisy_bonus);
+                td.history.capture_history.update(!board.stm, prev_pc, &prev_mv, captured, noisy_bonus);
             } else {
                 let prev_threats = td.stack[ply - 1].threats;
                 let quiet_bonus = prior_quiet_bonus(depth);
