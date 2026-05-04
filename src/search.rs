@@ -842,7 +842,7 @@ fn alpha_beta<NODE: NodeType>(
     if !root_node
         && flag == Upper {
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
-            if let Some(captured) = board.captured(&prev_mv) {
+            if let Some(captured) = td.stack[ply - 1].captured {
                 let noisy_bonus = prior_noisy_bonus(depth);
                 td.history.capture_history.update(board.stm, prev_pc, &prev_mv, captured, noisy_bonus);
             } else {
