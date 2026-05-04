@@ -5,26 +5,7 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
-    cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
-    cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
-    cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
-    cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
-    from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
-    lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
-    lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
-};
+use crate::search::parameters::*;
 use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 use crate::tools::utils::lerp;
 
@@ -383,7 +364,8 @@ fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
 
 #[rustfmt::skip]
 mod bonuses {
-    use super::*;
+use crate::search::parameters::{pcm_quiet_bonus_max, pcm_quiet_bonus_offset, pcm_quiet_bonus_scale};
+use super::*;
 
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {
@@ -420,7 +402,9 @@ mod bonuses {
                      lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
     history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
                      lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
-    history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
-                     prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
+    history_bonuses!(prior_quiet_bonus         (pcm_quiet_bonus_scale,     pcm_quiet_bonus_offset,     pcm_quiet_bonus_max),
+                     prior_quiet_malus         (pcm_quiet_bonus_scale,     pcm_quiet_bonus_offset,     pcm_quiet_bonus_max));
+    history_bonuses!(prior_noisy_bonus         (pcm_noisy_bonus_scale,     pcm_noisy_bonus_offset,     pcm_noisy_bonus_max),
+                     prior_noisy_malus         (pcm_noisy_bonus_scale,     pcm_noisy_bonus_offset,     pcm_noisy_bonus_max));
 }
 pub use bonuses::*;
