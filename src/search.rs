@@ -841,6 +841,7 @@ fn alpha_beta<NODE: NodeType>(
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node
         && flag == Upper
+        && (cut_node || pv_node)
         && td.stack[ply - 1].captured.is_none() {
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             let prev_threats = td.stack[ply - 1].threats;
