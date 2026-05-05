@@ -74,13 +74,13 @@ tunable_params! {
     se_beta_quiet_base           = 58, 0..=100,            true;
     se_beta_quiet_scale          = 17, 16..=48,            true;
     se_beta_quiet_div            = 55, 40..=100,           true;
-    se_dext_quiet_margin         = 8, 0..=30,              true;
-    se_text_quiet_margin         = 65, 20..=120,           true;
+    se_dext_quiet_margin         = 5, 0..=30,              true;
+    se_text_quiet_margin         = 50, 20..=120,           true;
     se_beta_noisy_base           = 59, 0..=100,            true;
     se_beta_noisy_scale          = 19, 16..=48,            true;
     se_beta_noisy_div            = 55, 40..=100,           true;
-    se_dext_noisy_margin         = 9, 0..=30,              true;
-    se_text_noisy_margin         = 51, 20..=120,           true;
+    se_dext_noisy_margin         = 6, 0..=30,              true;
+    se_text_noisy_margin         = 45, 20..=120,           true;
     ldse_max_depth               = 7, 1..=12,              false;
     ldse_margin                  = 25, 0..=80,             true;
     ldse_dext_tt_depth_offset    = 3, 1..=5,               false;
