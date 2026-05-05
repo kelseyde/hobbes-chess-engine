@@ -4,11 +4,18 @@ use std::fmt;
 use crate::board::piece::Piece;
 use crate::board::square::Square;
 
+/// Represents a chess move, encoded as a 16-bit unsigned integer.
+/// The encoding is as follows:
+/// - Bits 0-5: From square (0-63)
+/// - Bits 6-11: To square (0-63)
+/// - Bits 12-15: Special flag (0-8)
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
 
+/// The maximum number of legal moves in any chess position.
 pub const MAX_MOVES: usize = 218;
 
+/// A list of moves, each with an associated score for move ordering purposes.
 #[derive(Debug, Clone)]
 pub struct MoveList {
     pub list: ArrayVec<ScoredMove, MAX_MOVES>,
@@ -22,26 +29,28 @@ pub struct ScoredMove {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFlag {
-    Standard = 0,
-    DoublePush = 1,
-    EnPassant = 2,
-    CastleK = 3,
-    CastleQ = 4,
-    PromoQ = 5,
-    PromoR = 6,
-    PromoB = 7,
-    PromoN = 8,
+    Standard,
+    DoublePush,
+    EnPassant,
+    CastleK,
+    CastleQ,
+    PromoQ,
+    PromoR,
+    PromoB,
+    PromoN,
 }
 
 const FROM_MASK: u16 = 0x3F;
 const TO_MASK: u16 = 0xFC0;
-const FLAG_MASK: u16 = 0xF000;
+
+const TO_SHIFT: u16 = 6;
+const FLAG_SHIFT: u16 = 12;
 
 impl Move {
     pub const NONE: Move = Move(0);
 
     pub fn new(from: Square, to: Square, flag: MoveFlag) -> Move {
-        Move((from.0 as u16) | ((to.0 as u16) << 6) | ((flag as u16) << 12))
+        Move((from.0 as u16) | ((to.0 as u16) << TO_SHIFT) | ((flag as u16) << FLAG_SHIFT))
     }
 
     pub const fn from(self) -> Square {
@@ -49,22 +58,11 @@ impl Move {
     }
 
     pub const fn to(self) -> Square {
-        Square(((self.0 & TO_MASK) >> 6) as u8)
+        Square(((self.0 & TO_MASK) >> TO_SHIFT) as u8)
     }
 
     pub const fn flag(self) -> MoveFlag {
-        match (self.0 & FLAG_MASK) >> 12 {
-            0 => MoveFlag::Standard,
-            1 => MoveFlag::DoublePush,
-            2 => MoveFlag::EnPassant,
-            3 => MoveFlag::CastleK,
-            4 => MoveFlag::CastleQ,
-            5 => MoveFlag::PromoQ,
-            6 => MoveFlag::PromoR,
-            7 => MoveFlag::PromoB,
-            8 => MoveFlag::PromoN,
-            _ => panic!("Invalid move flag"),
-        }
+        unsafe { std::mem::transmute((self.0 >> FLAG_SHIFT) as u8) }
     }
 
     pub fn is_double_push(self) -> bool {
@@ -76,14 +74,14 @@ impl Move {
     }
 
     pub fn is_castle(self) -> bool {
-        self.flag() == MoveFlag::CastleK || self.flag() == MoveFlag::CastleQ
+        matches!(self.flag(), MoveFlag::CastleK | MoveFlag::CastleQ)
     }
 
     pub fn is_promo(self) -> bool {
-        self.flag() == MoveFlag::PromoQ
-            || self.flag() == MoveFlag::PromoR
-            || self.flag() == MoveFlag::PromoB
-            || self.flag() == MoveFlag::PromoN
+        matches!(
+            self.flag(),
+            MoveFlag::PromoQ | MoveFlag::PromoR | MoveFlag::PromoB | MoveFlag::PromoN
+        )
     }
 
     pub const fn promo_piece(self) -> Option<Piece> {
