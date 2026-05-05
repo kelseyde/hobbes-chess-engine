@@ -184,18 +184,6 @@ tunable_params! {
     cont_hist_2_malus_offset     = 90, 0..=200,            true;
     cont_hist_2_ttmove_malus     = 90, 0..=200,            true;
     cont_hist_2_malus_max        = 1086, 800..=1600,       true;
-    from_hist_bonus_scale        = 204, 80..=280,          true;
-    from_hist_bonus_offset       = 87, 0..=200,            true;
-    from_hist_bonus_max          = 975, 800..=1600,        true;
-    from_hist_malus_scale        = 201, 80..=280,          true;
-    from_hist_malus_offset       = 87, 0..=200,            true;
-    from_hist_malus_max          = 1105, 800..=1600,       true;
-    to_hist_bonus_scale          = 202, 80..=300,          true;
-    to_hist_bonus_offset         = 77, 0..=200,            true;
-    to_hist_bonus_max            = 1012, 800..=1600,       true;
-    to_hist_malus_scale          = 189, 80..=280,          true;
-    to_hist_malus_offset         = 78, 0..=200,            true;
-    to_hist_malus_max            = 1027, 800..=1600,       true;
     pcm_bonus_scale              = 243, 80..=300,          true;
     pcm_bonus_offset             = 79, 0..=200,            true;
     pcm_bonus_max                = 1389, 1000..=1600,      true;

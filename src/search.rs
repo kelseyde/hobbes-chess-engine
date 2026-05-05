@@ -795,11 +795,6 @@ fn alpha_beta<NODE: NodeType>(
         let cont_bonuses = [cont_1_bonus, cont_2_bonus];
         let cont_maluses = [cont_1_malus, cont_2_malus];
 
-        let from_bonus = from_history_bonus(depth);
-        let from_malus = from_history_malus(depth);
-        let to_bonus = to_history_bonus(depth);
-        let to_malus = to_history_malus(depth);
-
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
             td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
@@ -809,8 +804,6 @@ fn alpha_beta<NODE: NodeType>(
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
             td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &cont_bonuses);
-            td.history.from_history.update(board.stm, best_move.from(), from_bonus);
-            td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
             for mv in quiets.iter() {
@@ -819,8 +812,6 @@ fn alpha_beta<NODE: NodeType>(
                     td.history.quiet_history
                         .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
                     td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
-                    td.history.from_history.update(board.stm, mv.from(), from_malus);
-                    td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
             }
         }

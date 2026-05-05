@@ -2,31 +2,11 @@ use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
-use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
-    cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
-    cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
-    cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
-    cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
-    from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
-    lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
-    lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
-};
-use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
+use crate::search::parameters::*;
 use crate::tools::utils::lerp;
+use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
 /// Also known as 'butterfly' history.
@@ -64,11 +44,6 @@ pub struct ContinuationHistory {
     entries: Box<[PieceToHistory<PieceToHistory<i16>>; 2]>,
 }
 
-/// History table indexed by a single square (either the 'from' or 'to' square of a move).
-pub struct SquareHistory {
-    pub entries: Box<[[i16; 64]; 2]>,
-}
-
 /// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each quiet move.
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
@@ -81,8 +56,6 @@ pub struct Histories {
     pub quiet_history: QuietHistory,
     pub capture_history: CaptureHistory,
     pub cont_history: ContinuationHistory,
-    pub from_history: SquareHistory,
-    pub to_history: SquareHistory,
 }
 
 impl Histories {
@@ -102,9 +75,7 @@ impl Histories {
         } else {
             let quiet_score = self.quiet_history_score(board, mv, pc, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
-            let from_score = self.from_history.get(board.stm, mv.from()) as i32;
-            let to_score = self.to_history.get(board.stm, mv.to()) as i32;
-            quiet_score + cont_score + from_score + to_score
+            quiet_score + cont_score
         }
     }
 
@@ -170,8 +141,6 @@ impl Histories {
         self.quiet_history.clear();
         self.capture_history.clear();
         self.cont_history.clear();
-        self.from_history.clear();
-        self.to_history.clear();
     }
 }
 
@@ -194,14 +163,6 @@ impl Default for CaptureHistory {
 }
 
 impl Default for ContinuationHistory {
-    fn default() -> Self {
-        Self {
-            entries: unsafe { boxed_and_zeroed() },
-        }
-    }
-}
-
-impl Default for SquareHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() },
@@ -325,24 +286,6 @@ impl ContinuationHistory {
     }
 }
 
-impl SquareHistory {
-    const MAX: i32 = 4096;
-    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
-
-    pub fn get(&self, stm: Side, sq: Square) -> i16 {
-        self.entries[stm][sq]
-    }
-
-    pub fn update(&mut self, stm: Side, sq: Square, bonus: i16) {
-        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        update_entry(&mut self.entries[stm][sq], bonus, Self::MAX);
-    }
-
-    pub fn clear(&mut self) {
-        self.entries = Box::new([[0; 64]; 2]);
-    }
-}
-
 pub struct ThreatIndex {
     pub from_attacked: bool,
     pub to_attacked: bool,
@@ -410,10 +353,6 @@ mod bonuses {
                      cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
     history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
                      cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
-    history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
-                     from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
-    history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
-                     to_history_malus          (to_hist_malus_scale,       to_hist_malus_offset,       to_hist_malus_max));
     history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max),
                      qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max));
     history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max),
