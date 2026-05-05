@@ -985,7 +985,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
-    let mut flag = Upper;
     let mut captures = ArrayVec::<Move, 32>::new();
     let mut capture_count = 0;
 
@@ -1077,14 +1076,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if score > alpha {
             alpha = score;
             best_move = mv;
-            flag = Exact;
 
             if pv_node {
                 td.pv.update(ply, mv);
             }
 
             if score >= beta {
-                flag = Lower;
                 break;
             }
         }
@@ -1097,6 +1094,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     if best_score >= beta && is_defined(best_score) {
         best_score = lerp(beta, best_score, qs_fail_high_lerp_factor());
     }
+
+    let flag = if best_score >= beta { Lower } else { Upper };
 
     // Write to transposition table
     if !td.hard_limit_reached() {
