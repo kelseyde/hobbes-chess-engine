@@ -850,6 +850,10 @@ fn alpha_beta<NODE: NodeType>(
         }
     }
 
+    if singular_search && searched_moves == 0 {
+        return alpha;
+    }
+
     // Checkmate / Stalemate Detection
     if legal_moves == 0 {
         return if singular_search {
