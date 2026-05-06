@@ -101,7 +101,7 @@ impl Histories {
             self.capture_history_score(board, mv, pc, captured)
         } else {
             let quiet_score = self.quiet_history_score(board, mv, pc, threats);
-            let cont_score = self.cont_history_score(board, ss, mv, ply);
+            let cont_score = self.cont_history_score(ss, mv, pc, ply);
             let from_score = self.from_history.get(board.stm, mv.from()) as i32;
             let to_score = self.to_history.get(board.stm, mv.to()) as i32;
             quiet_score + cont_score + from_score + to_score
@@ -118,8 +118,7 @@ impl Histories {
         self.quiet_history.get(board.stm, *mv, pc, threats) as i32
     }
 
-    pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
-        let pc = board.piece_at(mv.from()).unwrap();
+    pub fn cont_history_score(&self, ss: &NodeStack, mv: &Move, pc: Piece, ply: usize) -> i32 {
         ContinuationHistory::PLIES
             .iter()
             .filter(|&&prev_ply| ply >= prev_ply)
@@ -143,14 +142,13 @@ impl Histories {
 
     pub fn update_continuation_history(
         &mut self,
-        board: &Board,
         ss: &NodeStack,
         ply: usize,
         mv: &Move,
         pc: Piece,
         bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
-        let total_score = self.cont_history_score(board, ss, mv, ply);
+        let total_score = self.cont_history_score(ss, mv, pc, ply);
         ContinuationHistory::PLIES
             .iter()
             .zip(bonuses)

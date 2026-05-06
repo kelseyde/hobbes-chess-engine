@@ -217,7 +217,7 @@ fn score_move(
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
-        let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
+        let cont_score = td.history.cont_history_score(&td.stack, mv, pc, ply);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             KILLER_BONUS
         } else {
