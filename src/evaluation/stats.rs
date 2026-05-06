@@ -1,4 +1,4 @@
-use crate::board::{movegen, Board};
+use crate::board::Board;
 use crate::search::thread::ThreadData;
 use hobbes_nnue_arch::SCALE;
 use std::fs;
@@ -21,7 +21,7 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
         let fen = parts[0].trim();
         let board = Board::from_fen(fen).unwrap();
         td.nnue.activate(&board);
-        if movegen::is_check(&board, board.stm) {
+        if board.threats.contains(board.our_king_sq()) {
             continue;
         }
         let eval = td.nnue.evaluate(&board);

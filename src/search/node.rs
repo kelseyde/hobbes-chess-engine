@@ -1,8 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
-use crate::search::score::Score;
-use crate::search::MAX_PLY;
+use crate::search::{score, MAX_PLY};
 use std::ops::{Index, IndexMut};
 
 pub trait NodeType {
@@ -48,6 +47,7 @@ pub struct Node {
     pub raw_eval: i32,
     pub static_eval: i32,
     pub reduction: i32,
+    pub num_fail_highs: i32,
 }
 
 impl Default for NodeStack {
@@ -60,9 +60,10 @@ impl Default for NodeStack {
                 killer: None,
                 singular: None,
                 threats: Bitboard::empty(),
-                raw_eval: Score::MIN,
-                static_eval: Score::MIN,
+                raw_eval: score::MIN,
+                static_eval: score::MIN,
                 reduction: 0,
+                num_fail_highs: 0,
             }; MAX_PLY + 8],
         }
     }
