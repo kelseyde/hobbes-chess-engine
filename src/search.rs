@@ -926,7 +926,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
-        if can_use_tt_move(board, &entry.best_move()) && board.is_noisy(&tt_move) {
+        if can_use_tt_move(board, &entry.best_move()) && board.is_noisy(&entry.best_move()) {
             tt_move = entry.best_move();
         }
         let score = entry.score(ply) as i32;
