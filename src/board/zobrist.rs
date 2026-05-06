@@ -103,7 +103,6 @@ impl Hashes {
 }
 
 impl Keys {
-
     pub fn get_hash(board: &Board) -> u64 {
         let mut hash: u64 = 0;
         // Iterate over all squares and pieces

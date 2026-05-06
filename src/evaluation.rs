@@ -270,7 +270,7 @@ impl NNUE {
     fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
         AccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
-            Feature::new(pc, mv.from(), side)
+            Feature::new(pc, mv.from(), side),
         )
     }
 

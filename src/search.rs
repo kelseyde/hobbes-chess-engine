@@ -24,11 +24,11 @@ use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::{Exact, Lower, Upper};
+use crate::tools::utils::lerp;
 use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::tools::utils::lerp;
 
 pub const MAX_PLY: usize = 256;
 
@@ -968,7 +968,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             alpha = static_eval
         }
         if alpha >= beta {
-            return lerp(alpha, beta, qs_stand_pat_lerp_factor())
+            return lerp(alpha, beta, qs_stand_pat_lerp_factor());
         }
     }
 
