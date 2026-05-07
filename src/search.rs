@@ -600,6 +600,8 @@ fn alpha_beta<NODE: NodeType>(
         searched_moves += 1;
         td.nodes += 1;
 
+        let gives_check = board.threats.contains(board.king_sq(board.stm));
+
         let initial_nodes = td.nodes;
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
@@ -619,7 +621,7 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
-            r -= lmr_gives_check() * original_board.gives_direct_check(mv) as i32;
+            r -= lmr_gives_check() * gives_check as i32;
             r += lmr_improving() * !improving as i32;
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
