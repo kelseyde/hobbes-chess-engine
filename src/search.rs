@@ -386,7 +386,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Probcut TT pruning
     // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
-    let probcut_beta = beta + pc_beta_margin();
+    let probcut_beta = beta + (150 + depth * 20).min(500);
     if !pv_node
         && !singular_search
         && !in_check
