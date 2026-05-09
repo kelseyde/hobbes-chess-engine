@@ -386,16 +386,21 @@ fn alpha_beta<NODE: NodeType>(
 
     // Probcut TT pruning
     // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
-    let probcut_beta = beta + (150 + depth * 20).min(500);
+    let probcut_margin = (pc_base()
+        + depth * pc_scale()
+        + tt_pv as i32 * pc_ttpv_margin()
+        - cut_node as i32 * pc_cutnode_margin()
+        - improving as i32 * pc_improving_margin()
+    ).min(pc_max());
     if !pv_node
         && !singular_search
         && !in_check
         && is_defined(tt_score)
         && !is_mate(tt_score)
         && !is_mate(beta)
-        && !is_mate(probcut_beta)
+        && !is_mate(beta + probcut_margin)
         && (tt_flag == Lower || tt_flag == Exact)
-        && tt_score >= probcut_beta
+        && tt_score >= beta + probcut_margin
         && tt_depth >= depth - pc_tt_depth_offset() {
         return tt_score;
     }
