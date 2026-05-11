@@ -1019,7 +1019,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
-        if !in_check
+        if !pv_node
+            && !in_check
             && !is_mate_score
             && !is_killer
             && futility_margin <= alpha
