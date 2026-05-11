@@ -39,7 +39,7 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
     };
     const NUM_CHUNKS: usize = UNROLL * simd::I32_LANES / 8;
 
-    let mut indices = std::mem::MaybeUninit::<[u16; L1_SIZE / 4]>::uninit();
+    let mut indices = [0u16; L1_SIZE / 4];
     let indices_ptr = indices.as_mut_ptr() as *mut u16;
     let mut count = 0usize;
     let mut base = simd::splat_u16(0);
@@ -64,5 +64,5 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
         }
     }
 
-    (indices.assume_init(), count)
+    (indices, count)
 }
