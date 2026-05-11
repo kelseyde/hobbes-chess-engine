@@ -46,6 +46,7 @@ tunable_params! {
     fp_base                      = 174, 50..=250,          true;
     fp_scale                     = 93, 50..=200,           true;
     fp_pv_node                   = 2, -50..=100,           true;
+    fp_cutnode                   = 20, -50..=100,           true;
     fp_movecount_mult            = 4, 2..=8,               false;
     fp_history_divisor           = 70, 64..=256,           true;
     fp_killer                    = 18, 0..=100,            true;
