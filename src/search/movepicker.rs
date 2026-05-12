@@ -206,7 +206,7 @@ fn score_move(
     ply: usize,
     threats: Bitboard,
 ) {
-    let mv = &entry.mv;
+    let mv = entry.mv;
     if let (Some(attacker), Some(victim)) = (board.piece_at(mv.from()), board.captured(mv)) {
         // Score capture
         let victim_value = see::value(victim, SeeType::Ordering);
@@ -218,7 +218,7 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-        let killer_bonus = if td.stack[ply].killer == Some(*mv) {
+        let killer_bonus = if td.stack[ply].killer == Some(mv) {
             KILLER_BONUS
         } else {
             0
@@ -247,7 +247,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
-                _ => see(board, &entry.mv, threshold, SeeType::Ordering),
+                _ => see(board, entry.mv, threshold, SeeType::Ordering),
             }
         }
     }

@@ -255,7 +255,7 @@ impl UCI {
                 .find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.board.make(&m);
+                    self.board.make(m);
                     self.td.keys.push(self.board.hash());
                     self.td.root_ply += 1;
                 }

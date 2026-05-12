@@ -30,7 +30,7 @@ pub fn value(pc: Piece, see_type: SeeType) -> i32 {
     }
 }
 
-pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool {
+pub fn see(board: &Board, mv: Move, threshold: i32, see_type: SeeType) -> bool {
     let from = mv.from();
     let to = mv.to();
 
@@ -106,7 +106,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
 }
 
 #[allow(clippy::redundant_closure)]
-fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
+fn move_value(board: &Board, mv: Move, see_type: SeeType) -> i32 {
     let mut see_value = board
         .piece_at(mv.to())
         .map_or(0, |captured| value(captured, see_type));

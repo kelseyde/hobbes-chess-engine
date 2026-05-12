@@ -186,7 +186,7 @@ impl NNUE {
     /// Efficiently update the accumulators for the current move. Depending on the nature of
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated. The update is then stored on the accumulator to later be applied lazily.
-    pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
+    pub fn update(&mut self, mv: Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
         self.stack[self.current].needs_refresh = self.stack[self.current - 1].needs_refresh;
         self.stack[self.current].mirrored = self.stack[self.current - 1].mirrored;
@@ -195,8 +195,8 @@ impl NNUE {
         let us = board.stm;
 
         let new_pc = mv.promo_piece().unwrap_or(pc);
-        let mirror_changed = mirror_changed(board, *mv, new_pc);
-        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
+        let mirror_changed = mirror_changed(board, mv, new_pc);
+        let bucket_changed = bucket_changed(board, mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
         if refresh_required {
@@ -267,7 +267,7 @@ impl NNUE {
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
-    fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
+    fn handle_standard(mv: Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
         AccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
@@ -278,7 +278,7 @@ impl NNUE {
     /// square, the new piece (potentially a promo piece) is added to the destination square, and
     /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
     fn handle_capture(
-        mv: &Move,
+        mv: Move,
         pc: Piece,
         new_pc: Piece,
         captured: Piece,
@@ -298,7 +298,7 @@ impl NNUE {
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
-    fn handle_castle(board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
+    fn handle_castle(board: &Board, mv: Move, us: Side) -> AccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
         let king_to = if board.is_frc() {

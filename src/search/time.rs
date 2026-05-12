@@ -33,6 +33,7 @@ pub struct SearchLimits {
     pub depth: Option<u64>,
 }
 
+#[derive(Clone, Copy)]
 pub enum LimitType {
     Soft,
     Hard,

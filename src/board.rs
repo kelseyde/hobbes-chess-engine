@@ -118,7 +118,7 @@ impl Board {
     /// rights, en passant square, half-move clock, Zobrist hashes, threats, checkers, and pinned
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
     #[rustfmt::skip]
-    pub fn make(&mut self, m: &Move) {
+    pub fn make(&mut self, m: Move) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).unwrap();
@@ -228,7 +228,7 @@ impl Board {
     /// Returns the piece that will occupy the destination square after the move.
     /// For promotions this is the promotion piece; for all other moves it is `pc` unchanged.
     #[inline]
-    fn new_pc(&self, m: &Move, pc: Piece) -> Piece {
+    fn new_pc(&self, m: Move, pc: Piece) -> Piece {
         m.promo_piece().unwrap_or(pc)
     }
 
@@ -238,7 +238,7 @@ impl Board {
     /// encoded destination square is the rook's square, not the king's final square. This
     /// method resolves the true king destination in that case.
     #[inline]
-    fn new_to(&self, m: &Move, from: Square, to: Square) -> Square {
+    fn new_to(&self, m: Move, from: Square, to: Square) -> Square {
         if m.is_castle() && self.is_frc() {
             let kingside = castling::is_kingside(from, to);
             castling::king_to(self.stm, kingside)
@@ -492,7 +492,7 @@ impl Board {
 
     /// Returns the piece captured by `mv`, or `None` if the move is not a capture.
     #[inline]
-    pub fn captured(&self, mv: &Move) -> Option<Piece> {
+    pub fn captured(&self, mv: Move) -> Option<Piece> {
         if mv.is_castle() {
             return None;
         }
@@ -503,7 +503,7 @@ impl Board {
     }
 
     #[inline]
-    pub fn is_noisy(&self, mv: &Move) -> bool {
+    pub fn is_noisy(&self, mv: Move) -> bool {
         mv.is_promo() || self.captured(mv).is_some()
     }
 
@@ -521,7 +521,7 @@ impl Board {
 
     /// Returns `true` if `mv` lands on the square of the last capture, making it a recapture.
     #[inline]
-    pub fn is_recapture(&self, mv: &Move) -> bool {
+    pub fn is_recapture(&self, mv: Move) -> bool {
         self.recapture_sq.is_some_and(|sq| sq == mv.to())
     }
 
@@ -729,7 +729,7 @@ mod tests {
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
         let mut board = Board::from_fen(start_fen).unwrap();
-        board.make(&m);
+        board.make(m);
         assert_eq!(board.to_fen(), end_fen);
     }
 }

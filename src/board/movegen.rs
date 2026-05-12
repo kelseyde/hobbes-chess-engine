@@ -26,7 +26,7 @@ impl Board {
         let moves = self.gen_moves(MoveFilter::All);
         let mut legal_moves = MoveList::new();
         for entry in moves.iter() {
-            if self.is_legal(&entry.mv) {
+            if self.is_legal(entry.mv) {
                 legal_moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
             }
         }

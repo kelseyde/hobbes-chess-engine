@@ -11,7 +11,7 @@ use crate::board::square::Square;
 use crate::board::{attacks, ray, Board};
 
 impl Board {
-    pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
+    pub fn is_pseudo_legal(&self, mv: Move) -> bool {
         if !mv.exists() {
             return false;
         }
@@ -257,7 +257,7 @@ impl Board {
     }
 
     /// This function assumes that the move is pseudo-legal
-    pub fn is_legal(&self, mv: &Move) -> bool {
+    pub fn is_legal(&self, mv: Move) -> bool {
         let from = mv.from();
         let to = mv.to();
 

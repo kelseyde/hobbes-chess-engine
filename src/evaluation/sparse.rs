@@ -40,7 +40,7 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
     const NUM_CHUNKS: usize = UNROLL * simd::I32_LANES / 8;
 
     let mut indices = [0u16; L1_SIZE / 4];
-    let indices_ptr = indices.as_mut_ptr() as *mut u16;
+    let indices_ptr = indices.as_mut_ptr();
     let mut count = 0usize;
     let mut base = simd::splat_u16(0);
     let step = simd::splat_u16(8);
