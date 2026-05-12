@@ -584,6 +584,7 @@ fn alpha_beta<NODE: NodeType>(
             && depth <= see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
+            && move_picker.stage != GoodNoisies
             && !is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
             continue;
