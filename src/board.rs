@@ -352,7 +352,7 @@ impl Board {
     pub fn gives_direct_check(&self, mv: Move) -> bool {
         let moving_pc = mv
             .promo_piece()
-            .unwrap_or(self.piece_at(mv.from()).unwrap());
+            .unwrap_or_else(|| self.piece_at(mv.from()).unwrap());
         if moving_pc == Piece::King {
             return false;
         }
@@ -702,7 +702,7 @@ mod tests {
     fn pseudo_legal_pawn_capture() {
         let board =
             Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
-        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
+        assert!(!board.is_pseudo_legal(Move::parse_uci("e5f5")));
     }
 
     #[test]
