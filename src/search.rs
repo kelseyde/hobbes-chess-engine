@@ -478,6 +478,8 @@ fn alpha_beta<NODE: NodeType>(
     let mut capture_count = 0;
     let mut best_score = score::MIN;
     let mut best_move = Move::NONE;
+    let mut searched_depth = 0;
+    let mut best_move_depth = 0;
     let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
 
@@ -644,6 +646,7 @@ fn alpha_beta<NODE: NodeType>(
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
             let reduced_depth = (new_depth - (r / 1024)).clamp(min_reduced_depth, max_reduced_depth);
+            searched_depth = reduced_depth;
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.stack[ply].reduction = r;
@@ -661,6 +664,7 @@ fn alpha_beta<NODE: NodeType>(
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
+                    searched_depth = new_depth;
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
 
                     if is_quiet && (score <= alpha || score >= beta) {
@@ -675,12 +679,14 @@ fn alpha_beta<NODE: NodeType>(
         // If we're skipping late move reductions - either due to being in a PV node, or searching
         // the first move, or another reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
+            searched_depth = new_depth;
             score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+            searched_depth = new_depth;
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
@@ -723,6 +729,7 @@ fn alpha_beta<NODE: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = mv;
+            best_move_depth = searched_depth;
             flag = Exact;
 
             if pv_node {
@@ -878,7 +885,8 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        let tt_store_depth = if tt_flag == Upper { depth } else { best_move_depth };
+        td.tt.insert(board.hash(), best_move, best_score, raw_eval, tt_store_depth, ply, flag, tt_pv);
     }
 
     best_score
