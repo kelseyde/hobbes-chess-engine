@@ -1119,7 +1119,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         );
     }
 
-    best_score
+    best_score.max(alpha)
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
