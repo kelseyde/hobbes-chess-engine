@@ -1,6 +1,5 @@
 use crate::board::piece::Piece;
 use crate::board::side::Side;
-use crate::board::side::Side::White;
 use crate::board::square::Square;
 
 /// Represents a single feature used by the neural network. A feature is a piece on a square on the
@@ -14,9 +13,6 @@ pub struct Feature {
     side: Side,
 }
 
-const PIECE_OFFSET: usize = 64;
-const SIDE_OFFSET: usize = 64 * 6;
-
 impl Feature {
     #[inline]
     pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
@@ -25,25 +21,27 @@ impl Feature {
 
     #[inline]
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let sq_index = self.square_index(perspective, mirror);
-        let pc_offset = self.pc as usize * PIECE_OFFSET;
-        let side_offset = if self.side == perspective {
-            0
-        } else {
-            SIDE_OFFSET
+        let (mut sq, mut color) = match perspective {
+            Side::White => (self.sq, self.side),
+            Side::Black => (self.sq.flip_rank(), !self.side),
         };
-        side_offset + pc_offset + sq_index
+
+        // Horizontal mirroring
+        if mirror {
+            sq = sq.flip_file();
+        }
+
+        // Merged king planes
+        if self.pc == Piece::King {
+            color = Side::White;
+        }
+
+        let sq = sq.0 as usize;
+        let pc = self.pc as usize;
+        let color = color as usize;
+
+        sq + Square::COUNT as usize * (pc + Piece::COUNT * color)
     }
 
-    #[inline]
-    fn square_index(&self, perspective: Side, mirror: bool) -> usize {
-        let mut sq_index = self.sq;
-        if perspective != White {
-            sq_index = sq_index.flip_rank();
-        }
-        if mirror {
-            sq_index = sq_index.flip_file();
-        }
-        sq_index.0 as usize
-    }
+
 }
