@@ -13,7 +13,7 @@ pub const BUCKETS: [usize; 64] = [
     14, 14, 15, 15, 15, 15, 14, 14,
 ];
 
-pub const L0_SIZE: usize = 768;
+pub const L0_SIZE: usize = 704;
 pub const L0_QUANT: usize = 255;
 pub const L0_SHIFT: usize = 9;
 
