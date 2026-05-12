@@ -149,22 +149,19 @@ impl Forward for Vectorised {
 
     /// L3 propagation
     unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
-        const LANES: usize = L3_SIZE / simd::I32_LANES;
-
         let weights = NETWORK.l3_weights[output_bucket].as_ptr();
         let bias = NETWORK.l3_biases[output_bucket];
         let lo = simd::splat_i32(0);
         let hi = simd::splat_i32((Q * Q * Q) as i32);
 
-        let mut acc = [simd::splat_i32(0); LANES];
-        for (lane, acc_lane) in acc.iter_mut().enumerate() {
-            let off = lane * simd::I32_LANES;
-            let input_chunk = simd::load_i32(input.as_ptr().add(off));
-            let weight_chunk = simd::load_i32(weights.add(off));
+        let mut sum = simd::splat_i32(0);
+        for i in (0..L3_SIZE).step_by(simd::I32_LANES) {
+            let input_chunk = simd::load_i32(input.as_ptr().add(i));
+            let weight_chunk = simd::load_i32(weights.add(i));
             let clamped = simd::clamp_i32(input_chunk, lo, hi);
-            *acc_lane = simd::mul_i32(weight_chunk, clamped);
+            sum = simd::add_i32(sum, simd::mul_i32(weight_chunk, clamped));
         }
 
-        simd::horizontal_sum_i32(acc) + bias
+        simd::horizontal_sum_i32_single(sum) + bias
     }
 }

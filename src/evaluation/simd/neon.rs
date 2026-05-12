@@ -197,12 +197,3 @@ pub unsafe fn shift_right_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
 pub unsafe fn shift_left_i32<const SHIFT: i32>(a: int32x4_t) -> int32x4_t {
     vshlq_n_s32::<SHIFT>(a)
 }
-
-#[inline(always)]
-pub unsafe fn horizontal_sum_i32<const N: usize>(a: [int32x4_t; N]) -> i32 {
-    let mut acc = a[0];
-    for &lane in a.iter().skip(1) {
-        acc = vaddq_s32(acc, lane);
-    }
-    horizontal_sum_i32_single(acc)
-}
