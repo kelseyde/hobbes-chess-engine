@@ -111,38 +111,25 @@ impl Forward for Vectorised {
         let weights = &NETWORK.l2_weights[output_bucket];
         let biases = &NETWORK.l2_biases[output_bucket];
 
-        let mut acc = [simd::splat_i32(0); LANES];
-        for (lane, acc_lane) in acc.iter_mut().enumerate() {
-            *acc_lane = simd::load_i32(biases.as_ptr().add(lane * simd::I32_LANES));
-        }
+        let mut acc: [simd::VecI32; LANES] =
+            std::array::from_fn(|lane| simd::load_i32(biases.as_ptr().add(lane * simd::I32_LANES)));
 
-        for (&input_scalar, weight_row_arr) in input.iter().zip(weights.iter()) {
+        for (&input_scalar, weight_row) in input.iter().zip(weights.iter()) {
             let input_val = simd::splat_i32(input_scalar);
-            let weight_row = weight_row_arr.as_ptr();
-
-            let mut lane = 0;
-            while lane + 4 <= LANES {
-                let off = lane * simd::I32_LANES;
-                let weight0 = simd::load_i32(weight_row.add(off));
-                let weight1 = simd::load_i32(weight_row.add(off + simd::I32_LANES));
-                let weight2 = simd::load_i32(weight_row.add(off + 2 * simd::I32_LANES));
-                let weight3 = simd::load_i32(weight_row.add(off + 3 * simd::I32_LANES));
-                acc[lane] = simd::mul_add_i32(weight0, input_val, acc[lane]);
-                acc[lane + 1] = simd::mul_add_i32(weight1, input_val, acc[lane + 1]);
-                acc[lane + 2] = simd::mul_add_i32(weight2, input_val, acc[lane + 2]);
-                acc[lane + 3] = simd::mul_add_i32(weight3, input_val, acc[lane + 3]);
-                lane += 4;
-            }
-            while lane < LANES {
-                let weight = simd::load_i32(weight_row.add(lane * simd::I32_LANES));
+            let weight_ptr = weight_row.as_ptr();
+            for lane in 0..LANES {
+                let weight = simd::load_i32(weight_ptr.add(lane * simd::I32_LANES));
                 acc[lane] = simd::mul_add_i32(weight, input_val, acc[lane]);
-                lane += 1;
             }
         }
+
+        let lo = simd::splat_i32(0);
+        let hi3 = simd::splat_i32((Q * Q * Q) as i32);
 
         let mut output = [0i32; L3_SIZE];
         for (lane, acc_lane) in acc.iter().enumerate() {
-            simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), *acc_lane);
+            let clamped = simd::clamp_i32(*acc_lane, lo, hi3);
+            simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), clamped);
         }
         output
     }
@@ -151,15 +138,12 @@ impl Forward for Vectorised {
     unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
         let weights = NETWORK.l3_weights[output_bucket].as_ptr();
         let bias = NETWORK.l3_biases[output_bucket];
-        let lo = simd::splat_i32(0);
-        let hi = simd::splat_i32((Q * Q * Q) as i32);
 
         let mut sum = simd::splat_i32(0);
         for i in (0..L3_SIZE).step_by(simd::I32_LANES) {
             let input_chunk = simd::load_i32(input.as_ptr().add(i));
             let weight_chunk = simd::load_i32(weights.add(i));
-            let clamped = simd::clamp_i32(input_chunk, lo, hi);
-            sum = simd::add_i32(sum, simd::mul_i32(weight_chunk, clamped));
+            sum = simd::add_i32(sum, simd::mul_i32(weight_chunk, input_chunk));
         }
 
         simd::horizontal_sum_i32_single(sum) + bias
