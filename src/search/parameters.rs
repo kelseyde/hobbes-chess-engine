@@ -166,10 +166,18 @@ tunable_params! {
     capt_hist_bonus_offset       = 42, 0..=200,            true;
     capt_hist_ttmove_bonus       = 66, 0..=200,            true;
     capt_hist_bonus_max          = 1538, 1000..=1800,      true;
+    capt_fact_bonus_scale        = 237, 80..=360,          true;
+    capt_fact_bonus_offset       = 42, 0..=200,            true;
+    capt_fact_ttmove_bonus       = 66, 0..=200,            true;
+    capt_fact_bonus_max          = 1538, 1000..=1800,      true;
     capt_hist_malus_scale        = 149, 80..=280,          true;
     capt_hist_malus_offset       = 58, 0..=200,            true;
     capt_hist_ttmove_malus       = 52, 0..=200,            true;
     capt_hist_malus_max          = 1298, 1000..=1600,      true;
+    capt_fact_malus_scale        = 149, 80..=280,          true;
+    capt_fact_malus_offset       = 58, 0..=200,            true;
+    capt_fact_ttmove_malus       = 52, 0..=200,            true;
+    capt_fact_malus_max          = 1298, 1000..=1600,      true;
     cont_hist_1_bonus_scale      = 133, 80..=280,          true;
     cont_hist_1_bonus_offset     = 191, 0..=300,           true;
     cont_hist_1_cutnode_offset   = 78, 0..=200,            true;
