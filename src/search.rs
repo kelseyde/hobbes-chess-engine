@@ -345,6 +345,7 @@ fn alpha_beta<NODE: NodeType>(
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
                 + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
+                + 1024 * opponent_worsening as i32
                 / 1024;
 
             let mut board = *board;
