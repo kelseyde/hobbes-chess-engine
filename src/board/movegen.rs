@@ -39,7 +39,7 @@ impl Board {
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
         const STANDARD_PIECES: [Piece; 4] =
             [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
-        let side = self.stm;nt for e
+        let side = self.stm;
         let mut moves = MoveList::new();
 
         let us = self.us();
