@@ -136,7 +136,9 @@ impl MovePicker {
     /// Generate all the quiet moves in the current position, and add them to the move list.
     #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
-        for entry in board.gen_moves(MoveFilter::Quiets).iter_mut() {
+        let mut temp = MoveList::new();
+        board.gen_moves(MoveFilter::Quiets, &mut temp);
+        for entry in temp.iter_mut() {
             if entry.mv == self.tt_move {
                 continue;
             }
@@ -145,11 +147,11 @@ impl MovePicker {
         }
     }
 
-    /// Generate all the noisy moves in the current position using the provided filter, and add them
-    /// to the 'good' or 'bad' noisy move list. Bad noisies are tried last.
     #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
-        for entry in board.gen_moves(self.filter).iter_mut() {
+        let mut temp = MoveList::new();
+        board.gen_moves(self.filter, &mut temp);
+        for entry in temp.iter_mut() {
             if entry.mv == self.tt_move {
                 continue;
             }

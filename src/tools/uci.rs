@@ -1,5 +1,5 @@
 use crate::board::movegen::MoveFilter;
-use crate::board::moves::Move;
+use crate::board::moves::{Move, MoveList};
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 use crate::evaluation::stats;
@@ -248,7 +248,8 @@ impl UCI {
         self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
-            let legal_moves = self.board.gen_moves(MoveFilter::All);
+            let mut legal_moves = MoveList::new();
+            self.board.gen_moves(MoveFilter::All, &mut legal_moves);
             let legal_move = legal_moves
                 .iter()
                 .map(|entry| entry.mv)
@@ -419,7 +420,10 @@ impl UCI {
             Some("false") => false,
             Some("true") | None => true,
             Some(other) => {
-                println!("info error: bulk argument '{}' is not a valid boolean", other);
+                println!(
+                    "info error: bulk argument '{}' is not a valid boolean",
+                    other
+                );
                 return;
             }
         };

@@ -22,25 +22,24 @@ impl Board {
     /// Generate all legal moves for the current position.
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
-    pub fn gen_legal_moves(&self) -> MoveList {
-        let moves = self.gen_moves(MoveFilter::All);
-        let mut legal_moves = MoveList::new();
-        for entry in moves.iter() {
+    pub fn gen_legal_moves(&self, moves: &mut MoveList) {
+        let mut pseudo = MoveList::new();
+        self.gen_moves(MoveFilter::All, &mut pseudo);
+        for entry in pseudo.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
+                moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
             }
         }
-        legal_moves
     }
 
     /// Generate all pseudo-legal moves for the current position.
-    pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+    pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
         // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
         const STANDARD_PIECES: [Piece; 4] =
             [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+
         let side = self.stm;
-        let mut moves = MoveList::new();
 
         let us = self.us();
         let them = self.them();
@@ -59,25 +58,24 @@ impl Board {
         );
 
         // Generate king moves first
-        self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
+        let king_mask = filter_mask & !self.threats;
+        self.gen_standard_moves(Piece::King, side, occ, us, king_mask, moves);
 
-        // If we are in double-check, the only legal moves are king moves
+        // If we are in double-check, the only legal moves are king moves.
         if self.checkers.count() == 2 {
-            return moves;
+            return;
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, &mut moves);
-        if gen_quiets {
-            gen_castle_moves(self, side, &mut moves);
+        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, moves);
+        if gen_quiets && self.checkers.is_empty() {
+            gen_castle_moves(self, side, moves);
         }
 
         // handle standard moves
         for &pc in STANDARD_PIECES.iter() {
-            self.gen_standard_moves(pc, side, occ, us, filter_mask, &mut moves);
+            self.gen_standard_moves(pc, side, occ, us, filter_mask, moves);
         }
-
-        moves
     }
 
     /// Compute the squares attacked by the opponent's pieces.
@@ -190,14 +188,14 @@ pub fn gen_standard_castle_moves(board: &Board, side: Side, moves: &mut MoveList
     if board.has_kingside_rights(side) {
         let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
         let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
-        if (occ & travel_mask).is_empty() && !is_attacked(safety_mask, side, occ, board) {
+        if (occ & travel_mask).is_empty() && (board.threats & safety_mask).is_empty() {
             moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
         }
     }
     if board.has_queenside_rights(side) {
         let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
         let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
-        if (occ & travel_mask).is_empty() && !is_attacked(safety_mask, side, occ, board) {
+        if (occ & travel_mask).is_empty() && (board.threats & safety_mask).is_empty() {
             moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
         }
     }
