@@ -415,11 +415,25 @@ impl UCI {
             }
         };
 
-        let start = Instant::now();
-        let nodes = perft(&self.board, depth, depth);
-        let elapsed = start.elapsed().as_millis();
-        println!("info nodes {}", nodes);
-        println!("info ms {}", elapsed);
+        let bulk = match tokens.get(2).map(|s| s.as_str()) {
+            Some("false") => false,
+            Some("true") | None => true,
+            Some(other) => {
+                println!("info error: bulk argument '{}' is not a valid boolean", other);
+                return;
+            }
+        };
+
+        let t = Instant::now();
+        let n = if bulk {
+            perft::<true>(&self.board, depth)
+        } else {
+            perft::<false>(&self.board, depth)
+        };
+        let d = t.elapsed();
+        let mnps = (n as f64) / d.as_secs_f64() / 1e6;
+        println!("info nodes: {n}");
+        println!("info {d:.2?} ({mnps:.2}Mnps)\n");
     }
 
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
