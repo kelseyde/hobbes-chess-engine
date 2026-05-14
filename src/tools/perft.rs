@@ -1,64 +1,55 @@
-use crate::board::movegen::{is_check, MoveFilter};
+use crate::board::movegen::MoveFilter;
 use crate::board::Board;
-use std::collections::HashMap;
 
-pub fn perft(board: &Board, depth: u8, original_depth: u8) -> u64 {
+pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
+    let moves = board.gen_moves(MoveFilter::All);
+    let mut total = 0;
+
+    let mut entries: Vec<(String, u64)> = moves
+        .iter()
+        .filter_map(|entry| {
+            let mv = entry.mv;
+            if !board.is_legal(&mv) {
+                return None;
+            }
+            let mut child = *board;
+            child.make(&mv);
+            let nodes = if depth <= 1 { 1 } else { perft_inner::<BULK>(&child, depth - 1) };
+            total += nodes;
+            Some((mv.to_uci(), nodes))
+        })
+        .collect();
+
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+    for (mv, count) in &entries {
+        println!("{} - {}", mv, count);
+    }
+
+    total
+}
+
+fn perft_inner<const BULK: bool>(board: &Board, depth: u8) -> u64 {
+
+    if depth == 0 {
+        return 1;
+    }
+
     let moves = board.gen_moves(MoveFilter::All);
 
-    let mut move_counts = if depth == original_depth {
-        Some(HashMap::new())
-    } else {
-        None
-    };
-
-    if depth == 1 {
-        let mut nodes = 0;
-        for i in 0..moves.len() {
-            let mv = moves.list[i].mv;
-            let mut new_board = *board;
-            new_board.make(&mv);
-            if !is_check(&new_board, board.stm) {
-                nodes += 1;
-                if let Some(ref mut counts) = move_counts {
-                    *counts.entry(mv.to_uci()).or_insert(0) += 1;
-                }
-            }
-        }
-        if let Some(counts) = move_counts {
-            let mut entries: Vec<_> = counts.into_iter().collect();
-            entries.sort_by_key(|(mv, _)| mv.clone());
-
-            for (mv, count) in entries {
-                println!("{} - {}", mv, count);
-            }
-        }
-        return nodes;
+    if BULK && depth == 1 {
+        return moves.iter().filter(|e| board.is_legal(&e.mv)).count() as u64;
     }
 
     let mut nodes = 0;
-    for i in 0..moves.len() {
-        let mv = moves.list[i].mv;
-        let mut new_board = *board;
-        new_board.make(&mv);
-        if is_check(&new_board, board.stm) {
+    for entry in moves.iter() {
+        let mv = entry.mv;
+        if !board.is_legal(&mv) {
             continue;
         }
-        let new_nodes = perft(&new_board, depth - 1, original_depth);
-        if let Some(ref mut counts) = move_counts {
-            *counts.entry(mv.to_uci()).or_insert(0) += new_nodes;
-        }
-        nodes += new_nodes;
+        let mut child = *board;
+        child.make(&mv);
+        nodes += perft_inner::<BULK>(&child, depth - 1);
     }
-
-    if let Some(counts) = move_counts {
-        let mut entries: Vec<_> = counts.into_iter().collect();
-        entries.sort_by_key(|(mv, _)| mv.clone());
-
-        for (mv, count) in entries {
-            println!("{} - {}", mv, count);
-        }
-    }
-
     nodes
 }
 
@@ -88,7 +79,7 @@ mod test {
 
             println!("Running test on fen for depth {}: {}", depth, fen);
             let board = Board::from_fen(fen).unwrap();
-            assert_eq!(perft(&board, depth, depth), nodes, "Failed test: {}", fen);
+            assert_eq!(perft::<false>(&board, depth), nodes, "Failed test: {}", fen);
         }
     }
 }
