@@ -92,15 +92,18 @@ impl MovePicker {
         }
         if self.stage == GenerateNoisies {
             self.idx = 0;
-            self.gen_noisy_moves(board, td);
+            self.gen_moves(board, td, self.filter);
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick_best(false) {
-                return Some(best_move);
-            } else {
-                self.stage = GenerateQuiets;
+            while let Some(best_move) = self.pick_best(false) {
+                if is_good_noisy(&best_move, board, self.split_noisies) {
+                    return Some(best_move.mv);
+                }
+                // Lazy sorting of bad noisies - we defer them to a later stage.
+                self.bad_noisies.add(best_move);
             }
+            self.stage = GenerateQuiets;
         }
         if self.stage == GenerateQuiets {
             self.idx = 0;
@@ -108,7 +111,7 @@ impl MovePicker {
                 self.stage = BadNoisies;
             } else {
                 self.moves.list.clear();
-                self.gen_quiet_moves(board, td);
+                self.gen_moves(board, td, MoveFilter::Quiets);
                 self.stage = Quiets;
             }
         }
@@ -117,7 +120,7 @@ impl MovePicker {
                 self.idx = 0;
                 self.stage = BadNoisies;
             } else if let Some(best_move) = self.pick_best(false) {
-                return Some(best_move);
+                return Some(best_move.mv);
             } else {
                 self.idx = 0;
                 self.stage = BadNoisies;
@@ -125,7 +128,7 @@ impl MovePicker {
         }
         if self.stage == BadNoisies {
             if let Some(best_move) = self.pick_best(true) {
-                return Some(best_move);
+                return Some(best_move.mv);
             } else {
                 self.stage = Done;
             }
@@ -133,10 +136,11 @@ impl MovePicker {
         None
     }
 
-    /// Generate all the quiet moves in the current position, and add them to the move list.
+    /// Generate all the moves in the current position matching the provided filter, and add them
+    /// to the move list.
     #[inline(always)]
-    fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
-        for entry in board.gen_moves(MoveFilter::Quiets).iter_mut() {
+    fn gen_moves(&mut self, board: &Board, td: &ThreadData, filter: MoveFilter) {
+        for entry in board.gen_moves(filter).iter_mut() {
             if entry.mv == self.tt_move {
                 continue;
             }
@@ -145,28 +149,11 @@ impl MovePicker {
         }
     }
 
-    /// Generate all the noisy moves in the current position using the provided filter, and add them
-    /// to the 'good' or 'bad' noisy move list. Bad noisies are tried last.
-    #[inline(always)]
-    fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
-        for entry in board.gen_moves(self.filter).iter_mut() {
-            if entry.mv == self.tt_move {
-                continue;
-            }
-            score_move(entry, board, td, self.ply, self.threats);
-            if is_good_noisy(entry, board, self.split_noisies) {
-                self.moves.add(*entry);
-            } else {
-                self.bad_noisies.add(*entry);
-            }
-        }
-    }
-
     /// Select the next move to try from the move list. We use an incremental selection sort, where
     /// only the best move is moved to the front each time. This is efficient since typically only
     /// a few moves will be tried during search, and so we save the time required to sort the rest.
     #[inline(always)]
-    fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
+    fn pick_best(&mut self, use_bad_noisies: bool) -> Option<ScoredMove> {
         let moves = if use_bad_noisies {
             &mut self.bad_noisies
         } else {
@@ -187,7 +174,7 @@ impl MovePicker {
         if best_index != self.idx {
             moves.list.swap(self.idx, best_index);
         }
-        let best_move = moves.list[self.idx].mv;
+        let best_move = moves.list[self.idx];
         self.idx += 1;
         Some(best_move)
     }
