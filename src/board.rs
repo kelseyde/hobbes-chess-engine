@@ -267,7 +267,6 @@ impl Board {
         if piece_type == Piece::King {
             new_rights.clear(self.stm);
         }
-        // Compute each rook square once, check both from and to in one branch.
         if let Some(sq) = self.rights.wk_sq() {
             if sq == from || sq == to {
                 new_rights.clear_side(White, true);
