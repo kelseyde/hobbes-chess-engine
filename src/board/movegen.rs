@@ -66,15 +66,6 @@ impl Board {
             return;
         }
 
-        // In single check, non-king pieces must either capture the checker or block the ray.
-        let evasion_mask = if self.checkers.is_empty() {
-            Bitboard::ALL
-        } else {
-            let checker = self.checkers.lsb();
-            let king_sq = self.our_king_sq();
-            (self.checkers | ray::between(king_sq, checker)) & filter_mask
-        };
-
         // handle special moves first (en passant, promo, castling etc.)
         gen_pawn_moves(
             self,
@@ -83,7 +74,6 @@ impl Board {
             them,
             gen_quiets,
             gen_noisies,
-            evasion_mask,
             moves,
         );
         if gen_quiets && self.checkers.is_empty() {
@@ -92,7 +82,7 @@ impl Board {
 
         // handle standard moves
         for &pc in STANDARD_PIECES.iter() {
-            self.gen_standard_moves(pc, side, occ, us, evasion_mask, moves);
+            self.gen_standard_moves(pc, side, occ, us, filter_mask, moves);
         }
     }
 
@@ -162,21 +152,20 @@ fn gen_pawn_moves(
     them: Bitboard,
     gen_quiets: bool,
     gen_noisies: bool,
-    evasion_mask: Bitboard,
     moves: &mut MoveList,
 ) {
     let pawns = board.pcs(Piece::Pawn) & board.side(side);
 
     // Quiet pawn moves (single and double pushes).
     if gen_quiets {
-        add_pawn_moves(single_push(pawns, side, occ) & evasion_mask, side, 8, 8, MoveFlag::Standard, moves);
-        add_pawn_moves(double_push(pawns, side, occ) & evasion_mask, side, 16, 16, MoveFlag::DoublePush, moves);
+        add_pawn_moves(single_push(pawns, side, occ), side, 8, 8, MoveFlag::Standard, moves);
+        add_pawn_moves(double_push(pawns, side, occ), side, 16, 16, MoveFlag::DoublePush, moves);
     }
 
     // Noisy pawn moves (captures, promos, en passant).
     if gen_noisies {
-        add_pawn_moves(left_capture(pawns, side, them) & evasion_mask, side, 7, 9, MoveFlag::Standard, moves);
-        add_pawn_moves(right_capture(pawns, side, them) & evasion_mask, side, 9, 7, MoveFlag::Standard, moves);
+        add_pawn_moves(left_capture(pawns, side, them), side, 7, 9, MoveFlag::Standard, moves);
+        add_pawn_moves(right_capture(pawns, side, them), side, 9, 7, MoveFlag::Standard, moves);
 
         if let Some(ep_sq) = board.ep_sq {
             let ep_bb = Bitboard::of_sq(ep_sq);
@@ -184,9 +173,9 @@ fn gen_pawn_moves(
             add_pawn_moves(right_capture(pawns, side, ep_bb), side, 9, 7, MoveFlag::EnPassant, moves);
         }
 
-        add_pawn_promos(push_promos(pawns, side, occ) & evasion_mask, side, 8, 8, moves);
-        add_pawn_promos(left_capture_promos(pawns, side, them) & evasion_mask, side, 7, 9, moves);
-        add_pawn_promos(right_capture_promos(pawns, side, them) & evasion_mask, side, 9, 7, moves);
+        add_pawn_promos(push_promos(pawns, side, occ), side, 8, 8, moves);
+        add_pawn_promos(left_capture_promos(pawns, side, them), side, 7, 9, moves);
+        add_pawn_promos(right_capture_promos(pawns, side, them), side, 9, 7, moves);
     }
 }
 
