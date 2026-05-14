@@ -97,11 +97,12 @@ impl MovePicker {
         }
         if self.stage == GoodNoisies {
             while let Some(best_move) = self.pick_best(false) {
-                if is_good_noisy(&best_move, board, self.split_noisies) {
-                    return Some(best_move.mv);
+                if !is_good_noisy(&best_move, board, self.split_noisies) {
+                    // Lazy sorting of bad noisies - we defer them to a later stage.
+                    self.bad_noisies.add(best_move);
+                    continue;
                 }
-                // Lazy sorting of bad noisies - we defer them to a later stage.
-                self.bad_noisies.add(best_move);
+                return Some(best_move.mv);
             }
             self.stage = GenerateQuiets;
         }
