@@ -36,7 +36,8 @@ impl Board {
     pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
         // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
-        const STANDARD_PIECES: [Piece; 4] = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+        const STANDARD_PIECES: [Piece; 4] =
+            [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
 
         let side = self.stm;
 
@@ -75,7 +76,16 @@ impl Board {
         };
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, evasion_mask, moves);
+        gen_pawn_moves(
+            self,
+            side,
+            occ,
+            them,
+            gen_quiets,
+            gen_noisies,
+            evasion_mask,
+            moves,
+        );
         if gen_quiets && self.checkers.is_empty() {
             gen_castle_moves(self, side, moves);
         }

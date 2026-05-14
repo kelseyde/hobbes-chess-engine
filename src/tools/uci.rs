@@ -420,7 +420,10 @@ impl UCI {
             Some("false") => false,
             Some("true") | None => true,
             Some(other) => {
-                println!("info error: bulk argument '{}' is not a valid boolean", other);
+                println!(
+                    "info error: bulk argument '{}' is not a valid boolean",
+                    other
+                );
                 return;
             }
         };

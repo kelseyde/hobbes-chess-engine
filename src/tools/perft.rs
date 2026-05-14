@@ -16,7 +16,11 @@ pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
             }
             let mut child = *board;
             child.make(&mv);
-            let nodes = if depth <= 1 { 1 } else { perft_inner::<BULK>(&child, depth - 1) };
+            let nodes = if depth <= 1 {
+                1
+            } else {
+                perft_inner::<BULK>(&child, depth - 1)
+            };
             total += nodes;
             Some((mv.to_uci(), nodes))
         })
@@ -46,7 +50,11 @@ fn perft_inner<const BULK: bool>(board: &Board, depth: u8) -> u64 {
         }
         let mut child = *board;
         child.make(&mv);
-        nodes += if depth == 1 { 1 } else { perft_inner::<BULK>(&child, depth - 1) };
+        nodes += if depth == 1 {
+            1
+        } else {
+            perft_inner::<BULK>(&child, depth - 1)
+        };
     }
     nodes
 }

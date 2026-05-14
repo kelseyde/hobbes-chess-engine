@@ -42,6 +42,4 @@ impl Feature {
 
         sq + Square::COUNT as usize * (pc + Piece::COUNT * color)
     }
-
-
 }
