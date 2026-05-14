@@ -78,8 +78,7 @@ pub struct Board {
     pub threats: Bitboard,            // squares attacked by the opponent
     pub checkers: Bitboard,           // opponent pieces checking the king
     pub pinned: [Bitboard; 2],        // pinned pieces for both sides
-    pub check_zones: [Bitboard; 4],   // squares that, if moved to, would put the opponent's king in check
-    pub check_zones_dirty: bool,      // whether check_zones needs recomputing
+    pub check_zones: [Bitboard; 4]    // squares that, if moved to, would put the opponent's king in check
 
 }
 
@@ -112,7 +111,6 @@ impl Board {
             checkers: Bitboard::empty(),
             pinned: [Bitboard::empty(); 2],
             check_zones: [Bitboard::empty(); 4],
-            check_zones_dirty: false,
         }
     }
 
@@ -163,8 +161,8 @@ impl Board {
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
-        self.pinned[self.stm] = self.calc_pinned(self.stm);
-        self.check_zones_dirty = true;
+        self.pinned = self.calc_both_pinned();
+        self.check_zones = self.calc_check_zones();
     }
 
     /// Toggles a single piece on or off a given square for the given side.
@@ -361,16 +359,12 @@ impl Board {
         ]
     }
 
-    pub fn gives_direct_check(&mut self, mv: Move) -> bool {
+    pub fn gives_direct_check(&self, mv: Move) -> bool {
         let moving_pc = mv
             .promo_piece()
             .unwrap_or(self.piece_at(mv.from()).unwrap());
         if moving_pc == Piece::King {
             return false;
-        }
-        if self.check_zones_dirty {
-            self.check_zones = self.calc_check_zones();
-            self.check_zones_dirty = false;
         }
         let zone = if moving_pc == Piece::Queen {
             self.check_zones[Piece::Bishop] | self.check_zones[Piece::Rook]
@@ -397,10 +391,9 @@ impl Board {
             self.hashes.update_hash(Keys::ep(ep_sq));
             self.ep_sq = None;
         }
-        self.recapture_sq = None;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
-        self.check_zones_dirty = true;
+        self.check_zones = self.calc_check_zones();
     }
 
     pub const fn hash(&self) -> u64 {

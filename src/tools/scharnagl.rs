@@ -123,8 +123,8 @@ impl Board {
         board.hashes = Hashes::new(&board);
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
-        board.pinned[board.stm] = board.calc_pinned(board.stm);
-        board.check_zones_dirty = true;
+        board.pinned = board.calc_both_pinned();
+        board.check_zones = board.calc_check_zones();
 
         board
     }
@@ -195,8 +195,8 @@ impl Board {
         board.hashes = Hashes::new(&board);
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
-        board.pinned[board.stm] = board.calc_pinned(board.stm);
-        board.check_zones_dirty = true;
+        board.pinned = board.calc_both_pinned();
+        board.check_zones = board.calc_check_zones();
 
         board
     }
