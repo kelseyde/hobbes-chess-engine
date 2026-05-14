@@ -62,13 +62,13 @@ impl Board {
         self.gen_standard_moves(Piece::King, side, occ, us, king_mask, moves);
 
         // If we are in double-check, the only legal moves are king moves.
-        if !self.checkers.pop().is_empty() {
+        if self.checkers.count() == 2 {
             return;
         }
 
         // In single check, non-king pieces must either capture the checker or block the ray.
         let evasion_mask = if self.checkers.is_empty() {
-            filter_mask
+            Bitboard::ALL
         } else {
             let checker = self.checkers.lsb();
             let king_sq = self.our_king_sq();
