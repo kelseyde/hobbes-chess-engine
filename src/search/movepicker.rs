@@ -28,6 +28,7 @@ pub struct MovePicker {
     pub skip_quiets: bool, // Whether we should skip the remaining quiet moves.
     split_noisies: bool,   // Whether to split noisy moves into good and bad based on a SEE threshold.
     bad_noisies: MoveList, // Noisy moves that fail the SEE threshold, which are tried after quiet moves.
+    noisy_count: usize,    // The number of good noisy moves picked so far
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -59,6 +60,7 @@ impl MovePicker {
             skip_quiets: false,
             split_noisies: true,
             bad_noisies: MoveList::new(),
+            noisy_count: 0,
         }
     }
 
@@ -79,6 +81,7 @@ impl MovePicker {
             skip_quiets: true,
             split_noisies: false,
             bad_noisies: MoveList::new(),
+            noisy_count: 0,
         }
     }
 
@@ -96,12 +99,16 @@ impl MovePicker {
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
+            let tt_move_noisy = self.tt_move.exists() && board.is_noisy(&self.tt_move);
             while let Some(best_move) = self.pick_best(false) {
-                if !is_good_noisy(&best_move, board, self.split_noisies) {
+                if (!tt_move_noisy && self.noisy_count > 2)
+                    || !is_good_noisy(&best_move, board, self.split_noisies) {
                     // Lazy sorting of bad noisies - we defer them to a later stage.
+                    // We also limit good noisies to 2 when the TT move is quiet.
                     self.bad_noisies.add(best_move);
                     continue;
                 }
+                self.noisy_count += 1;
                 return Some(best_move.mv);
             }
             self.stage = GenerateQuiets;
