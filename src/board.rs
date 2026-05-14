@@ -78,7 +78,8 @@ pub struct Board {
     pub threats: Bitboard,            // squares attacked by the opponent
     pub checkers: Bitboard,           // opponent pieces checking the king
     pub pinned: [Bitboard; 2],        // pinned pieces for both sides
-    pub check_zones: [Bitboard; 4]    // squares that, if moved to, would put the opponent's king in check
+    pub check_zones: [Bitboard; 4],   // squares that, if moved to, would put the opponent's king in check
+    pub check_zones_dirty: bool,      // whether check_zones needs recomputing
 
 }
 
@@ -111,6 +112,7 @@ impl Board {
             checkers: Bitboard::empty(),
             pinned: [Bitboard::empty(); 2],
             check_zones: [Bitboard::empty(); 4],
+            check_zones_dirty: false,
         }
     }
 
@@ -161,8 +163,8 @@ impl Board {
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
-        self.pinned = self.calc_both_pinned();
-        self.check_zones = self.calc_check_zones();
+        self.pinned[self.stm] = self.calc_pinned(self.stm);
+        self.check_zones_dirty = true;
     }
 
     /// Toggles a single piece on or off a given square for the given side.
@@ -171,11 +173,15 @@ impl Board {
     /// and XORs all affected Zobrist keys.
     #[inline]
     pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
-        let bb: Bitboard = Bitboard::of_sq(sq);
-        self.bb[pc] ^= bb;
-        self.bb[side.idx()] ^= bb;
-        let cur = self.pcs[sq];
-        self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
+        let bb = Bitboard::of_sq(sq);
+        // SAFETY: pc is 0-5, side.idx() is 6-7, all within bb[8].
+        // sq.0 is always 0-63, within pcs[64].
+        unsafe {
+            *self.bb.get_unchecked_mut(pc as usize) ^= bb;
+            *self.bb.get_unchecked_mut(side.idx()) ^= bb;
+            let slot = self.pcs.get_unchecked_mut(sq.0 as usize);
+            *slot = if slot.is_some() { None } else { Some(pc) };
+        }
 
         let hash = Keys::sq(pc, side, sq);
         self.hashes.update_hash(hash);
@@ -257,26 +263,24 @@ impl Board {
     fn calc_castle_rights(&mut self, from: Square, to: Square, piece_type: Piece) -> Rights {
         let original_rights = self.rights;
         let mut new_rights = self.rights;
-        // Both sides already lost castling rights, so nothing to calculate.
         if new_rights.is_empty() {
             return new_rights;
         }
-        // Any move by the king removes castling rights.
         if piece_type == Piece::King {
             new_rights.clear(self.stm);
         }
-        // Any move starting from/ending at a rook square removes castling rights for that corner.
-        if self.rights.wk_sq() == Some(from) || self.rights.wk_sq() == Some(to) {
-            new_rights.clear_side(White, true);
+        // Compute each rook square once, check both from and to in one branch.
+        if let Some(sq) = self.rights.wk_sq() {
+            if sq == from || sq == to { new_rights.clear_side(White, true); }
         }
-        if self.rights.bk_sq() == Some(from) || self.rights.bk_sq() == Some(to) {
-            new_rights.clear_side(Black, true);
+        if let Some(sq) = self.rights.bk_sq() {
+            if sq == from || sq == to { new_rights.clear_side(Black, true); }
         }
-        if self.rights.wq_sq() == Some(from) || self.rights.wq_sq() == Some(to) {
-            new_rights.clear_side(White, false);
+        if let Some(sq) = self.rights.wq_sq() {
+            if sq == from || sq == to { new_rights.clear_side(White, false); }
         }
-        if self.rights.bq_sq() == Some(from) || self.rights.bq_sq() == Some(to) {
-            new_rights.clear_side(Black, false);
+        if let Some(sq) = self.rights.bq_sq() {
+            if sq == from || sq == to { new_rights.clear_side(Black, false); }
         }
 
         let castle_hash = Keys::castle(original_rights.hash()) ^ Keys::castle(new_rights.hash());
@@ -329,7 +333,7 @@ impl Board {
         for attacker in potential_attackers {
             let between = ray::between(king, attacker);
             let maybe_pinned = us & between;
-            if maybe_pinned.count() == 1 {
+            if !maybe_pinned.is_empty() && maybe_pinned.pop().is_empty() {
                 pinned |= maybe_pinned;
             }
         }
@@ -349,12 +353,16 @@ impl Board {
         ]
     }
 
-    pub fn gives_direct_check(&self, mv: Move) -> bool {
+    pub fn gives_direct_check(&mut self, mv: Move) -> bool {
         let moving_pc = mv
             .promo_piece()
             .unwrap_or(self.piece_at(mv.from()).unwrap());
         if moving_pc == Piece::King {
             return false;
+        }
+        if self.check_zones_dirty {
+            self.check_zones = self.calc_check_zones();
+            self.check_zones_dirty = false;
         }
         let zone = if moving_pc == Piece::Queen {
             self.check_zones[Piece::Bishop] | self.check_zones[Piece::Rook]
@@ -381,9 +389,10 @@ impl Board {
             self.hashes.update_hash(Keys::ep(ep_sq));
             self.ep_sq = None;
         }
+        self.recapture_sq = None;
         self.threats = self.calc_threats(self.stm);
         self.checkers = self.calc_checkers(self.stm);
-        self.check_zones = self.calc_check_zones();
+        self.check_zones_dirty = true;
     }
 
     pub const fn hash(&self) -> u64 {
@@ -487,7 +496,8 @@ impl Board {
 
     #[inline]
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
-        self.pcs[sq]
+        // SAFETY: sq.0 is always 0-63.
+        unsafe { *self.pcs.get_unchecked(sq.0 as usize) }
     }
 
     /// Returns the piece captured by `mv`, or `None` if the move is not a capture.

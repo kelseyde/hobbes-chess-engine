@@ -175,15 +175,18 @@ impl Keys {
 
     pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {
         let piece_index = Keys::piece_index(pc, side);
-        KEYS.pieces[piece_index][sq]
+        // SAFETY: piece_index is 0-11, sq.0 is 0-63, both within bounds.
+        unsafe { *KEYS.pieces.get_unchecked(piece_index).get_unchecked(sq.0 as usize) }
     }
 
     pub fn ep(ep_sq: Square) -> u64 {
-        KEYS.ep[ep_sq]
+        // SAFETY: ep_sq.0 is always 0-63.
+        unsafe { *KEYS.ep.get_unchecked(ep_sq.0 as usize) }
     }
 
     pub fn castle(castle: u8) -> u64 {
-        KEYS.castle[castle as usize]
+        // SAFETY: castle is masked to 4 bits (0-15).
+        unsafe { *KEYS.castle.get_unchecked(castle as usize) }
     }
 
     pub fn stm() -> u64 {
