@@ -22,25 +22,23 @@ impl Board {
     /// Generate all legal moves for the current position.
     /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
     /// generation used during search is pseudo-legal, with legality checks performed on the fly.
-    pub fn gen_legal_moves(&self) -> MoveList {
-        let moves = self.gen_moves(MoveFilter::All);
-        let mut legal_moves = MoveList::new();
-        for entry in moves.iter() {
+    pub fn gen_legal_moves(&self, moves: &mut MoveList) {
+        let mut pseudo = MoveList::new();
+        self.gen_moves(MoveFilter::All, &mut pseudo);
+        for entry in pseudo.iter() {
             if self.is_legal(&entry.mv) {
-                legal_moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
+                moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
             }
         }
-        legal_moves
     }
 
     /// Generate all pseudo-legal moves for the current position.
-    pub fn gen_moves(&self, filter: MoveFilter) -> MoveList {
+    pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
         // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
         // The king is technically also a standard piece, but its moves are generated first for efficiency.
-        const STANDARD_PIECES: [Piece; 4] =
-            [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+        const STANDARD_PIECES: [Piece; 4] = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+
         let side = self.stm;
-        let mut moves = MoveList::new();
 
         let us = self.us();
         let them = self.them();
@@ -59,25 +57,23 @@ impl Board {
         );
 
         // Generate king moves first
-        self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, &mut moves);
+        self.gen_standard_moves(Piece::King, side, occ, us, filter_mask, moves);
 
         // If we are in double-check, the only legal moves are king moves
         if self.checkers.count() == 2 {
-            return moves;
+            return;
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, &mut moves);
+        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, moves);
         if gen_quiets {
-            gen_castle_moves(self, side, &mut moves);
+            gen_castle_moves(self, side, moves);
         }
 
         // handle standard moves
         for &pc in STANDARD_PIECES.iter() {
-            self.gen_standard_moves(pc, side, occ, us, filter_mask, &mut moves);
+            self.gen_standard_moves(pc, side, occ, us, filter_mask, moves);
         }
-
-        moves
     }
 
     /// Compute the squares attacked by the opponent's pieces.
