@@ -259,6 +259,8 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
+    // Our opponent is worsening if the static eval of the current position is more in our favour
+    // than it was on *their* previous turn.
     let opponent_worsening_rate = if root_node || in_check {
         0
     } else {
@@ -286,6 +288,9 @@ fn alpha_beta<NODE: NodeType>(
         td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
     }
 
+    // By how many plies did we reduce depth in the parent node?
+    let prev_reduction = if ply > 0 { td.stack[ply - 1].reduction } else { 0 };
+
     // Hindsight extension
     // If we reduced depth in the parent node, but now the static eval indicates the position is
     // improving, we correct the reduction 'in hindsight' by extending depth in the current node.
@@ -293,10 +298,17 @@ fn alpha_beta<NODE: NodeType>(
         && !in_check
         && !singular_search
         && depth >= hindsight_ext_min_depth()
-        && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
+        && prev_reduction >= hindsight_ext_min_reduction()
         && is_defined(td.stack[ply - 1].static_eval)
         && opponent_worsening_rate < hindsight_ext_eval_diff() {
         depth += 1;
+
+        // Double hindsight extension
+        if depth >= hindsight_dext_min_depth()
+            && prev_reduction >= hindsight_dext_min_reduction()
+            && opponent_worsening_rate < hindsight_dext_eval_diff() {
+            depth += 1;
+        }
     }
 
     // Hindsight reduction
@@ -307,7 +319,7 @@ fn alpha_beta<NODE: NodeType>(
         && !in_check
         && !singular_search
         && depth >= hindsight_red_min_depth()
-        && td.stack[ply - 1].reduction >= hindsight_red_min_reduction()
+        && prev_reduction >= hindsight_red_min_reduction()
         && is_defined(td.stack[ply - 1].static_eval)
         && opponent_worsening_rate > hindsight_red_eval_diff() {
         depth -= 1;
