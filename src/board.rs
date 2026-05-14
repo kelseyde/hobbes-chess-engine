@@ -271,16 +271,24 @@ impl Board {
         }
         // Compute each rook square once, check both from and to in one branch.
         if let Some(sq) = self.rights.wk_sq() {
-            if sq == from || sq == to { new_rights.clear_side(White, true); }
+            if sq == from || sq == to {
+                new_rights.clear_side(White, true);
+            }
         }
         if let Some(sq) = self.rights.bk_sq() {
-            if sq == from || sq == to { new_rights.clear_side(Black, true); }
+            if sq == from || sq == to {
+                new_rights.clear_side(Black, true);
+            }
         }
         if let Some(sq) = self.rights.wq_sq() {
-            if sq == from || sq == to { new_rights.clear_side(White, false); }
+            if sq == from || sq == to {
+                new_rights.clear_side(White, false);
+            }
         }
         if let Some(sq) = self.rights.bq_sq() {
-            if sq == from || sq == to { new_rights.clear_side(Black, false); }
+            if sq == from || sq == to {
+                new_rights.clear_side(Black, false);
+            }
         }
 
         let castle_hash = Keys::castle(original_rights.hash()) ^ Keys::castle(new_rights.hash());

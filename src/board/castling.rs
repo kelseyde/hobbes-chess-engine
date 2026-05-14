@@ -110,25 +110,33 @@ impl Rights {
     }
 
     pub fn wk_sq(self) -> Option<Square> {
-        if self.data & Self::WKCA == 0 { return None; }
+        if self.data & Self::WKCA == 0 {
+            return None;
+        }
         let file = self.file(Self::WK_MASK, Self::WK_SHIFT);
         Some(Square::from(file, Rank::One))
     }
 
     pub fn wq_sq(self) -> Option<Square> {
-        if self.data & Self::WQCA == 0 { return None; }
+        if self.data & Self::WQCA == 0 {
+            return None;
+        }
         let file = self.file(Self::WQ_MASK, Self::WQ_SHIFT);
         Some(Square::from(file, Rank::One))
     }
 
     pub fn bk_sq(self) -> Option<Square> {
-        if self.data & Self::BKCA == 0 { return None; }
+        if self.data & Self::BKCA == 0 {
+            return None;
+        }
         let file = self.file(Self::BK_MASK, Self::BK_SHIFT);
         Some(Square::from(file, Rank::Eight))
     }
 
     pub fn bq_sq(self) -> Option<Square> {
-        if self.data & Self::BQCA == 0 { return None; }
+        if self.data & Self::BQCA == 0 {
+            return None;
+        }
         let file = self.file(Self::BQ_MASK, Self::BQ_SHIFT);
         Some(Square::from(file, Rank::Eight))
     }

@@ -176,7 +176,12 @@ impl Keys {
     pub fn sq(pc: Piece, side: Side, sq: Square) -> u64 {
         let piece_index = Keys::piece_index(pc, side);
         // SAFETY: piece_index is 0-11, sq.0 is 0-63, both within bounds.
-        unsafe { *KEYS.pieces.get_unchecked(piece_index).get_unchecked(sq.0 as usize) }
+        unsafe {
+            *KEYS
+                .pieces
+                .get_unchecked(piece_index)
+                .get_unchecked(sq.0 as usize)
+        }
     }
 
     pub fn ep(ep_sq: Square) -> u64 {
