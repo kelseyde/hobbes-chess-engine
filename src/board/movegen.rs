@@ -67,15 +67,7 @@ impl Board {
         }
 
         // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(
-            self,
-            side,
-            occ,
-            them,
-            gen_quiets,
-            gen_noisies,
-            moves,
-        );
+        gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, moves);
         if gen_quiets && self.checkers.is_empty() {
             gen_castle_moves(self, side, moves);
         }
