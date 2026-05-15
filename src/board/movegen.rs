@@ -91,13 +91,10 @@ impl Board {
         let knights = self.knights(them);
         let diags = self.diags(them);
         let orthos = self.orthos(them);
-        let mut threats = Bitboard::empty();
 
-        threats |= attacks::pawn_attacks(pawns, them);
-        threats |= setwise::knights_and_sliders_setwise(knights, orthos, diags, occ);
-        threats |= attacks::king(self.king_sq(them));
-
-        threats
+        attacks::pawn_attacks(pawns, them)
+            | setwise::knights_and_sliders_setwise(knights, orthos, diags, occ)
+            | attacks::king(self.king_sq(them))
     }
 
     /// Compute the pieces checking the king of the given side.
@@ -106,14 +103,11 @@ impl Board {
         let occ = self.occ();
         let king_sq = self.king_sq(side);
         let them = !side;
-        let mut checkers = Bitboard::empty();
 
-        checkers |= attacks::pawn(king_sq, side) & self.pawns(them);
-        checkers |= attacks::knight(king_sq) & self.knights(them);
-        checkers |= attacks::rook(king_sq, occ) & self.orthos(them);
-        checkers |= attacks::bishop(king_sq, occ) & self.diags(them);
-
-        checkers
+        attacks::pawn(king_sq, side) & self.pawns(them)
+            | attacks::knight(king_sq) & self.knights(them)
+            | attacks::rook(king_sq, occ) & self.orthos(them)
+            | attacks::bishop(king_sq, occ) & self.diags(them)
     }
 
     #[inline(always)]
