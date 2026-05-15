@@ -222,6 +222,11 @@ impl TranspositionTable {
             || depth + 4 > entry.depth as i32
             || entry.flags.age() != tt_age)
         {
+            if entry.depth >= 5
+                && entry.flag() != TTFlag::Exact
+                && !score::is_mate(entry.score as i32) {
+                entry.depth -= 1;
+            }
             return;
         }
 
