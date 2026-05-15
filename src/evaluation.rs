@@ -47,7 +47,7 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
-use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use hobbes_nnue_arch::{Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -83,11 +83,15 @@ impl NNUE {
             Black => (&acc.black_features, &acc.white_features),
         };
 
+        let mut l0_outputs = [0u8; L1_SIZE];
+        let mut l1_outputs = [0i32; L2_SIZE * 2];
+        let mut l2_outputs = [0i32; L3_SIZE];
         let output_bucket = get_output_bucket(board);
+
         let raw = unsafe {
-            let l0_outputs = inference::activate_l0(us, them);
-            let l1_outputs = inference::propagate_l1(&l0_outputs, output_bucket);
-            let l2_outputs = inference::propagate_l2(&l1_outputs, output_bucket);
+            inference::activate_l0(us, them, &mut l0_outputs);
+            inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);
+            inference::propagate_l2(&l1_outputs, output_bucket, &mut l2_outputs);
             inference::propagate_l3(&l2_outputs, output_bucket)
         };
 
