@@ -8,9 +8,7 @@ impl Forward for Scalar {
     /// L0 ('feature transformer') activation
     /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
     #[inline(always)]
-    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
-        let mut output = [0; L1_SIZE];
-
+    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], output: &mut [u8; L1_SIZE]) {
         for (side, feats) in [us, them].into_iter().enumerate() {
             let base = side * (L1_SIZE / 2);
             for i in 0..(L1_SIZE / 2) {
@@ -31,12 +29,11 @@ impl Forward for Scalar {
                 output[base + i] = result;
             }
         }
-        output
     }
 
     /// L1 propagation
     #[inline(always)]
-    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
+    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize, output: &mut [i32; L2_SIZE * 2]) {
         let weights = &NETWORK.l1_weights[output_bucket];
         let biases = &NETWORK.l1_biases[output_bucket];
 
@@ -54,7 +51,6 @@ impl Forward for Scalar {
         }
 
         // Re-quantise, add biases and activate L1 outputs
-        let mut output: [i32; L2_SIZE * 2] = [0; L2_SIZE * 2];
         for i in 0..L2_SIZE {
             let bias: i32 = biases[i];
             let mut out: i32 = intermediate[i];
@@ -74,13 +70,11 @@ impl Forward for Scalar {
             output[i] = crelu;
             output[i + L2_SIZE] = csrelu;
         }
-
-        output
     }
 
     /// L2 propagation
     #[inline(always)]
-    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize) -> [i32; L3_SIZE] {
+    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize, output: &mut [i32; L3_SIZE]) {
         let weights = &NETWORK.l2_weights[output_bucket];
 
         let mut out = NETWORK.l2_biases[output_bucket];
@@ -92,7 +86,7 @@ impl Forward for Scalar {
                 out[output_idx] += input_val * weight;
             }
         }
-        out
+        *output = out;
     }
 
     /// L3 propagation
