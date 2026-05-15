@@ -655,7 +655,7 @@ fn alpha_beta<NODE: NodeType>(
             let reduced_depth = (new_depth - (r / 1024)).clamp(min_reduced_depth, max_reduced_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
-            td.stack[ply].reduction = r;
+            td.stack[ply].reduction = new_depth - reduced_depth;
             score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
             td.stack[ply].reduction = 0;
 
@@ -670,7 +670,9 @@ fn alpha_beta<NODE: NodeType>(
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
+                    td.stack[ply].reduction = new_depth - reduced_depth;
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                    td.stack[ply].reduction = 0;
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
