@@ -215,7 +215,9 @@ fn score_move(
         let history_score = td
             .history
             .capture_history_score(board, mv, attacker, victim);
-        entry.score = 16 * victim_value + history_score;
+        entry.score = 16 * victim_value
+            + history_score
+            + 4096 * mv.promo_piece().is_some_and(|pc| pc == Queen) as i32;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
