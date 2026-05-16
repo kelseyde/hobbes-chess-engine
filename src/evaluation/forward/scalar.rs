@@ -74,11 +74,7 @@ impl Forward for Scalar {
 
     /// L2 propagation
     #[inline(always)]
-    unsafe fn propagate_l2(
-        input: &[i32; L2_SIZE * 2],
-        output_bucket: usize,
-        output: &mut [i32; L3_SIZE],
-    ) {
+    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize, output: &mut [i32; L3_SIZE]) {
         let weights = &NETWORK.l2_weights[output_bucket];
 
         let mut out = NETWORK.l2_biases[output_bucket];

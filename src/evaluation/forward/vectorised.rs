@@ -99,11 +99,7 @@ impl Forward for Vectorised {
     }
 
     /// L2 propagation
-    unsafe fn propagate_l2(
-        input: &[i32; L2_SIZE * 2],
-        output_bucket: usize,
-        output: &mut [i32; L3_SIZE],
-    ) {
+    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize, output: &mut [i32; L3_SIZE]) {
         const LANES: usize = L3_SIZE / simd::I32_LANES;
         let weights = &NETWORK.l2_weights[output_bucket];
         let biases = &NETWORK.l2_biases[output_bucket];
