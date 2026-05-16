@@ -66,3 +66,40 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
 
     (indices, count)
 }
+
+#[cfg(feature = "track_l0_activations")]
+mod bench {
+    use super::L1_SIZE;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    pub static ACTIVATION_COUNTS: [AtomicU64; L1_SIZE / 2] =
+        [const { AtomicU64::new(0) }; L1_SIZE / 2];
+
+    #[inline(always)]
+    pub fn track_activations(l0_outputs: &[u8; L1_SIZE]) {
+        for (i, &val) in l0_outputs.iter().enumerate() {
+            if val != 0 {
+                ACTIVATION_COUNTS[i % (L1_SIZE / 2)].fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    pub fn dump_activation_counts() {
+        use std::io::Write;
+        let mut file =
+            std::fs::File::create("activations.txt").expect("Failed to create activations.txt");
+        let counts: Vec<String> = ACTIVATION_COUNTS
+            .iter()
+            .map(|c| c.load(Ordering::Relaxed).to_string())
+            .collect();
+        writeln!(file, "{}", counts.join(", ")).expect("Failed to write activations.txt");
+        println!("Wrote l0 activation counts to activations.txt");
+    }
+}
+
+#[cfg(feature = "track_l0_activations")]
+pub use bench::{dump_activation_counts, track_activations};
+
+#[cfg(not(feature = "track_l0_activations"))]
+#[inline(always)]
+pub fn track_activations(_l0_outputs: &[u8; L1_SIZE]) {}

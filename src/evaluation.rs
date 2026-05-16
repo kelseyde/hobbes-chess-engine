@@ -2,7 +2,7 @@ mod accumulator;
 mod cache;
 mod feature;
 mod forward;
-mod sparse;
+pub mod sparse;
 pub mod stats;
 
 mod simd {
@@ -47,7 +47,9 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
-use hobbes_nnue_arch::{Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use hobbes_nnue_arch::{
+    Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
+};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -90,6 +92,8 @@ impl NNUE {
 
         let raw = unsafe {
             inference::activate_l0(us, them, &mut l0_outputs);
+            #[cfg(feature = "track_l0_activations")]
+            sparse::track_activations(&l0_outputs);
             inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);
             inference::propagate_l2(&l1_outputs, output_bucket, &mut l2_outputs);
             inference::propagate_l3(&l2_outputs, output_bucket)
