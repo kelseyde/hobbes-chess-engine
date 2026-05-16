@@ -215,7 +215,10 @@ fn score_move(
         let history_score = td
             .history
             .capture_history_score(board, mv, attacker, victim);
-        entry.score = 16 * victim_value + history_score;
+        let in_check = board.threats.contains(board.king_sq(board.stm));
+        entry.score = 16 * victim_value
+            + history_score
+            + (200000 - 20000 * attacker as i32) * in_check as i32;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
