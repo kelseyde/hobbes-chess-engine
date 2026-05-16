@@ -95,33 +95,6 @@ pub const fn permute_config() -> PermuteConfig {
     }
 }
 
-/// Compute the repermutation indices for sparsity optimisation.
-fn compute_repermute_indices() -> [usize; L1_SIZE / 2] {
-    let mut indices: [usize; L1_SIZE / 2] = std::array::from_fn(|i| i);
-    indices.sort_by(|&a, &b| L0_ACTIVATIONS[b].cmp(&L0_ACTIVATIONS[a]));
-    indices
-}
-
-/// Re-permute the L0 biases so that the most-activated neurons come first.
-fn repermute_l0_biases(dst: &mut [i16; L1_SIZE], src: &[i16; L1_SIZE], indices: &[usize; L1_SIZE / 2]) {
-    for (tgt, &src_idx) in indices.iter().enumerate() {
-        dst[tgt] = src[src_idx];
-        dst[tgt + L1_SIZE / 2] = src[src_idx + L1_SIZE / 2];
-    }
-}
-
-/// Re-permute a single L0 weight bucket for sparsity.
-fn repermute_l0_bucket(dst: &mut [i16], src: &[i16], indices: &[usize; L1_SIZE / 2]) {
-    let input_features = src.len() / L1_SIZE;
-    for feature in 0..input_features {
-        let base = feature * L1_SIZE;
-        for (tgt, &src_idx) in indices.iter().enumerate() {
-            dst[base + tgt] = src[base + src_idx];
-            dst[base + tgt + L1_SIZE / 2] = src[base + src_idx + L1_SIZE / 2];
-        }
-    }
-}
-
 /// Convert an `UntransposedNetwork` (the output format from Bullet) into a `Network` (the optimal
 /// format for inference).
 ///
@@ -190,6 +163,33 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         std::ptr::copy_nonoverlapping(&src.l1_biases, &mut dst.l1_biases, 1);
         std::ptr::copy_nonoverlapping(&src.l2_biases, &mut dst.l2_biases, 1);
         std::ptr::copy_nonoverlapping(&src.l3_biases, &mut dst.l3_biases, 1);
+    }
+}
+
+/// Compute the repermutation indices for sparsity optimisation.
+fn compute_repermute_indices() -> [usize; L1_SIZE / 2] {
+    let mut indices: [usize; L1_SIZE / 2] = std::array::from_fn(|i| i);
+    indices.sort_by(|&a, &b| L0_ACTIVATIONS[b].cmp(&L0_ACTIVATIONS[a]));
+    indices
+}
+
+/// Re-permute the L0 biases so that the most-activated neurons come first.
+fn repermute_l0_biases(dst: &mut [i16; L1_SIZE], src: &[i16; L1_SIZE], indices: &[usize; L1_SIZE / 2]) {
+    for (tgt, &src_idx) in indices.iter().enumerate() {
+        dst[tgt] = src[src_idx];
+        dst[tgt + L1_SIZE / 2] = src[src_idx + L1_SIZE / 2];
+    }
+}
+
+/// Re-permute a single L0 weight bucket for sparsity.
+fn repermute_l0_bucket(dst: &mut [i16], src: &[i16], indices: &[usize; L1_SIZE / 2]) {
+    let input_features = src.len() / L1_SIZE;
+    for feature in 0..input_features {
+        let base = feature * L1_SIZE;
+        for (tgt, &src_idx) in indices.iter().enumerate() {
+            dst[base + tgt] = src[base + src_idx];
+            dst[base + tgt + L1_SIZE / 2] = src[base + src_idx + L1_SIZE / 2];
+        }
     }
 }
 
