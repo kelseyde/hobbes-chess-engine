@@ -93,7 +93,7 @@ impl NNUE {
         let raw = unsafe {
             inference::activate_l0(us, them, &mut l0_outputs);
             #[cfg(feature = "track_l0_activations")]
-            crate::evaluation::sparse::track_activations(&l0_outputs);
+            sparse::track_activations(&l0_outputs);
             inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);
             inference::propagate_l2(&l1_outputs, output_bucket, &mut l2_outputs);
             inference::propagate_l3(&l2_outputs, output_bucket)
