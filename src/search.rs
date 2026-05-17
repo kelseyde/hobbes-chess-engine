@@ -325,8 +325,16 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
-            return lerp(beta, static_eval, rfp_lerp_factor());
+        if static_eval - futility_margin >= beta {
+            if depth <= rfp_max_depth() {
+                return lerp(beta, static_eval, rfp_lerp_factor());
+            }
+            else if depth <= rfp_max_depth() + 4 {
+                let score = qs(board, td, alpha, beta, ply);
+                if score - futility_margin >= beta {
+                    return score;
+                }
+            }
         }
 
         // Razoring
