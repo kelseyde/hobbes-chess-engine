@@ -382,8 +382,7 @@ fn alpha_beta<NODE: NodeType>(
             && !(tt_hit && tt_depth >= pc_depth && tt_score < pc_beta) {
 
             let see_threshold = (pc_beta - static_eval) * pc_see_factor() / 128;
-            let mut move_picker = MovePicker::new(tt_move, ply, threats);
-            move_picker.skip_quiets = true;
+            let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats);
 
             while let Some(mv) = move_picker.next(board, td) {
                 if !board.is_legal(&mv) {
