@@ -157,7 +157,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // If depth is reached, drop into quiescence search
-    if depth <= 0 && !in_check {
+    if depth <= 0 {
         return qs(board, td, alpha, beta, ply);
     }
 
