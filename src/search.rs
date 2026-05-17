@@ -373,6 +373,63 @@ fn alpha_beta<NODE: NodeType>(
             }
         }
 
+        let pc_beta = beta + pc_margin();
+        let pc_depth = depth - pc_reduction();
+        if !tt_pv
+            && depth >= pc_min_depth()
+            && !is_mate(beta)
+            && (tt_move.is_null() || tt_move_noisy)
+            && !(tt_hit && tt_depth >= pc_depth && tt_score >= pc_beta) {
+
+            let see_threshold = (pc_beta - static_eval) * pc_see_factor() / 128;
+            let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats);
+
+            while let Some(mv) = move_picker.next(board, td) {
+                if !board.is_legal(&mv) {
+                    continue;
+                }
+
+                if !see(board, &mv, see_threshold, Pruning) {
+                    continue;
+                }
+
+                let pc = board.piece_at(mv.from()).unwrap();
+                let captured = board.captured(&mv);
+
+                let mut board = *board;
+                td.nnue.update(&mv, pc, captured, &board);
+                board.make(&mv);
+
+                td.stack[ply].mv = Some(mv);
+                td.stack[ply].pc = Some(pc);
+                td.stack[ply].captured = captured;
+                td.keys.push(board.hash());
+                td.tt.prefetch(board.hash());
+                td.nodes += 1;
+
+                let mut score = -qs(&board, td, -pc_beta, -pc_beta + 1, ply + 1);
+
+                if score >= pc_beta {
+                    score = -alpha_beta::<NonPV>(&board, td, pc_depth, ply + 1, -pc_beta, -pc_beta + 1, !cut_node);
+                }
+
+                td.stack[ply].mv = None;
+                td.stack[ply].pc = None;
+                td.stack[ply].captured = None;
+                td.keys.pop();
+                td.nnue.undo();
+
+                if td.hard_limit_reached() {
+                    return 0;
+                }
+
+                if score >= pc_beta {
+                    td.tt.insert(board.hash(), mv, score, raw_eval, depth, ply, Lower, tt_pv);
+                    return score;
+                }
+            }
+
+        }
     }
 
     // Internal Iterative Reductions

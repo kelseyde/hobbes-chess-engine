@@ -4,7 +4,7 @@ use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
-use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
+use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies, ProbcutGenerateNoisies, ProbcutNoisies, ProbcutTTMove};
 use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
@@ -38,6 +38,9 @@ pub enum Stage {
     GenerateQuiets,
     Quiets,
     BadNoisies,
+    ProbcutTTMove,
+    ProbcutGenerateNoisies,
+    ProbcutNoisies,
     Done,
 }
 
@@ -73,6 +76,26 @@ impl MovePicker {
             stage,
             idx: 0,
             filter,
+            tt_move,
+            ply,
+            threats,
+            skip_quiets: true,
+            split_noisies: false,
+            bad_noisies: MoveList::new(),
+        }
+    }
+
+    pub fn new_probcut(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
+        let stage = if tt_move.exists() {
+            ProbcutTTMove
+        } else {
+            ProbcutGenerateNoisies
+        };
+        Self {
+            moves: MoveList::new(),
+            stage,
+            idx: 0,
+            filter: MoveFilter::Noisies,
             tt_move,
             ply,
             threats,
@@ -125,6 +148,24 @@ impl MovePicker {
         }
         if self.stage == BadNoisies {
             if let Some(best_move) = self.pick_best(true) {
+                return Some(best_move);
+            } else {
+                self.stage = Done;
+            }
+        }
+        if self.stage == ProbcutTTMove {
+            self.stage = ProbcutGenerateNoisies;
+            if self.tt_move.exists() {
+                return Some(self.tt_move);
+            }
+        }
+        if self.stage == ProbcutGenerateNoisies {
+            self.idx = 0;
+            self.gen_noisy_moves(board, td);
+            self.stage = ProbcutNoisies;
+        }
+        if self.stage == ProbcutNoisies {
+            if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
                 self.stage = Done;
