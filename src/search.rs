@@ -374,7 +374,7 @@ fn alpha_beta<NODE: NodeType>(
         }
 
         let pc_beta = beta + pc_margin();
-        let pc_depth = depth - pc_reduction();
+        let pc_depth = (depth - pc_reduction()).max(1);
         if !tt_pv
             && depth >= pc_min_depth()
             && !is_mate(beta)
@@ -424,7 +424,7 @@ fn alpha_beta<NODE: NodeType>(
                 }
 
                 if score >= pc_beta {
-                    td.tt.insert(board.hash(), mv, score, raw_eval, pc_depth, ply, Lower, tt_pv);
+                    td.tt.insert(board.hash(), mv, score, raw_eval, pc_depth, ply, Lower, false);
                     return score;
                 }
             }
