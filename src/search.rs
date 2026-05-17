@@ -379,7 +379,7 @@ fn alpha_beta<NODE: NodeType>(
             && depth >= pc_min_depth()
             && !is_mate(beta)
             && (tt_move.is_null() || tt_move_noisy)
-            && !(tt_hit && tt_depth >= pc_depth && tt_score >= pc_beta) {
+            && !(tt_hit && tt_depth >= pc_depth && tt_score < pc_beta) {
 
             let see_threshold = (pc_beta - static_eval) * pc_see_factor() / 128;
             let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats);
@@ -424,7 +424,7 @@ fn alpha_beta<NODE: NodeType>(
                 }
 
                 if score >= pc_beta {
-                    td.tt.insert(board.hash(), mv, score, raw_eval, depth, ply, Lower, tt_pv);
+                    td.tt.insert(board.hash(), mv, score, raw_eval, pc_depth, ply, Lower, tt_pv);
                     return score;
                 }
             }
