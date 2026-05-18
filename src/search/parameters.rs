@@ -138,6 +138,9 @@ tunable_params! {
     lmr_cont_2_malus_scale       = 196, 80..=280,          true;
     lmr_cont_2_malus_offset      = 67, 0..=200,            true;
     lmr_cont_2_malus_max         = 1263, 1000..=1600,      true;
+    fds_base                     = 243, 128..=512,         true;
+    fds_1_ply_margin             = 2757, 2048..=4096,      true;
+    fds_2_ply_margin             = 5670, 4096..=8192,      true;
     alpha_raise_min_depth        = 2, 0..=6,               false;
     alpha_raise_max_depth        = 12, 8..=16,             false;
     quiet_hist_bonus_scale       = 225, 80..=280,          true;

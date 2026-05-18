@@ -684,7 +684,12 @@ fn alpha_beta<NODE: NodeType>(
         // If we're skipping late move reductions - due to being the first move in a non-PV node, or
         // some other reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            let mut reduction = fds_base() * depth.max(1).ilog2() as i32;
+            reduction += 2048 * cut_node as i32;
+            let reduced_depth = new_depth
+                - (reduction > fds_1_ply_margin()) as i32
+                - (reduction > fds_2_ply_margin()) as i32;
+            score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
