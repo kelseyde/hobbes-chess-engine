@@ -161,9 +161,9 @@ fn alpha_beta<NODE: NodeType>(
         return qs(board, td, alpha, beta, ply);
     }
 
-    // Ensure depth is not negative
-    if depth < 0 {
-        depth = 0;
+    // Ensure depth is positive
+    if depth <= 0 {
+        depth = 1;
     }
 
     // If drawn by repetition, insufficient material or fifty move rule, return a draw score.
