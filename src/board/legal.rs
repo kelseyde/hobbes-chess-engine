@@ -293,7 +293,7 @@ impl Board {
             return self.checkers.is_empty() && moving_along_pin_ray;
         }
 
-        if !self.checkers.pop().is_empty() {
+        if self.checkers.count() > 1 {
             return false;
         }
 
