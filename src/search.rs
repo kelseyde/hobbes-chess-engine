@@ -861,9 +861,8 @@ fn alpha_beta<NODE: NodeType>(
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
             let prev_threats = td.stack[ply - 1].threats;
             let factor = pcm_factor_base()
-                + pcm_deep_search_factor() * (depth > pcm_deep_search_threshold()) as i32
-                + pcm_bad_eval_factor() * (!in_check && best_score <= static_eval - pcm_bad_eval_threshold()) as i32;
-            let quiet_bonus = factor as i16 * prior_countermove_bonus(depth) / 128;
+                + pcm_deep_search_factor() * (depth > pcm_deep_search_threshold()) as i32;
+            let quiet_bonus = (factor * prior_countermove_bonus(depth) as i32 / 128) as i16;
             td.history.quiet_history
                 .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
         }
