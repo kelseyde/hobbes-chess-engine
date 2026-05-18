@@ -461,7 +461,7 @@ fn alpha_beta<NODE: NodeType>(
         // assume the TT move is singular without a reduced-depth search, and extend.
         } else if depth <= ldse_max_depth()
             && !in_check
-            && static_eval <= alpha - ldse_margin()
+            && static_eval <= alpha - ldse_margin() + 768 * correction.abs() / 98304
             && tt_flag == Lower {
             extension = 1;
 
