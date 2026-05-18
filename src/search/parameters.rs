@@ -110,6 +110,7 @@ tunable_params! {
     lmr_good_noisy               = 840, 0..=2048,          true;
     lmr_bad_noisy                = 780, 0..=2048,          true;
     lmr_fail_highs               = 40, 0..=2048,           true;
+    lmr_fail_highs_allnode       = 1024, 0..=2048,         true;
     lmr_killer                   = 1016, 0..=2048,         true;
     lmr_quiet_see                = 1272, 0..=2048,         true;
     lmr_se_mult                  = 536, 256..=1024,        true;

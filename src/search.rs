@@ -639,7 +639,6 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_improving() * !improving as i32;
             r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
-            r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= lmr_killer() * is_killer as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
@@ -648,6 +647,10 @@ fn alpha_beta<NODE: NodeType>(
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
+            }
+            if td.stack[ply + 1].num_fail_highs > 2 {
+                r += lmr_fail_highs();
+                r += lmr_fail_highs_allnode() * (!pv_node && !cut_node) as i32;
             }
 
             let min_reduced_depth = 1;
