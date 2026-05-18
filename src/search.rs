@@ -162,9 +162,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Ensure depth is positive
-    if depth <= 0 {
-        depth = 1;
-    }
+    depth = depth.max(1);
 
     // If drawn by repetition, insufficient material or fifty move rule, return a draw score.
     if ply > 0 && is_draw(td, board) {
