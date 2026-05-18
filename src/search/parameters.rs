@@ -205,6 +205,11 @@ tunable_params! {
     pcm_bonus_scale              = 232, 80..=300,          true;
     pcm_bonus_offset             = 74, 0..=200,            true;
     pcm_bonus_max                = 1387, 1000..=1600,      true;
+    pcm_factor_base              = 88, 0..=256,            true;
+    pcm_deep_search_factor       = 128, 0..=256,           true;
+    pcm_deep_search_threshold    = 5, 0..=10,              false;
+    pcm_bad_eval_factor          = 256, 0..=512,           true;
+    pcm_bad_eval_threshold       = 128, 0..=256,           true;
     qs_capt_hist_bonus_scale     = 261, 80..=360,          true;
     qs_capt_hist_bonus_offset    = 8, 0..=200,             true;
     qs_capt_hist_bonus_max       = 1470, 1000..=1600,      true;
