@@ -34,6 +34,7 @@ tunable_params! {
     pc_improving_margin          = 57, 0..=100,            true;
     pc_max                       = 497, 300..=700,         true;
     pc_tt_depth_offset           = 2, 0..=4,               false;
+    pc_lerp_factor               = 50, 0..=100,            true;
     hindsight_ext_min_depth      = 1, 1..=5,               false;
     hindsight_ext_min_reduction  = 3, 1..=5,               false;
     hindsight_ext_eval_diff      = -16, -50..=50,          true;

@@ -411,7 +411,7 @@ fn alpha_beta<NODE: NodeType>(
         && (tt_flag == Lower || tt_flag == Exact)
         && tt_score >= beta + probcut_margin
         && tt_depth >= depth - pc_tt_depth_offset() {
-        return tt_score;
+        return lerp(tt_score, beta, pc_lerp_factor());
     }
 
     let mut extension = 0;
