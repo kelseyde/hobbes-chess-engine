@@ -1,6 +1,6 @@
+use crate::board::Board;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::MoveList;
-use crate::board::Board;
 
 pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
     let mut moves = MoveList::new();

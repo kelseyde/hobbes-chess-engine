@@ -1,5 +1,5 @@
 use crate::evaluation::forward::Forward;
-use crate::evaluation::{simd, sparse, NETWORK};
+use crate::evaluation::{NETWORK, simd, sparse};
 use hobbes_nnue_arch::{L0_QUANT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
 
 pub struct Vectorised;
@@ -19,7 +19,8 @@ impl Forward for Vectorised {
                     let left1 = simd::load_i16(feats.as_ptr().add(i));
                     let left2 = simd::load_i16(feats.as_ptr().add(i + simd::I16_LANES));
                     let right1 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2));
-                    let right2 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
+                    let right2 =
+                        simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
 
                     let left1_clipped = simd::clamp_i16(left1, lo, hi);
                     let left2_clipped = simd::clamp_i16(left2, lo, hi);
@@ -37,7 +38,11 @@ impl Forward for Vectorised {
     }
 
     /// L1 propagation
-    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize, output: &mut [i32; L2_SIZE * 2]) {
+    unsafe fn propagate_l1(
+        input: &[u8; L1_SIZE],
+        output_bucket: usize,
+        output: &mut [i32; L2_SIZE * 2],
+    ) {
         const ACC_LANES: usize = L2_SIZE / simd::I32_LANES;
         const WEIGHT_STRIDE: usize = simd::I32_LANES * 4;
         const UNROLL: usize = 4;
@@ -93,7 +98,8 @@ impl Forward for Vectorised {
                 let bias = simd::load_i32(bias_ptr.add(lane) as *const i32);
                 let shifted = simd::add_i32(simd::shift_right_i32::<{ L1_SHIFT as _ }>(sum), bias);
 
-                let crelu = simd::shift_left_i32::<{ Q_BITS as _ }>(simd::clamp_i32(shifted, lo, hi));
+                let crelu =
+                    simd::shift_left_i32::<{ Q_BITS as _ }>(simd::clamp_i32(shifted, lo, hi));
                 let csrelu = simd::clamp_i32(simd::mul_i32(shifted, shifted), lo, hi2);
 
                 simd::store_i32(out_ptr.add(lane) as *mut i32, crelu);
@@ -103,7 +109,11 @@ impl Forward for Vectorised {
     }
 
     /// L2 propagation
-    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize, output: &mut [i32; L3_SIZE]) {
+    unsafe fn propagate_l2(
+        input: &[i32; L2_SIZE * 2],
+        output_bucket: usize,
+        output: &mut [i32; L3_SIZE],
+    ) {
         const LANES: usize = L3_SIZE / simd::I32_LANES;
         let weights = &NETWORK.l2_weights[output_bucket];
         let biases = &NETWORK.l2_biases[output_bucket];

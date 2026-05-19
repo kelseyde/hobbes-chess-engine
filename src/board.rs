@@ -598,7 +598,7 @@ mod tests {
     use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
     use crate::board::side::Side;
-    use crate::board::{ray, Board};
+    use crate::board::{Board, ray};
 
     #[test]
     fn computing_correct_pins() {
@@ -707,24 +707,36 @@ mod tests {
 
     #[test]
     fn insufficient_material() {
-        assert!(Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
-        assert!(Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
-        assert!(!Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1")
-            .unwrap()
-            .is_insufficient_material());
+        assert!(
+            Board::from_fen("8/1k6/2n5/8/8/5N2/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
+        assert!(
+            !Board::from_fen("8/1k6/2np4/8/8/5N2/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
+        assert!(
+            Board::from_fen("8/1k6/2b5/8/8/5B2/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
+        assert!(
+            Board::from_fen("8/1k6/2b5/8/8/5N2/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
+        assert!(
+            Board::from_fen("8/1k6/2bN4/8/8/5N2/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
+        assert!(
+            !Board::from_fen("8/1k6/2bb4/8/8/8/6K1/8 w - - 0 1")
+                .unwrap()
+                .is_insufficient_material()
+        );
     }
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {

@@ -1,7 +1,8 @@
+use crate::VERSION;
+use crate::board::Board;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::side::Side::{Black, White};
-use crate::board::Board;
 use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
@@ -12,7 +13,6 @@ use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
-use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;

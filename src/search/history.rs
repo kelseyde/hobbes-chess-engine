@@ -1,9 +1,9 @@
+use crate::board::Board;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
-use crate::board::Board;
 use crate::search::node::NodeStack;
 use crate::search::parameters::{
     capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,

@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
-use crate::search::{score, MAX_PLY};
+use crate::search::{MAX_PLY, score};
 use std::ops::{Index, IndexMut};
 
 pub trait NodeType {

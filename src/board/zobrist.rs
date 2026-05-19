@@ -1,8 +1,8 @@
+use crate::board::Board;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Pawn;
 use crate::board::side::Side;
 use crate::board::square::Square;
-use crate::board::Board;
 
 /// Represents the zobrist hashes for various aspects of the current position. The main hash covers
 /// the entire board state, with separate hashes for pawns, non-pawns for both sides, major and

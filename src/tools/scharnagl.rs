@@ -1,3 +1,4 @@
+use crate::board::Board;
 use crate::board::castling::Rights;
 use crate::board::file::File;
 use crate::board::piece::Piece;
@@ -5,7 +6,6 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::zobrist::Hashes;
-use crate::board::Board;
 
 /// Derive the starting positions of the backrank pieces from a scharnagl index. Used for creating
 /// a starting position for FRC and DFRC chess. Implementation based on Viridithas. Original source:
@@ -105,11 +105,7 @@ impl Board {
         }
 
         let mut rook_indices = backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook {
-                Some(i)
-            } else {
-                None
-            }
+            if piece == Piece::Rook { Some(i) } else { None }
         });
         let queenside_file = rook_indices.next().unwrap();
         let kingside_file = rook_indices.next().unwrap();
@@ -166,21 +162,13 @@ impl Board {
         }
 
         let mut w_rook_indices = white_backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook {
-                Some(i)
-            } else {
-                None
-            }
+            if piece == Piece::Rook { Some(i) } else { None }
         });
         let w_queenside_file = w_rook_indices.next().unwrap();
         let w_kingside_file = w_rook_indices.next().unwrap();
 
         let mut b_rook_indices = black_backrank.iter().enumerate().filter_map(|(i, &piece)| {
-            if piece == Piece::Rook {
-                Some(i)
-            } else {
-                None
-            }
+            if piece == Piece::Rook { Some(i) } else { None }
         });
         let b_queenside_file = b_rook_indices.next().unwrap();
         let b_kingside_file = b_rook_indices.next().unwrap();

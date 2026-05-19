@@ -1,3 +1,4 @@
+use crate::board::Board;
 use crate::board::castling::Rights;
 use crate::board::file::File;
 use crate::board::piece::Piece;
@@ -6,7 +7,6 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::zobrist::Hashes;
-use crate::board::Board;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -319,10 +319,10 @@ mod tests {
 
     #[test]
     fn test_board_has_too_many_ranks() {
-        assert!(Board::from_fen(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/rnbqkbnr w KQkq - 0 1"
-        )
-        .is_err());
+        assert!(
+            Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/rnbqkbnr w KQkq - 0 1")
+                .is_err()
+        );
     }
 
     #[test]

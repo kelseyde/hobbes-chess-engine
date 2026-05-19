@@ -274,11 +274,11 @@ impl CastleTravel {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::Board;
     use crate::board::castling::Rights;
     use crate::board::file::File;
     use crate::board::moves::Move;
     use crate::board::side::Side;
-    use crate::board::Board;
 
     #[test]
     fn test_kingside_basics() {

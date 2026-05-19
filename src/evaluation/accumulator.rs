@@ -1,7 +1,7 @@
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
-use crate::evaluation::{simd, NETWORK};
+use crate::evaluation::{NETWORK, simd};
 use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
 
 /// The `Accumulator` holds the pre-activations of the first layer of the neural network. The input

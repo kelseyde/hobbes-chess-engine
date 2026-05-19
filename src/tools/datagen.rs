@@ -1,5 +1,5 @@
-use crate::board::moves::MoveList;
 use crate::board::Board;
+use crate::board::moves::MoveList;
 use crate::search::thread::ThreadData;
 use crate::tools::fen;
 use rand::rngs::StdRng;

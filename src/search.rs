@@ -11,24 +11,24 @@ pub mod tt;
 
 use std::time::Duration;
 
+use crate::board::Board;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
-use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
-use crate::search::node::{NodeType, NonPV, Root, PV};
+use crate::search::node::{NodeType, NonPV, PV, Root};
 use crate::search::score::{is_defined, is_mated, mate_in, mated_in};
-use crate::search::see::{see, SeeType};
+use crate::search::see::{SeeType, see};
 use crate::search::thread::ThreadData;
 use crate::search::time::LimitType::{Hard, Soft};
 use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use crate::tools::utils::lerp;
+use SeeType::{Ordering, Pruning};
 use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
-use SeeType::{Ordering, Pruning};
 
 pub const MAX_PLY: usize = 256;
 

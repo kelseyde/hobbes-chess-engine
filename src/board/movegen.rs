@@ -7,8 +7,8 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
+use crate::board::{Board, setwise};
 use crate::board::{attacks, castling, ray};
-use crate::board::{setwise, Board};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MoveFilter {

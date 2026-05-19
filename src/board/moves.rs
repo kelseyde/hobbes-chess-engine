@@ -180,11 +180,7 @@ impl Move {
     pub fn rook_to(kingside: bool, white: bool) -> Square {
         // Castling target for rooks
         if kingside {
-            if white {
-                Square(5)
-            } else {
-                Square(61)
-            }
+            if white { Square(5) } else { Square(61) }
         } else if white {
             Square(3)
         } else {
@@ -195,11 +191,7 @@ impl Move {
     pub fn rook_from(kingside: bool, white: bool) -> Square {
         // Castling starting squares for rooks
         if kingside {
-            if white {
-                Square(7)
-            } else {
-                Square(63)
-            }
+            if white { Square(7) } else { Square(63) }
         } else if white {
             Square(0)
         } else {

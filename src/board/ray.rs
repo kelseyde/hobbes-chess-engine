@@ -31,8 +31,8 @@ unsafe fn init_between() {
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
                 unsafe {
-                    BETWEEN[a][b] =
-                        attacks::bishop(a, Bitboard::of_sq(b)) & attacks::bishop(b, Bitboard::of_sq(a));
+                    BETWEEN[a][b] = attacks::bishop(a, Bitboard::of_sq(b))
+                        & attacks::bishop(b, Bitboard::of_sq(a));
                 }
             }
         }
@@ -58,8 +58,8 @@ unsafe fn init_extending() {
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
                 unsafe {
-                    EXTENDING[a][b] =
-                        attacks::bishop(a, Bitboard::empty()) & attacks::bishop(b, Bitboard::empty());
+                    EXTENDING[a][b] = attacks::bishop(a, Bitboard::empty())
+                        & attacks::bishop(b, Bitboard::empty());
                 }
             }
         }

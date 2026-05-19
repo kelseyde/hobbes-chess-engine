@@ -1,6 +1,6 @@
-use rand::prelude::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand::prelude::StdRng;
 use std::collections::HashMap;
 
 pub const PERCENTILES: [f64; 9] = [0.1, 1.0, 5.0, 25.0, 50.0, 75.0, 95.0, 99.0, 99.9];

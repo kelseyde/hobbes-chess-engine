@@ -1,9 +1,9 @@
+use crate::board::Board;
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
-use crate::board::Board;
 use crate::board::{attacks, ray};
 use crate::search::parameters::{
     see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering,

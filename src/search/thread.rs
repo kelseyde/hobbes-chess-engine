@@ -8,7 +8,7 @@ use crate::search::node::NodeStack;
 use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
-use crate::search::{score, MAX_PLY};
+use crate::search::{MAX_PLY, score};
 #[cfg(debug_assertions)]
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;

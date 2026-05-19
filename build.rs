@@ -1,4 +1,4 @@
-use hobbes_nnue_arch::{preprocess, Network, UntransposedNetwork};
+use hobbes_nnue_arch::{Network, UntransposedNetwork, preprocess};
 use std::env;
 use std::fs;
 use std::mem::size_of;

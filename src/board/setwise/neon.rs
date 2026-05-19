@@ -93,16 +93,12 @@ unsafe fn lanes(a: i64, b: i64, c: i64, d: i64) -> Vec256 {
 
 #[inline(always)]
 unsafe fn or(a: Vec256, b: Vec256) -> Vec256 {
-    unsafe {
-        (vorrq_u64(a.0, b.0), vorrq_u64(a.1, b.1))
-    }
+    unsafe { (vorrq_u64(a.0, b.0), vorrq_u64(a.1, b.1)) }
 }
 
 #[inline(always)]
 unsafe fn and_not(a: Vec256, b: Vec256) -> Vec256 {
-    unsafe {
-        (vbicq_u64(b.0, a.0), vbicq_u64(b.1, a.1))
-    }
+    unsafe { (vbicq_u64(b.0, a.0), vbicq_u64(b.1, a.1)) }
 }
 
 #[inline(always)]

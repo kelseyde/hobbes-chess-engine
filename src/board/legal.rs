@@ -8,7 +8,7 @@ use crate::board::piece::Piece::{Bishop, Queen};
 use crate::board::rank::Rank;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::board::{attacks, ray, Board};
+use crate::board::{Board, attacks, ray};
 
 impl Board {
     pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
