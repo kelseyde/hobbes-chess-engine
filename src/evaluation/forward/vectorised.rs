@@ -98,9 +98,11 @@ impl Forward for Vectorised {
                 let bias = simd::load_i32(bias_ptr.add(lane) as *const i32);
                 let shifted = simd::add_i32(simd::shift_right_i32::<{ L1_SHIFT as _ }>(sum), bias);
 
-                let crelu =
-                    simd::shift_left_i32::<{ Q_BITS as _ }>(simd::clamp_i32(shifted, lo, hi));
-                let csrelu = simd::clamp_i32(simd::mul_i32(shifted, shifted), lo, hi2);
+                let clamped = simd::clamp_i32(shifted, lo, hi);
+                let squared = simd::mul_i32(shifted, shifted);
+
+                let crelu = simd::shift_left_i32::<{ Q_BITS as _ }>(clamped);
+                let csrelu = simd::clamp_i32(squared, lo, hi2);
 
                 simd::store_i32(out_ptr.add(lane) as *mut i32, crelu);
                 simd::store_i32(out_ptr.add(lane + ACC_LANES) as *mut i32, csrelu);
