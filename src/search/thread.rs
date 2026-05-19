@@ -178,7 +178,7 @@ pub struct NodeTable {
 impl Default for NodeTable {
     fn default() -> Self {
         NodeTable {
-            table: unsafe { boxed_and_zeroed() },
+            table: boxed_and_zeroed(),
         }
     }
 }
@@ -228,7 +228,7 @@ impl PrincipalVariationTable {
 impl Default for PrincipalVariationTable {
     fn default() -> Self {
         Self {
-            table: unsafe { boxed_and_zeroed() },
+            table: boxed_and_zeroed(),
             len: [0; MAX_PLY + 1],
         }
     }
@@ -270,10 +270,8 @@ impl LmrTable {
 
 impl Default for LmrTable {
     fn default() -> Self {
-        unsafe {
-            Self {
-                table: boxed_and_zeroed(),
-            }
+        Self {
+            table: boxed_and_zeroed(),
         }
     }
 }

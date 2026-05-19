@@ -67,7 +67,7 @@ impl Default for NNUE {
         NNUE {
             current: 0,
             cache: InputBucketCache::default(),
-            stack: unsafe { boxed_and_zeroed() },
+            stack: boxed_and_zeroed(),
         }
     }
 }

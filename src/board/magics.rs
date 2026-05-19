@@ -49,7 +49,7 @@ use std::sync::LazyLock;
 
 fn gen_attacks_table<const N: usize>(
     magics: &[MagicLookup; 64],
-    gen: fn(usize, u64) -> u64,
+    generator: fn(usize, u64) -> u64,
 ) -> [Bitboard; N] {
     let mut table = [Bitboard(0); N];
     let mut sq = 0;
@@ -57,7 +57,7 @@ fn gen_attacks_table<const N: usize>(
         let entry = magics[sq];
         let mut subset: u64 = 0;
         loop {
-            table[entry.index(subset)] = Bitboard(gen(sq, subset));
+            table[entry.index(subset)] = Bitboard(generator(sq, subset));
             subset = subset.wrapping_sub(entry.mask) & entry.mask;
             if subset == 0 {
                 break;

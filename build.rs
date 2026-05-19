@@ -11,7 +11,7 @@ fn main() {
     // Load the raw network
     let raw_net: Vec<u8> = read_network_bytes(INPUT_NET_FILE);
     let src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
-    let mut dst: Box<Network> = unsafe { boxed_and_zeroed() };
+    let mut dst: Box<Network> = boxed_and_zeroed();
 
     // Transpose and permute the net
     preprocess::process_network(&src, &mut dst);
@@ -30,7 +30,7 @@ fn read_network_bytes(path: &str) -> Vec<u8> {
 }
 
 fn write_network_bytes(path: &PathBuf, dst: &Network) {
-    fs::write(path, unsafe { as_bytes(dst) }).unwrap();
+    fs::write(path, as_bytes(dst)).unwrap();
 }
 
 fn load_network_from_bytes(bytes: &[u8]) -> Box<UntransposedNetwork> {
@@ -48,15 +48,17 @@ fn load_network_from_bytes(bytes: &[u8]) -> Box<UntransposedNetwork> {
     }
 }
 
-unsafe fn as_bytes<T>(val: &T) -> &[u8] {
-    std::slice::from_raw_parts(val as *const T as *const u8, size_of::<T>())
+fn as_bytes<T>(val: &T) -> &[u8] {
+    unsafe { std::slice::from_raw_parts(val as *const T as *const u8, size_of::<T>()) }
 }
 
-unsafe fn boxed_and_zeroed<T>() -> Box<T> {
+fn boxed_and_zeroed<T>() -> Box<T> {
     let layout = std::alloc::Layout::new::<T>();
-    let ptr = std::alloc::alloc_zeroed(layout);
-    if ptr.is_null() {
-        std::alloc::handle_alloc_error(layout);
+    unsafe {
+        let ptr = std::alloc::alloc_zeroed(layout);
+        if ptr.is_null() {
+            std::alloc::handle_alloc_error(layout);
+        }
+        Box::from_raw(ptr.cast())
     }
-    Box::from_raw(ptr.cast())
 }

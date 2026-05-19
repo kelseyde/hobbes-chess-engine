@@ -75,42 +75,54 @@ fn sliders_setwise(orth: Bitboard, diag: Bitboard, blockers: Bitboard) -> [Vec25
 
 #[inline(always)]
 unsafe fn broadcast(x: i64) -> Vec256 {
-    let v = vdupq_n_u64(x as u64);
-    (v, v)
+    unsafe {
+        let v = vdupq_n_u64(x as u64);
+        (v, v)
+    }
 }
 
 #[inline(always)]
 unsafe fn lanes(a: i64, b: i64, c: i64, d: i64) -> Vec256 {
-    (
-        vcombine_u64(vcreate_u64(a as u64), vcreate_u64(b as u64)),
-        vcombine_u64(vcreate_u64(c as u64), vcreate_u64(d as u64)),
-    )
+    unsafe {
+        (
+            vcombine_u64(vcreate_u64(a as u64), vcreate_u64(b as u64)),
+            vcombine_u64(vcreate_u64(c as u64), vcreate_u64(d as u64)),
+        )
+    }
 }
 
 #[inline(always)]
 unsafe fn or(a: Vec256, b: Vec256) -> Vec256 {
-    (vorrq_u64(a.0, b.0), vorrq_u64(a.1, b.1))
+    unsafe {
+        (vorrq_u64(a.0, b.0), vorrq_u64(a.1, b.1))
+    }
 }
 
 #[inline(always)]
 unsafe fn and_not(a: Vec256, b: Vec256) -> Vec256 {
-    (vbicq_u64(b.0, a.0), vbicq_u64(b.1, a.1))
+    unsafe {
+        (vbicq_u64(b.0, a.0), vbicq_u64(b.1, a.1))
+    }
 }
 
 #[inline(always)]
 unsafe fn shift_left(a: Vec256, shift: Vec256) -> Vec256 {
-    (
-        vshlq_u64(a.0, vreinterpretq_s64_u64(shift.0)),
-        vshlq_u64(a.1, vreinterpretq_s64_u64(shift.1)),
-    )
+    unsafe {
+        (
+            vshlq_u64(a.0, vreinterpretq_s64_u64(shift.0)),
+            vshlq_u64(a.1, vreinterpretq_s64_u64(shift.1)),
+        )
+    }
 }
 
 #[inline(always)]
 unsafe fn shift_right(a: Vec256, shift: Vec256) -> Vec256 {
-    (
-        vshlq_u64(a.0, vnegq_s64(vreinterpretq_s64_u64(shift.0))),
-        vshlq_u64(a.1, vnegq_s64(vreinterpretq_s64_u64(shift.1))),
-    )
+    unsafe {
+        (
+            vshlq_u64(a.0, vnegq_s64(vreinterpretq_s64_u64(shift.0))),
+            vshlq_u64(a.1, vnegq_s64(vreinterpretq_s64_u64(shift.1))),
+        )
+    }
 }
 
 #[inline(always)]

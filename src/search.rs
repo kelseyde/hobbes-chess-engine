@@ -843,10 +843,8 @@ fn alpha_beta<NODE: NodeType>(
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
         for mv in captures.iter() {
-            if mv != &best_move {
-                if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
-                }
+            if mv != &best_move && let Some(captured) = board.captured(mv) {
+                td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
             }
         }
     }
@@ -857,13 +855,12 @@ fn alpha_beta<NODE: NodeType>(
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node
         && flag == Upper
-        && td.stack[ply - 1].captured.is_none() {
-        if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
-            let prev_threats = td.stack[ply - 1].threats;
-            let quiet_bonus = prior_countermove_bonus(depth);
-            td.history.quiet_history
-                .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
-        }
+        && td.stack[ply - 1].captured.is_none()
+        && let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
+        let prev_threats = td.stack[ply - 1].threats;
+        let quiet_bonus = prior_countermove_bonus(depth);
+        td.history.quiet_history
+            .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
     }
 
     // Checkmate / Stalemate Detection

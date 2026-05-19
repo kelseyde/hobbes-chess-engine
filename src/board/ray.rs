@@ -23,13 +23,17 @@ unsafe fn init_between() {
             let b = Square(b);
 
             if attacks::rook(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
-                    attacks::rook(a, Bitboard::of_sq(b)) & attacks::rook(b, Bitboard::of_sq(a));
+                unsafe {
+                    BETWEEN[a][b] =
+                        attacks::rook(a, Bitboard::of_sq(b)) & attacks::rook(b, Bitboard::of_sq(a));
+                }
             }
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
-                    attacks::bishop(a, Bitboard::of_sq(b)) & attacks::bishop(b, Bitboard::of_sq(a));
+                unsafe {
+                    BETWEEN[a][b] =
+                        attacks::bishop(a, Bitboard::of_sq(b)) & attacks::bishop(b, Bitboard::of_sq(a));
+                }
             }
         }
     }
@@ -46,13 +50,17 @@ unsafe fn init_extending() {
             let b = Square(b);
 
             if attacks::rook(a, Bitboard::empty()).contains(b) {
-                EXTENDING[a][b] =
-                    attacks::rook(a, Bitboard::empty()) & attacks::rook(b, Bitboard::empty());
+                unsafe {
+                    EXTENDING[a][b] =
+                        attacks::rook(a, Bitboard::empty()) & attacks::rook(b, Bitboard::empty());
+                }
             }
 
             if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                EXTENDING[a][b] =
-                    attacks::bishop(a, Bitboard::empty()) & attacks::bishop(b, Bitboard::empty());
+                unsafe {
+                    EXTENDING[a][b] =
+                        attacks::bishop(a, Bitboard::empty()) & attacks::bishop(b, Bitboard::empty());
+                }
             }
         }
     }

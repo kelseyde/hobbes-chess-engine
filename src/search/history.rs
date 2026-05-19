@@ -154,7 +154,7 @@ impl Histories {
         ContinuationHistory::PLIES
             .iter()
             .zip(bonuses)
-            .filter(|(&prev_ply, _)| ply >= prev_ply)
+            .filter(|&(&prev_ply, _)| ply >= prev_ply)
             .filter_map(|(&prev_ply, &bonus)| {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
@@ -178,8 +178,8 @@ impl Histories {
 impl Default for QuietHistory {
     fn default() -> Self {
         Self {
-            from_to_entries: unsafe { boxed_and_zeroed() },
-            piece_to_entries: unsafe { boxed_and_zeroed() },
+            from_to_entries: boxed_and_zeroed(),
+            piece_to_entries: boxed_and_zeroed(),
         }
     }
 }
@@ -187,8 +187,8 @@ impl Default for QuietHistory {
 impl Default for CaptureHistory {
     fn default() -> Self {
         Self {
-            piece_to_entries: unsafe { boxed_and_zeroed() },
-            from_to_entries: unsafe { boxed_and_zeroed() },
+            piece_to_entries: boxed_and_zeroed(),
+            from_to_entries: boxed_and_zeroed(),
         }
     }
 }
@@ -196,7 +196,7 @@ impl Default for CaptureHistory {
 impl Default for ContinuationHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() },
+            entries: boxed_and_zeroed(),
         }
     }
 }
@@ -204,7 +204,7 @@ impl Default for ContinuationHistory {
 impl Default for SquareHistory {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() },
+            entries: boxed_and_zeroed(),
         }
     }
 }

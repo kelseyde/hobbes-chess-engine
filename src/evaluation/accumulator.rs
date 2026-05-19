@@ -255,15 +255,17 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
     let mut i = 0;
     while i + 4 * simd::I16_LANES <= L1_SIZE {
         for k in 0..4 {
-            let off = i + k * simd::I16_LANES;
-            let mut val = simd::load_i16(input.add(off));
-            for &a in adds.iter() {
-                val = simd::add_i16(val, simd::load_i16(a.add(off)));
+            unsafe {
+                let off = i + k * simd::I16_LANES;
+                let mut val = simd::load_i16(input.add(off));
+                for &a in adds.iter() {
+                    val = simd::add_i16(val, simd::load_i16(a.add(off)));
+                }
+                for &s in subs.iter() {
+                    val = simd::sub_i16(val, simd::load_i16(s.add(off)));
+                }
+                simd::store_i16(output.add(off), val);
             }
-            for &s in subs.iter() {
-                val = simd::sub_i16(val, simd::load_i16(s.add(off)));
-            }
-            simd::store_i16(output.add(off), val);
         }
         i += 4 * simd::I16_LANES;
     }

@@ -96,7 +96,7 @@ impl CorrectionHistories {
 impl<const N: usize> Default for CorrectionHistory<N> {
     fn default() -> Self {
         Self {
-            entries: unsafe { boxed_and_zeroed() },
+            entries: boxed_and_zeroed(),
         }
     }
 }
