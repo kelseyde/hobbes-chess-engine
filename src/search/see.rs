@@ -35,8 +35,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
     let to = mv.to();
 
     let next_victim = mv
-        .promo_piece()
-        .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
+        .promo_piece().unwrap_or_else(|| board.piece_at(from).unwrap());
 
     let mut balance = move_value(board, mv, see_type) - threshold;
 

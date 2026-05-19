@@ -121,23 +121,17 @@ impl ThreadData {
             self.nodes,
             best_move_nodes,
             best_move_stability,
-            score_stability,
-        ) {
-            if self.start_time.elapsed() >= soft_time {
-                return true;
-            }
+            score_stability)
+            && self.start_time.elapsed() >= soft_time {
+            return true;
         }
 
-        if let Some(soft_nodes) = self.limits.soft_nodes {
-            if self.nodes >= soft_nodes {
-                return true;
-            }
+        if let Some(soft_nodes) = self.limits.soft_nodes && self.nodes >= soft_nodes {
+            return true;
         }
 
-        if let Some(depth_limit) = self.limits.depth {
-            if self.depth >= depth_limit as i32 {
-                return true;
-            }
+        if let Some(depth_limit) = self.limits.depth && self.depth >= depth_limit as i32 {
+            return true;
         }
 
         false
@@ -145,26 +139,20 @@ impl ThreadData {
 
     pub fn hard_limit_reached(&self) -> bool {
         // Only check hard limits every 2048 nodes to reduce overhead
-        if self.nodes % 2048 != 0 {
+        if self.nodes.is_multiple_of(2048) {
             return false;
         }
 
-        if let Some(hard_time) = self.limits.hard_time {
-            if self.start_time.elapsed() >= hard_time {
-                return true;
-            }
+        if let Some(hard_time) = self.limits.hard_time && self.start_time.elapsed() >= hard_time {
+            return true;
         }
 
-        if let Some(hard_nodes) = self.limits.hard_nodes {
-            if self.nodes >= hard_nodes {
-                return true;
-            }
+        if let Some(hard_nodes) = self.limits.hard_nodes && self.nodes >= hard_nodes {
+            return true;
         }
 
-        if let Some(depth_limit) = self.limits.depth {
-            if self.depth >= depth_limit as i32 {
-                return true;
-            }
+        if let Some(depth_limit) = self.limits.depth && self.depth >= depth_limit as i32 {
+            return true;
         }
 
         false

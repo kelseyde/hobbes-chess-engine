@@ -202,27 +202,25 @@ fn alpha_beta<NODE: NodeType>(
     // the requirements of the current search, then we can directly return the score from the TT.
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
-    if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash()) {
-            tt_hit = true;
-            tt_score = entry.score(ply) as i32;
-            tt_eval = entry.static_eval() as i32;
-            has_tt_score = is_defined(tt_score);
-            tt_depth = entry.depth() as i32;
-            tt_flag = entry.flag();
-            tt_pv = tt_pv || entry.pv();
-            if can_use_tt_move(board, &entry.best_move()) {
-                tt_move = entry.best_move();
-                tt_move_noisy = board.is_noisy(&tt_move)
-            }
+    if !singular_search && let Some(entry) = td.tt.probe(board.hash()) {
+        tt_hit = true;
+        tt_score = entry.score(ply) as i32;
+        tt_eval = entry.static_eval() as i32;
+        has_tt_score = is_defined(tt_score);
+        tt_depth = entry.depth() as i32;
+        tt_flag = entry.flag();
+        tt_pv = tt_pv || entry.pv();
+        if can_use_tt_move(board, &entry.best_move()) {
+            tt_move = entry.best_move();
+            tt_move_noisy = board.is_noisy(&tt_move)
+        }
 
-            if !root_node
-                && !pv_node
-                && tt_depth >= depth
-                && (tt_score <= alpha || cut_node)
-                && entry.flag().bounds_match(tt_score, alpha, beta) {
-                return tt_score;
-            }
+        if !root_node
+            && !pv_node
+            && tt_depth >= depth
+            && (tt_score <= alpha || cut_node)
+            && entry.flag().bounds_match(tt_score, alpha, beta) {
+            return tt_score;
         }
     }
 

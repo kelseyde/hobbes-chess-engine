@@ -359,11 +359,9 @@ impl UCI {
             None
         };
 
-        if let Some(soft_nodes) = softnodes {
-            if nodes.is_none() {
-                // When doing a soft-nodes search, always ensure a hard node limit is set.
-                nodes = Some(soft_nodes * 10);
-            }
+        if let Some(soft_nodes) = softnodes && nodes.is_none() {
+            // When doing a soft-nodes search, always ensure a hard node limit is set.
+            nodes = Some(soft_nodes * 10);
         }
 
         self.td.limits = SearchLimits::new(

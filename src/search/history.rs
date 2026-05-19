@@ -263,8 +263,8 @@ impl QuietHistory {
     }
 
     pub fn clear(&mut self) {
-        self.from_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
-        self.piece_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 6]; 2]);
+        *self.from_to_entries = [[[QuietHistoryEntry::default(); 64]; 64]; 2];
+        *self.piece_to_entries = [[[QuietHistoryEntry::default(); 64]; 6]; 2];
     }
 }
 
@@ -287,8 +287,8 @@ impl CaptureHistory {
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
-        self.from_to_entries = Box::new([[[0; 64]; 64]; 2]);
+        *self.piece_to_entries = [[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]];
+        *self.from_to_entries = [[[0; 64]; 64]; 2];
     }
 }
 
@@ -321,7 +321,7 @@ impl ContinuationHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[[[[0; 64]; 6]; 64]; 6]; 2])
+        *self.entries = [[[[[0; 64]; 6]; 64]; 6]; 2];
     }
 }
 
@@ -339,7 +339,7 @@ impl SquareHistory {
     }
 
     pub fn clear(&mut self) {
-        self.entries = Box::new([[0; 64]; 2]);
+        *self.entries = [[0; 64]; 2]
     }
 }
 
