@@ -142,7 +142,9 @@ impl Keys {
     pub fn get_non_pawn_hashes(board: &Board) -> [u64; 2] {
         let mut hashes: [u64; 2] = [0, 0];
         for sq in Square::iter() {
-            if let Some(pc) = board.piece_at(sq) && pc != Pawn {
+            if let Some(pc) = board.piece_at(sq)
+                && pc != Pawn
+            {
                 let side = board.side_at(sq).unwrap();
                 hashes[side] ^= Self::sq(pc, side, sq);
             }
@@ -161,7 +163,9 @@ impl Keys {
     fn get_filtered_hash(board: &Board, filter: impl Fn(Piece) -> bool) -> u64 {
         let mut hash = 0u64;
         for sq in Square::iter() {
-            if let Some(pc) = board.piece_at(sq) && filter(pc) {
+            if let Some(pc) = board.piece_at(sq)
+                && filter(pc)
+            {
                 let side = board.side_at(sq).unwrap();
                 hash ^= Self::sq(pc, side, sq);
             }

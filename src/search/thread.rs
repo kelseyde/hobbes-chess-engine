@@ -121,16 +121,21 @@ impl ThreadData {
             self.nodes,
             best_move_nodes,
             best_move_stability,
-            score_stability)
-            && self.start_time.elapsed() >= soft_time {
+            score_stability,
+        ) && self.start_time.elapsed() >= soft_time
+        {
             return true;
         }
 
-        if let Some(soft_nodes) = self.limits.soft_nodes && self.nodes >= soft_nodes {
+        if let Some(soft_nodes) = self.limits.soft_nodes
+            && self.nodes >= soft_nodes
+        {
             return true;
         }
 
-        if let Some(depth_limit) = self.limits.depth && self.depth >= depth_limit as i32 {
+        if let Some(depth_limit) = self.limits.depth
+            && self.depth >= depth_limit as i32
+        {
             return true;
         }
 
@@ -143,15 +148,21 @@ impl ThreadData {
             return false;
         }
 
-        if let Some(hard_time) = self.limits.hard_time && self.start_time.elapsed() >= hard_time {
+        if let Some(hard_time) = self.limits.hard_time
+            && self.start_time.elapsed() >= hard_time
+        {
             return true;
         }
 
-        if let Some(hard_nodes) = self.limits.hard_nodes && self.nodes >= hard_nodes {
+        if let Some(hard_nodes) = self.limits.hard_nodes
+            && self.nodes >= hard_nodes
+        {
             return true;
         }
 
-        if let Some(depth_limit) = self.limits.depth && self.depth >= depth_limit as i32 {
+        if let Some(depth_limit) = self.limits.depth
+            && self.depth >= depth_limit as i32
+        {
             return true;
         }
 
