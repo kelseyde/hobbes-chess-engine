@@ -354,7 +354,15 @@ fn alpha_beta<NODE: NodeType>(
             td.nodes += 1;
             td.keys.push(board.hash());
             td.tt.prefetch(board.hash());
-            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            let bound = if is_defined(tt_score)
+                && beta > tt_score
+                && tt_flag == Lower
+                && depth - 2 <= tt_depth {
+                tt_score
+            } else {
+                beta
+            };
+            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -bound, -bound + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
@@ -365,7 +373,7 @@ fn alpha_beta<NODE: NodeType>(
 
                 // At high depths, we do a normal search to verify the null move result.
                 td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
-                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, beta - 1, beta, true);
+                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, bound - 1, bound, true);
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
