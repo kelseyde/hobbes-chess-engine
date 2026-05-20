@@ -339,7 +339,7 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval >= beta + nmp_margin() - 20 * opponent_worsening as i32
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
