@@ -6,7 +6,7 @@ use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::search;
-use crate::search::thread::ThreadData;
+use crate::search::thread::{GlobalCtx, ThreadData};
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
@@ -15,12 +15,16 @@ use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
+    pub td: Option<Box<ThreadData>>,
+    pub global: Arc<GlobalCtx>,
     pub frc: bool,
+    search_handle: Option<JoinHandle<Box<ThreadData>>>,
 }
 
 impl Default for UCI {
@@ -31,10 +35,21 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let global = GlobalCtx::new(64);
+        let td = Box::new(ThreadData::new(Arc::clone(&global)));
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            td: Some(td),
+            global,
             frc: false,
+            search_handle: None,
+        }
+    }
+
+    /// Join any in-progress search thread, reclaiming `ThreadData`.
+    fn finish_search(&mut self) {
+        if let Some(handle) = self.search_handle.take() {
+            self.td = Some(handle.join().expect("search thread panicked"));
         }
     }
 
@@ -86,13 +101,14 @@ impl UCI {
         }
     }
 
-    fn handle_uci(&self) {
+    fn handle_uci(&mut self) {
+        self.finish_search();
         println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
         println!("option name Threads type spin default 1 min 1 max 1");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            self.global.tt.size_mb()
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -110,12 +126,13 @@ impl UCI {
     }
 
     fn handle_setoption(&mut self, tokens: Vec<String>) {
+        self.finish_search();
         let tokens: Vec<String> = tokens.iter().map(|s| s.to_lowercase()).collect();
         let tokens: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
+            ["setoption", "name", "threads", "value", _] => (),
             ["setoption", "name", "uci_chess960", "value", bool_str] => {
                 self.set_chess_960(bool_str)
             }
@@ -139,7 +156,11 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        // SAFETY: finish_search() was called before this, so no search thread is running.
+        // The only Arc clones are self.global and the one inside self.td (which we own).
+        unsafe { &mut *(Arc::as_ptr(&self.global) as *mut GlobalCtx) }
+            .tt
+            .resize(value);
         println!("info string Hash {}", value);
     }
 
@@ -166,7 +187,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.minimal_output = value;
+        self.td.as_mut().unwrap().minimal_output = value;
         println!("info string Minimal {}", value);
     }
 
@@ -179,7 +200,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.use_soft_nodes = value;
+        self.td.as_mut().unwrap().use_soft_nodes = value;
         println!("info string UseSoftNodes {}", value);
     }
 
@@ -196,20 +217,24 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.clear();
+        self.finish_search();
+        self.td.as_mut().unwrap().clear();
     }
 
     fn handle_bench(&mut self) {
-        bench(&mut self.td);
+        self.finish_search();
+        bench(self.td.as_mut().unwrap());
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
+        self.finish_search();
+
         if tokens.len() < 2 {
             println!("info error: missing position command");
             return;
         }
 
-        let fen = match tokens[1].as_str() {
+        let fen_str = match tokens[1].as_str() {
             "startpos" => fen::STARTPOS.to_string(),
             "fen" => tokens
                 .iter()
@@ -217,14 +242,14 @@ impl UCI {
                 .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
-                .join(" "), // Returns owned String
+                .join(" "),
             _ => {
                 println!("info error: invalid position command");
                 return;
             }
         };
 
-        self.board = match Board::from_fen(&fen) {
+        self.board = match Board::from_fen(&fen_str) {
             Ok(board) => board,
             Err(e) => {
                 println!("info error invalid fen: {}", e);
@@ -243,11 +268,12 @@ impl UCI {
             Vec::new()
         };
 
-        self.td.keys.clear();
-        self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash());
+        let td = self.td.as_mut().unwrap();
+        td.keys.clear();
+        td.root_ply = 0;
+        td.keys.push(self.board.hash());
 
-        moves.iter().for_each(|m| {
+        for m in &moves {
             let mut legal_moves = MoveList::new();
             self.board.gen_moves(MoveFilter::All, &mut legal_moves);
             let legal_move = legal_moves
@@ -257,24 +283,25 @@ impl UCI {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash());
-                    self.td.root_ply += 1;
+                    let td = self.td.as_mut().unwrap();
+                    td.keys.push(self.board.hash());
+                    td.root_ply += 1;
                 }
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
                 }
             }
-        });
+        }
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-        self.td.reset();
-        self.td.start_time = Instant::now();
-        self.td.tt.birthday();
+        self.finish_search();
 
-        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        let use_soft_nodes = self.td.as_ref().unwrap().use_soft_nodes;
+
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
-                Ok(nodes) => Some(nodes),
+                Ok(n) => Some(n),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
                     return;
@@ -286,7 +313,7 @@ impl UCI {
 
         let movetime = if tokens.contains(&String::from("movetime")) {
             match self.parse_uint(&tokens, "movetime") {
-                Ok(movetime) => Some(movetime),
+                Ok(mt) => Some(mt),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
                     Some(500)
@@ -301,27 +328,16 @@ impl UCI {
                 println!("info error: wtime is not a valid number");
                 500
             });
-
             let btime = self.parse_uint(&tokens, "btime").unwrap_or_else(|_| {
                 println!("info error: btime is not a valid number");
                 500
             });
-
-            let winc = self.parse_uint(&tokens, "winc").unwrap_or_else(|_| {
-                println!("info error: winc is not a valid number");
-                0
-            });
-
-            let binc = self.parse_uint(&tokens, "binc").unwrap_or_else(|_| {
-                println!("info error: binc is not a valid number");
-                0
-            });
-
+            let winc = self.parse_uint(&tokens, "winc").unwrap_or(0);
+            let binc = self.parse_uint(&tokens, "binc").unwrap_or(0);
             let (time, inc) = match self.board.stm {
                 White => (wtime, winc),
                 Black => (btime, binc),
             };
-
             Some((time, inc))
         } else {
             None
@@ -329,15 +345,15 @@ impl UCI {
 
         let softnodes = if tokens.contains(&String::from("softnodes")) {
             match self.parse_uint(&tokens, "softnodes") {
-                Ok(softnodes) => Some(softnodes),
+                Ok(sn) => Some(sn),
                 Err(_) => {
                     println!("info error: softnodes is not a valid number");
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+        } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
-                Ok(nodes) => Some(nodes),
+                Ok(n) => Some(n),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
                     return;
@@ -349,7 +365,7 @@ impl UCI {
 
         let depth = if tokens.contains(&String::from("depth")) {
             match self.parse_uint(&tokens, "depth") {
-                Ok(depth) => Some(depth),
+                Ok(d) => Some(d),
                 Err(_) => {
                     println!("info error: depth is not a valid number");
                     return;
@@ -361,12 +377,17 @@ impl UCI {
 
         if let Some(soft_nodes) = softnodes {
             if nodes.is_none() {
-                // When doing a soft-nodes search, always ensure a hard node limit is set.
                 nodes = Some(soft_nodes * 10);
             }
         }
 
-        self.td.limits = SearchLimits::new(
+        // Reset abort and prepare the thread data
+        self.global.reset_abort();
+
+        let td = self.td.as_mut().unwrap();
+        td.reset();
+        td.start_time = Instant::now();
+        td.limits = SearchLimits::new(
             fischer,
             movetime,
             softnodes,
@@ -374,28 +395,44 @@ impl UCI {
             depth,
             self.board.fm as usize,
         );
+        self.global.tt.birthday();
 
-        // Perform the search
-        search(&self.board, &mut self.td);
+        // Take td off self so we can move it into the thread
+        let mut td = self.td.take().unwrap();
+        let board = self.board.clone();
 
-        // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+        let handle = thread::spawn(move || {
+            search(&board, &mut td);
+            println!("bestmove {}", td.best_move.to_uci());
+            td
+        });
+
+        self.search_handle = Some(handle);
+    }
+
+    fn handle_stop(&mut self) {
+        // Signal the abort flag — the search thread checks this and will stop promptly.
+        self.global.signal_abort();
+        // Wait for it to finish so td is available again.
+        self.finish_search();
     }
 
     fn handle_eval(&mut self) {
-        self.td.nnue.activate(&self.board);
-        let eval: i32 = self.td.nnue.evaluate(&self.board);
+        self.finish_search();
+        let td = self.td.as_mut().unwrap();
+        td.nnue.activate(&self.board);
+        let eval: i32 = td.nnue.evaluate(&self.board);
         println!("{}", eval);
     }
 
     fn handle_eval_stats(&mut self, tokens: Vec<String>) {
+        self.finish_search();
         if tokens.len() < 2 {
             println!("info error: missing input file argument");
             return;
         }
-
         let input_path = Path::new(&tokens[1]);
-        stats::eval_stats(&mut self.td, input_path);
+        stats::eval_stats(self.td.as_mut().unwrap(), input_path);
     }
 
     fn handle_fen(&self) {
@@ -407,7 +444,6 @@ impl UCI {
             println!("info error: missing depth argument");
             return;
         }
-
         let depth = match tokens[1].parse::<u8>() {
             Ok(d) => d,
             Err(_) => {
@@ -415,19 +451,14 @@ impl UCI {
                 return;
             }
         };
-
         let bulk = match tokens.get(2).map(|s| s.as_str()) {
             Some("false") => false,
             Some("true") | None => true,
             Some(other) => {
-                println!(
-                    "info error: bulk argument '{}' is not a valid boolean",
-                    other
-                );
+                println!("info error: bulk argument '{}' is not a valid boolean", other);
                 return;
             }
         };
-
         let t = Instant::now();
         let n = if bulk {
             perft::<true>(&self.board, depth)
@@ -440,33 +471,19 @@ impl UCI {
         println!("info {d:.2?} ({mnps:.2}Mnps)\n");
     }
 
-    /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
-    /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-        let count = self.parse_uint(&tokens, "genfens").unwrap_or({
-            println!("info error: count is not a valid number");
-            0
-        }) as usize;
-
-        let seed = self.parse_uint(&tokens, "seed").unwrap_or({
-            println!("info error: seed is not a valid number");
-            0
-        });
-
+        self.finish_search();
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or(0) as usize;
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or(0);
         let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or(8) as usize;
-
-        let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
-            println!("info error: dfrc is not a valid boolean");
-            false
-        });
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
+        let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or(false);
+        for opening in
+            generate_random_openings(self.td.as_mut().unwrap(), count, seed, random_moves, dfrc)
+        {
             println!("info string genfens {}", opening);
         }
     }
 
-    fn handle_stop(&mut self) {
-        //self.td.cancelled = true;
-    }
 
     fn handle_help(&self) {
         println!("the following commands are available:");

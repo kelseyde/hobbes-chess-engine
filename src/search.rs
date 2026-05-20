@@ -203,7 +203,7 @@ fn alpha_beta<NODE: NodeType>(
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash()) {
+        if let Some(entry) = td.tt().probe(board.hash()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -243,7 +243,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt().insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -352,7 +352,7 @@ fn alpha_beta<NODE: NodeType>(
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
-            td.tt.prefetch(board.hash());
+            td.tt().prefetch(board.hash());
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -609,7 +609,7 @@ fn alpha_beta<NODE: NodeType>(
         td.stack[ply].pc = Some(pc);
         td.stack[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.tt().prefetch(board.hash());
 
         searched_moves += 1;
         td.nodes += 1;
@@ -887,7 +887,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt().insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -938,7 +938,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = score::MIN;
-    if let Some(entry) = td.tt.probe(board.hash()) {
+    if let Some(entry) = td.tt().probe(board.hash()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
@@ -962,7 +962,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(
+            td.tt().insert(
                 board.hash(),
                 Move::NONE,
                 0,
@@ -1064,7 +1064,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         td.stack[ply].pc = Some(pc);
         td.stack[ply].captured = captured;
         td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
+        td.tt().prefetch(board.hash());
 
         move_count += 1;
         td.nodes += 1;
@@ -1116,7 +1116,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(
+        td.tt().insert(
             board.hash(),
             best_move,
             best_score,
@@ -1258,7 +1258,7 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     } else {
         0
     };
-    let hashfull = td.tt.fill();
+    let hashfull = td.tt().fill();
     let bound = match bound {
         Lower => " lowerbound",
         Upper => " upperbound",

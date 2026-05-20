@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -13,12 +15,45 @@ use crate::search::{score, MAX_PLY};
 use crate::tools::debug::DebugStatsMap;
 use crate::tools::utils::boxed_and_zeroed;
 
+/// State shared across all search threads.
+pub struct GlobalCtx {
+    /// The transposition table, shared and accessed concurrently by all threads.
+    pub tt: TranspositionTable,
+    /// Set to `true` by the UCI `stop` command to abort the search immediately.
+    pub abort: AtomicBool,
+    /// Total nodes searched across all threads (used for reporting / limits).
+    pub nodes: AtomicU64,
+}
+
+impl GlobalCtx {
+    pub fn new(tt_size_mb: usize) -> Arc<Self> {
+        Arc::new(GlobalCtx {
+            tt: TranspositionTable::new(tt_size_mb),
+            abort: AtomicBool::new(false),
+            nodes: AtomicU64::new(0),
+        })
+    }
+
+    pub fn abort(&self) -> bool {
+        self.abort.load(Ordering::Relaxed)
+    }
+
+    pub fn signal_abort(&self) {
+        self.abort.store(true, Ordering::SeqCst);
+    }
+
+    pub fn reset_abort(&self) {
+        self.abort.store(false, Ordering::SeqCst);
+    }
+}
+
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
+    /// Shared global state (TT, abort flag, global node count).
+    pub global: Arc<GlobalCtx>,
     pub pv: PrincipalVariationTable,
     pub stack: NodeStack,
     pub nnue: NNUE,
@@ -42,14 +77,14 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl ThreadData {
+    pub fn new(global: Arc<GlobalCtx>) -> Self {
         ThreadData {
             id: 0,
             main: true,
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
+            global,
             pv: PrincipalVariationTable::default(),
             stack: NodeStack::default(),
             nnue: NNUE::default(),
@@ -73,9 +108,12 @@ impl Default for ThreadData {
             best_score: score::MIN,
         }
     }
-}
 
-impl ThreadData {
+    /// Convenience accessor for the shared transposition table.
+    pub fn tt(&self) -> &TranspositionTable {
+        &self.global.tt
+    }
+
     pub fn reset(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
@@ -89,7 +127,7 @@ impl ThreadData {
     }
 
     pub fn clear(&mut self) {
-        self.tt.clear();
+        self.global.tt.clear();
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
@@ -144,7 +182,12 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-        // Only check hard limits every 2048 nodes to reduce overhead
+        // Check the abort flag immediately — set by UCI 'stop'
+        if self.global.abort() {
+            return true;
+        }
+
+        // Only check time/node limits every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;
         }

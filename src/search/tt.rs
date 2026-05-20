@@ -1,6 +1,7 @@
 use crate::board::moves::Move;
 use crate::search::score;
 use crate::search::score::{to_search, to_tt};
+use std::cell::UnsafeCell;
 use std::mem::size_of;
 
 /// The transposition table is a lookup table that stores the results of previously searched
@@ -15,11 +16,16 @@ const AGE_CYCLE: u8 = 1 << 5;
 const AGE_MASK: u8 = AGE_CYCLE - 1;
 
 pub struct TranspositionTable {
-    table: Vec<Bucket>,
+    table: Vec<UnsafeCell<Bucket>>,
     size_mb: usize,
     size: usize,
-    age: u8,
+    age: UnsafeCell<u8>,
 }
+
+// SAFETY: TT races are benign — a torn write at worst produces a garbage entry
+// that will fail the key check on read. This is the standard approach in chess engines.
+unsafe impl Send for TranspositionTable {}
+unsafe impl Sync for TranspositionTable {}
 
 #[derive(Clone, Default)]
 #[repr(align(32))]
@@ -128,13 +134,12 @@ impl TranspositionTable {
     /// the table is calculated based on the size of each bucket and the number of entries per bucket.
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
-        let table = vec![Bucket::default(); size];
-        let age = 0;
+        let table = (0..size).map(|_| UnsafeCell::new(Bucket::default())).collect();
         TranspositionTable {
             table,
             size_mb,
             size,
-            age,
+            age: UnsafeCell::new(0),
         }
     }
 
@@ -142,30 +147,41 @@ impl TranspositionTable {
     /// and reset all entries to their default values.
     pub fn resize(&mut self, size_mb: usize) {
         let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
-        self.table = vec![Bucket::default(); size];
+        self.table = (0..size).map(|_| UnsafeCell::new(Bucket::default())).collect();
         self.size_mb = size_mb;
         self.size = size;
     }
 
     /// Clear all entries in the transposition table by resetting them to their default values.
-    pub fn clear(&mut self) {
-        self.table
-            .iter_mut()
-            .for_each(|entry| *entry = Bucket::default());
-        self.age = 0;
+    pub fn clear(&self) {
+        for cell in &self.table {
+            // SAFETY: no search thread is running when clear() is called
+            unsafe { *cell.get() = Bucket::default() };
+        }
+        unsafe { *self.age.get() = 0 };
     }
 
     /// Increment the age of the transposition table. This is used to track the relative age of the
     /// entries in the table, which is a factor in the entry replacement scheme.
-    pub const fn birthday(&mut self) {
-        self.age = (self.age + 1) & AGE_MASK;
+    pub fn birthday(&self) {
+        // SAFETY: only the main thread calls birthday, benign race
+        unsafe {
+            let age = self.age.get();
+            *age = (*age + 1) & AGE_MASK;
+        }
+    }
+
+    fn current_age(&self) -> u8 {
+        // SAFETY: reads a single byte, effectively atomic on all real platforms
+        unsafe { *self.age.get() }
     }
 
     /// Probe the transposition table for an entry with the given hash. The hash is used as an index
     /// into a bucket, and the entries in the bucket are searched for a matching key.
     pub fn probe(&self, hash: u64) -> Option<&Entry> {
         let idx = self.idx(hash);
-        let bucket = &self.table[idx];
+        // SAFETY: benign race, entry read via shared ref
+        let bucket = unsafe { &*self.table[idx].get() };
         bucket
             .entries
             .iter()
@@ -177,7 +193,7 @@ impl TranspositionTable {
     /// that considers both search depth and entry age.
     #[allow(clippy::too_many_arguments)]
     pub fn insert(
-        &mut self,
+        &self,
         hash: u64,
         best_move: Move,
         score: i32,
@@ -188,9 +204,10 @@ impl TranspositionTable {
         pv: bool,
     ) {
         let idx = self.idx(hash);
-        let tt_age = self.age;
+        let tt_age = self.current_age();
         let key_part = hash as u16;
-        let cluster = &mut self.table[idx];
+        // SAFETY: benign race — worst case a concurrent writer produces a garbage entry
+        let cluster = unsafe { &mut *self.table[idx].get() };
 
         let mut index = 0;
         let mut minimum = i32::MAX;
@@ -249,7 +266,9 @@ impl TranspositionTable {
     /// entries out of the first 1000. This information is printed to UCI.
     pub fn fill(&self) -> usize {
         let mut fill = 0;
-        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
+        for cell in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
+            // SAFETY: benign read race
+            let bucket = unsafe { &*cell.get() };
             for entry in &bucket.entries {
                 if entry.flags.bound() != TTFlag::None {
                     fill += 1;
@@ -264,8 +283,8 @@ impl TranspositionTable {
         unsafe {
             use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
             let index = self.idx(hash);
-            let ptr = self.table.as_ptr().add(index);
-            _mm_prefetch::<_MM_HINT_T0>(ptr as *const _);
+            let ptr = (*self.table[index].get()).entries.as_ptr();
+            unsafe { _mm_prefetch::<_MM_HINT_T0>(ptr as *const _) };
         }
         #[cfg(not(target_arch = "x86_64"))]
         let _ = hash;
