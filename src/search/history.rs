@@ -41,20 +41,20 @@ type PieceToHistory<T> = [[T; 64]; 6];
 type ThreatBucket<T> = [[T; 2]; 2];
 
 /// History table for quiet moves. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
-/// tables. Each [`QuietHistoryEntry`] contains a [`ThreatBucket`] as well as a factoriser which is
+/// tables. Each [`FactorisedThreatBucket`] contains a [`ThreatBucket`] as well as a factoriser which is
 /// updated regardless of the threat bucket index. The from/to and piece/to entries are linearly
 /// interpolated to get the final score for the move.
 pub struct QuietHistory {
-    from_to_entries: Box<[FromToHistory<QuietHistoryEntry>; 2]>,
-    piece_to_entries: Box<[PieceToHistory<QuietHistoryEntry>; 2]>,
+    from_to_entries: Box<[FromToHistory<FactorisedThreatBucket>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<FactorisedThreatBucket>; 2]>,
 }
 
 /// History table for captures. Indexed by both the [`PieceToHistory`] and [`FromToHistory`]
 /// tables, with the piece/to table additionally indexed by the captured piece type. The from/to
 /// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
-    piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
-    from_to_entries: Box<[FromToHistory<i16>; 2]>,
+    piece_to_entries: Box<[PieceToHistory<[FactorisedThreatBucket; 6]>; 2]>,
+    from_to_entries: Box<[FromToHistory<FactorisedThreatBucket>; 2]>,
 }
 
 /// Continuation history table for quiet moves, indexed by the previous move and the current move.
@@ -69,9 +69,9 @@ pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
 
-/// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each quiet move.
+/// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each move.
 #[derive(Default, Copy, Clone)]
-struct QuietHistoryEntry {
+struct FactorisedThreatBucket {
     factoriser: i16,
     bucket: ThreatBucket<i16>,
 }
@@ -98,7 +98,7 @@ impl Histories {
         captured: Option<Piece>,
     ) -> i32 {
         if let Some(captured) = captured {
-            self.capture_history_score(board, mv, pc, captured)
+            self.capture_history_score(board, mv, pc, captured, threats)
         } else {
             let quiet_score = self.quiet_history_score(board, mv, pc, threats);
             let cont_score = self.cont_history_score(board, ss, mv, ply);
@@ -137,8 +137,9 @@ impl Histories {
         mv: &Move,
         pc: Piece,
         captured: Piece,
+        threats: Bitboard,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, *mv, captured) as i32
+        self.capture_history.get(board.stm, pc, *mv, captured, threats) as i32
     }
 
     pub fn update_continuation_history(
@@ -209,7 +210,7 @@ impl Default for SquareHistory {
     }
 }
 
-impl QuietHistoryEntry {
+impl FactorisedThreatBucket {
     #[inline]
     fn score(&self, threat_index: &ThreatIndex) -> i16 {
         self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
@@ -263,8 +264,8 @@ impl QuietHistory {
     }
 
     pub fn clear(&mut self) {
-        self.from_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 64]; 2]);
-        self.piece_to_entries = Box::new([[[QuietHistoryEntry::default(); 64]; 6]; 2]);
+        self.from_to_entries = Box::new([[[FactorisedThreatBucket::default(); 64]; 64]; 2]);
+        self.piece_to_entries = Box::new([[[FactorisedThreatBucket::default(); 64]; 6]; 2]);
     }
 }
 
@@ -272,23 +273,43 @@ impl CaptureHistory {
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
+    pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece, threats: Bitboard) -> i16 {
+        let threat_idx = ThreatIndex::new(mv, threats);
+        let piece_to_score =
+            self.piece_to_entries[stm][pc][mv.to()][captured].score(&threat_idx) as i32;
+        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx) as i32;
         lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
+    pub fn update(
+        &mut self,
+        stm: Side,
+        pc: Piece,
+        mv: &Move,
+        captured: Piece,
+        threats: Bitboard,
+        bonus: i16,
+        factoriser_bonus: i16,
+    ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
-        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
-        update_entry(pt_entry, bonus, Self::MAX);
-        update_entry(ft_entry, bonus, Self::MAX);
+        let threat_index = ThreatIndex::new(*mv, threats);
+
+        self.from_to_entries[stm][mv.from()][mv.to()].update(
+            &threat_index,
+            bonus,
+            factoriser_bonus,
+        );
+
+        self.piece_to_entries[stm][pc][mv.to()][captured].update(
+            &threat_index,
+            bonus,
+            factoriser_bonus,
+        );
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
-        self.from_to_entries = Box::new([[[0; 64]; 64]; 2]);
+        self.piece_to_entries = Box::new([[[[FactorisedThreatBucket::default(); 6]; 64]; 6]; 2]);
+        self.from_to_entries = Box::new([[[FactorisedThreatBucket::default(); 64]; 64]; 2]);
     }
 }
 
@@ -383,7 +404,8 @@ fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
 
 #[rustfmt::skip]
 mod bonuses {
-    use super::*;
+use crate::search::parameters::{capt_fact_bonus_max, capt_fact_bonus_offset, capt_fact_bonus_scale, capt_fact_malus_max, capt_fact_malus_offset, capt_fact_malus_scale};
+use super::*;
 
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {
@@ -406,6 +428,8 @@ mod bonuses {
                      quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_offset,    quiet_fact_malus_max));
     history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_offset,     capt_hist_bonus_max),
                      capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_offset,     capt_hist_malus_max));
+    history_bonuses!(capture_factoriser_bonus  (capt_fact_bonus_scale,     capt_fact_bonus_offset,     capt_fact_bonus_max),
+                     capture_factoriser_malus  (capt_fact_malus_scale,     capt_fact_malus_offset,     capt_fact_malus_max));
     history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max),
                      cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
     history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
