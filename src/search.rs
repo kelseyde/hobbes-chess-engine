@@ -983,7 +983,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     };
     let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
 
     let futility_margin = static_eval + qs_futility_threshold();
 
@@ -998,6 +999,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
+        legal_moves += 1;
+
         if move_picker.stage == BadNoisies {
             break;
         }
@@ -1010,7 +1013,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
+        if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
             break;
         }
 
@@ -1040,7 +1043,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+        if in_check && searched_moves > 0 && is_quiet && !is_mate_score {
             break;
         }
 
@@ -1048,7 +1051,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         make_move(td, &mut board, mv, pc, captured, ply);
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
         unmake_move(td, ply);
-        move_count += 1;
+        searched_moves += 1;
 
         if td.should_stop(Hard) {
             break;
@@ -1079,7 +1082,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    if move_count == 0 && in_check {
+    if legal_moves == 0 && in_check {
         return mated_in(ply);
     }
 
