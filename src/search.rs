@@ -326,7 +326,8 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            + rfp_complexity_scale() * (correction > rfp_complexity_margin()) as i32;
         if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
             return lerp(beta, static_eval, rfp_lerp_factor());
         }
@@ -464,6 +465,7 @@ fn alpha_beta<NODE: NodeType>(
         } else if depth <= ldse_max_depth()
             && !in_check
             && static_eval <= alpha - ldse_margin()
+                + ldse_corr_mult() * correction.abs() / ldse_corr_div()
             && tt_flag == Lower {
             extension = 1;
 
