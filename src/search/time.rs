@@ -4,6 +4,7 @@ use crate::search::parameters::*;
 
 pub const UCI_OVERHEAD_MS: u64 = 50;
 
+#[rustfmt::skip]
 pub struct TimeParams {
     pub soft_tm_base:        f64,
     pub soft_tm_scale:       f64,
@@ -22,6 +23,8 @@ pub struct TimeParams {
 }
 
 impl TimeParams {
+
+    #[rustfmt::skip]
     pub fn init() -> Self {
         Self {
             soft_tm_base:       tm_soft_base() as f64 / 1000.0,
@@ -99,8 +102,6 @@ impl SearchLimits {
         }
     }
 
-    /// Re-initialise the TimeParams from the current tunable values. Call at the top of the main
-    /// search function so that any tunable updates take effect immediately.
     pub fn init(&mut self) {
         self.time_params = TimeParams::init();
     }
