@@ -537,7 +537,7 @@ fn alpha_beta<NODE: NodeType>(
             && lmr_depth < fp_max_depth()
             && !is_mated
             && static_eval + futility_margin <= alpha {
-            move_picker.skip_quiets = true;
+            move_picker.skip_quiets();
             continue;
         }
 
@@ -549,7 +549,7 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && depth <= lmp_max_depth()
             && searched_moves > late_move_threshold(depth, improvement) {
-            move_picker.skip_quiets = true;
+            move_picker.skip_quiets();
         }
 
         // History Pruning
@@ -560,7 +560,7 @@ fn alpha_beta<NODE: NodeType>(
             && is_quiet
             && depth <= hp_max_depth()
             && history_score < hp_scale() * depth * depth {
-            move_picker.skip_quiets = true;
+            move_picker.skip_quiets();
             continue
         }
 
@@ -570,7 +570,7 @@ fn alpha_beta<NODE: NodeType>(
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
-            && move_picker.stage == BadNoisies
+            && move_picker.stage() == BadNoisies
             && futility_margin <= alpha {
             break;
         }
@@ -629,8 +629,8 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * gives_check as i32;
             r += lmr_improving() * !improving as i32;
-            r -= lmr_good_noisy() * (move_picker.stage == GoodNoisies) as i32;
-            r += lmr_bad_noisy() * (move_picker.stage == BadNoisies) as i32;
+            r -= lmr_good_noisy() * (move_picker.stage() == GoodNoisies) as i32;
+            r += lmr_bad_noisy() * (move_picker.stage() == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= lmr_killer() * is_killer as i32;
@@ -1001,7 +1001,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         legal_moves += 1;
 
-        if move_picker.stage == BadNoisies {
+        if move_picker.stage() == BadNoisies {
             break;
         }
 
