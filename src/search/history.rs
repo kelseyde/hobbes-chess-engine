@@ -139,7 +139,8 @@ impl Histories {
         captured: Piece,
         threats: Bitboard,
     ) -> i32 {
-        self.capture_history.get(board.stm, pc, *mv, captured, threats) as i32
+        self.capture_history
+            .get(board.stm, pc, *mv, captured, threats) as i32
     }
 
     pub fn update_continuation_history(

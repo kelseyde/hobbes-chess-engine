@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -29,7 +30,6 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::board::piece::Piece;
 
 pub const MAX_PLY: usize = 256;
 
@@ -1136,10 +1136,7 @@ fn make_move(
     td.nodes += 1;
 }
 
-fn unmake_move(
-    td: &mut ThreadData,
-    ply: usize,
-) {
+fn unmake_move(td: &mut ThreadData, ply: usize) {
     td.stack[ply].mv = None;
     td.stack[ply].pc = None;
     td.stack[ply].captured = None;
