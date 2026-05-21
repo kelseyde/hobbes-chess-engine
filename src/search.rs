@@ -29,6 +29,7 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
+use crate::board::piece::Piece;
 
 pub const MAX_PLY: usize = 256;
 
@@ -603,17 +604,8 @@ fn alpha_beta<NODE: NodeType>(
         // Therefore, we make the move on the board and search the resulting position.
         let original_board = board;
         let mut board = *board;
-        td.nnue.update(&mv, pc, captured, &board);
-        board.make(&mv);
-
-        td.stack[ply].mv = Some(mv);
-        td.stack[ply].pc = Some(pc);
-        td.stack[ply].captured = captured;
-        td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
-
+        make_move(td, &mut board, mv, pc, captured, ply);
         searched_moves += 1;
-        td.nodes += 1;
 
         let gives_check = board.threats.contains(board.king_sq(board.stm));
 
@@ -703,11 +695,7 @@ fn alpha_beta<NODE: NodeType>(
             capture_count += 1;
         }
 
-        td.stack[ply].mv = None;
-        td.stack[ply].pc = None;
-        td.stack[ply].captured = None;
-        td.keys.pop();
-        td.nnue.undo();
+        unmake_move(td, ply);
 
         if root_node {
             td.node_table.add(&mv, td.nodes - initial_nodes);
@@ -996,7 +984,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     };
     let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
 
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
 
     let futility_margin = static_eval + qs_futility_threshold();
 
@@ -1011,6 +1000,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
+        legal_moves += 1;
+
         if move_picker.stage == BadNoisies {
             break;
         }
@@ -1023,7 +1014,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && move_count >= 2 {
+        if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
             break;
         }
 
@@ -1053,30 +1044,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // Evasion Pruning
         // In check, stop searching quiet moves after finding at least one non-losing move.
-        if in_check && move_count > 1 && is_quiet && !is_mate_score {
+        if in_check && searched_moves > 0 && is_quiet && !is_mate_score {
             break;
         }
 
         let mut board = *board;
-        td.nnue.update(&mv, pc, captured, &board);
-
-        board.make(&mv);
-        td.stack[ply].mv = Some(mv);
-        td.stack[ply].pc = Some(pc);
-        td.stack[ply].captured = captured;
-        td.keys.push(board.hash());
-        td.tt.prefetch(board.hash());
-
-        move_count += 1;
-        td.nodes += 1;
-
+        make_move(td, &mut board, mv, pc, captured, ply);
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
-
-        td.stack[ply].mv = None;
-        td.stack[ply].pc = None;
-        td.stack[ply].captured = None;
-        td.keys.pop();
-        td.nnue.undo();
+        unmake_move(td, ply);
+        searched_moves += 1;
 
         if td.should_stop(Hard) {
             break;
@@ -1107,7 +1083,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
-    if move_count == 0 && in_check {
+    if legal_moves == 0 && in_check {
         return mated_in(ply);
     }
 
@@ -1130,6 +1106,35 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     best_score
+}
+
+fn make_move(
+    td: &mut ThreadData,
+    board: &mut Board,
+    mv: Move,
+    pc: Piece,
+    captured: Option<Piece>,
+    ply: usize,
+) {
+    td.nnue.update(&mv, pc, captured, &board);
+    board.make(&mv);
+    td.stack[ply].mv = Some(mv);
+    td.stack[ply].pc = Some(pc);
+    td.stack[ply].captured = captured;
+    td.keys.push(board.hash());
+    td.tt.prefetch(board.hash());
+    td.nodes += 1;
+}
+
+fn unmake_move(
+    td: &mut ThreadData,
+    ply: usize,
+) {
+    td.stack[ply].mv = None;
+    td.stack[ply].pc = None;
+    td.stack[ply].captured = None;
+    td.keys.pop();
+    td.nnue.undo();
 }
 
 fn is_draw(td: &ThreadData, board: &Board) -> bool {
