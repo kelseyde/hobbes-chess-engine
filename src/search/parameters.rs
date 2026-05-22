@@ -264,4 +264,18 @@ tunable_params! {
     movepick_see_divisor         = 45, 30..=60,            true;
     movepick_see_offset          = 118, 80..=200,          true;
     score_stability_threshold    = 14, 4..=24,             true;
+    tm_soft_base                 = 24, 10..=60,            true;
+    tm_soft_scale                = 42, 20..=80,            true;
+    tm_soft_inc_scale            = 750, 400..=1000,        true;
+    tm_soft_fm_scale             = 45, 20..=80,            true;
+    tm_hard_scale                = 742, 400..=1000,        true;
+    tm_hard_inc_scale            = 750, 400..=1000,        true;
+    tm_node_base                 = 1500, 1000..=2000,      true;
+    tm_node_scale                = 1350, 800..=2000,       true;
+    tm_best_move_base            = 1800, 1000..=2500,      true;
+    tm_best_move_scale           = 100, 50..=300,          true;
+    tm_best_move_min             = 900, 500..=1000,        true;
+    tm_score_base                = 1200, 800..=1800,       true;
+    tm_score_scale               = 40, 10..=100,           true;
+    tm_score_min                 = 880, 500..=1000,        true;
 }
