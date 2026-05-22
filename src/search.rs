@@ -535,7 +535,7 @@ fn alpha_beta<NODE: NodeType>(
         if !root_node
             && !in_check
             && is_quiet
-            && lmr_depth < fp_max_depth()
+            && lmr_depth < fp_max_depth() + 2 * !pv_node as i32
             && !is_mated
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets();
