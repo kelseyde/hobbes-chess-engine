@@ -138,6 +138,12 @@ tunable_params! {
     lmr_cont_2_malus_scale       = 196, 80..=280,          true;
     lmr_cont_2_malus_offset      = 67, 0..=200,            true;
     lmr_cont_2_malus_max         = 1263, 1000..=1600,      true;
+    lmr_cont_4_bonus_scale       = 192, 80..=280,          true;
+    lmr_cont_4_bonus_offset      = 127, 0..=200,           true;
+    lmr_cont_4_bonus_max         = 1107, 1000..=1600,      true;
+    lmr_cont_4_malus_scale       = 196, 80..=280,          true;
+    lmr_cont_4_malus_offset      = 67, 0..=200,            true;
+    lmr_cont_4_malus_max         = 1263, 1000..=1600,      true;
     alpha_raise_min_depth        = 2, 0..=6,               false;
     alpha_raise_max_depth        = 12, 8..=16,             false;
     quiet_hist_bonus_scale       = 225, 80..=280,          true;
@@ -190,6 +196,12 @@ tunable_params! {
     cont_hist_2_malus_offset     = 93, 0..=200,            true;
     cont_hist_2_ttmove_malus     = 96, 0..=200,            true;
     cont_hist_2_malus_max        = 1091, 800..=1600,       true;
+    cont_hist_4_bonus_scale      = 120, 80..=280,          true;
+    cont_hist_4_bonus_offset     = 192, 0..=300,           true;
+    cont_hist_4_bonus_max        = 993, 800..=1600,        true;
+    cont_hist_4_malus_scale      = 88, 80..=280,           true;
+    cont_hist_4_malus_offset     = 93, 0..=200,            true;
+    cont_hist_4_malus_max        = 1091, 800..=1600,       true;
     from_hist_bonus_scale        = 194, 80..=280,          true;
     from_hist_bonus_offset       = 95, 0..=200,            true;
     from_hist_bonus_max          = 962, 800..=1600,        true;
