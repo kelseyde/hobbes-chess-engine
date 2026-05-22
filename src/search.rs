@@ -492,8 +492,9 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
 
-    let mut quiets = ArrayVec::<Move, 32>::new();
-    let mut captures = ArrayVec::<Move, 32>::new();
+    let mut searched_quiets = ArrayVec::<Move, 32>::new();
+    let mut skipped_quiets = ArrayVec::<Move, 32>::new();
+    let mut searched_captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
 
@@ -539,6 +540,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets();
+            skipped_quiets.push(mv);
             continue;
         }
 
@@ -562,6 +564,7 @@ fn alpha_beta<NODE: NodeType>(
             && depth <= hp_max_depth()
             && history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets();
+            skipped_quiets.push(mv);
             continue
         }
 
@@ -597,6 +600,9 @@ fn alpha_beta<NODE: NodeType>(
             && searched_moves >= 1
             && !is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
+            if is_quiet {
+                skipped_quiets.push(mv);
+            }
             continue;
         }
 
@@ -688,10 +694,10 @@ fn alpha_beta<NODE: NodeType>(
 
         // Register the current move, to update its history score later
         if is_quiet && quiet_count < 32 {
-            quiets.push(mv);
+            searched_quiets.push(mv);
             quiet_count += 1;
         } else if captured.is_some() && capture_count < 32 {
-            captures.push(mv);
+            searched_captures.push(mv);
             capture_count += 1;
         }
 
@@ -818,7 +824,7 @@ fn alpha_beta<NODE: NodeType>(
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
-            for mv in quiets.iter() {
+            for mv in searched_quiets.iter() {
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
                     td.history.quiet_history
@@ -828,10 +834,15 @@ fn alpha_beta<NODE: NodeType>(
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
             }
+            for mv in skipped_quiets.iter() {
+                let pc = board.piece_at(mv.from()).unwrap();
+                td.history.quiet_history
+                    .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
+            }
         }
 
         // Regardless of whether the best move was quiet or a capture, penalise all other captures.
-        for mv in captures.iter() {
+        for mv in searched_captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
                     td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
