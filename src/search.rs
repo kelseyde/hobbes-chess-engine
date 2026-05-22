@@ -388,7 +388,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Cutnode TT reduction.
-    if cut_node
+    else if cut_node
         && !singular_search
         && depth >= cutnode_red_min_depth()
         && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
