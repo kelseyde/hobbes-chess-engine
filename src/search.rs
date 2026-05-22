@@ -818,12 +818,16 @@ fn alpha_beta<NODE: NodeType>(
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
 
             // Penalise all the other quiets which failed to cause a beta cut-off.
-            for mv in quiets.iter() {
-                if mv != &best_move {
+            for (i, &mv) in quiets.iter().enumerate() {
+                if mv != best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
+                    let denom = 1024 + 45 * i as i32;
+                    let scale = 1024_i32 * 1024 / (denom * denom / 1024);
+                    let scaled_malus = (quiet_malus as i32 * scale / 1024) as i16;
+                    let scaled_factoriser_malus = (quiet_factoriser_malus as i32 * scale / 1024) as i16;
                     td.history.quiet_history
-                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
-                    td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
+                        .update(board.stm, &mv, pc, threats, scaled_malus, scaled_factoriser_malus);
+                    td.history.update_continuation_history(board, &td.stack, ply, &mv, pc, &cont_maluses);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);
                 }
