@@ -19,13 +19,13 @@ use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 #[rustfmt::skip]
 pub struct MovePicker {
     moves: MoveList,       // List of moves to pick from in the current stage
-    pub stage: Stage,      // The current stage of move picking, e.g. generating quiets, trying captures.
+    stage: Stage,          // The current stage of move picking, e.g. generating quiets, trying captures.
     idx: usize,            // The index of the current move being searched.
     filter: MoveFilter,    // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
     tt_move: Move,         // The move from the transposition table, which is tried first if it exists.
     ply: usize,            // The ply of the current search, used for history heuristics.
     threats: Bitboard,     // The squares threatened by the opponent, used for history heuristics.
-    pub skip_quiets: bool, // Whether we should skip the remaining quiet moves.
+    skip_quiets: bool,     // Whether we should skip the remaining quiet moves.
     split_noisies: bool,   // Whether to split noisy moves into good and bad based on a SEE threshold.
     bad_noisies: MoveList, // Noisy moves that fail the SEE threshold, which are tried after quiet moves.
 }
@@ -43,31 +43,23 @@ pub enum Stage {
 
 impl MovePicker {
     pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        let stage = if tt_move.exists() {
-            TTMove
-        } else {
-            GenerateNoisies
-        };
-        Self {
-            moves: MoveList::new(),
-            stage,
-            idx: 0,
-            filter: MoveFilter::Noisies,
-            tt_move,
-            ply,
-            threats,
-            skip_quiets: false,
-            split_noisies: true,
-            bad_noisies: MoveList::new(),
-        }
+        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
     }
 
     pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        let stage = if tt_move.exists() {
-            TTMove
-        } else {
-            GenerateNoisies
-        };
+        Self::init(tt_move, filter, ply, threats, true, false)
+    }
+    
+    #[rustfmt::skip]
+    pub fn init(
+        tt_move: Move, 
+        filter: MoveFilter, 
+        ply: usize, 
+        threats: Bitboard, 
+        skip_quiets: bool, 
+        split_noisies: bool
+    ) -> Self {
+        let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
             moves: MoveList::new(),
             stage,
@@ -76,8 +68,8 @@ impl MovePicker {
             tt_move,
             ply,
             threats,
-            skip_quiets: true,
-            split_noisies: false,
+            skip_quiets,
+            split_noisies,
             bad_noisies: MoveList::new(),
         }
     }
@@ -192,6 +184,14 @@ impl MovePicker {
         let best_move = moves.list[self.idx].mv;
         self.idx += 1;
         Some(best_move)
+    }
+    
+    pub fn skip_quiets(&mut self) {
+        self.skip_quiets = true;
+    }
+    
+    pub fn stage(&self) -> Stage {
+        self.stage
     }
 }
 
