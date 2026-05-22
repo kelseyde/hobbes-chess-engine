@@ -559,7 +559,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && !is_killer
             && is_quiet
-            && depth <= hp_max_depth()
+            && depth <= hp_max_depth() + 2 * !pv_node as i32
             && history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets();
             continue
