@@ -28,7 +28,7 @@ impl MoveFilter {
     }
 
     pub fn gen_captures(self) -> bool {
-        matches!(self, MoveFilter::All | MoveFilter::Captures)
+        matches!(self, MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures)
     }
 }
 
