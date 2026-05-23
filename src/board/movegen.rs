@@ -117,11 +117,6 @@ impl Board {
         for from in pieces & pinned {
             let pin_ray = ray::extending(king_sq, from);
             let attacks = attacks(from) & filter_mask & pin_ray;
-            for to in attacks {
-                if to == king_sq {
-                    println!("WHY?");
-                }
-            }
             moves.add_moves(from, attacks, MoveFlag::Standard);
         }
     }
