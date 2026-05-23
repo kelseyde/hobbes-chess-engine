@@ -157,7 +157,8 @@ impl Board {
         if filter.gen_noisies() {
             // Push promotions (noisy, but not captures).
             let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
-            moves.add_pawn_promos(push_promos & (filter_mask | eighth_rank), up);
+            let promo_filter = if self.checkers.is_empty() { filter_mask | eighth_rank } else { filter_mask };
+            moves.add_pawn_promos(push_promos & promo_filter, up);
         }
 
         if filter.gen_captures() {
