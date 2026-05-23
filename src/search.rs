@@ -993,6 +993,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut capture_count = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
+
         legal_moves += 1;
 
         if move_picker.stage() == BadNoisies {

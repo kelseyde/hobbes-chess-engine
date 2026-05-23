@@ -171,6 +171,7 @@ impl Board {
             // Non-promotion captures
             let left_caps = (left_pawns & !seventh_rank).shift(up_left);
             let right_caps = (right_pawns & !seventh_rank).shift(up_right);
+
             moves.add_pawn_moves(right_caps & filter_mask, up_right, MoveFlag::Standard);
             moves.add_pawn_moves(left_caps & filter_mask, up_left, MoveFlag::Standard);
 
@@ -183,6 +184,9 @@ impl Board {
             // En passant
             if let Some(ep_sq) = self.ep_sq {
                 let ep_bb = Bitboard::of_sq(ep_sq);
+                if !self.checkers.is_empty() && ep_bb != self.checkers {
+                    return;
+                }
                 let right_attacker = right_pawns & ep_bb.shift(-up_right);
                 let left_attacker = left_pawns & ep_bb.shift(-up_left);
                 for pawn in right_attacker | left_attacker {
@@ -361,18 +365,12 @@ mod tests {
 
     #[test]
     fn test_filters() {
-        let board = Board::from_fen("8/P1k5/K7/8/1q6/8/8/8 w - - 10 58").unwrap();
-        let mut quiet_root_moves = MoveList::new();
-        board.gen_moves(MoveFilter::Quiets, &mut quiet_root_moves);
-        println!("{:?}", quiet_root_moves);
-
-        let mut noisy_root_moves = MoveList::new();
-        board.gen_moves(MoveFilter::Noisies, &mut noisy_root_moves);
-        println!("{:?}", noisy_root_moves);
-
-        let mut capture_root_moves = MoveList::new();
-        board.gen_moves(MoveFilter::Captures, &mut capture_root_moves);
-        println!("{:?}", capture_root_moves);
+        let board = Board::from_fen("8/8/4K3/2k5/5Pp1/8/8/3b2B1 b - f3 0 152").unwrap();
+        let mut moves = MoveList::new();
+        board.gen_moves(MoveFilter::All, &mut moves);
+        let mv_strings = moves.iter().map(|entry| entry.mv.to_uci()).collect::<Vec<_>>();
+        // assert does not contain g4f3
+        assert!(!mv_strings.contains(&"g4f3".to_string()));
     }
 
 }
