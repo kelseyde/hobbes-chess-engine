@@ -36,7 +36,7 @@ fn perft_inner<const BULK: bool>(board: &Board, depth: u8) -> u64 {
     board.gen_moves(MoveFilter::All, &mut moves);
 
     if BULK && depth == 1 {
-        return moves.iter().filter(|e| board.is_legal(&e.mv)).count() as u64;
+        return moves.len() as u64;
     }
 
     let mut nodes = 0;
