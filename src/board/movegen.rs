@@ -44,6 +44,8 @@ impl Board {
         let us = self.us();
         let them = self.them();
         let occ = us | them;
+        let threats = self.threats;
+        let in_check = !self.checkers.is_empty();
 
         let filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
@@ -59,12 +61,21 @@ impl Board {
 
         // Generate king moves first
         let king_mask = filter_mask & !self.threats;
-        self.gen_standard_moves(Piece::King, side, occ, us, king_mask, moves);
+        self.gen_king_moves(side, us, king_mask, moves);
 
         // If we are in double-check, the only legal moves are king moves.
-        if self.checkers.count() == 2 {
+        if self.checkers.is_multiple() {
             return;
         }
+
+        let filter_mask = if in_check {
+            // If we are in single-check, we can only generate moves that block or capture the checker.
+            let checker = self.checkers.lsb();
+            let checking_ray = ray::between(self.king_sq(side), checker);
+            filter_mask & (checking_ray | self.checkers)
+        } else {
+            filter_mask
+        };
 
         // handle special moves first (en passant, promo, castling etc.)
         gen_pawn_moves(self, side, occ, them, gen_quiets, gen_noisies, moves);
@@ -108,6 +119,20 @@ impl Board {
             | attacks::knight(king_sq) & self.knights(them)
             | attacks::rook(king_sq, occ) & self.orthos(them)
             | attacks::bishop(king_sq, occ) & self.diags(them)
+    }
+
+    fn gen_king_moves(
+        &self,
+        side: Side,
+        us: Bitboard,
+        filter_mask: Bitboard,
+        moves: &mut MoveList,
+    ) {
+        let king_sq = self.king_sq(side);
+        let attacks = attacks::king(king_sq) & !us & filter_mask;
+        for to in attacks {
+            moves.add_move(king_sq, to, MoveFlag::Standard);
+        }
     }
 
     #[inline(always)]
