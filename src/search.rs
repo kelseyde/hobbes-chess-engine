@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -29,7 +30,6 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::board::piece::Piece;
 
 pub const MAX_PLY: usize = 256;
 
@@ -45,7 +45,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.limits.init();
 
     let mut root_moves = MoveList::new();
-    board.gen_legal_moves(&mut root_moves);
+    board.gen_moves(MoveFilter::All, &mut root_moves);
     match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
         1 => return handle_one_legal_move(board, td, &root_moves),
@@ -496,10 +496,6 @@ fn alpha_beta<NODE: NodeType>(
     let mut captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
-
-        if !board.is_legal(&mv) {
-            continue;
-        }
 
         legal_moves += 1;
 
@@ -996,10 +992,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut capture_count = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
-        if !board.is_legal(&mv) {
-            continue;
-        }
-
         legal_moves += 1;
 
         if move_picker.stage() == BadNoisies {
@@ -1116,7 +1108,7 @@ fn make_move(
     captured: Option<Piece>,
     ply: usize,
 ) {
-    td.nnue.update(&mv, pc, captured, &board);
+    td.nnue.update(&mv, pc, captured, board);
     board.make(&mv);
     td.stack[ply].mv = Some(mv);
     td.stack[ply].pc = Some(pc);
@@ -1126,10 +1118,7 @@ fn make_move(
     td.nodes += 1;
 }
 
-fn unmake_move(
-    td: &mut ThreadData,
-    ply: usize,
-) {
+fn unmake_move(td: &mut ThreadData, ply: usize) {
     td.stack[ply].mv = None;
     td.stack[ply].pc = None;
     td.stack[ply].captured = None;

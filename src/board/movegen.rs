@@ -19,25 +19,9 @@ pub enum MoveFilter {
 }
 
 impl Board {
+
     /// Generate all legal moves for the current position.
-    /// This is *not* optimized for speed, and is intended only as a utility method. Actual move
-    /// generation used during search is pseudo-legal, with legality checks performed on the fly.
-    pub fn gen_legal_moves(&self, moves: &mut MoveList) {
-        let mut pseudo = MoveList::new();
-        self.gen_moves(MoveFilter::All, &mut pseudo);
-        for entry in pseudo.iter() {
-            if self.is_legal(&entry.mv) {
-                moves.add_move(entry.mv.from(), entry.mv.to(), entry.mv.flag());
-            }
-        }
-    }
-
-    /// Generate all pseudo-legal moves for the current position.
     pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
-        // 'Standard' meaning non-pawn, since pawn moves are calculated setwise rather than piece-wise.
-        // The king is technically also a standard piece, but its moves are generated first for efficiency.
-        const STANDARD_PIECES: [Piece; 4] = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
-
         let side = self.stm;
         let us = self.us();
         let them = self.them();
@@ -46,43 +30,45 @@ impl Board {
         let pinned = self.pinned[side];
         let in_check = !self.checkers.is_empty();
 
-        let filter_mask = match filter {
+        let mut filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
             MoveFilter::Quiets => !them,
             MoveFilter::Noisies | MoveFilter::Captures => them,
         };
 
         let gen_quiets = matches!(filter, MoveFilter::All | MoveFilter::Quiets);
-        let gen_noisies = matches!(filter, MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures);
+        let gen_noisies = matches!(
+            filter,
+            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
+        );
 
-        // Generate king moves first
-        let king_mask = filter_mask & !threats;
-        self.gen_king_moves(side, us, king_mask, moves);
+        // Generate king moves first, because...
+        self.gen_king_moves(side, us, threats, filter_mask, moves);
 
-        // If we are in double-check, the only legal moves are king moves.
+        // ...if we are in double-check, the only legal moves are king moves. So we can exit early.
         if self.checkers.is_multiple() {
             return;
         }
 
-        let filter_mask = if in_check {
+        if in_check {
             // If we are in single-check, we can only generate moves that block or capture the checker.
-            let checker = self.checkers.lsb();
-            let checking_ray = ray::between(self.king_sq(side), checker);
-            filter_mask & (checking_ray | self.checkers)
+            let checking_ray = ray::between(self.king_sq(side), self.checkers.lsb());
+            filter_mask &= checking_ray | self.checkers
+        }
+        filter_mask &= if filter == MoveFilter::Quiets {
+            !occ
         } else {
-            filter_mask
+            !us
         };
 
-        // handle special moves first (en passant, promo, castling etc.)
-        gen_pawn_moves(self, side, occ, pinned, filter_mask, gen_quiets, gen_noisies, moves);
-        if gen_quiets && self.checkers.is_empty() {
-            gen_castle_moves(self, side, moves);
-        }
-
-        // handle standard moves
-        for &pc in STANDARD_PIECES.iter() {
-            self.gen_standard_moves(pc, side, occ, us, filter_mask, moves);
-        }
+        self.gen_pawn_moves(filter_mask, gen_quiets, gen_noisies, moves);
+        self.gen_knight_moves(side, pinned, filter_mask, moves);
+        self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| {
+            attacks::bishop(sq, occ)
+        });
+        self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| {
+            attacks::rook(sq, occ)
+        });
     }
 
     /// Compute the squares attacked by the opponent's pieces.
@@ -117,106 +103,130 @@ impl Board {
             | attacks::bishop(king_sq, occ) & self.diags(them)
     }
 
+    #[inline(always)]
     fn gen_king_moves(
         &self,
         side: Side,
         us: Bitboard,
+        threats: Bitboard,
         filter_mask: Bitboard,
         moves: &mut MoveList,
     ) {
         let king_sq = self.king_sq(side);
-        let attacks = attacks::king(king_sq) & !us & filter_mask;
-        for to in attacks {
-            moves.add_move(king_sq, to, MoveFlag::Standard);
+        let attacks = attacks::king(king_sq) & !us & !threats & filter_mask;
+        moves.add_moves(king_sq, attacks, MoveFlag::Standard);
+    }
+
+    fn gen_knight_moves(
+        &self,
+        side: Side,
+        pinned: Bitboard,
+        filter_mask: Bitboard,
+        moves: &mut MoveList,
+    ) {
+        for knight in self.knights(side) & !pinned {
+            let attacks = attacks::knight(knight) & filter_mask;
+            moves.add_moves(knight, attacks, MoveFlag::Standard);
         }
     }
 
     #[inline(always)]
-    fn gen_standard_moves(
+    fn gen_sliding_moves<F: Fn(Square) -> Bitboard>(
         &self,
-        pc: Piece,
-        side: Side,
-        occ: Bitboard,
-        us: Bitboard,
+        pieces: Bitboard,
+        pinned: Bitboard,
         filter_mask: Bitboard,
         moves: &mut MoveList,
+        attacks: F,
     ) {
-        for from in self.pcs(pc) & us {
-            let attacks = attacks::attacks(from, pc, side, occ) & !us & filter_mask;
+        for from in pieces & !pinned {
+            let attacks = attacks(from) & filter_mask;
+            moves.add_moves(from, attacks, MoveFlag::Standard);
+        }
+
+        let king_sq = self.king_sq(self.stm);
+        for from in pieces & pinned {
+            let pin_ray = ray::extending(king_sq, from);
+            let attacks = attacks(from) & filter_mask & pin_ray;
+            for to in attacks {
+                if to == king_sq {
+                    println!("WHY?");
+                }
+            }
             moves.add_moves(from, attacks, MoveFlag::Standard);
         }
     }
-}
 
-#[rustfmt::skip]
-#[inline(always)]
-fn gen_pawn_moves(
-    board: &Board,
-    side: Side,
-    occ: Bitboard,
-    pinned: Bitboard,
-    filter_mask: Bitboard,
-    gen_quiets: bool,
-    gen_noisies: bool,
-    moves: &mut MoveList,
-) {
-    let pawns = board.pcs(Piece::Pawn) & board.side(side);
-    let king_sq = board.king_sq(side);
-    let king_file = king_sq.file().to_bb();
-    let third_rank = Rank::BB[if side == White { 2 } else { 5 }];
-    let seventh_rank = Rank::BB[if side == White { 6 } else { 1 }];
-    let up = Square::UP[side];
-    let empty = !occ;
-    let pushable_pawns = pawns & (!pinned | king_file);
+    #[inline(always)]
+    fn gen_pawn_moves(
+        &self,
+        filter_mask: Bitboard,
+        gen_quiets: bool,
+        gen_noisies: bool,
+        moves: &mut MoveList,
+    ) {
+        let side = self.stm;
+        let pinned = self.pinned[side];
+        let pawns = self.pcs(Piece::Pawn) & self.side(side);
+        let king_sq = self.king_sq(side);
+        let king_file = king_sq.file().to_bb();
+        let third_rank = Rank::BB[if side == White { 2 } else { 5 }];
+        let seventh_rank = Rank::BB[if side == White { 6 } else { 1 }];
+        let up = Square::UP[side];
+        let empty = !self.occ();
+        let pushable_pawns = pawns & (!pinned | king_file);
 
-    // Quiet pawn moves (single and double pushes).
-    if gen_quiets {
-        let non_promotions = pushable_pawns & !seventh_rank;
-        let single_pushes = non_promotions.shift(up) & empty;
-        let double_pushes = (single_pushes & third_rank).shift(up) & empty;
-        moves.add_pawn_moves(single_pushes & filter_mask, up, MoveFlag::Standard);
-        moves.add_pawn_moves(double_pushes & filter_mask, up * 2, MoveFlag::DoublePush);
-    }
+        // Quiet pawn moves (single and double pushes).
+        if gen_quiets {
+            let non_promotions = pushable_pawns & !seventh_rank;
+            let single_pushes = non_promotions.shift(up) & empty;
+            let double_pushes = (single_pushes & third_rank).shift(up) & empty;
+            moves.add_pawn_moves(single_pushes & filter_mask, up, MoveFlag::Standard);
+            moves.add_pawn_moves(double_pushes & filter_mask, up * 2, MoveFlag::DoublePush);
+        }
 
-    // Noisy pawn moves (captures, promos, en passant).
-    if gen_noisies {
+        // Noisy pawn moves (captures, promos, en passant).
+        if gen_noisies {
+            // Push promotions
+            let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
+            moves.add_pawn_promos(push_promos & filter_mask, up);
 
-        // Push promotions
-        let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
-        moves.add_pawn_promos(push_promos & filter_mask, up);
+            let filter_mask = filter_mask & self.them();
+            let up_right = up + Square::RIGHT;
+            let up_left = up + Square::LEFT;
+            let right_pin_mask = ray::relative_diagonal(side, king_sq);
+            let left_pin_mask = ray::relative_diagonal(!side, king_sq);
 
-        let filter_mask = filter_mask & board.them();
-        let up_right = up + Square::RIGHT;
-        let up_left = up + Square::LEFT;
-        let right_pin_mask = ray::relative_diagonal(side, king_sq);
-        let left_pin_mask = ray::relative_diagonal(!side, king_sq);
+            // Pawns which are capable of capturing left/right (not pinned unless capturing along the
+            // pin ray, and not on the edge of the board.
+            let left_pawns = pawns & (!pinned | left_pin_mask) & !File::A.to_bb();
+            let right_pawns = pawns & (!pinned | right_pin_mask) & !File::H.to_bb();
 
-        // Pawns which are capable of capturing left/right (not pinned unless capturing along the
-        // pin ray, and not on the edge of the board.
-        let left_pawns = pawns & (!pinned | left_pin_mask) & !File::A.to_bb();
-        let right_pawns = pawns & (!pinned | right_pin_mask) & !File::H.to_bb();
+            // Non-promotion captures
+            let left_caps = (left_pawns & !seventh_rank).shift(up_left);
+            let right_caps = (right_pawns & !seventh_rank).shift(up_right);
+            moves.add_pawn_moves(right_caps & filter_mask, up_right, MoveFlag::Standard);
+            moves.add_pawn_moves(left_caps & filter_mask, up_left, MoveFlag::Standard);
 
-        // Non-promotion captures
-        let left_caps = (left_pawns & !seventh_rank).shift(up_left);
-        let right_caps = (right_pawns & !seventh_rank).shift(up_right);
-        moves.add_pawn_moves(right_caps & filter_mask, up_right, MoveFlag::Standard);
-        moves.add_pawn_moves(left_caps & filter_mask, up_left, MoveFlag::Standard);
+            // Promotion captures
+            let right_cap_promos = (right_pawns & seventh_rank).shift(up_right);
+            let left_cap_promos = (left_pawns & seventh_rank).shift(up_left);
+            moves.add_pawn_promos(left_cap_promos & filter_mask, up_left);
+            moves.add_pawn_promos(right_cap_promos & filter_mask, up_right);
 
-        // Promotion captures
-        let right_cap_promos = (right_pawns & seventh_rank).shift(up_right);
-        let left_cap_promos = (left_pawns & seventh_rank).shift(up_left);
-        moves.add_pawn_promos(left_cap_promos & filter_mask, up_left);
-        moves.add_pawn_promos(right_cap_promos & filter_mask, up_right);
-
-        if let Some(ep_sq) = board.ep_sq {
-            let ep_bb = Bitboard::of_sq(ep_sq);
-            let right_attacker = right_pawns & ep_bb.shift(-up_right);
-            let left_attacker = left_pawns & ep_bb.shift(-up_left);
-            for pawn in right_attacker | left_attacker {
-                moves.add_move(pawn, ep_sq, MoveFlag::EnPassant);
+            if let Some(ep_sq) = self.ep_sq {
+                let ep_bb = Bitboard::of_sq(ep_sq);
+                let right_attacker = right_pawns & ep_bb.shift(-up_right);
+                let left_attacker = left_pawns & ep_bb.shift(-up_left);
+                for pawn in right_attacker | left_attacker {
+                    moves.add_move(pawn, ep_sq, MoveFlag::EnPassant);
+                }
             }
         }
 
+        if gen_quiets && self.checkers.is_empty() {
+            gen_castle_moves(self, side, moves);
+        }
     }
 }
 

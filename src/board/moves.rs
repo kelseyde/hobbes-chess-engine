@@ -1,8 +1,8 @@
-use arrayvec::ArrayVec;
-use std::fmt;
 use crate::board::bitboard::Bitboard;
 use crate::board::piece::Piece;
 use crate::board::square::Square;
+use arrayvec::ArrayVec;
+use std::fmt;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
@@ -249,7 +249,7 @@ impl MoveList {
             self.add_move(from, to, flag);
         }
     }
-    
+
     pub fn add_pawn_promos(&mut self, to_bb: Bitboard, offset: i8) {
         for to in to_bb {
             let from = to.shift(-offset);

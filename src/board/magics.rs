@@ -30,9 +30,9 @@ pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
     | slide(square, blockers, -1, |s| s % 8 == 0) // west
 }
 
+use crate::tools::utils;
 use std::sync::LazyLock;
 use utils::slide;
-use crate::tools::utils;
 
 fn gen_attacks_table<const N: usize>(
     magics: &[MagicLookup; 64],
