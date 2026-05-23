@@ -46,6 +46,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     let mut root_moves = MoveList::new();
     board.gen_moves(MoveFilter::All, &mut root_moves);
+
     match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
         1 => return handle_one_legal_move(board, td, &root_moves),

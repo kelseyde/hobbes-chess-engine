@@ -10,7 +10,7 @@ use crate::board::square::Square;
 use crate::board::{attacks, castling, ray};
 use crate::board::{setwise, Board};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveFilter {
     All,
     Quiets,
@@ -18,9 +18,24 @@ pub enum MoveFilter {
     Captures,
 }
 
+impl MoveFilter {
+    pub fn gen_quiets(self) -> bool {
+        matches!(self, MoveFilter::All | MoveFilter::Quiets)
+    }
+
+    pub fn gen_noisies(self) -> bool {
+        matches!(self, MoveFilter::All | MoveFilter::Noisies)
+    }
+
+    pub fn gen_captures(self) -> bool {
+        matches!(self, MoveFilter::All | MoveFilter::Captures)
+    }
+}
+
 impl Board {
 
     /// Generate all legal moves for the current position.
+    #[rustfmt::skip]
     pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
         let side = self.stm;
         let us = self.us();
@@ -36,12 +51,6 @@ impl Board {
             MoveFilter::Noisies | MoveFilter::Captures => them,
         };
 
-        let gen_quiets = matches!(filter, MoveFilter::All | MoveFilter::Quiets);
-        let gen_noisies = matches!(
-            filter,
-            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
-        );
-
         // Generate king moves first, because...
         self.gen_king_moves(side, us, threats, filter_mask, moves);
 
@@ -55,52 +64,12 @@ impl Board {
             let checking_ray = ray::between(self.king_sq(side), self.checkers.lsb());
             filter_mask &= checking_ray | self.checkers
         }
-        filter_mask &= if filter == MoveFilter::Quiets {
-            !occ
-        } else {
-            !us
-        };
+        filter_mask &= if filter == MoveFilter::Quiets { !occ } else { !us };
 
-        self.gen_pawn_moves(filter_mask, gen_quiets, gen_noisies, moves);
+        self.gen_pawn_moves(filter, filter_mask, moves);
         self.gen_knight_moves(side, pinned, filter_mask, moves);
-        self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| {
-            attacks::bishop(sq, occ)
-        });
-        self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| {
-            attacks::rook(sq, occ)
-        });
-    }
-
-    /// Compute the squares attacked by the opponent's pieces.
-    #[inline(always)]
-    pub fn calc_threats(&self, side: Side) -> Bitboard {
-        // The king is excluded from the occupancy bitboard to include slider threats 'through' the
-        // king, allowing us to detect illegal moves where the king steps along the checking ray.
-        let king = self.king(side);
-        let occ = self.occ() ^ king;
-        let them = !side;
-
-        let pawns = self.pawns(them);
-        let knights = self.knights(them);
-        let diags = self.diags(them);
-        let orthos = self.orthos(them);
-
-        attacks::pawn_attacks(pawns, them)
-            | setwise::knights_and_sliders_setwise(knights, orthos, diags, occ)
-            | attacks::king(self.king_sq(them))
-    }
-
-    /// Compute the pieces checking the king of the given side.
-    #[inline(always)]
-    pub fn calc_checkers(&self, side: Side) -> Bitboard {
-        let occ = self.occ();
-        let king_sq = self.king_sq(side);
-        let them = !side;
-
-        attacks::pawn(king_sq, side) & self.pawns(them)
-            | attacks::knight(king_sq) & self.knights(them)
-            | attacks::rook(king_sq, occ) & self.orthos(them)
-            | attacks::bishop(king_sq, occ) & self.diags(them)
+        self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| attacks::bishop(sq, occ));
+        self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| attacks::rook(sq, occ));
     }
 
     #[inline(always)]
@@ -160,9 +129,8 @@ impl Board {
     #[inline(always)]
     fn gen_pawn_moves(
         &self,
+        filter: MoveFilter,
         filter_mask: Bitboard,
-        gen_quiets: bool,
-        gen_noisies: bool,
         moves: &mut MoveList,
     ) {
         let side = self.stm;
@@ -172,12 +140,13 @@ impl Board {
         let king_file = king_sq.file().to_bb();
         let third_rank = Rank::BB[if side == White { 2 } else { 5 }];
         let seventh_rank = Rank::BB[if side == White { 6 } else { 1 }];
+        let eighth_rank = Rank::BB[if side == White { 7 } else { 0 }];
         let up = Square::UP[side];
         let empty = !self.occ();
         let pushable_pawns = pawns & (!pinned | king_file);
 
         // Quiet pawn moves (single and double pushes).
-        if gen_quiets {
+        if filter.gen_quiets() {
             let non_promotions = pushable_pawns & !seventh_rank;
             let single_pushes = non_promotions.shift(up) & empty;
             let double_pushes = (single_pushes & third_rank).shift(up) & empty;
@@ -185,12 +154,13 @@ impl Board {
             moves.add_pawn_moves(double_pushes & filter_mask, up * 2, MoveFlag::DoublePush);
         }
 
-        // Noisy pawn moves (captures, promos, en passant).
-        if gen_noisies {
-            // Push promotions
+        if filter.gen_noisies() {
+            // Push promotions (noisy, but not captures).
             let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
-            moves.add_pawn_promos(push_promos & filter_mask, up);
+            moves.add_pawn_promos(push_promos & (filter_mask | eighth_rank), up);
+        }
 
+        if filter.gen_captures() {
             let filter_mask = filter_mask & self.them();
             let up_right = up + Square::RIGHT;
             let up_left = up + Square::LEFT;
@@ -214,6 +184,7 @@ impl Board {
             moves.add_pawn_promos(left_cap_promos & filter_mask, up_left);
             moves.add_pawn_promos(right_cap_promos & filter_mask, up_right);
 
+            // En passant
             if let Some(ep_sq) = self.ep_sq {
                 let ep_bb = Bitboard::of_sq(ep_sq);
                 let right_attacker = right_pawns & ep_bb.shift(-up_right);
@@ -224,9 +195,41 @@ impl Board {
             }
         }
 
-        if gen_quiets && self.checkers.is_empty() {
+        if filter.gen_quiets() && self.checkers.is_empty() {
             gen_castle_moves(self, side, moves);
         }
+    }
+
+    /// Compute the squares attacked by the opponent's pieces.
+    #[inline(always)]
+    pub fn calc_threats(&self, side: Side) -> Bitboard {
+        // The king is excluded from the occupancy bitboard to include slider threats 'through' the
+        // king, allowing us to detect illegal moves where the king steps along the checking ray.
+        let king = self.king(side);
+        let occ = self.occ() ^ king;
+        let them = !side;
+
+        let pawns = self.pawns(them);
+        let knights = self.knights(them);
+        let diags = self.diags(them);
+        let orthos = self.orthos(them);
+
+        attacks::pawn_attacks(pawns, them)
+            | setwise::knights_and_sliders_setwise(knights, orthos, diags, occ)
+            | attacks::king(self.king_sq(them))
+    }
+
+    /// Compute the pieces checking the king of the given side.
+    #[inline(always)]
+    pub fn calc_checkers(&self, side: Side) -> Bitboard {
+        let occ = self.occ();
+        let king_sq = self.king_sq(side);
+        let them = !side;
+
+        attacks::pawn(king_sq, side) & self.pawns(them)
+            | attacks::knight(king_sq) & self.knights(them)
+            | attacks::rook(king_sq, occ) & self.orthos(them)
+            | attacks::bishop(king_sq, occ) & self.diags(them)
     }
 }
 
@@ -352,4 +355,28 @@ pub fn is_check(board: &Board, side: Side) -> bool {
     let occ = board.occ();
     let king_sq = board.king_sq(side);
     is_sq_attacked(king_sq, side, occ, board)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::board::{Board};
+    use crate::board::movegen::MoveFilter;
+    use crate::board::moves::MoveList;
+
+    #[test]
+    fn test_filters() {
+        let board = Board::from_fen("8/P1k5/K7/8/1q6/8/8/8 w - - 10 58").unwrap();
+        let mut quiet_root_moves = MoveList::new();
+        board.gen_moves(MoveFilter::Quiets, &mut quiet_root_moves);
+        println!("{:?}", quiet_root_moves);
+
+        let mut noisy_root_moves = MoveList::new();
+        board.gen_moves(MoveFilter::Noisies, &mut noisy_root_moves);
+        println!("{:?}", noisy_root_moves);
+
+        let mut capture_root_moves = MoveList::new();
+        board.gen_moves(MoveFilter::Captures, &mut capture_root_moves);
+        println!("{:?}", capture_root_moves);
+    }
+
 }

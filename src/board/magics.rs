@@ -34,11 +34,12 @@ use crate::tools::utils;
 use std::sync::LazyLock;
 use utils::slide;
 
-fn gen_attacks_table<const N: usize>(
+fn gen_attacks_table(
     magics: &[MagicLookup; 64],
     gen: fn(usize, u64) -> u64,
-) -> [Bitboard; N] {
-    let mut table = [Bitboard(0); N];
+    n: usize,
+) -> Vec<Bitboard> {
+    let mut table = vec![Bitboard(0); n];
     let mut sq = 0;
     while sq < 64 {
         let entry = magics[sq];
@@ -55,10 +56,10 @@ fn gen_attacks_table<const N: usize>(
     table
 }
 
-pub static BISHOP_ATTACKS: LazyLock<[Bitboard; 5248]> =
-    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks));
-pub static ROOK_ATTACKS: LazyLock<[Bitboard; 102400]> =
-    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks));
+pub static BISHOP_ATTACKS: LazyLock<Vec<Bitboard>> =
+    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks, 5248));
+pub static ROOK_ATTACKS: LazyLock<Vec<Bitboard>> =
+    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks, 102400));
 
 #[rustfmt::skip]
 pub const BISHOP_MAGICS: [MagicLookup; 64] = [
