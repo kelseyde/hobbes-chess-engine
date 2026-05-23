@@ -1,7 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
-use crate::board::moves::{MoveFlag, MoveList};
+use crate::board::moves::{Move, MoveFlag, MoveList};
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
@@ -190,7 +190,10 @@ impl Board {
                 let right_attacker = right_pawns & ep_bb.shift(-up_right);
                 let left_attacker = left_pawns & ep_bb.shift(-up_left);
                 for pawn in right_attacker | left_attacker {
-                    moves.add_move(pawn, ep_sq, MoveFlag::EnPassant);
+                    let mv = Move::new(pawn, ep_sq, MoveFlag::EnPassant);
+                    if self.is_legal(&mv) {
+                        moves.add_single(mv);
+                    }
                 }
             }
         }
@@ -365,12 +368,12 @@ mod tests {
 
     #[test]
     fn test_filters() {
-        let board = Board::from_fen("8/8/4K3/2k5/5Pp1/8/8/3b2B1 b - f3 0 152").unwrap();
+        let board = Board::from_fen("8/6rk/3p3p/K1pPr1n1/3NPR1R/2P5/1P6/8 w - c6 0 42").unwrap();
         let mut moves = MoveList::new();
         board.gen_moves(MoveFilter::All, &mut moves);
         let mv_strings = moves.iter().map(|entry| entry.mv.to_uci()).collect::<Vec<_>>();
         // assert does not contain g4f3
-        assert!(!mv_strings.contains(&"g4f3".to_string()));
+        assert!(!mv_strings.contains(&"d5c6".to_string()));
     }
 
 }

@@ -266,6 +266,10 @@ impl MoveList {
             self.list.push_unchecked(entry);
         }
     }
+    
+    pub fn add_single(&mut self, mv: Move) {
+        self.add(ScoredMove { mv, score: 0 });
+    }
 
     pub const fn is_empty(&self) -> bool {
         self.list.is_empty()
