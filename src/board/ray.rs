@@ -1,14 +1,19 @@
+use utils::slide;
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
+use crate::board::side::Side;
 use crate::board::square::Square;
+use crate::tools::utils;
 
 static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
 static mut EXTENDING: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
+static mut DIAGONALS: [[Bitboard; 64]; 2] = [[Bitboard(0); 64]; 2];
 
 pub fn init() {
     unsafe {
         init_between();
         init_extending();
+        init_diagonals();
     }
 }
 
@@ -56,4 +61,23 @@ unsafe fn init_extending() {
             }
         }
     }
+}
+
+unsafe fn init_diagonals() {
+    for sq in 0..64usize {
+        // Diagonal (NE/SW): +9 stops at rank 8 or file H; -9 stops at rank 1 or file A
+        DIAGONALS[0][sq] = Bitboard(
+            slide(sq, 0,  9, |s| s % 8 == 7 || s / 8 == 7) |
+            slide(sq, 0, -9, |s| s % 8 == 0 || s / 8 == 0),
+        );
+        // Anti-diagonal (NW/SE): +7 stops at rank 8 or file A; -7 stops at rank 1 or file H
+        DIAGONALS[1][sq] = Bitboard(
+            slide(sq, 0,  7, |s| s % 8 == 0 || s / 8 == 7) |
+            slide(sq, 0, -7, |s| s % 8 == 7 || s / 8 == 0),
+        );
+    }
+}
+
+pub fn relative_diagonal(side: Side, sq: Square) -> Bitboard {
+    unsafe { DIAGONALS[side as usize][sq.0 as usize] }
 }

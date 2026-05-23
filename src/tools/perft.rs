@@ -11,9 +11,9 @@ pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
         .iter()
         .filter_map(|entry| {
             let mv = entry.mv;
-            if !board.is_legal(&mv) {
-                return None;
-            }
+            // if !board.is_legal(&mv) {
+            //     return None;
+            // }
             let mut child = *board;
             child.make(&mv);
             let nodes = if depth <= 1 {

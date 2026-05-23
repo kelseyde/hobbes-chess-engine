@@ -16,21 +16,6 @@ impl MagicLookup {
     }
 }
 
-// Slide in one direction, accumulating set bits until a blocker is hit.
-// `delta` is the square-index step; `stop` returns true when the edge is reached.
-fn slide(square: usize, blockers: u64, delta: i32, stop: fn(usize) -> bool) -> u64 {
-    let mut bb: u64 = 0;
-    let mut tgt = square;
-    while !stop(tgt) {
-        tgt = (tgt as i32 + delta) as usize;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) != 0 {
-            break;
-        }
-    }
-    bb
-}
-
 pub fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
     slide(square, blockers,  7, |s| s % 8 == 0 || s / 8 == 7)   // north-west
     | slide(square, blockers,  9, |s| s % 8 == 7 || s / 8 == 7) // north-east
@@ -46,6 +31,8 @@ pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
 }
 
 use std::sync::LazyLock;
+use utils::slide;
+use crate::tools::utils;
 
 fn gen_attacks_table<const N: usize>(
     magics: &[MagicLookup; 64],
