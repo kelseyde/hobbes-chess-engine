@@ -35,7 +35,11 @@ impl Forward for Vectorised {
     }
 
     /// L1 propagation
-    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize, output: &mut [i32; L2_SIZE * 2]) {
+    unsafe fn propagate_l1(
+        input: &[u8; L1_SIZE],
+        output_bucket: usize,
+        output: &mut [i32; L2_SIZE * 2],
+    ) {
         const ACC_LANES: usize = L2_SIZE / simd::I32_LANES;
         const WEIGHT_STRIDE: usize = simd::I32_LANES * 4;
         const UNROLL: usize = 4;
@@ -99,7 +103,11 @@ impl Forward for Vectorised {
     }
 
     /// L2 propagation
-    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize, output: &mut [i32; L3_SIZE]) {
+    unsafe fn propagate_l2(
+        input: &[i32; L2_SIZE * 2],
+        output_bucket: usize,
+        output: &mut [i32; L3_SIZE],
+    ) {
         const LANES: usize = L3_SIZE / simd::I32_LANES;
         let weights = &NETWORK.l2_weights[output_bucket];
         let biases = &NETWORK.l2_biases[output_bucket];

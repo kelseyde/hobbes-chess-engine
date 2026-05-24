@@ -23,7 +23,6 @@ pub struct TimeParams {
 }
 
 impl TimeParams {
-
     #[rustfmt::skip]
     pub fn init() -> Self {
         Self {
@@ -62,11 +61,11 @@ pub type FischerTime = (u64, u64);
 /// remained the same, how stable the search score has been across iterations, or what portion of
 /// nodes have been spent searching the current best move.
 pub struct SearchLimits {
-    pub hard_time:   Option<Duration>,
-    pub soft_time:   Option<Duration>,
-    pub soft_nodes:  Option<u64>,
-    pub hard_nodes:  Option<u64>,
-    pub depth:       Option<u64>,
+    pub hard_time: Option<Duration>,
+    pub soft_time: Option<Duration>,
+    pub soft_nodes: Option<u64>,
+    pub hard_nodes: Option<u64>,
+    pub depth: Option<u64>,
     pub time_params: TimeParams,
 }
 
@@ -148,11 +147,15 @@ impl SearchLimits {
         (p.score_tm_base - p.score_tm_scale * stability as f32).max(p.score_tm_min)
     }
 
-    fn calc_time_limits(p: &TimeParams, fischer: FischerTime, fm_clock: usize) -> (Duration, Duration) {
+    fn calc_time_limits(
+        p: &TimeParams,
+        fischer: FischerTime,
+        fm_clock: usize,
+    ) -> (Duration, Duration) {
         let (time, inc) = (fischer.0, fischer.1 as f64);
         let max_time = time.saturating_sub(UCI_OVERHEAD_MS);
-        let soft_scale =
-            p.soft_tm_base + p.soft_tm_scale * (1.0 - (-p.soft_tm_fm_scale * fm_clock as f64).exp());
+        let soft_scale = p.soft_tm_base
+            + p.soft_tm_scale * (1.0 - (-p.soft_tm_fm_scale * fm_clock as f64).exp());
         let soft_bound = (soft_scale * max_time as f64 + p.soft_tm_inc_scale * inc) as u64;
         let hard_bound =
             ((p.hard_tm_scale * max_time as f64 + p.hard_tm_inc_scale * inc) as u64).min(max_time);
