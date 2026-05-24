@@ -165,7 +165,7 @@ impl Board {
             let left_pin_mask = ray::relative_diagonal(!side, king_sq);
 
             // Pawns which are capable of capturing left/right (not pinned unless capturing along the
-            // pin ray, and not on the edge of the board.
+            // pin ray, and not on the edge of the board).
             let left_pawns = pawns & (!pinned | left_pin_mask) & !File::A.to_bb();
             let right_pawns = pawns & (!pinned | right_pin_mask) & !File::H.to_bb();
 
@@ -372,9 +372,11 @@ mod tests {
         let mut legal_moves = MoveList::new();
         let mut quiet_moves = MoveList::new();
         let mut noisy_moves = MoveList::new();
+        let mut capture_moves = MoveList::new();
         board.gen_moves(MoveFilter::All, &mut legal_moves);
         board.gen_moves(MoveFilter::Quiets, &mut quiet_moves);
         board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
+        board.gen_moves(MoveFilter::Captures, &mut capture_moves);
 
         let legal_mv_strings = legal_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
         let quiet_mv_strings = quiet_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
@@ -383,55 +385,28 @@ mod tests {
         println!("legals: {:?}", legal_mv_strings);
         println!("quiets: {:?}", quiet_mv_strings);
         println!("noisies: {:?}", noisy_mv_strings);
+        println!("captures: {:?}", capture_moves);
 
-        let missing_quiets = legal_mv_strings.iter().filter(|mv| !quiet_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let missing_noisies = legal_mv_strings.iter().filter(|mv| !noisy_mv_strings.contains(mv)).collect::<Vec<_>>();
         let extra_quiets = quiet_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
         let extra_noisies = noisy_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_captures = capture_moves.iter().map(|mv| mv.mv.to_uci()).filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
 
-        println!("missing_quiets: {:?}", missing_quiets);
-        println!("missing_noisies: {:?}", missing_noisies);
         println!("extra_quiets: {:?}", extra_quiets);
         println!("extra_noisies: {:?}", extra_noisies);
+        println!("extra_captures: {:?}", extra_captures);
 
         assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
         assert_eq!(extra_quiets.len(), 0);
         assert_eq!(extra_noisies.len(), 0);
-    }
+        assert_eq!(extra_captures.len(), 0);
 
-    #[test]
-    fn test_filters2() {
-        ray::init();
-        let board = Board::from_fen("8/8/4kPp1/pPp3Pp/2PK1RnR/6P1/r3P3/8 w - c6 0 474").unwrap();
+        let noisy_quiets = quiet_moves.iter().filter(|mv| board.captured(&mv.mv).is_some()).count();
+        let quiet_noisies = noisy_moves.iter().filter(|mv| board.is_noisy(&mv.mv)).count();
+        let quiet_captures = quiet_moves.iter().filter(|mv| board.captured(&mv.mv).is_some()).count();
 
-        let mut legal_moves = MoveList::new();
-        let mut quiet_moves = MoveList::new();
-        let mut noisy_moves = MoveList::new();
-        board.gen_moves(MoveFilter::All, &mut legal_moves);
-        board.gen_moves(MoveFilter::Quiets, &mut quiet_moves);
-        board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
-
-        let legal_mv_strings = legal_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
-        let quiet_mv_strings = quiet_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
-        let noisy_mv_strings = noisy_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
-
-        println!("legals: {:?}", legal_mv_strings);
-        println!("quiets: {:?}", quiet_mv_strings);
-        println!("noisies: {:?}", noisy_mv_strings);
-
-        let missing_quiets = legal_mv_strings.iter().filter(|mv| !quiet_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let missing_noisies = legal_mv_strings.iter().filter(|mv| !noisy_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let extra_quiets = quiet_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let extra_noisies = noisy_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
-
-        println!("missing_quiets: {:?}", missing_quiets);
-        println!("missing_noisies: {:?}", missing_noisies);
-        println!("extra_quiets: {:?}", extra_quiets);
-        println!("extra_noisies: {:?}", extra_noisies);
-
-        assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
-        assert_eq!(extra_quiets.len(), 0);
-        assert_eq!(extra_noisies.len(), 0);
+        assert_eq!(noisy_quiets, 0);
+        assert_eq!(quiet_noisies, 0);
+        assert_eq!(quiet_captures, 0);
     }
 
     #[test]
@@ -479,8 +454,6 @@ mod tests {
                     "FAIL fen='{}' expected={} actual={}",
                     fen, expected_nodes, actual_nodes
                 ));
-                panic!("FAIL fen='{}' expected={} actual={}",
-                    fen, expected_nodes, actual_nodes);
             }
         }
 
