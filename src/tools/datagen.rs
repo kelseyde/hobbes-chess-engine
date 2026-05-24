@@ -1,3 +1,4 @@
+use crate::board::movegen::MoveFilter;
 use crate::board::moves::MoveList;
 use crate::board::Board;
 use crate::search::thread::ThreadData;
@@ -35,7 +36,7 @@ fn generate_random_opening(
 
     for _ in 0..random_moves {
         let mut legal_moves = MoveList::new();
-        board.gen_legal_moves(&mut legal_moves);
+        board.gen_moves(MoveFilter::All, &mut legal_moves);
 
         // If we reached a terminal position, retry recursively
         if legal_moves.is_empty() {
@@ -55,7 +56,7 @@ fn generate_random_opening(
     }
 
     let mut legal_moves = MoveList::new();
-    board.gen_legal_moves(&mut legal_moves);
+    board.gen_moves(MoveFilter::All, &mut legal_moves);
     // If we reached a terminal position, retry recursively
     if legal_moves.is_empty() {
         return generate_random_opening(td, rng, random_moves, dfrc);
