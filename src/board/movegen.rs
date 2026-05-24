@@ -185,9 +185,6 @@ impl Board {
             // En passant
             if let Some(ep_sq) = self.ep_sq {
                 let ep_bb = Bitboard::of_sq(ep_sq);
-                if !self.checkers.is_empty() && ep_bb != self.checkers {
-                    return;
-                }
                 let right_attacker = right_pawns & ep_bb.shift(-up_right);
                 let left_attacker = left_pawns & ep_bb.shift(-up_left);
                 for pawn in right_attacker | left_attacker {
@@ -369,8 +366,8 @@ mod tests {
 
     #[test]
     fn test_filters() {
-        let board = Board::from_fen("8/7p/2NPK3/8/8/P6P/1p6/k5R1 b - - 3 44").unwrap();
         ray::init();
+        let board = Board::from_fen("8/2p5/1p2kPp1/p5Pp/P1P1KRnR/6P1/4P3/r7 b - - 0 44").unwrap();
 
         let mut legal_moves = MoveList::new();
         let mut quiet_moves = MoveList::new();
@@ -400,6 +397,99 @@ mod tests {
         assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
         assert_eq!(extra_quiets.len(), 0);
         assert_eq!(extra_noisies.len(), 0);
+    }
+
+    #[test]
+    fn test_filters2() {
+        ray::init();
+        let board = Board::from_fen("8/8/4kPp1/pPp3Pp/2PK1RnR/6P1/r3P3/8 w - c6 0 474").unwrap();
+
+        let mut legal_moves = MoveList::new();
+        let mut quiet_moves = MoveList::new();
+        let mut noisy_moves = MoveList::new();
+        board.gen_moves(MoveFilter::All, &mut legal_moves);
+        board.gen_moves(MoveFilter::Quiets, &mut quiet_moves);
+        board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
+
+        let legal_mv_strings = legal_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+        let quiet_mv_strings = quiet_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+        let noisy_mv_strings = noisy_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+
+        println!("legals: {:?}", legal_mv_strings);
+        println!("quiets: {:?}", quiet_mv_strings);
+        println!("noisies: {:?}", noisy_mv_strings);
+
+        let missing_quiets = legal_mv_strings.iter().filter(|mv| !quiet_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let missing_noisies = legal_mv_strings.iter().filter(|mv| !noisy_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_quiets = quiet_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_noisies = noisy_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+
+        println!("missing_quiets: {:?}", missing_quiets);
+        println!("missing_noisies: {:?}", missing_noisies);
+        println!("extra_quiets: {:?}", extra_quiets);
+        println!("extra_noisies: {:?}", extra_noisies);
+
+        assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
+        assert_eq!(extra_quiets.len(), 0);
+        assert_eq!(extra_noisies.len(), 0);
+    }
+
+    #[test]
+    fn test_perft_standard_epd() {
+        run_perft_epd(include_str!("../../resources/standard.epd"), false);
+    }
+
+    #[test]
+    fn test_perft_frc_epd() {
+        run_perft_epd(include_str!("../../resources/frc.epd"), true);
+    }
+
+    fn run_perft_epd(epd: &str, frc: bool) {
+        use crate::board::Board;
+        use crate::tools::perft::perft;
+        ray::init();
+
+        let mut failures = Vec::new();
+
+        for line in epd.lines() {
+            let line = line.trim();
+            if line.is_empty() { continue; }
+
+            let fen = match line.split_once(';') {
+                Some((f, _)) => f.trim(),
+                None => continue,
+            };
+
+            let expected_nodes: Option<u64> = line.split(';')
+                .find_map(|tok| {
+                    tok.trim().strip_prefix("D6 ").and_then(|n| n.trim().parse().ok())
+                });
+
+            let expected_nodes = match expected_nodes {
+                Some(n) => n,
+                None => continue,
+            };
+
+            let mut board = Board::from_fen(fen).expect("valid fen");
+            board.set_frc(frc);
+            let actual_nodes = perft::<true>(&board, 6);
+
+            if actual_nodes != expected_nodes {
+                failures.push(format!(
+                    "FAIL fen='{}' expected={} actual={}",
+                    fen, expected_nodes, actual_nodes
+                ));
+                panic!("FAIL fen='{}' expected={} actual={}",
+                    fen, expected_nodes, actual_nodes);
+            }
+        }
+
+        if !failures.is_empty() {
+            for f in &failures {
+                println!("{}", f);
+            }
+            panic!("{} perft position(s) failed", failures.len());
+        }
     }
 
 }
