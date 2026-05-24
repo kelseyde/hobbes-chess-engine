@@ -96,6 +96,7 @@ impl Board {
 
     /// Generate the legal knight moves in the position. Pinned knights are skipped, since a pinned
     /// knight cannot move along the pin ray, and so by definition has zero legal moves.
+    #[inline(always)]
     fn gen_knight_moves(
         &self,
         side: Side,
@@ -205,7 +206,87 @@ impl Board {
         }
 
         if filter.gen_quiets() && self.checkers.is_empty() {
-            gen_castle_moves(self, side, moves);
+            self.gen_castle_moves(side, moves);
+        }
+    }
+
+    #[inline(always)]
+    fn gen_castle_moves(&self, side: Side, moves: &mut MoveList) {
+        if self.is_frc() {
+            self.gen_frc_castle_moves(side, moves);
+        } else {
+            self.gen_standard_castle_moves(side, moves);
+        }
+    }
+
+    #[inline(always)]
+    #[rustfmt::skip]
+    pub fn gen_standard_castle_moves(&self, side: Side, moves: &mut MoveList) {
+        let king_sq = self.king_sq(side);
+        let occ = self.occ();
+        if self.has_kingside_rights(side) {
+            let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
+            let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
+            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
+                moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
+            }
+        }
+        if self.has_queenside_rights(side) {
+            let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
+            let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
+            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
+                moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn gen_frc_castle_moves(&self, side: Side, moves: &mut MoveList) {
+        self.gen_frc_castle_moves_side(side, true, moves);
+        self.gen_frc_castle_moves_side(side, false, moves);
+    }
+
+    #[inline(always)]
+    pub fn gen_frc_castle_moves_side(&self, side: Side, kingside: bool, moves: &mut MoveList) {
+        let occ = self.occ();
+        let rook_file = if kingside {
+            self.rights.kingside(side)
+        } else {
+            self.rights.queenside(side)
+        };
+
+        if let Some(rook_file) = rook_file {
+            let king_from = self.king_sq(side);
+            let king_to = castling::king_to(side, kingside);
+
+            let rank = if side == White {
+                Rank::One
+            } else {
+                Rank::Eight
+            };
+            let rook_from = Square::from(rook_file, rank);
+            let rook_to = castling::rook_to(side, kingside);
+
+            let king_travel_sqs = ray::between(king_from, king_to) | Bitboard::of_sq(king_to);
+            let rook_travel_sqs = ray::between(rook_from, rook_to) | Bitboard::of_sq(rook_to);
+
+            let travel_sqs = (king_travel_sqs | rook_travel_sqs)
+                & !Bitboard::of_sq(rook_from)
+                & !Bitboard::of_sq(king_from);
+
+            let blocked_sqs = travel_sqs & occ;
+            let safe_sqs = Bitboard::of_sq(king_from)
+                | ray::between(king_from, king_to)
+                | Bitboard::of_sq(king_to);
+
+            if blocked_sqs.is_empty() && !is_attacked(safe_sqs, side, occ, &self) {
+                let flag = if kingside {
+                    MoveFlag::CastleK
+                } else {
+                    MoveFlag::CastleQ
+                };
+                moves.add_move(king_from, rook_from, flag);
+            }
         }
     }
 
@@ -239,86 +320,6 @@ impl Board {
             | attacks::knight(king_sq) & self.knights(them)
             | attacks::rook(king_sq, occ) & self.orthos(them)
             | attacks::bishop(king_sq, occ) & self.diags(them)
-    }
-}
-
-#[inline(always)]
-fn gen_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
-    if board.is_frc() {
-        gen_frc_castle_moves(board, side, moves);
-    } else {
-        gen_standard_castle_moves(board, side, moves);
-    }
-}
-
-#[inline(always)]
-#[rustfmt::skip]
-pub fn gen_standard_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
-    let king_sq = board.king_sq(side);
-    let occ = board.occ();
-    if board.has_kingside_rights(side) {
-        let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
-        let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
-        if (occ & travel_mask).is_empty() && (board.threats & safety_mask).is_empty() {
-            moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
-        }
-    }
-    if board.has_queenside_rights(side) {
-        let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
-        let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
-        if (occ & travel_mask).is_empty() && (board.threats & safety_mask).is_empty() {
-            moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
-        }
-    }
-}
-
-#[inline(always)]
-pub fn gen_frc_castle_moves(board: &Board, side: Side, moves: &mut MoveList) {
-    gen_frc_castle_moves_side(board, side, true, moves);
-    gen_frc_castle_moves_side(board, side, false, moves);
-}
-
-#[inline(always)]
-pub fn gen_frc_castle_moves_side(board: &Board, side: Side, kingside: bool, moves: &mut MoveList) {
-    let occ = board.occ();
-    let rook_file = if kingside {
-        board.rights.kingside(side)
-    } else {
-        board.rights.queenside(side)
-    };
-
-    if let Some(rook_file) = rook_file {
-        let king_from = board.king_sq(side);
-        let king_to = castling::king_to(side, kingside);
-
-        let rank = if side == White {
-            Rank::One
-        } else {
-            Rank::Eight
-        };
-        let rook_from = Square::from(rook_file, rank);
-        let rook_to = castling::rook_to(side, kingside);
-
-        let king_travel_sqs = ray::between(king_from, king_to) | Bitboard::of_sq(king_to);
-        let rook_travel_sqs = ray::between(rook_from, rook_to) | Bitboard::of_sq(rook_to);
-
-        let travel_sqs = (king_travel_sqs | rook_travel_sqs)
-            & !Bitboard::of_sq(rook_from)
-            & !Bitboard::of_sq(king_from);
-
-        let blocked_sqs = travel_sqs & occ;
-        let safe_sqs = Bitboard::of_sq(king_from)
-            | ray::between(king_from, king_to)
-            | Bitboard::of_sq(king_to);
-
-        if blocked_sqs.is_empty() && !is_attacked(safe_sqs, side, occ, board) {
-            let flag = if kingside {
-                MoveFlag::CastleK
-            } else {
-                MoveFlag::CastleQ
-            };
-            moves.add_move(king_from, rook_from, flag);
-        }
     }
 }
 
@@ -357,13 +358,6 @@ pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> b
     }
 
     false
-}
-
-#[inline(always)]
-pub fn is_check(board: &Board, side: Side) -> bool {
-    let occ = board.occ();
-    let king_sq = board.king_sq(side);
-    is_sq_attacked(king_sq, side, occ, board)
 }
 
 #[cfg(test)]
