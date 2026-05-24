@@ -25,8 +25,8 @@ use crate::search::parameters::{
     to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
     to_hist_malus_offset, to_hist_malus_scale,
 };
-use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 use crate::tools::utils::lerp;
+use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
 /// Also known as 'butterfly' history.

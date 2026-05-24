@@ -130,7 +130,7 @@ pub unsafe fn nonzero_mask_u8(ptr: *const u8) -> u32 {
 
 #[inline(always)]
 pub unsafe fn packus(a: int16x8_t, b: int16x8_t) -> uint8x16_t {
-    vcombine_u8(vqmovun_s16(a), vqmovun_s16(b))
+    vqmovun_high_s16(vqmovun_s16(a), b)
 }
 
 #[inline(always)]

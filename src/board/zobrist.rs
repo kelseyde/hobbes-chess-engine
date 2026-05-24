@@ -104,7 +104,6 @@ impl Hashes {
 }
 
 impl Keys {
-
     pub fn get_hash(board: &Board) -> u64 {
         let mut hash: u64 = 0;
         // Iterate over all squares and pieces
@@ -199,7 +198,7 @@ impl Keys {
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
     }
-    
+
     pub const fn hm(hm_bucket: usize) -> u64 {
         KEYS.hm[hm_bucket]
     }

@@ -284,13 +284,12 @@ impl Board {
             return !(threats.contains(to) || self.frc && pinned.contains(to));
         }
 
-        if let Some(Piece::King) = self.piece_at(from) {
+        if from == king_sq {
             return !threats.contains(to);
         }
 
         if pinned.contains(from) {
-            let moving_along_pin_ray = ray::between(king_sq, from).contains(to)
-                || ray::between(king_sq, to).contains(from);
+            let moving_along_pin_ray = ray::extending(king_sq, from).contains(to);
             return self.checkers.is_empty() && moving_along_pin_ray;
         }
 

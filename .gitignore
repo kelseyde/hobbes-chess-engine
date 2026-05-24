@@ -3,6 +3,7 @@
 hobbes-chess-engine
 data
 *.nnue
+activations.txt
 
 
 /target

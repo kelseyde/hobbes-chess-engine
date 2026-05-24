@@ -25,3 +25,4 @@ panic = "abort"
 tuning = []
 avx2 = []
 avx512 = []
+track_l0_activations = []

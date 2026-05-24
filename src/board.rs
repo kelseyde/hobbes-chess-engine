@@ -350,7 +350,9 @@ impl Board {
     }
 
     pub fn gives_direct_check(&self, mv: Move) -> bool {
-        let moving_pc = mv.promo_piece().unwrap_or(self.piece_at(mv.from()).unwrap());
+        let moving_pc = mv
+            .promo_piece()
+            .unwrap_or(self.piece_at(mv.from()).unwrap());
         if moving_pc == Piece::King {
             return false;
         }
