@@ -42,6 +42,7 @@ impl Board {
         let them = self.them();
         let occ = us | them;
         let threats = self.threats;
+        let king_sq = self.king_sq(side);
         let pinned = self.pinned[side];
         let in_check = !self.checkers.is_empty();
 
@@ -59,14 +60,16 @@ impl Board {
             return;
         }
 
-        if in_check {
+        let evasion_mask = if in_check {
             // If we are in single-check, we can only generate moves that block or capture the checker.
-            let checking_ray = ray::between(self.king_sq(side), self.checkers.lsb());
-            filter_mask &= checking_ray | self.checkers
-        }
+            self.checkers | ray::between(king_sq, self.checkers.lsb())
+        } else {
+            Bitboard::ALL
+        };
+        filter_mask &= evasion_mask;
         filter_mask &= if filter == MoveFilter::Quiets { !occ } else { !us };
 
-        self.gen_pawn_moves(filter, filter_mask, moves);
+        self.gen_pawn_moves(filter, evasion_mask, moves);
         self.gen_knight_moves(side, pinned, filter_mask, moves);
         self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| attacks::bishop(sq, occ));
         self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| attacks::rook(sq, occ));
@@ -135,7 +138,6 @@ impl Board {
         let king_file = king_sq.file().to_bb();
         let third_rank = Rank::BB[if side == White { 2 } else { 5 }];
         let seventh_rank = Rank::BB[if side == White { 6 } else { 1 }];
-        let eighth_rank = Rank::BB[if side == White { 7 } else { 0 }];
         let up = Square::UP[side];
         let empty = !self.occ();
         let pushable_pawns = pawns & (!pinned | king_file);
@@ -152,8 +154,7 @@ impl Board {
         if filter.gen_noisies() {
             // Push promotions (noisy, but not captures).
             let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
-            let promo_filter = if self.checkers.is_empty() { filter_mask | eighth_rank } else { filter_mask };
-            moves.add_pawn_promos(push_promos & promo_filter, up);
+            moves.add_pawn_promos(push_promos & filter_mask, up);
         }
 
         if filter.gen_captures() {
@@ -362,18 +363,43 @@ pub fn is_check(board: &Board, side: Side) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::{Board};
+    use crate::board::{ray, Board};
     use crate::board::movegen::MoveFilter;
     use crate::board::moves::MoveList;
 
     #[test]
     fn test_filters() {
-        let board = Board::from_fen("8/6rk/3p3p/K1pPr1n1/3NPR1R/2P5/1P6/8 w - c6 0 42").unwrap();
-        let mut moves = MoveList::new();
-        board.gen_moves(MoveFilter::All, &mut moves);
-        let mv_strings = moves.iter().map(|entry| entry.mv.to_uci()).collect::<Vec<_>>();
-        // assert does not contain g4f3
-        assert!(!mv_strings.contains(&"d5c6".to_string()));
+        let board = Board::from_fen("8/7p/2NPK3/8/8/P6P/1p6/k5R1 b - - 3 44").unwrap();
+        ray::init();
+
+        let mut legal_moves = MoveList::new();
+        let mut quiet_moves = MoveList::new();
+        let mut noisy_moves = MoveList::new();
+        board.gen_moves(MoveFilter::All, &mut legal_moves);
+        board.gen_moves(MoveFilter::Quiets, &mut quiet_moves);
+        board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
+
+        let legal_mv_strings = legal_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+        let quiet_mv_strings = quiet_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+        let noisy_mv_strings = noisy_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+
+        println!("legals: {:?}", legal_mv_strings);
+        println!("quiets: {:?}", quiet_mv_strings);
+        println!("noisies: {:?}", noisy_mv_strings);
+
+        let missing_quiets = legal_mv_strings.iter().filter(|mv| !quiet_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let missing_noisies = legal_mv_strings.iter().filter(|mv| !noisy_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_quiets = quiet_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_noisies = noisy_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+
+        println!("missing_quiets: {:?}", missing_quiets);
+        println!("missing_noisies: {:?}", missing_noisies);
+        println!("extra_quiets: {:?}", extra_quiets);
+        println!("extra_noisies: {:?}", extra_noisies);
+
+        assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
+        assert_eq!(extra_quiets.len(), 0);
+        assert_eq!(extra_noisies.len(), 0);
     }
 
 }
