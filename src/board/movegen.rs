@@ -43,27 +43,28 @@ impl Board {
         let us = self.us();
         let them = self.them();
         let occ = us | them;
-        let threats = self.threats;
         let king_sq = self.king_sq(side);
         let pinned = self.pinned[side];
         let in_check = !self.checkers.is_empty();
 
+        // During search, we generate moves in stages - noisies first, then quiets. We therefore
+        // apply a filter mask to exclude quiet moves in the noisy stage and vice versa.
         let mut filter_mask = match filter {
             MoveFilter::All => Bitboard::ALL,
             MoveFilter::Quiets => !them,
             MoveFilter::Noisies | MoveFilter::Captures => them,
         };
 
-        // Generate king moves first, because...
-        self.gen_king_moves(side, us, threats, filter_mask, moves);
+        // Generate king moves first, because if we are in double-check, the only legal moves are
+        // king moves, so we can exit early.
+        self.gen_king_moves(side, us, filter_mask, moves);
 
-        // ...if we are in double-check, the only legal moves are king moves. So we can exit early.
         if self.checkers.is_multiple() {
             return;
         }
 
+        // If we are in single-check, we can only generate moves that block or capture the checker.
         let evasion_mask = if in_check {
-            // If we are in single-check, we can only generate moves that block or capture the checker.
             self.checkers | ray::between(king_sq, self.checkers.lsb())
         } else {
             Bitboard::ALL
@@ -77,20 +78,24 @@ impl Board {
         self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| attacks::rook(sq, occ));
     }
 
+    /// Generate the legal king moves in the position. We re-use the pre-computed opponent threat
+    /// bitboard to prevent the king from stepping into check.
     #[inline(always)]
     fn gen_king_moves(
         &self,
         side: Side,
         us: Bitboard,
-        threats: Bitboard,
         filter_mask: Bitboard,
         moves: &mut MoveList,
     ) {
         let king_sq = self.king_sq(side);
+        let threats = self.threats;
         let attacks = attacks::king(king_sq) & !us & !threats & filter_mask;
         moves.add_moves(king_sq, attacks, MoveFlag::Standard);
     }
 
+    /// Generate the legal knight moves in the position. Pinned knights are skipped, since a pinned
+    /// knight cannot move along the pin ray, and so by definition has zero legal moves.
     fn gen_knight_moves(
         &self,
         side: Side,
@@ -104,6 +109,9 @@ impl Board {
         }
     }
 
+    /// Generate the legal moves for the given sliding pieces. Diagonal sliders (bishops and queens)
+    /// and orthogonal sliders (rooks and queens) are handled together. Pinned sliders can move only
+    /// along the pin ray, so we mask their attacks with the ray between the king and the slider.
     #[inline(always)]
     fn gen_sliding_moves<F: Fn(Square) -> Bitboard>(
         &self,
@@ -126,6 +134,8 @@ impl Board {
         }
     }
 
+    /// Generate the legal pawn moves in the position. Pawn moves are generated setwise rather than
+    /// piecewise for efficiency.
     #[inline(always)]
     fn gen_pawn_moves(&self, filter: MoveFilter, filter_mask: Bitboard, moves: &mut MoveList) {
         let side = self.stm;
@@ -148,12 +158,13 @@ impl Board {
             moves.add_pawn_moves(double_pushes & filter_mask, up * 2, MoveFlag::DoublePush);
         }
 
+        // Push promotions (noisy, but not captures).
         if filter.gen_noisies() {
-            // Push promotions (noisy, but not captures).
             let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
             moves.add_pawn_promos(push_promos & filter_mask, up);
         }
 
+        // Captures (standard captures, promo captures, and en passant).
         if filter.gen_captures() {
             let filter_mask = filter_mask & self.them();
             let up_right = up + Square::RIGHT;
@@ -161,8 +172,8 @@ impl Board {
             let right_pin_mask = ray::relative_diagonal(side, king_sq);
             let left_pin_mask = ray::relative_diagonal(!side, king_sq);
 
-            // Pawns which are capable of capturing left/right (not pinned unless capturing along the
-            // pin ray, and not on the edge of the board).
+            // Pawns which are capable of capturing left/right (not pinned unless capturing along
+            // the pin ray, and not on the edge of the board).
             let left_pawns = pawns & (!pinned | left_pin_mask) & !File::A.to_bb();
             let right_pawns = pawns & (!pinned | right_pin_mask) & !File::H.to_bb();
 
