@@ -153,9 +153,9 @@ impl SearchLimits {
         let max_time = time.saturating_sub(UCI_OVERHEAD_MS);
         let soft_scale =
             p.soft_tm_base + p.soft_tm_scale * (1.0 - (-p.soft_tm_fm_scale * fm_clock as f64).exp());
-        let soft_bound = (soft_scale * max_time as f64 + p.soft_tm_inc_scale * inc) as u64;
         let hard_bound =
-            ((p.hard_tm_scale * max_time as f64 + p.hard_tm_inc_scale * inc) as u64).min(max_time);
+            ((p.hard_tm_scale * max_time as f64 + p.hard_tm_inc_scale * inc) as u64).min(max_time).max(UCI_OVERHEAD_MS);
+        let soft_bound = ((soft_scale * max_time as f64 + p.soft_tm_inc_scale * inc) as u64).min(hard_bound);
         (
             Duration::from_millis(soft_bound),
             Duration::from_millis(hard_bound),

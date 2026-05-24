@@ -489,8 +489,8 @@ impl UCI {
     fn parse_uint(&self, tokens: &[String], name: &str) -> Result<u64, String> {
         match tokens.iter().position(|x| x == name) {
             Some(index) => match tokens.get(index + 1) {
-                Some(value) => match value.parse::<u64>() {
-                    Ok(num) => Ok(num),
+                Some(value) => match value.parse::<i64>() {
+                    Ok(num) => Ok(num.max(0) as u64),
                     Err(_) => Err(format!("info error: {} is not a valid number", name)),
                 },
                 None => Err(format!("info error: {} is missing a value", name)),
