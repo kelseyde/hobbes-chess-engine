@@ -78,7 +78,7 @@ impl MovePicker {
     pub fn next(&mut self, board: &Board, td: &ThreadData) -> Option<Move> {
         if self.stage == TTMove {
             self.stage = GenerateNoisies;
-            if self.tt_move.exists() && board.is_legal(&self.tt_move) {
+            if self.tt_move.exists() {
                 return Some(self.tt_move);
             }
         }
