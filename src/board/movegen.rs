@@ -28,12 +28,14 @@ impl MoveFilter {
     }
 
     pub fn gen_captures(self) -> bool {
-        matches!(self, MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures)
+        matches!(
+            self,
+            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
+        )
     }
 }
 
 impl Board {
-
     /// Generate all legal moves for the current position.
     #[rustfmt::skip]
     pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
@@ -125,12 +127,7 @@ impl Board {
     }
 
     #[inline(always)]
-    fn gen_pawn_moves(
-        &self,
-        filter: MoveFilter,
-        filter_mask: Bitboard,
-        moves: &mut MoveList,
-    ) {
+    fn gen_pawn_moves(&self, filter: MoveFilter, filter_mask: Bitboard, moves: &mut MoveList) {
         let side = self.stm;
         let pinned = self.pinned[side];
         let pawns = self.pcs(Piece::Pawn) & self.side(side);
@@ -360,9 +357,9 @@ pub fn is_check(board: &Board, side: Side) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::{ray, Board};
     use crate::board::movegen::MoveFilter;
     use crate::board::moves::MoveList;
+    use crate::board::{ray, Board};
 
     #[test]
     fn test_filters() {
@@ -378,31 +375,62 @@ mod tests {
         board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
         board.gen_moves(MoveFilter::Captures, &mut capture_moves);
 
-        let legal_mv_strings = legal_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
-        let quiet_mv_strings = quiet_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
-        let noisy_mv_strings = noisy_moves.iter().map(|mv| mv.mv.to_uci()).collect::<Vec<_>>();
+        let legal_mv_strings = legal_moves
+            .iter()
+            .map(|mv| mv.mv.to_uci())
+            .collect::<Vec<_>>();
+        let quiet_mv_strings = quiet_moves
+            .iter()
+            .map(|mv| mv.mv.to_uci())
+            .collect::<Vec<_>>();
+        let noisy_mv_strings = noisy_moves
+            .iter()
+            .map(|mv| mv.mv.to_uci())
+            .collect::<Vec<_>>();
 
         println!("legals: {:?}", legal_mv_strings);
         println!("quiets: {:?}", quiet_mv_strings);
         println!("noisies: {:?}", noisy_mv_strings);
         println!("captures: {:?}", capture_moves);
 
-        let extra_quiets = quiet_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let extra_noisies = noisy_mv_strings.iter().filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
-        let extra_captures = capture_moves.iter().map(|mv| mv.mv.to_uci()).filter(|mv| !legal_mv_strings.contains(mv)).collect::<Vec<_>>();
+        let extra_quiets = quiet_mv_strings
+            .iter()
+            .filter(|mv| !legal_mv_strings.contains(mv))
+            .collect::<Vec<_>>();
+        let extra_noisies = noisy_mv_strings
+            .iter()
+            .filter(|mv| !legal_mv_strings.contains(mv))
+            .collect::<Vec<_>>();
+        let extra_captures = capture_moves
+            .iter()
+            .map(|mv| mv.mv.to_uci())
+            .filter(|mv| !legal_mv_strings.contains(mv))
+            .collect::<Vec<_>>();
 
         println!("extra_quiets: {:?}", extra_quiets);
         println!("extra_noisies: {:?}", extra_noisies);
         println!("extra_captures: {:?}", extra_captures);
 
-        assert_eq!(legal_mv_strings.len(), quiet_mv_strings.len() + noisy_mv_strings.len());
+        assert_eq!(
+            legal_mv_strings.len(),
+            quiet_mv_strings.len() + noisy_mv_strings.len()
+        );
         assert_eq!(extra_quiets.len(), 0);
         assert_eq!(extra_noisies.len(), 0);
         assert_eq!(extra_captures.len(), 0);
 
-        let noisy_quiets = quiet_moves.iter().filter(|mv| board.captured(&mv.mv).is_some()).count();
-        let quiet_noisies = noisy_moves.iter().filter(|mv| board.is_noisy(&mv.mv)).count();
-        let quiet_captures = quiet_moves.iter().filter(|mv| board.captured(&mv.mv).is_some()).count();
+        let noisy_quiets = quiet_moves
+            .iter()
+            .filter(|mv| board.captured(&mv.mv).is_some())
+            .count();
+        let quiet_noisies = noisy_moves
+            .iter()
+            .filter(|mv| board.is_noisy(&mv.mv))
+            .count();
+        let quiet_captures = quiet_moves
+            .iter()
+            .filter(|mv| board.captured(&mv.mv).is_some())
+            .count();
 
         assert_eq!(noisy_quiets, 0);
         assert_eq!(quiet_noisies, 0);
@@ -428,17 +456,20 @@ mod tests {
 
         for line in epd.lines() {
             let line = line.trim();
-            if line.is_empty() { continue; }
+            if line.is_empty() {
+                continue;
+            }
 
             let fen = match line.split_once(';') {
                 Some((f, _)) => f.trim(),
                 None => continue,
             };
 
-            let expected_nodes: Option<u64> = line.split(';')
-                .find_map(|tok| {
-                    tok.trim().strip_prefix("D6 ").and_then(|n| n.trim().parse().ok())
-                });
+            let expected_nodes: Option<u64> = line.split(';').find_map(|tok| {
+                tok.trim()
+                    .strip_prefix("D6 ")
+                    .and_then(|n| n.trim().parse().ok())
+            });
 
             let expected_nodes = match expected_nodes {
                 Some(n) => n,
@@ -464,5 +495,4 @@ mod tests {
             panic!("{} perft position(s) failed", failures.len());
         }
     }
-
 }

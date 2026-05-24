@@ -266,7 +266,7 @@ impl MoveList {
             self.list.push_unchecked(entry);
         }
     }
-    
+
     pub fn add_single(&mut self, mv: Move) {
         self.add(ScoredMove { mv, score: 0 });
     }
