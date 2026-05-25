@@ -169,7 +169,10 @@ impl Board {
         if filter.gen_captures() {
             let filter_mask = filter_mask & self.them();
             let dirs = [up + Square::RIGHT, up + Square::LEFT];
-            let pin_masks = [ray::relative_diagonal(side, king_sq), ray::relative_diagonal(!side, king_sq)];
+            let pin_masks = [
+                ray::relative_diagonal(side, king_sq),
+                ray::relative_diagonal(!side, king_sq),
+            ];
             let shift_masks = [!File::H.to_bb(), !File::A.to_bb()];
 
             for i in 0..2 {
@@ -178,7 +181,11 @@ impl Board {
                 let sided_pawns = pawns & (!pinned | pin_masks[i]) & shift_masks[i];
 
                 let non_promo_captures = (sided_pawns & !seventh_rank).shift(dirs[i]);
-                moves.add_pawn_moves(non_promo_captures & filter_mask, dirs[i], MoveFlag::Standard);
+                moves.add_pawn_moves(
+                    non_promo_captures & filter_mask,
+                    dirs[i],
+                    MoveFlag::Standard,
+                );
 
                 let promo_captures = (sided_pawns & seventh_rank).shift(dirs[i]);
                 moves.add_pawn_promos(promo_captures & filter_mask, dirs[i]);
@@ -218,7 +225,10 @@ impl Board {
 
         let occ = self.occ();
         let king_sq = self.king_sq(side);
-        let has_rights = [self.has_kingside_rights(side), self.has_queenside_rights(side)];
+        let has_rights = [
+            self.has_kingside_rights(side),
+            self.has_queenside_rights(side),
+        ];
 
         for i in 0..2 {
             if has_rights[i] {

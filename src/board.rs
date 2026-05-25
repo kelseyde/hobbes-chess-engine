@@ -174,18 +174,7 @@ impl Board {
         self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
 
         let hash = Keys::sq(pc, side, sq);
-        self.hashes.update_hash(hash);
-        if pc == Piece::Pawn {
-            self.hashes.update_pawn_hash(hash);
-        } else {
-            self.hashes.update_non_pawn_hash(side, hash);
-            if pc.is_major() {
-                self.hashes.update_major_hash(hash);
-            }
-            if pc.is_minor() {
-                self.hashes.update_minor_hash(hash);
-            }
-        }
+        self.hashes.update_piece(pc, side, hash);
     }
 
     /// Toggles a piece off `from` and on to `to` in a single call.
