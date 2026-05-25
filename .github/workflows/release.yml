@@ -13,10 +13,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            name: hobbes-linux-generic
-            rustflags: "-C target-cpu=x86-64"
-
-          - os: ubuntu-latest
             name: hobbes-linux-avx2
             rustflags: "-C target-cpu=x86-64-v3"
             sde_flag: -bdw
@@ -25,10 +21,6 @@ jobs:
             name: hobbes-linux-avx512
             rustflags: "-C target-cpu=x86-64-v4"
             sde_flag: -skx
-
-          - os: windows-latest
-            name: hobbes-windows-generic
-            rustflags: "-C target-cpu=x86-64 -C link-arg=-Wl,--stack,8388608"
 
           - os: windows-latest
             name: hobbes-windows-avx2
