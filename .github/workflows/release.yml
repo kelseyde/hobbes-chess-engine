@@ -15,6 +15,7 @@ jobs:
           - os: ubuntu-latest
             name: hobbes-linux-avx2
             rustflags: "-C target-cpu=x86-64-v3"
+            pgo_rustflags: "-C target-cpu=x86-64-v3"
             sde_flag: -bdw
 
           - os: ubuntu-latest
@@ -30,6 +31,7 @@ jobs:
           - os: windows-latest
             name: hobbes-windows-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/STACK:8388608"
+            pgo_rustflags: "-C target-cpu=x86-64-v3"
             sde_flag: -skx
 
           - os: macos-latest
