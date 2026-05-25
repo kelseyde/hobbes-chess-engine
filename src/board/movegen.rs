@@ -187,11 +187,11 @@ impl Board {
                 if let Some(ep_sq) = self.ep_sq {
                     let ep_bb = Bitboard::of_sq(ep_sq);
                     let attacker = sided_pawns & ep_bb.shift(-dirs[i]);
-                    if !attacker.is_empty() {
-                        let mv = Move::new(attacker.lsb(), ep_sq, MoveFlag::EnPassant);
-                        if self.is_legal(&mv) {
-                            moves.add_single(mv);
-                        }
+                    let mv = (!attacker.is_empty())
+                        .then(|| Move::new(attacker.lsb(), ep_sq, MoveFlag::EnPassant))
+                        .filter(|mv| self.is_legal(mv));
+                    if let Some(mv) = mv {
+                        moves.add_single(mv);
                     }
                 }
             }
