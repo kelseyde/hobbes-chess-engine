@@ -13,12 +13,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            name: hobbes-linux-generic
-            rustflags: "-C target-cpu=x86-64"
-
-          - os: ubuntu-latest
             name: hobbes-linux-avx2
             rustflags: "-C target-cpu=x86-64-v3"
+            pgo_rustflags: "-C target-cpu=x86-64-v3"
             sde_flag: -bdw
 
           - os: ubuntu-latest
@@ -27,22 +24,19 @@ jobs:
             sde_flag: -skx
 
           - os: windows-latest
-            name: hobbes-windows-generic
-            rustflags: "-C target-cpu=x86-64 -C link-arg=-Wl,--stack,8388608"
-
-          - os: windows-latest
             name: hobbes-windows-avx2
-            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--stack,8388608"
-            sde_flag: -hsw
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/STACK:8388608"
+            sde_flag: -bdw
 
           - os: windows-latest
             name: hobbes-windows-avx512
-            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--stack,8388608"
+            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/STACK:8388608"
+            pgo_rustflags: "-C target-cpu=x86-64-v3"
             sde_flag: -skx
 
           - os: macos-latest
             name: hobbes-macos
-            rustflags: "-C target-cpu=native"
+            rustflags: "-C target-cpu=apple-m1"
 
     steps:
       - name: Checkout repository
@@ -64,7 +58,7 @@ jobs:
           cargo install cargo-pgo
 
       - name: Setup Intel SDE
-        if: matrix.name != 'hobbes-macos' && matrix.name != 'hobbes-linux-generic' && matrix.name != 'hobbes-windows-generic'
+        if: matrix.name != 'hobbes-macos'
         uses: petarpetrovt/setup-sde@08ea32f9214634afad4f33b74841782e71768e52
         with:
           sdeVersion: "9.58.0"
@@ -92,7 +86,7 @@ jobs:
           RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Run PGO profiling benchmarks (native)
-        if: matrix.name == 'hobbes-macos' || matrix.name == 'hobbes-linux-generic' || matrix.name == 'hobbes-windows-generic'
+        if: matrix.name == 'hobbes-macos'
         run: |
           cargo pgo run -- bench
         env:
