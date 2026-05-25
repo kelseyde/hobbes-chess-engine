@@ -1,5 +1,5 @@
 use crate::board::bitboard::Bitboard;
-use crate::board::castling::{CastleSafety, CastleTravel};
+
 use crate::board::file::File;
 use crate::board::moves::{Move, MoveFlag, MoveList};
 use crate::board::piece::Piece;
@@ -212,22 +212,21 @@ impl Board {
     }
 
     #[inline(always)]
-    #[rustfmt::skip]
     pub fn gen_standard_castle_moves(&self, side: Side, moves: &mut MoveList) {
-        let king_sq = self.king_sq(side);
+        const FLAGS: [MoveFlag; 2] = [MoveFlag::CastleK, MoveFlag::CastleQ];
+        const OFFSETS: [i8; 2] = [castling::KS_CASTLE_OFFSET, castling::QS_CASTLE_OFFSET];
+
         let occ = self.occ();
-        if self.has_kingside_rights(side) {
-            let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
-            let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
-            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
-                moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
-            }
-        }
-        if self.has_queenside_rights(side) {
-            let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
-            let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
-            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
-                moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
+        let king_sq = self.king_sq(side);
+        let has_rights = [self.has_kingside_rights(side), self.has_queenside_rights(side)];
+
+        for i in 0..2 {
+            if has_rights[i] {
+                let travel_mask = castling::TRAVEL_MASKS[side][i];
+                let safety_mask = castling::SAFETY_MASKS[side][i];
+                if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
+                    moves.add_move(king_sq, king_sq.shift(OFFSETS[i]), FLAGS[i]);
+                }
             }
         }
     }
