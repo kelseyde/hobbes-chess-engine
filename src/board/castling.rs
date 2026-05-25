@@ -272,6 +272,18 @@ impl CastleTravel {
     pub const BQS: Bitboard = Bitboard(0x0E00000000000000);
 }
 
+pub const TRAVEL_MASKS: [[Bitboard; 2]; 2] = [
+    [CastleTravel::WKS, CastleTravel::WQS],
+    [CastleTravel::BKS, CastleTravel::BQS],
+];
+pub const SAFETY_MASKS: [[Bitboard; 2]; 2] = [
+    [CastleSafety::WKS, CastleSafety::WQS],
+    [CastleSafety::BKS, CastleSafety::BQS],
+];
+
+pub const KS_CASTLE_OFFSET: i8 = 2;
+pub const QS_CASTLE_OFFSET: i8 = -2;
+
 #[cfg(test)]
 mod tests {
     use crate::board::castling::Rights;

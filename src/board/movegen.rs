@@ -1,5 +1,5 @@
 use crate::board::bitboard::Bitboard;
-use crate::board::castling::{CastleSafety, CastleTravel};
+
 use crate::board::file::File;
 use crate::board::moves::{Move, MoveFlag, MoveList};
 use crate::board::piece::Piece;
@@ -168,37 +168,29 @@ impl Board {
         // Captures (standard captures, promo captures, and en passant).
         if filter.gen_captures() {
             let filter_mask = filter_mask & self.them();
-            let up_right = up + Square::RIGHT;
-            let up_left = up + Square::LEFT;
-            let right_pin_mask = ray::relative_diagonal(side, king_sq);
-            let left_pin_mask = ray::relative_diagonal(!side, king_sq);
+            let dirs = [up + Square::RIGHT, up + Square::LEFT];
+            let pin_masks = [ray::relative_diagonal(side, king_sq), ray::relative_diagonal(!side, king_sq)];
+            let shift_masks = [!File::H.to_bb(), !File::A.to_bb()];
 
-            // Pawns which are capable of capturing left/right (not pinned unless capturing along
-            // the pin ray, and not on the edge of the board).
-            let left_pawns = pawns & (!pinned | left_pin_mask) & !File::A.to_bb();
-            let right_pawns = pawns & (!pinned | right_pin_mask) & !File::H.to_bb();
+            for i in 0..2 {
+                // Pawns which are capable of capturing in the given direction (not pinned unless
+                // capturing along the pin ray, and not on the edge of the board).
+                let sided_pawns = pawns & (!pinned | pin_masks[i]) & shift_masks[i];
 
-            // Non-promotion captures
-            let left_caps = (left_pawns & !seventh_rank).shift(up_left);
-            let right_caps = (right_pawns & !seventh_rank).shift(up_right);
+                let non_promo_captures = (sided_pawns & !seventh_rank).shift(dirs[i]);
+                moves.add_pawn_moves(non_promo_captures & filter_mask, dirs[i], MoveFlag::Standard);
 
-            moves.add_pawn_moves(right_caps & filter_mask, up_right, MoveFlag::Standard);
-            moves.add_pawn_moves(left_caps & filter_mask, up_left, MoveFlag::Standard);
+                let promo_captures = (sided_pawns & seventh_rank).shift(dirs[i]);
+                moves.add_pawn_promos(promo_captures & filter_mask, dirs[i]);
 
-            // Promotion captures
-            let right_cap_promos = (right_pawns & seventh_rank).shift(up_right);
-            let left_cap_promos = (left_pawns & seventh_rank).shift(up_left);
-            moves.add_pawn_promos(left_cap_promos & filter_mask, up_left);
-            moves.add_pawn_promos(right_cap_promos & filter_mask, up_right);
-
-            // En passant
-            if let Some(ep_sq) = self.ep_sq {
-                let ep_bb = Bitboard::of_sq(ep_sq);
-                let right_attacker = right_pawns & ep_bb.shift(-up_right);
-                let left_attacker = left_pawns & ep_bb.shift(-up_left);
-                for pawn in right_attacker | left_attacker {
-                    let mv = Move::new(pawn, ep_sq, MoveFlag::EnPassant);
-                    if self.is_legal(&mv) {
+                // En passant.
+                if let Some(ep_sq) = self.ep_sq {
+                    let ep_bb = Bitboard::of_sq(ep_sq);
+                    let attacker = sided_pawns & ep_bb.shift(-dirs[i]);
+                    let mv = (!attacker.is_empty())
+                        .then(|| Move::new(attacker.lsb(), ep_sq, MoveFlag::EnPassant))
+                        .filter(|mv| self.is_legal(mv));
+                    if let Some(mv) = mv {
                         moves.add_single(mv);
                     }
                 }
@@ -220,22 +212,21 @@ impl Board {
     }
 
     #[inline(always)]
-    #[rustfmt::skip]
     pub fn gen_standard_castle_moves(&self, side: Side, moves: &mut MoveList) {
-        let king_sq = self.king_sq(side);
+        const FLAGS: [MoveFlag; 2] = [MoveFlag::CastleK, MoveFlag::CastleQ];
+        const OFFSETS: [i8; 2] = [castling::KS_CASTLE_OFFSET, castling::QS_CASTLE_OFFSET];
+
         let occ = self.occ();
-        if self.has_kingside_rights(side) {
-            let travel_mask = if side == White { CastleTravel::WKS } else { CastleTravel::BKS };
-            let safety_mask = if side == White { CastleSafety::WKS } else { CastleSafety::BKS };
-            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
-                moves.add_move(king_sq, Square(king_sq.0 + 2), MoveFlag::CastleK);
-            }
-        }
-        if self.has_queenside_rights(side) {
-            let travel_mask = if side == White { CastleTravel::WQS } else { CastleTravel::BQS };
-            let safety_mask = if side == White { CastleSafety::WQS } else { CastleSafety::BQS };
-            if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
-                moves.add_move(king_sq, Square(king_sq.0 - 2), MoveFlag::CastleQ);
+        let king_sq = self.king_sq(side);
+        let has_rights = [self.has_kingside_rights(side), self.has_queenside_rights(side)];
+
+        for i in 0..2 {
+            if has_rights[i] {
+                let travel_mask = castling::TRAVEL_MASKS[side][i];
+                let safety_mask = castling::SAFETY_MASKS[side][i];
+                if (occ & travel_mask).is_empty() && (self.threats & safety_mask).is_empty() {
+                    moves.add_move(king_sq, king_sq.shift(OFFSETS[i]), FLAGS[i]);
+                }
             }
         }
     }
