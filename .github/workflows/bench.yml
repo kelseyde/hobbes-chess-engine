@@ -61,25 +61,25 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cargo build --release -p hobbes-chess-engine --jobs $(nproc)
+          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }}
           ./target/release/hobbes-chess-engine bench
         env:
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (macOS)
         if: runner.os == 'macOS'
         run: |
           cargo build --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu)
+          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }}
           ./target/release/hobbes-chess-engine bench
         env:
-          CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (Windows)
         if: runner.os == 'Windows'
         run: |
           cargo build --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS
+          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }}
           ./target/release/hobbes-chess-engine.exe bench
         env:
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
