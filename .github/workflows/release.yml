@@ -15,22 +15,27 @@ jobs:
 
           - os: ubuntu-latest
             name: hobbes-linux-avx2
+            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v3"
 
           - os: ubuntu-latest
             name: hobbes-linux-avx512
+            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v4"
 
           - os: windows-latest
             name: hobbes-windows-avx2
+            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v3"
 
           - os: windows-latest
             name: hobbes-windows-avx512
+            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v4"
 
           - os: macos-latest
             name: hobbes-macos
+            target: aarch64-apple-darwin
             rustflags: "-C target-cpu=native"
 
     steps:
