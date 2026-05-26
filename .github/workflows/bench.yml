@@ -12,22 +12,27 @@ jobs:
           - os: ubuntu-latest
             name: linux-avx2
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+            target: x86_64-unknown-linux-gnu
 
           - os: ubuntu-latest
             name: linux-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+            target: x86_64-unknown-linux-gnu
 
           - os: windows-latest
             name: windows-avx2
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+            target: x86_64-pc-windows-msvc
 
           - os: windows-latest
             name: windows-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+            target: x86_64-pc-windows-msvc
 
           - os: macos-latest
             name: macos
             rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
+            target: aarch64-apple-darwin
 
     steps:
       - name: Checkout repository
@@ -55,24 +60,26 @@ jobs:
       - name: Build and run bench (Linux)
         if: runner.os == 'Linux'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }}
+          cargo build --release -p hobbes-chess-engine --jobs $(nproc)
           ./target/release/hobbes-chess-engine bench
         env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (macOS)
         if: runner.os == 'macOS'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }}
+          cargo build --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu)
           ./target/release/hobbes-chess-engine bench
         env:
+          CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (Windows)
         if: runner.os == 'Windows'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }}
+          cargo build --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS
           ./target/release/hobbes-chess-engine.exe bench
         env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
-
