@@ -3,7 +3,7 @@ use board::ray;
 
 pub const AUTHOR: &str = "Dan Kelsey";
 pub const CONTRIBUTORS: &str = "Jonathan Hallström, Mattia Giambirtone";
-pub const VERSION: &str = "2.0";
+pub const VERSION: &str = "2.1";
 
 /// The board module contains board representation, move generation, move legality checking, and
 /// everything related to the rules of chess.
