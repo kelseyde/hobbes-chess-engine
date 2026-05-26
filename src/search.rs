@@ -589,6 +589,7 @@ fn alpha_beta<NODE: NodeType>(
                 + see_noisy_offset()).min(0)
         };
         if !pv_node
+            && (!in_check || !is_quiet)
             && depth <= see_max_depth()
             && threats.contains(mv.to())
             && searched_moves >= 1
