@@ -14,100 +14,78 @@ jobs:
         include:
           - os: ubuntu-latest
             name: hobbes-linux-avx2
-            rustflags: "-C target-cpu=x86-64-v3"
-            pgo_rustflags: "-C target-cpu=x86-64-v3"
-            sde_flag: -bdw
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
 
           - os: ubuntu-latest
             name: hobbes-linux-avx512
-            rustflags: "-C target-cpu=x86-64-v4"
-            pgo_rustflags: "-C target-cpu=x86-64-v3"
-            sde_flag: -bdw
+            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
 
           - os: windows-latest
             name: hobbes-windows-avx2
-            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/STACK:8388608"
-            sde_flag: -bdw
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
 
           - os: windows-latest
             name: hobbes-windows-avx512
-            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/STACK:8388608"
-            pgo_rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/STACK:8388608"
-            sde_flag: -bdw
+            rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
 
           - os: macos-latest
             name: hobbes-macos
-            rustflags: "-C target-cpu=apple-m1"
+            rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download network
-        shell: bash
-        run: |
-          NET_NAME=$(cat network.txt)
-          echo "Downloading ${NET_NAME}.nnue"
-          curl -sL -o hobbes.nnue "https://github.com/kelseyde/hobbes-networks/releases/download/${NET_NAME}/${NET_NAME}.nnue"
+        uses: actions/checkout@v5
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
-        run: |
-          rustup component add llvm-tools
-          cargo install cargo-pgo
+      - name: Read network name
+        shell: bash
+        run: echo "DEFAULT_NET=$(cat network.txt)" >> $GITHUB_ENV
 
-      - name: Setup Intel SDE
-        if: matrix.name != 'hobbes-macos'
-        uses: petarpetrovt/setup-sde@08ea32f9214634afad4f33b74841782e71768e52
-        with:
-          sdeVersion: "9.58.0"
-          environmentVariableName: SDE_PATH
-
-      - name: Instrument build for PGO
+      - name: Download network
         run: |
-          cargo pgo instrument
-        env:
-          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
+          curl -L -o hobbes.nnue https://github.com/kelseyde/hobbes-networks/releases/download/${{ env.DEFAULT_NET }}/${{ env.DEFAULT_NET }}.nnue
 
-      - name: Run PGO profiling benchmarks (Linux AVX2/AVX512)
-        if: matrix.name == 'hobbes-linux-avx2' || matrix.name == 'hobbes-linux-avx512'
+      - name: Build release binary (Linux)
+        if: runner.os == 'Linux'
         run: |
-          "$SDE_PATH/sde64" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
-        env:
-          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
-
-      - name: Run PGO profiling benchmarks (Windows AVX2/AVX512)
-        if: matrix.name == 'hobbes-windows-avx2' || matrix.name == 'hobbes-windows-avx512'
-        shell: cmd
-        run: |
-          "%SDE_PATH%\sde.exe" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
-        env:
-          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
-
-      - name: Run PGO profiling benchmarks (native)
-        if: matrix.name == 'hobbes-macos'
-        run: |
-          cargo pgo run -- bench
-        env:
-          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
-
-      - name: Optimize build with PGO
-        run: |
-          cargo pgo optimize
+          cargo build --release -p hobbes-chess-engine
         env:
           RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_INCREMENTAL: 1
 
-      - name: Rename binary with platform suffix
-        shell: bash
+      - name: Build release binary (macOS)
+        if: runner.os == 'macOS'
         run: |
-          tuple=$(rustc --print host-tuple)
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{ matrix.name }}.exe
-          else
-            mv target/$tuple/release/hobbes-chess-engine ${{ matrix.name }}
-          fi
+          cargo build --release -p hobbes-chess-engine
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_INCREMENTAL: 1
+
+      - name: Build release binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo build --release -p hobbes-chess-engine
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_INCREMENTAL: 1
+
+      - name: Run bench verification
+        run: cargo r -r -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_INCREMENTAL: 1
+
+      - name: Rename binary with platform suffix (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/release/hobbes-chess-engine ${{ matrix.name }}
+
+      - name: Rename binary with platform suffix (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp target/release/hobbes-chess-engine.exe ${{ matrix.name }}.exe
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5.0.0
@@ -124,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get short SHA hash
         id: hash
