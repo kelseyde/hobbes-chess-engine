@@ -46,7 +46,7 @@ jobs:
       - name: Download network
         shell: bash
         run: |
-          NET_NAME=$(cat network.txt | tr -d '\r\n')
+          NET_NAME=$(cat network.txt)
           echo "Downloading ${NET_NAME}.nnue"
           curl -sL -o hobbes.nnue "https://github.com/kelseyde/hobbes-networks/releases/download/${NET_NAME}/${NET_NAME}.nnue"
 

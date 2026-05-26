@@ -78,20 +78,22 @@ const L0_ACTIVATIONS: [usize; L1_SIZE / 2] = [
     2054769, 4464183, 190780, 116641
 ];
 
-#[cfg(target_feature = "avx512f")]
-static ORDER: &[u8] = &[0, 2, 4, 6, 1, 3, 5, 7];
-
-#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-static ORDER: &[u8] = &[0, 2, 1, 3];
-
-#[cfg(not(any(target_feature = "avx512f", target_feature = "avx2")))]
-static ORDER: &[u8] = &[];
+fn permute_order() -> &'static [u8] {
+    let features = std::env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
+    if features.split(',').any(|f| f.trim() == "avx512f") {
+        &[0, 2, 4, 6, 1, 3, 5, 7]
+    } else if features.split(',').any(|f| f.trim() == "avx2") {
+        &[0, 2, 1, 3]
+    } else {
+        &[]
+    }
+}
 
 pub const fn permute_config() -> PermuteConfig {
     let needs_permuting = cfg!(target_feature = "avx512f") || cfg!(target_feature = "avx2");
     PermuteConfig {
         needs_permuting,
-        order: ORDER,
+        order: permute_order(),
     }
 }
 
