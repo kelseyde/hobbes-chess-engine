@@ -58,7 +58,6 @@ jobs:
           cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
           cargo r -r -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (macOS)
@@ -67,7 +66,6 @@ jobs:
           cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
           cargo r -r -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (Windows)
@@ -76,6 +74,5 @@ jobs:
           cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine.exe
           cargo r -r -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
