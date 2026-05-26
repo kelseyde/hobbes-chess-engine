@@ -21,7 +21,8 @@ jobs:
           - os: ubuntu-latest
             name: hobbes-linux-avx512
             rustflags: "-C target-cpu=x86-64-v4"
-            sde_flag: -skx
+            pgo_rustflags: "-C target-cpu=x86-64-v3"
+            sde_flag: -bdw
 
           - os: windows-latest
             name: hobbes-windows-avx2
@@ -31,8 +32,8 @@ jobs:
           - os: windows-latest
             name: hobbes-windows-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/STACK:8388608"
-            pgo_rustflags: "-C target-cpu=x86-64-v3"
-            sde_flag: -skx
+            pgo_rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/STACK:8388608"
+            sde_flag: -bdw
 
           - os: macos-latest
             name: hobbes-macos
@@ -68,14 +69,14 @@ jobs:
         run: |
           cargo pgo instrument
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
 
       - name: Run PGO profiling benchmarks (Linux AVX2/AVX512)
         if: matrix.name == 'hobbes-linux-avx2' || matrix.name == 'hobbes-linux-avx512'
         run: |
           "$SDE_PATH/sde64" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
 
       - name: Run PGO profiling benchmarks (Windows AVX2/AVX512)
         if: matrix.name == 'hobbes-windows-avx2' || matrix.name == 'hobbes-windows-avx512'
@@ -83,14 +84,14 @@ jobs:
         run: |
           "%SDE_PATH%\sde.exe" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
 
       - name: Run PGO profiling benchmarks (native)
         if: matrix.name == 'hobbes-macos'
         run: |
           cargo pgo run -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          RUSTFLAGS: "${{ matrix.pgo_rustflags || matrix.rustflags }}"
 
       - name: Optimize build with PGO
         run: |
