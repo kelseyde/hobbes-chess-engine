@@ -15,27 +15,22 @@ jobs:
 
           - os: ubuntu-latest
             name: hobbes-linux-avx2
-            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v3"
 
           - os: ubuntu-latest
             name: hobbes-linux-avx512
-            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v4"
 
           - os: windows-latest
             name: hobbes-windows-avx2
-            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v3"
 
           - os: windows-latest
             name: hobbes-windows-avx512
-            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v4"
 
           - os: macos-latest
             name: hobbes-macos
-            target: aarch64-apple-darwin
             rustflags: "-C target-cpu=native"
 
     steps:
@@ -52,37 +47,33 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Configure target-specific rustflags
-        shell: bash
-        run: |
-          mkdir -p .cargo
-          cat > .cargo/config.toml << EOF
-          [target.${{ matrix.target }}]
-          rustflags = ["${{ matrix.rustflags }}"]
-          EOF
-
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
+        env:
+          RUSTFLAGS: "${{matrix.rustflags}}"
 
       - name: Verify build with bench
-        run: cargo run --release --target ${{ matrix.target }} -- bench
+        run: cargo run --release -- bench
+        env:
+          RUSTFLAGS: "${{matrix.rustflags}}"
 
       - name: Rename binary with platform suffix
         shell: bash
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            mv target/${{ matrix.target }}/release/hobbes-chess-engine.exe ${{ matrix.name }}.exe
+          tuple=$(rustc --print host-tuple)
+          if [ "${{runner.os}}" = "Windows" ]; then
+            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{matrix.name}}.exe
           else
-            mv target/${{ matrix.target }}/release/hobbes-chess-engine ${{ matrix.name }}
+            mv target/$tuple/release/hobbes-chess-engine ${{matrix.name}}
           fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
+          name: ${{matrix.name}}
           path: |
-            ${{ matrix.name }}
-            ${{ matrix.name }}.exe
+            ${{matrix.name}}
+            ${{matrix.name}}.exe
           retention-days: 1
 
   release:
