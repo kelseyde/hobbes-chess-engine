@@ -53,23 +53,22 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_ENCODED_RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Verify build with bench
-        run: cargo run --release -- bench
+        run: cargo run --release --target ${{ matrix.target }} -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_ENCODED_RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Rename binary with platform suffix
         shell: bash
         run: |
-          tuple=$(rustc --print host-tuple)
           if [ "${{ runner.os }}" = "Windows" ]; then
-            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{ matrix.name }}.exe
+            mv target/${{ matrix.target }}/release/hobbes-chess-engine.exe ${{ matrix.name }}.exe
           else
-            mv target/$tuple/release/hobbes-chess-engine ${{ matrix.name }}
+            mv target/${{ matrix.target }}/release/hobbes-chess-engine ${{ matrix.name }}
           fi
 
       - name: Upload build artifacts
