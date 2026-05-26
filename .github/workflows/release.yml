@@ -47,32 +47,31 @@ jobs:
         run: |
           curl -L -o hobbes.nnue https://github.com/kelseyde/hobbes-networks/releases/download/${{ env.DEFAULT_NET }}/${{ env.DEFAULT_NET }}.nnue
 
-      - name: Build release binary (Linux)
+      - name: Build and run bench (Linux)
         if: runner.os == 'Linux'
         run: |
-          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
+          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
+          cargo r -r -- bench
         env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
-      - name: Build release binary (macOS)
+      - name: Build and run bench (macOS)
         if: runner.os == 'macOS'
         run: |
-          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
+          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
+          cargo r -r -- bench
         env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
-      - name: Build release binary (Windows)
+      - name: Build and run bench (Windows)
         if: runner.os == 'Windows'
         run: |
-          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
+          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine.exe
+          cargo r -r -- bench
         env:
-          CARGO_INCREMENTAL: 1
-
-      - name: Run bench verification
-        run: |
-          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
-          cargo run --release -- bench
-        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Rename binary with platform suffix (Unix)
