@@ -50,31 +50,29 @@ jobs:
       - name: Build release binary (Linux)
         if: runner.os == 'Linux'
         run: |
-          cargo build --release -p hobbes-chess-engine
+          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build release binary (macOS)
         if: runner.os == 'macOS'
         run: |
-          cargo build --release -p hobbes-chess-engine
+          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Build release binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          cargo build --release -p hobbes-chess-engine
+          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Run bench verification
-        run: cargo r -r -- bench
+        run: |
+          cargo rustc --release -p hobbes-chess-engine -- ${{ matrix.rustflags }}
+          cargo run --release -- bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
           CARGO_INCREMENTAL: 1
 
       - name: Rename binary with platform suffix (Unix)
