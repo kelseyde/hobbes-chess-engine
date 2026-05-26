@@ -343,8 +343,20 @@ impl Board {
         self.checkers = self.calc_checkers(self.stm);
     }
 
-    pub const fn hash(&self) -> u64 {
+    pub fn hash(&self) -> u64 {
         self.hashes.hash()
+    }
+
+    pub fn hash_with_50mr_bucket(&self) -> u64 {
+        self.hashes.hash() ^ Keys::hm(self.hm_bucket())
+    }
+
+    pub fn hm_bucket(&self) -> usize {
+        if self.hm < 50 {
+            0
+        } else {
+            (self.hm.saturating_sub(8) as usize / 8).min(15)
+        }
     }
 
     #[inline]

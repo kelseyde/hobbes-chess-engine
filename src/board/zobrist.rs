@@ -24,13 +24,14 @@ pub struct Keys {
     ep: [u64; 64],           // Zobrist keys for en passant squares
     castle: [u64; 16],       // Zobrist keys for castling rights
     side: u64,               // Zobrist key for side to move
+    hm: [u64; 16]            // Zobrist keys for the half-move clock buckets
 }
 
 pub const KEYS: Keys = {
     const SEED: u64 = 0xFFAA_B58C_5833_FE89u64;
     const INCREMENT: u64 = 0x9E37_79B9_7F4A_7C15;
 
-    let mut zobrist = [0; 849];
+    let mut zobrist = [0; 865];
     let mut state = SEED;
 
     let mut i = 0;
@@ -213,5 +214,9 @@ impl Keys {
 
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
+    }
+
+    pub const fn hm(hm_bucket: usize) -> u64 {
+        KEYS.hm[hm_bucket]
     }
 }
