@@ -89,7 +89,7 @@ fn permute_order() -> &'static [u8] {
     }
 }
 
-pub const fn permute_config() -> PermuteConfig {
+pub fn permute_config() -> PermuteConfig {
     let needs_permuting = cfg!(target_feature = "avx512f") || cfg!(target_feature = "avx2");
     PermuteConfig {
         needs_permuting,
