@@ -52,15 +52,20 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Configure target-specific rustflags
+        shell: bash
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml << EOF
+          [target.${{ matrix.target }}]
+          rustflags = ["${{ matrix.rustflags }}"]
+          EOF
+
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          CARGO_ENCODED_RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Verify build with bench
         run: cargo run --release --target ${{ matrix.target }} -- bench
-        env:
-          CARGO_ENCODED_RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Rename binary with platform suffix
         shell: bash
