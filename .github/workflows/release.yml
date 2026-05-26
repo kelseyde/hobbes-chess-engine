@@ -12,22 +12,26 @@ jobs:
     strategy:
       matrix:
         include:
-
           - os: ubuntu-latest
             name: hobbes-linux-avx2
             rustflags: "-C target-cpu=x86-64-v3"
+            sde_flag: -bdw
 
           - os: ubuntu-latest
             name: hobbes-linux-avx512
-            rustflags: "-C target-cpu=x86-64-v4"
+            rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+gfni,+avx512bw,+avx512vl,+avx512vbmi,+avx512vbmi2,+avx512vnni,+avx512bitalg"
+            sde_flag: -icx
+
 
           - os: windows-latest
             name: hobbes-windows-avx2
             rustflags: "-C target-cpu=x86-64-v3"
+            sde_flag: -bdw
 
           - os: windows-latest
             name: hobbes-windows-avx512
-            rustflags: "-C target-cpu=x86-64-v4"
+            rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+gfni,+avx512bw,+avx512vl,+avx512vbmi,+avx512vbmi2,+avx512vnni,+avx512bitalg"
+            sde_flag: -icx
 
           - os: macos-latest
             name: hobbes-macos
@@ -35,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download network
         shell: bash
@@ -45,35 +49,71 @@ jobs:
           curl -sL -o hobbes.nnue "https://github.com/kelseyde/hobbes-networks/releases/download/${NET_NAME}/${NET_NAME}.nnue"
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.93.1
 
-      - name: Build release binary
-        run: cargo build --release
-        env:
-          RUSTFLAGS: "${{matrix.rustflags}}"
+      - name: Install dependencies
+        run: |
+          rustup component add llvm-tools
+          cargo install cargo-pgo
 
-      - name: Verify build with bench
-        run: cargo run --release -- bench
+      - name: Setup Intel SDE
+        if: matrix.name != 'hobbes-macos'
+        uses: petarpetrovt/setup-sde@08ea32f9214634afad4f33b74841782e71768e52
+        with:
+          sdeVersion: "9.58.0"
+          environmentVariableName: SDE_PATH
+
+      - name: Instrument build for PGO
+        run: |
+          cargo pgo instrument
         env:
-          RUSTFLAGS: "${{matrix.rustflags}}"
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks
+        if: matrix.name == 'hobbes-linux-avx2' || matrix.name == 'hobbes-linux-avx512'
+        run: |
+          "$SDE_PATH/sde64" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks
+        if: matrix.name == 'hobbes-windows-avx2' || matrix.name == 'hobbes-windows-avx512'
+        shell: cmd
+        run: |
+          "%SDE_PATH%\sde.exe" ${{ matrix.sde_flag }} -- cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Run PGO profiling benchmarks
+        if: matrix.name == 'hobbes-macos'
+        run: |
+          cargo pgo run -- bench
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
+
+      - name: Optimize build with PGO
+        run: |
+          cargo pgo optimize
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }}"
 
       - name: Rename binary with platform suffix
         shell: bash
         run: |
           tuple=$(rustc --print host-tuple)
-          if [ "${{runner.os}}" = "Windows" ]; then
-            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{matrix.name}}.exe
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            mv target\\$tuple\\release\\hobbes-chess-engine.exe ${{ matrix.name }}.exe
           else
-            mv target/$tuple/release/hobbes-chess-engine ${{matrix.name}}
+            mv target/$tuple/release/hobbes-chess-engine ${{ matrix.name }}
           fi
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5.0.0
         with:
-          name: ${{matrix.name}}
+          name: ${{ matrix.name }}
           path: |
-            ${{matrix.name}}
-            ${{matrix.name}}.exe
+            ${{ matrix.name }}
+            ${{ matrix.name }}.exe
           retention-days: 1
 
   release:
@@ -82,14 +122,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get short SHA hash
         id: hash
         run: echo "COMMIT_SHA=$(git rev-parse HEAD | cut -c 1-8)" >> $GITHUB_ENV
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6.0.0
         with:
           path: artifacts
 
@@ -102,4 +142,5 @@ jobs:
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
