@@ -1,0 +1,58 @@
+name: Bench
+
+on: [workflow_dispatch]
+
+jobs:
+  bench:
+    name: Build and Bench
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Read network name (Unix)
+        if: runner.os != 'Windows'
+        run: echo "DEFAULT_NET=$(cat network.txt)" >> $GITHUB_ENV
+
+      - name: Read network name (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $net = Get-Content network.txt -Raw
+          $net = $net.Trim()
+          echo "DEFAULT_NET=$net" >> $env:GITHUB_ENV
+
+      - name: Download network
+        run: |
+          curl -L -o hobbes.nnue https://github.com/kelseyde/hobbes-networks/releases/download/${{ env.DEFAULT_NET }}/${{ env.DEFAULT_NET }}.nnue
+
+      - name: Build release binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- -C target-cpu=native -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections --emit link=hobbes-chess-engine
+        env:
+          CARGO_INCREMENTAL: 1
+
+      - name: Build release binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- -C target-cpu=native -C link-arg=-Wl,-dead_strip --emit link=hobbes-chess-engine
+        env:
+          CARGO_INCREMENTAL: 1
+
+      - name: Build release binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- -C target-cpu=native -C link-arg=/OPT:REF -C link-arg=/OPT:ICF --emit link=hobbes-chess-engine.exe
+        env:
+          CARGO_INCREMENTAL: 1
+
+      - name: Run bench
+        run: cargo r -r -- bench
