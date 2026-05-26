@@ -50,28 +50,31 @@ jobs:
       - name: Build and run bench (Linux)
         if: runner.os == 'Linux'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
-          cargo r -r -- bench
+          cargo build --release -p hobbes-chess-engine --jobs $(nproc)
+          cargo rustc --release -p hobbes-chess-engine --jobs $(nproc) -- ${{ matrix.rustflags }}
+          ./target/release/hobbes-chess-engine bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (macOS)
         if: runner.os == 'macOS'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine
-          cargo r -r -- bench
+          cargo build --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu)
+          cargo rustc --release -p hobbes-chess-engine --jobs $(sysctl -n hw.ncpu) -- ${{ matrix.rustflags }}
+          ./target/release/hobbes-chess-engine bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
           CARGO_INCREMENTAL: 1
 
       - name: Build and run bench (Windows)
         if: runner.os == 'Windows'
         run: |
-          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }} --emit link=hobbes-chess-engine.exe
-          cargo r -r -- bench
+          cargo build --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS
+          cargo rustc --release -p hobbes-chess-engine --jobs $env:NUMBER_OF_PROCESSORS -- ${{ matrix.rustflags }}
+          ./target/release/hobbes-chess-engine.exe bench
         env:
-          RUSTFLAGS: "${{ matrix.rustflags }}"
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
           CARGO_INCREMENTAL: 1
 
       - name: Rename binary with platform suffix (Unix)
