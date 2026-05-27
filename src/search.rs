@@ -263,11 +263,7 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
-    let opponent_worsening_rate = if root_node || in_check {
-        0
-    } else {
-        static_eval + td.stack[ply - 1].static_eval
-    };
+    let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
 
     // Hindsight history updates
@@ -785,7 +781,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let cont_1_malus = cont_history_1_malus(depth)
             + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
-        
+
         let cont_2_bonus = cont_history_2_bonus(depth)
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
@@ -1169,6 +1165,17 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
 }
 
 #[inline]
+fn calc_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
+    if ply >= 1 && is_defined(td.stack[ply - 1].static_eval) && !in_check {
+        static_eval + td.stack[ply - 1].static_eval
+    } else if ply >= 3 && is_defined(td.stack[ply - 3].static_eval) && !in_check {
+        static_eval + td.stack[ply - 3].static_eval
+    } else {
+        0
+    }
+}
+
+#[inline]
 fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
     let adjust = improvement.clamp(lmp_improvement_min(), lmp_improvement_max());
     let factor0 = lmp_factor0_base() + lmp_factor0_scale() * adjust / 16;
@@ -1295,3 +1302,4 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_score = score;
     (td.best_move, td.best_score)
 }
+
