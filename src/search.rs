@@ -332,6 +332,27 @@ fn alpha_beta<NODE: NodeType>(
             return lerp(beta, static_eval, rfp_lerp_factor());
         }
 
+        // Probcut TT pruning
+        // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
+        let probcut_margin = (pc_base()
+            + depth * pc_scale()
+            + tt_pv as i32 * pc_ttpv_margin()
+            - cut_node as i32 * pc_cutnode_margin()
+            - improving as i32 * pc_improving_margin()
+        ).min(pc_max());
+        if !pv_node
+            && !singular_search
+            && !in_check
+            && is_defined(tt_score)
+            && !is_mate(tt_score)
+            && !is_mate(beta)
+            && !is_mate(beta + probcut_margin)
+            && (tt_flag == Lower || tt_flag == Exact)
+            && tt_score >= beta + probcut_margin
+            && tt_depth >= depth - pc_tt_depth_offset() {
+            return tt_score;
+        }
+
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
         if !pv_node && static_eval < alpha - razor_base() - razor_scale() * depth * depth {
@@ -394,27 +415,6 @@ fn alpha_beta<NODE: NodeType>(
         && depth >= cutnode_red_min_depth()
         && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
         depth -= 1;
-    }
-
-    // Probcut TT pruning
-    // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
-    let probcut_margin = (pc_base()
-        + depth * pc_scale()
-        + tt_pv as i32 * pc_ttpv_margin()
-        - cut_node as i32 * pc_cutnode_margin()
-        - improving as i32 * pc_improving_margin()
-    ).min(pc_max());
-    if !pv_node
-        && !singular_search
-        && !in_check
-        && is_defined(tt_score)
-        && !is_mate(tt_score)
-        && !is_mate(beta)
-        && !is_mate(beta + probcut_margin)
-        && (tt_flag == Lower || tt_flag == Exact)
-        && tt_score >= beta + probcut_margin
-        && tt_depth >= depth - pc_tt_depth_offset() {
-        return tt_score;
     }
 
     let mut extension = 0;
