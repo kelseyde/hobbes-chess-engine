@@ -219,7 +219,7 @@ impl Board {
     }
 
     #[inline(always)]
-    pub fn gen_standard_castle_moves(&self, side: Side, moves: &mut MoveList) {
+    fn gen_standard_castle_moves(&self, side: Side, moves: &mut MoveList) {
         const FLAGS: [MoveFlag; 2] = [MoveFlag::CastleK, MoveFlag::CastleQ];
         const OFFSETS: [i8; 2] = [castling::KS_CASTLE_OFFSET, castling::QS_CASTLE_OFFSET];
 
@@ -242,13 +242,13 @@ impl Board {
     }
 
     #[inline(always)]
-    pub fn gen_frc_castle_moves(&self, side: Side, moves: &mut MoveList) {
+    fn gen_frc_castle_moves(&self, side: Side, moves: &mut MoveList) {
         self.gen_frc_castle_moves_side(side, true, moves);
         self.gen_frc_castle_moves_side(side, false, moves);
     }
 
     #[inline(always)]
-    pub fn gen_frc_castle_moves_side(&self, side: Side, kingside: bool, moves: &mut MoveList) {
+    fn gen_frc_castle_moves_side(&self, side: Side, kingside: bool, moves: &mut MoveList) {
         let occ = self.occ();
         let rook_file = if kingside {
             self.rights.kingside(side)
