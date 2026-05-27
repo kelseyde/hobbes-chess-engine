@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::print_measurements;
 use crate::search::search;
 use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
@@ -81,8 +82,7 @@ pub fn bench(td: &mut ThreadData) {
 
     let end = Instant::now();
 
-    #[cfg(debug_assertions)]
-    td.debug_stats.print();
+    print_measurements!();
     td.minimal_output = minimal_enabled;
     td.clear();
 
