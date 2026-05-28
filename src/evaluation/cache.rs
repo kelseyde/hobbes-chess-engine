@@ -19,14 +19,16 @@ pub struct InputBucketCache {
 #[derive(Clone)]
 pub struct CacheEntry {
     pub features: [i16; L1_SIZE],
-    pub bitboards: [Bitboard; 8],
+    pub pieces: [Bitboard; 6],
+    pub colours: [Bitboard; 2],
 }
 
 impl Default for CacheEntry {
     fn default() -> Self {
         CacheEntry {
             features: NETWORK.l0_biases,
-            bitboards: [Bitboard::empty(); 8],
+            pieces: [Bitboard::empty(); 6],
+            colours: [Bitboard::empty(); 2],
         }
     }
 }

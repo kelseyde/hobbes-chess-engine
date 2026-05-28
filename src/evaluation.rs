@@ -134,7 +134,7 @@ impl NNUE {
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
                 let pieces = board.pieces(pc) & board.side(side);
-                let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
+                let cached_pieces = cache_entry.pieces[pc] & cache_entry.colours[side];
 
                 let added = pieces & !cached_pieces;
                 for add in added {
@@ -187,7 +187,8 @@ impl NNUE {
         acc.computed[side] = true;
         acc.needs_refresh[side] = false;
 
-        cache_entry.bitboards = board.bb;
+        cache_entry.pieces = board.pieces;
+        cache_entry.colours = board.colours;
         cache_entry.features = *acc.features(side);
     }
 

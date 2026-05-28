@@ -158,15 +158,36 @@ impl BitOrAssign for Bitboard {
     }
 }
 
+impl BitOrAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitor_assign(&mut self, rhs: Square) {
+        self.0 |= 1u64 << rhs.0;
+    }
+}
+
 impl BitAndAssign for Bitboard {
     fn bitand_assign(&mut self, rhs: Self) {
         self.0 &= rhs.0;
     }
 }
 
+impl BitAndAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitand_assign(&mut self, rhs: Square) {
+        self.0 &= 1u64 << rhs.0;
+    }
+}
+
 impl BitXorAssign for Bitboard {
     fn bitxor_assign(&mut self, rhs: Self) {
         self.0 ^= rhs.0;
+    }
+}
+
+impl BitXorAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitxor_assign(&mut self, rhs: Square) {
+        self.0 ^= 1u64 << rhs.0;
     }
 }
 

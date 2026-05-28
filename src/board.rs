@@ -65,8 +65,9 @@ use square::Square;
 #[rustfmt::skip]
 #[derive(Clone, Copy)]
 pub struct Board {
-    pub bb: [Bitboard; 8],            // bitboards for each piece type (0-5) and both colours (6-7)
-    pub pcs: [Option<Piece>; 64],     // piece type on each square
+    pub pieces: [Bitboard; 6],        // bitboards for each piece type
+    pub colours: [Bitboard; 2],       // bitboards for each colour
+    pub mailbox: [Option<Piece>; 64], // piece type on each square
     pub stm: Side,                    // side to move (White or Black)
     pub hm: u8,                       // number of half moves since last capture or pawn move
     pub fm: u8,                       // number of full moves
@@ -95,8 +96,9 @@ impl Board {
     /// Creates a completely empty board with no pieces, no castling rights, and no en passant.
     pub fn empty() -> Board {
         Board {
-            bb: [Bitboard::empty(); 8],
-            pcs: [None; 64],
+            pieces: [Bitboard::empty(); 6],
+            colours: [Bitboard::empty(); 2],
+            mailbox: [None; 64],
             stm: White,
             hm: 0,
             fm: 0,
@@ -118,18 +120,16 @@ impl Board {
     pub fn make(&mut self, m: &Move) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
-        let pc = self.piece_at(from).unwrap();
+        let pc = self.piece_at(from).expect("No piece on starting square");
         let captured = self.captured(m);
-        let new_pc = self.new_pc(m, pc);
-        let new_to = self.new_to(m, from, to);
+        let (new_pc, new_to) = (self.new_pc(m, pc), self.new_to(m, from, to));
 
+        // Unset the piece from the starting square.
         self.toggle_sq(from, pc, side);
+
         if let Some(captured) = captured {
-            let capture_sq = if flag == MoveFlag::EnPassant {
-                self.ep_capture_sq(to)
-            } else {
-                to
-            };
+            // Unset the captured piece.
+            let capture_sq = self.capture_sq(flag, to);
             self.toggle_sq(capture_sq, captured, !side);
         }
         if self.is_frc() && m.is_castle() {
@@ -137,8 +137,10 @@ impl Board {
             // scenario where the king moves to the occupied rook square.
             self.toggle_sq(to, Piece::Rook, side);
         }
+        // Set the piece on the destination square.
         self.toggle_sq(new_to, new_pc, side);
 
+        // Handle rook movement for castling.
         if m.is_castle() {
             let kingside = castling::is_kingside(from, to);
             let (rook_from, rook_to) = self.rook_sqs(to, kingside);
@@ -149,6 +151,7 @@ impl Board {
             }
         }
 
+        // Update remaining board state.
         self.ep_sq = self.calc_ep(flag, to);
         self.recapture_sq = captured.map(|_| m.to());
         self.rights = self.calc_castle_rights(from, to, pc);
@@ -167,11 +170,10 @@ impl Board {
     /// and XORs all affected Zobrist keys.
     #[inline]
     pub fn toggle_sq(&mut self, sq: Square, pc: Piece, side: Side) {
-        let bb: Bitboard = Bitboard::of_sq(sq);
-        self.bb[pc] ^= bb;
-        self.bb[side.idx()] ^= bb;
-        let cur = self.pcs[sq];
-        self.pcs[sq] = if cur == Some(pc) { None } else { Some(pc) };
+        self.pieces[pc] ^= sq;
+        self.colours[side] ^= sq;
+        let cur = self.mailbox[sq];
+        self.mailbox[sq] = if cur == Some(pc) { None } else { Some(pc) };
 
         let hash = Keys::sq(pc, side, sq);
         self.hashes.update_piece(pc, side, hash);
@@ -198,6 +200,15 @@ impl Board {
         };
         let rook_to = castling::rook_to(self.stm, kingside);
         (rook_from, rook_to)
+    }
+
+    #[inline]
+    fn capture_sq(&self, flag: MoveFlag, to: Square) -> Square {
+        if flag == MoveFlag::EnPassant {
+            self.ep_capture_sq(to)
+        } else {
+            to
+        }
     }
 
     /// Returns the square of the pawn that would be captured by an en passant capture.
@@ -361,27 +372,27 @@ impl Board {
 
     #[inline]
     pub fn pawns(&self, side: Side) -> Bitboard {
-        self.bb[Piece::Pawn] & self.bb[side.idx()]
+        self.pieces[Piece::Pawn] & self.colours[side]
     }
 
     #[inline]
     pub fn knights(&self, side: Side) -> Bitboard {
-        self.bb[Piece::Knight] & self.bb[side.idx()]
+        self.pieces[Piece::Knight] & self.colours[side]
     }
 
     #[inline]
     pub fn bishops(&self, side: Side) -> Bitboard {
-        self.bb[Piece::Bishop] & self.bb[side.idx()]
+        self.pieces[Piece::Bishop] & self.colours[side]
     }
 
     #[inline]
     pub fn rooks(&self, side: Side) -> Bitboard {
-        self.bb[Piece::Rook] & self.bb[side.idx()]
+        self.pieces[Piece::Rook] & self.colours[side]
     }
 
     #[inline]
     pub fn queens(&self, side: Side) -> Bitboard {
-        self.bb[Piece::Queen] & self.bb[side.idx()]
+        self.pieces[Piece::Queen] & self.colours[side]
     }
 
     #[inline]
@@ -396,7 +407,7 @@ impl Board {
 
     #[inline]
     pub fn king(&self, side: Side) -> Bitboard {
-        self.bb[Piece::King] & self.bb[side.idx()]
+        self.pieces[Piece::King] & self.colours[side]
     }
 
     #[inline]
@@ -406,12 +417,12 @@ impl Board {
 
     #[inline]
     pub fn occ(&self) -> Bitboard {
-        self.bb[White.idx()] | self.bb[Black.idx()]
+        self.colours[White] | self.colours[Black]
     }
 
     #[inline]
     pub fn pcs(&self, piece: Piece) -> Bitboard {
-        self.bb[piece]
+        self.pieces[piece]
     }
 
     #[inline]
@@ -421,42 +432,42 @@ impl Board {
 
     #[inline]
     pub fn side(&self, side: Side) -> Bitboard {
-        self.bb[side.idx()]
+        self.colours[side]
     }
 
     #[inline]
     pub fn white(&self) -> Bitboard {
-        self.bb[White.idx()]
+        self.colours[White]
     }
 
     #[inline]
     pub fn black(&self) -> Bitboard {
-        self.bb[Black.idx()]
+        self.colours[Black]
     }
 
     #[inline]
     pub fn us(&self) -> Bitboard {
-        self.bb[self.stm.idx()]
+        self.colours[self.stm]
     }
 
     #[inline]
     pub fn them(&self) -> Bitboard {
-        self.bb[(!self.stm).idx()]
+        self.colours[!self.stm]
     }
 
     #[inline]
     pub fn our(&self, piece: Piece) -> Bitboard {
-        self.bb[piece] & self.bb[self.stm.idx()]
+        self.pieces[piece] & self.colours[self.stm]
     }
 
     #[inline]
     pub fn their(&self, piece: Piece) -> Bitboard {
-        self.bb[piece] & self.bb[(!self.stm).idx()]
+        self.pieces[piece] & self.colours[!self.stm]
     }
 
     #[inline]
     pub fn piece_at(&self, sq: Square) -> Option<Piece> {
-        self.pcs[sq]
+        self.mailbox[sq]
     }
 
     /// Returns the piece captured by `mv`, or `None` if the move is not a capture.
@@ -497,9 +508,9 @@ impl Board {
     /// Returns the side that occupies `sq`, or `None` if the square is empty.
     pub fn side_at(&self, sq: Square) -> Option<Side> {
         let bb = Bitboard::of_sq(sq);
-        if !(self.bb[White.idx()] & bb).is_empty() {
+        if !(self.colours[White] & bb).is_empty() {
             Some(White)
-        } else if !(self.bb[Black.idx()] & bb).is_empty() {
+        } else if !(self.colours[Black] & bb).is_empty() {
             Some(Black)
         } else {
             None
@@ -519,16 +530,16 @@ impl Board {
     }
 
     pub fn is_insufficient_material(&self) -> bool {
-        let pawns = self.bb[Piece::Pawn];
-        let rooks = self.bb[Piece::Rook];
-        let queens = self.bb[Piece::Queen];
+        let pawns = self.pieces[Piece::Pawn];
+        let rooks = self.pieces[Piece::Rook];
+        let queens = self.pieces[Piece::Queen];
 
         if !(pawns | rooks | queens).is_empty() {
             return false;
         }
 
-        let knights = self.bb[Piece::Knight];
-        let bishops = self.bb[Piece::Bishop];
+        let knights = self.pieces[Piece::Knight];
+        let bishops = self.pieces[Piece::Bishop];
 
         let minor_pieces = knights | bishops;
         let minor_count = minor_pieces.count();
