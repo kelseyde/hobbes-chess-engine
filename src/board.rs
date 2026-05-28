@@ -499,10 +499,9 @@ impl Board {
 
     /// Returns the side that occupies `sq`, or `None` if the square is empty.
     pub fn side_at(&self, sq: Square) -> Option<Side> {
-        let bb = Bitboard::of_sq(sq);
-        if !(self.colours[White] & bb).is_empty() {
+        if !(self.colours[White] & sq).is_empty() {
             Some(White)
-        } else if !(self.colours[Black] & bb).is_empty() {
+        } else if !(self.colours[Black] & sq).is_empty() {
             Some(Black)
         } else {
             None
