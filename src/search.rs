@@ -254,7 +254,7 @@ fn alpha_beta<NODE: NodeType>(
 
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
-    td.stack[ply + 1].killer = None;
+    td.stack[ply + 1].killers.clear();
     td.stack[ply + 2].num_fail_highs = 0;
 
     // We are 'improving' if the static eval of the current position is greater than it was on our
@@ -502,7 +502,7 @@ fn alpha_beta<NODE: NodeType>(
         let captured = board.captured(&mv);
         let is_quiet = captured.is_none();
         let is_mated = is_mated(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let is_killer = td.stack.is_killer(ply, mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
@@ -801,7 +801,7 @@ fn alpha_beta<NODE: NodeType>(
             td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
-            td.stack[ply].killer = Some(best_move);
+            td.stack.update_killer(ply, best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
             td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
             td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &cont_bonuses);
@@ -998,7 +998,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let is_killer = td.stack.is_killer(ply, mv);
 
         // Late Move Pruning
         if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
