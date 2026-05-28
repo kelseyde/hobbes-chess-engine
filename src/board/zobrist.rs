@@ -149,7 +149,7 @@ impl Keys {
 
     pub fn get_pawn_hash(board: &Board) -> u64 {
         let mut hash: u64 = 0;
-        for sq in board.bb[Pawn] {
+        for sq in board.pieces[Pawn] {
             if let Some(side) = board.side_at(sq) {
                 hash ^= Self::sq(Pawn, side, sq);
             }
