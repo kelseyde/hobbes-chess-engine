@@ -214,11 +214,8 @@ impl Board {
     /// Returns the square of the pawn that would be captured by an en passant capture.
     #[inline]
     fn ep_capture_sq(&self, to: Square) -> Square {
-        if self.stm == White {
-            Square(to.0 - 8)
-        } else {
-            Square(to.0 + 8)
-        }
+        let offset: i8 = if self.stm == White { -8 } else { 8 };
+        Square((to.0 as i8 + offset) as u8)
     }
 
     /// Returns the piece that will occupy the destination square after the move.
@@ -421,13 +418,8 @@ impl Board {
     }
 
     #[inline]
-    pub fn pcs(&self, piece: Piece) -> Bitboard {
-        self.pieces[piece]
-    }
-
-    #[inline]
     pub fn pieces(&self, pc: Piece) -> Bitboard {
-        self.pcs(pc)
+        self.pieces[pc]
     }
 
     #[inline]

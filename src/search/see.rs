@@ -57,8 +57,8 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
     }
 
     let mut attackers = attackers_to(board, to, occ) & occ;
-    let diagonal = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
-    let orthogonal = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
+    let diagonal = board.pieces(Piece::Bishop) | board.pieces(Piece::Queen);
+    let orthogonal = board.pieces(Piece::Rook) | board.pieces(Piece::Queen);
 
     let white_pinned = board.pinned[Side::White];
     let black_pinned = board.pinned[Side::Black];
@@ -82,7 +82,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
         }
 
         // Make the capture
-        let pcs = board.pcs(attacker) & our_attackers;
+        let pcs = board.pieces(attacker) & our_attackers;
         let sq = (our_attackers & pcs).lsb();
         occ = occ.pop_bit(sq);
         stm = !stm;
@@ -120,36 +120,36 @@ fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
 }
 
 fn least_valuable_attacker(board: &Board, our_attackers: Bitboard) -> Piece {
-    if !(our_attackers & board.pcs(Piece::Pawn)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::Pawn)).is_empty() {
         return Piece::Pawn;
     }
-    if !(our_attackers & board.pcs(Piece::Knight)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::Knight)).is_empty() {
         return Piece::Knight;
     }
-    if !(our_attackers & board.pcs(Piece::Bishop)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::Bishop)).is_empty() {
         return Piece::Bishop;
     }
-    if !(our_attackers & board.pcs(Piece::Rook)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::Rook)).is_empty() {
         return Piece::Rook;
     }
-    if !(our_attackers & board.pcs(Piece::Queen)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::Queen)).is_empty() {
         return Piece::Queen;
     }
-    if !(our_attackers & board.pcs(Piece::King)).is_empty() {
+    if !(our_attackers & board.pieces(Piece::King)).is_empty() {
         return Piece::King;
     }
     panic!("No attackers found");
 }
 
 fn attackers_to(board: &Board, square: Square, occupancies: Bitboard) -> Bitboard {
-    let diagonals = board.pcs(Piece::Bishop) | board.pcs(Piece::Queen);
-    let orthogonals = board.pcs(Piece::Rook) | board.pcs(Piece::Queen);
+    let diagonals = board.pieces(Piece::Bishop) | board.pieces(Piece::Queen);
+    let orthogonals = board.pieces(Piece::Rook) | board.pieces(Piece::Queen);
     let white_pawn_attacks = attacks::pawn(square, Side::Black) & board.pawns(Side::White);
     let black_pawn_attacks = attacks::pawn(square, Side::White) & board.pawns(Side::Black);
-    let knight_attacks = attacks::knight(square) & board.pcs(Piece::Knight);
+    let knight_attacks = attacks::knight(square) & board.pieces(Piece::Knight);
     let diagonal_attacks = attacks::bishop(square, occupancies) & diagonals;
     let orthogonal_attacks = attacks::rook(square, occupancies) & orthogonals;
-    let king_attacks = attacks::king(square) & board.pcs(Piece::King);
+    let king_attacks = attacks::king(square) & board.pieces(Piece::King);
     white_pawn_attacks
         | black_pawn_attacks
         | knight_attacks

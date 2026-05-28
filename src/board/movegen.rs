@@ -141,7 +141,7 @@ impl Board {
     fn gen_pawn_moves(&self, filter: MoveFilter, filter_mask: Bitboard, moves: &mut MoveList) {
         let side = self.stm;
         let pinned = self.pinned[side];
-        let pawns = self.pcs(Piece::Pawn) & self.side(side);
+        let pawns = self.pieces(Piece::Pawn) & self.side(side);
         let king_sq = self.king_sq(side);
         let king_file = king_sq.file().to_bb();
         let third_rank = Rank::BB[if side == White { 2 } else { 5 }];
@@ -299,11 +299,15 @@ impl Board {
         let king = self.king(side);
         let occ = self.occ() ^ king;
         let them = !side;
+        let them_bb = self.colours[them];
 
-        let pawns = self.pawns(them);
-        let knights = self.knights(them);
-        let diags = self.diags(them);
-        let orthos = self.orthos(them);
+        let pawns = self.pieces[Piece::Pawn] & them_bb;
+        let knights = self.pieces[Piece::Knight] & them_bb;
+        let bishops = self.pieces[Piece::Bishop] & them_bb;
+        let rooks = self.pieces[Piece::Rook] & them_bb;
+        let queens = self.pieces[Piece::Queen] & them_bb;
+        let diags = bishops | queens;
+        let orthos = rooks | queens;
 
         attacks::pawn_attacks(pawns, them)
             | setwise::knights_and_sliders_setwise(knights, orthos, diags, occ)
@@ -316,11 +320,18 @@ impl Board {
         let occ = self.occ();
         let king_sq = self.king_sq(side);
         let them = !side;
+        let them_bb = self.colours[them];
 
-        attacks::pawn(king_sq, side) & self.pawns(them)
-            | attacks::knight(king_sq) & self.knights(them)
-            | attacks::rook(king_sq, occ) & self.orthos(them)
-            | attacks::bishop(king_sq, occ) & self.diags(them)
+        let pawns = self.pieces[Piece::Pawn] & them_bb;
+        let knights = self.pieces[Piece::Knight] & them_bb;
+        let bishops = self.pieces[Piece::Bishop] & them_bb;
+        let rooks = self.pieces[Piece::Rook] & them_bb;
+        let queens = self.pieces[Piece::Queen] & them_bb;
+
+        attacks::pawn(king_sq, side) & pawns
+            | attacks::knight(king_sq) & knights
+            | attacks::rook(king_sq, occ) & (rooks | queens)
+            | attacks::bishop(king_sq, occ) & (bishops | queens)
     }
 }
 

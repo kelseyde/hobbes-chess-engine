@@ -1302,4 +1302,3 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_score = score;
     (td.best_move, td.best_score)
 }
-

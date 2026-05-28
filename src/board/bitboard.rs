@@ -21,7 +21,7 @@ impl Bitboard {
 
     #[inline(always)]
     pub fn contains(self, sq: Square) -> bool {
-        !(self & Self::of_sq(sq)).is_empty()
+        (self.0 >> sq.0) & 1 != 0
     }
 
     #[inline(always)]
@@ -41,7 +41,7 @@ impl Bitboard {
 
     #[inline(always)]
     pub const fn is_multiple(self) -> bool {
-        self.0.count_ones() > 1
+        self.0 & (self.0.wrapping_sub(1)) != 0
     }
 
     #[inline(always)]
