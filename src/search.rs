@@ -429,9 +429,7 @@ fn alpha_beta<NODE: NodeType>(
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let is_quiet = board.captured(&tt_move).is_some();
-            let s_beta_base = se_beta_base(is_quiet);
-            let s_beta_scale = se_beta_scale(is_quiet);
-            let s_beta_div = se_beta_div(is_quiet);
+            let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
             let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
@@ -1185,29 +1183,11 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
 }
 
 #[inline]
-fn se_beta_base(is_quiet: bool) -> i32 {
+fn se_config(is_quiet: bool) -> (i32, i32, i32) {
     if is_quiet {
-        se_beta_quiet_base()
+        (se_beta_quiet_base(), se_beta_quiet_scale(), se_beta_quiet_div())
     } else {
-        se_beta_noisy_base()
-    }
-}
-
-#[inline]
-fn se_beta_scale(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_scale()
-    } else {
-        se_beta_noisy_scale()
-    }
-}
-
-#[inline]
-fn se_beta_div(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_beta_quiet_div()
-    } else {
-        se_beta_noisy_div()
+        (se_beta_noisy_base(), se_beta_noisy_scale(), se_beta_noisy_div())
     }
 }
 
