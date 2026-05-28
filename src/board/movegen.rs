@@ -268,8 +268,8 @@ impl Board {
             let rook_from = Square::from(rook_file, rank);
             let rook_to = castling::rook_to(side, kingside);
 
-            let king_travel_sqs = ray::between(king_from, king_to) | Bitboard::of_sq(king_to);
-            let rook_travel_sqs = ray::between(rook_from, rook_to) | Bitboard::of_sq(rook_to);
+            let king_travel_sqs = ray::between(king_from, king_to) | king_to;
+            let rook_travel_sqs = ray::between(rook_from, rook_to) | rook_to;
 
             let travel_sqs = (king_travel_sqs | rook_travel_sqs)
                 & !Bitboard::of_sq(rook_from)

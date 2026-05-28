@@ -53,7 +53,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
     let mut occ = board.occ() ^ Bitboard::of_sq(from) ^ Bitboard::of_sq(to);
 
     if let Some(ep_sq) = board.ep_sq {
-        occ ^= Bitboard::of_sq(ep_sq);
+        occ ^= ep_sq;
     }
 
     let mut attackers = attackers_to(board, to, occ) & occ;

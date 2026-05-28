@@ -158,6 +158,15 @@ impl BitOrAssign for Bitboard {
     }
 }
 
+impl BitOr<Square> for Bitboard {
+    type Output = Self;
+
+    #[inline(always)]
+    fn bitor(self, rhs: Square) -> Self::Output {
+        Self(self.0 | (1u64 << rhs.0))
+    }
+}
+
 impl BitOrAssign<Square> for Bitboard {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: Square) {
