@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -29,7 +30,6 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::board::piece::Piece;
 
 pub const MAX_PLY: usize = 256;
 
@@ -45,7 +45,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.limits.init();
 
     let mut root_moves = MoveList::new();
-    board.gen_legal_moves(&mut root_moves);
+    board.gen_moves(MoveFilter::All, &mut root_moves);
+
     match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
         1 => return handle_one_legal_move(board, td, &root_moves),
@@ -205,7 +206,7 @@ fn alpha_beta<NODE: NodeType>(
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash()) {
+        if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -245,7 +246,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -262,11 +263,7 @@ fn alpha_beta<NODE: NodeType>(
     let improvement = calc_improvement(td, ply, static_eval, in_check);
     let improving = improvement > 0;
 
-    let opponent_worsening_rate = if root_node || in_check {
-        0
-    } else {
-        static_eval + td.stack[ply - 1].static_eval
-    };
+    let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
 
     // Hindsight history updates
@@ -354,7 +351,7 @@ fn alpha_beta<NODE: NodeType>(
             board.make_null_move();
             td.nodes += 1;
             td.keys.push(board.hash());
-            td.tt.prefetch(board.hash());
+            td.tt.prefetch(board.hash_with_50mr_bucket());
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -496,10 +493,6 @@ fn alpha_beta<NODE: NodeType>(
     let mut captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
-
-        if !board.is_legal(&mv) {
-            continue;
-        }
 
         legal_moves += 1;
 
@@ -788,7 +781,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let cont_1_malus = cont_history_1_malus(depth)
             + new_tt_move as i16 * cont_hist_1_ttmove_malus() as i16;
-        
+
         let cont_2_bonus = cont_history_2_bonus(depth)
             - cut_node as i16 * cont_hist_2_cutnode_offset() as i16
             + new_tt_move as i16 * cont_hist_2_ttmove_bonus() as i16
@@ -876,7 +869,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     best_score
@@ -927,7 +920,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = score::MIN;
-    if let Some(entry) = td.tt.probe(board.hash()) {
+    if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
@@ -952,7 +945,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         };
         if !tt_hit {
             td.tt.insert(
-                board.hash(),
+                board.hash_with_50mr_bucket(),
                 Move::NONE,
                 0,
                 raw_eval,
@@ -996,10 +989,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut capture_count = 0;
 
     while let Some(mv) = move_picker.next(board, td) {
-        if !board.is_legal(&mv) {
-            continue;
-        }
-
         legal_moves += 1;
 
         if move_picker.stage() == BadNoisies {
@@ -1094,7 +1083,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     // Write to transposition table
     if !td.hard_limit_reached() {
         td.tt.insert(
-            board.hash(),
+            board.hash_with_50mr_bucket(),
             best_move,
             best_score,
             raw_eval,
@@ -1116,20 +1105,17 @@ fn make_move(
     captured: Option<Piece>,
     ply: usize,
 ) {
-    td.nnue.update(&mv, pc, captured, &board);
+    td.nnue.update(&mv, pc, captured, board);
     board.make(&mv);
     td.stack[ply].mv = Some(mv);
     td.stack[ply].pc = Some(pc);
     td.stack[ply].captured = captured;
     td.keys.push(board.hash());
-    td.tt.prefetch(board.hash());
+    td.tt.prefetch(board.hash_with_50mr_bucket());
     td.nodes += 1;
 }
 
-fn unmake_move(
-    td: &mut ThreadData,
-    ply: usize,
-) {
+fn unmake_move(td: &mut ThreadData, ply: usize) {
     td.stack[ply].mv = None;
     td.stack[ply].pc = None;
     td.stack[ply].captured = None;
@@ -1173,6 +1159,17 @@ fn calc_improvement(td: &ThreadData, ply: usize, static_eval: i32, in_check: boo
         static_eval - td.stack[ply - 2].static_eval
     } else if ply >= 4 && is_defined(td.stack[ply - 4].static_eval) && !in_check {
         static_eval - td.stack[ply - 4].static_eval
+    } else {
+        0
+    }
+}
+
+#[inline]
+fn calc_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_check: bool) -> i32 {
+    if ply >= 1 && is_defined(td.stack[ply - 1].static_eval) && !in_check {
+        static_eval + td.stack[ply - 1].static_eval
+    } else if ply >= 3 && is_defined(td.stack[ply - 3].static_eval) && !in_check {
+        static_eval + td.stack[ply - 3].static_eval
     } else {
         0
     }
@@ -1305,3 +1302,4 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_score = score;
     (td.best_move, td.best_score)
 }
+
