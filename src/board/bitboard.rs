@@ -21,7 +21,7 @@ impl Bitboard {
 
     #[inline(always)]
     pub fn contains(self, sq: Square) -> bool {
-        !(self & Self::of_sq(sq)).is_empty()
+        (self.0 >> sq.0) & 1 != 0
     }
 
     #[inline(always)]
@@ -37,6 +37,11 @@ impl Bitboard {
     #[inline(always)]
     pub const fn count(self) -> u32 {
         self.0.count_ones()
+    }
+
+    #[inline(always)]
+    pub const fn is_multiple(self) -> bool {
+        self.0 & (self.0.wrapping_sub(1)) != 0
     }
 
     #[inline(always)]
@@ -153,15 +158,63 @@ impl BitOrAssign for Bitboard {
     }
 }
 
+impl BitOr<Square> for Bitboard {
+    type Output = Self;
+
+    #[inline(always)]
+    fn bitor(self, rhs: Square) -> Self::Output {
+        Self(self.0 | (1u64 << rhs.0))
+    }
+}
+
+impl BitOrAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitor_assign(&mut self, rhs: Square) {
+        self.0 |= 1u64 << rhs.0;
+    }
+}
+
 impl BitAndAssign for Bitboard {
     fn bitand_assign(&mut self, rhs: Self) {
         self.0 &= rhs.0;
     }
 }
 
+impl BitAnd<Square> for Bitboard {
+    type Output = Self;
+
+    #[inline(always)]
+    fn bitand(self, rhs: Square) -> Self::Output {
+        Self(self.0 & (1u64 << rhs.0))
+    }
+}
+
+impl BitAndAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitand_assign(&mut self, rhs: Square) {
+        self.0 &= 1u64 << rhs.0;
+    }
+}
+
 impl BitXorAssign for Bitboard {
     fn bitxor_assign(&mut self, rhs: Self) {
         self.0 ^= rhs.0;
+    }
+}
+
+impl BitXor<Square> for Bitboard {
+    type Output = Self;
+
+    #[inline(always)]
+    fn bitxor(self, rhs: Square) -> Self::Output {
+        Self(self.0 ^ (1u64 << rhs.0))
+    }
+}
+
+impl BitXorAssign<Square> for Bitboard {
+    #[inline(always)]
+    fn bitxor_assign(&mut self, rhs: Square) {
+        self.0 ^= 1u64 << rhs.0;
     }
 }
 

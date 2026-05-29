@@ -5,7 +5,7 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::board::zobrist::Zobrist;
+use crate::board::zobrist::Hashes;
 use crate::board::Board;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -88,11 +88,7 @@ impl Board {
         let fm_part = parts.get(5).unwrap_or(&"0");
         board.fm = fm_part.parse().unwrap_or(0);
 
-        board.keys.hash = Zobrist::get_hash(&board);
-        board.keys.pawn_hash = Zobrist::get_pawn_hash(&board);
-        board.keys.non_pawn_hashes = Zobrist::get_non_pawn_hashes(&board);
-        board.keys.major_hash = Zobrist::get_major_hash(&board);
-        board.keys.minor_hash = Zobrist::get_minor_hash(&board);
+        board.hashes = Hashes::new(&board);
         board.threats = board.calc_threats(board.stm);
         board.checkers = board.calc_checkers(board.stm);
         board.pinned = board.calc_both_pinned();

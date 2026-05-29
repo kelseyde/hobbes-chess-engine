@@ -2,6 +2,46 @@ use rand::prelude::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
 use std::collections::HashMap;
+#[cfg(feature = "measurements")]
+use std::sync::{Mutex, OnceLock};
+
+#[cfg(feature = "measurements")]
+static MEASUREMENTS_INNER: OnceLock<Mutex<DebugStatsMap>> = OnceLock::new();
+
+#[cfg(feature = "measurements")]
+pub fn measurements() -> &'static Mutex<DebugStatsMap> {
+    MEASUREMENTS_INNER.get_or_init(|| Mutex::new(DebugStatsMap::default()))
+}
+
+/// Print all measurements collected in the global debug stats map.
+/// Only functions if the `measurements` feature is enabled.
+#[macro_export]
+macro_rules! print_measurements {
+    () => {
+        #[cfg(feature = "measurements")]
+        {
+            use $crate::tools::debug::measurements;
+            if let Ok(map) = measurements().lock() {
+                map.print();
+            }
+        }
+    };
+}
+
+/// Add a measurement to the global debug stats map.
+/// Only functions if the `measurements` feature is enabled.
+#[macro_export]
+macro_rules! measure {
+    ($key:expr, $value:expr) => {
+        #[cfg(feature = "measurements")]
+        {
+            use $crate::tools::debug::measurements;
+            if let Ok(mut map) = measurements().lock() {
+                map.insert($key.to_string(), $value);
+            }
+        }
+    };
+}
 
 pub const PERCENTILES: [f64; 9] = [0.1, 1.0, 5.0, 25.0, 50.0, 75.0, 95.0, 99.0, 99.9];
 const NUM_PERCENTILES: usize = PERCENTILES.len();

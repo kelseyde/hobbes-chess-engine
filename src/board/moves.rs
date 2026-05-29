@@ -1,8 +1,8 @@
-use arrayvec::ArrayVec;
-use std::fmt;
-
+use crate::board::bitboard::Bitboard;
 use crate::board::piece::Piece;
 use crate::board::square::Square;
+use arrayvec::ArrayVec;
+use std::fmt;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
@@ -20,7 +20,7 @@ pub struct ScoredMove {
     pub score: i32,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveFlag {
     Standard = 0,
     DoublePush = 1,
@@ -237,11 +237,38 @@ impl MoveList {
         }
     }
 
+    pub fn add_moves(&mut self, from: Square, to_bb: Bitboard, flag: MoveFlag) {
+        for to in to_bb {
+            self.add_move(from, to, flag);
+        }
+    }
+
+    pub fn add_pawn_moves(&mut self, to_bb: Bitboard, offset: i8, flag: MoveFlag) {
+        for to in to_bb {
+            let from = to.shift(-offset);
+            self.add_move(from, to, flag);
+        }
+    }
+
+    pub fn add_pawn_promos(&mut self, to_bb: Bitboard, offset: i8) {
+        for to in to_bb {
+            let from = to.shift(-offset);
+            self.add_move(from, to, MoveFlag::PromoQ);
+            self.add_move(from, to, MoveFlag::PromoR);
+            self.add_move(from, to, MoveFlag::PromoB);
+            self.add_move(from, to, MoveFlag::PromoN);
+        }
+    }
+
     #[inline(always)]
     pub fn add(&mut self, entry: ScoredMove) {
         unsafe {
             self.list.push_unchecked(entry);
         }
+    }
+
+    pub fn add_single(&mut self, mv: Move) {
+        self.add(ScoredMove { mv, score: 0 });
     }
 
     pub const fn is_empty(&self) -> bool {
@@ -258,6 +285,11 @@ impl MoveList {
         } else {
             None
         }
+    }
+
+    #[inline(always)]
+    pub fn clear(&mut self) {
+        self.list.clear();
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &ScoredMove> {

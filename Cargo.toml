@@ -23,5 +23,7 @@ panic = "abort"
 
 [features]
 tuning = []
+measurements = []
 avx2 = []
 avx512 = []
+track_l0_activations = []

@@ -1,5 +1,5 @@
 use crate::board::movegen::MoveFilter;
-use crate::board::moves::Move;
+use crate::board::moves::{Move, MoveList};
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 use crate::evaluation::stats;
@@ -248,7 +248,8 @@ impl UCI {
         self.td.keys.push(self.board.hash());
 
         moves.iter().for_each(|m| {
-            let legal_moves = self.board.gen_moves(MoveFilter::All);
+            let mut legal_moves = MoveList::new();
+            self.board.gen_moves(MoveFilter::All, &mut legal_moves);
             let legal_move = legal_moves
                 .iter()
                 .map(|entry| entry.mv)
@@ -415,11 +416,28 @@ impl UCI {
             }
         };
 
-        let start = Instant::now();
-        let nodes = perft(&self.board, depth, depth);
-        let elapsed = start.elapsed().as_millis();
-        println!("info nodes {}", nodes);
-        println!("info ms {}", elapsed);
+        let bulk = match tokens.get(2).map(|s| s.as_str()) {
+            Some("false") => false,
+            Some("true") | None => true,
+            Some(other) => {
+                println!(
+                    "info error: bulk argument '{}' is not a valid boolean",
+                    other
+                );
+                return;
+            }
+        };
+
+        let t = Instant::now();
+        let n = if bulk {
+            perft::<true>(&self.board, depth)
+        } else {
+            perft::<false>(&self.board, depth)
+        };
+        let d = t.elapsed();
+        let mnps = (n as f64) / d.as_secs_f64() / 1e6;
+        println!("info nodes: {n}");
+        println!("info {d:.2?} ({mnps:.2}Mnps)\n");
     }
 
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to

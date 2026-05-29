@@ -1,4 +1,3 @@
-use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
 use crate::board::movegen::is_attacked;
@@ -266,10 +265,8 @@ impl Board {
         let pinned = self.our_pinned();
 
         if mv.is_ep() {
-            let from_bb = Bitboard::of_sq(from);
-            let to_bb = Bitboard::of_sq(to);
-            let ep_bb = Bitboard::of_sq(self.ep_capture_sq(to));
-            let occ = self.occ() ^ from_bb ^ to_bb ^ ep_bb;
+            let ep_sq = self.ep_capture_sq(to);
+            let occ = self.occ() ^ from ^ to ^ ep_sq;
 
             let diagonals = self.their(Bishop) | self.their(Queen);
             let orthogonals = self.their(Piece::Rook) | self.their(Queen);
@@ -284,13 +281,12 @@ impl Board {
             return !(threats.contains(to) || self.frc && pinned.contains(to));
         }
 
-        if let Some(Piece::King) = self.piece_at(from) {
+        if from == king_sq {
             return !threats.contains(to);
         }
 
         if pinned.contains(from) {
-            let moving_along_pin_ray = ray::between(king_sq, from).contains(to)
-                || ray::between(king_sq, to).contains(from);
+            let moving_along_pin_ray = ray::extending(king_sq, from).contains(to);
             return self.checkers.is_empty() && moving_along_pin_ray;
         }
 

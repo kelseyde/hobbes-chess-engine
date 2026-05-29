@@ -1,28 +1,33 @@
-<div align="center">
-
 <p align="center"><img src="resources/hobbes.png" width="180"></p>
 
+<div align="center">
+
 <h3>Hobbes</h3>
-<b>A chess engine written in Rust.</b>
+A chess engine written in Rust.
 
 <br>
 <br>
+  <a href="https://github.com/kelseyde/hobbes-chess-engine/releases"><strong>Download Hobbes</strong></a> | <a href="https://github.com/kelseyde/hobbes-chess-engine/issues"><strong>Report a Bug</strong></a>
+<br>
+<br>
 
-[![Beta][beta-badge]][beta-link]
+[![release][release-badge]][release-link]
 [![License][license-badge]][license-link]
-
-<br>
 
 </div>
 
-A strong chess engine written in Rust, with NNUE evaluation trained from zero knowledge, using self-generated training data.
+## Overview
 
-Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches) towards turning Hobbes into a strong engine. 
+A strong chess engine written in Rust, with NNUE evaluation trained from zero knowledge, using self-generated training data. 
+
+Hobbes started off as a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine), although it has now surpassed Calvin by quite some distance. It is also my first project in the Rust programming language. 
 
 ## Strength 
 
 |                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
 |:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
+| [2.1](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.1) |  2026-05-26  | **3725** |     -      | - |     -      |
+| [2.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.0) |  2026-05-25  | **3725** |     -      | - |     -      |
 | [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      | 3572 (#20) |     -      |
 
 ## Search
@@ -31,7 +36,7 @@ Hobbes features a classical alpha-beta negamax search with iterative deepening. 
 
 ## Evaluation
 
-Hobbes uses a multilayer, efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(768x16hm->1536pw)x2->(16x2->32->1)x8`. Other NNUE optimisations that Hobbes employs are sparse matrix multiplication, fused refreshes, Finny tables, and lazy updates.
+Hobbes uses a multilayer, efficiently updated neural network (NNUE) for its evaluation function. The architecture of the network is `(704x16hm->1536pw)x2->(16x2->32->1)x8`. Other NNUE optimisations that Hobbes employs are sparse matrix multiplication, fused refreshes, Finny tables, and lazy updates.
 
 The network is trained entirely on data generated from self-play. The training data is a (roughly) 80/20 split of standard data and DFRC data. The network was initialised from random values and trained up over many iterations; the full history of past nets is documented [here](https://github.com/kelseyde/hobbes-chess-engine/blob/main/network_history.txt). All of hobbes' networks have been trained using [bullet](https://github.com/jw1912/bullet).
 
@@ -58,8 +63,8 @@ Please note, building Hobbes from source using these steps will create a basic e
 - The Stockfish discord community for endless amounts of useful information.
 - Bill Watterson, the author of the [comic book](https://en.wikipedia.org/wiki/Calvin_and_Hobbes) which gave this engine its name.
 
-[beta-badge]: https://img.shields.io/badge/version-BETA-A8DEFF?style=for-the-badge
-[beta-link]: https://github.com/kelseyde/hobbes-chess-engine
+[release-badge]: https://img.shields.io/github/v/release/kelseyde/hobbes-chess-engine?style=for-the-badge&color=A8DEFF
+[release-link]: https://github.com/kelseyde/hobbes-chess-engine/releases/latest
 
 [license-badge]: https://img.shields.io/github/license/kelseyde/hobbes-chess-engine?style=for-the-badge&color=fab157
 [license-link]: https://github.com/kelseyde/hobbes-chess-engine/blob/main/LICENSE
