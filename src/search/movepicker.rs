@@ -220,7 +220,7 @@ fn score_move(
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
-        let killer_bonus = if td.stack[ply].killer == Some(*mv) {
+        let killer_bonus = if td.stack[ply].killer.is_some_and(|k| k.mv == *mv) {
             KILLER_BONUS
         } else {
             0

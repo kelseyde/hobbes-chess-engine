@@ -41,13 +41,19 @@ pub struct Node {
     pub mv: Option<Move>,
     pub pc: Option<Piece>,
     pub captured: Option<Piece>,
-    pub killer: Option<Move>,
+    pub killer: Option<KillerEntry>,
     pub singular: Option<Move>,
     pub threats: Bitboard,
     pub raw_eval: i32,
     pub static_eval: i32,
     pub reduction: i32,
     pub num_fail_highs: i32,
+}
+
+#[derive(Copy, Clone)]
+pub struct KillerEntry {
+    pub mv: Move,
+    pub depth: i32,
 }
 
 impl Default for NodeStack {
@@ -65,6 +71,19 @@ impl Default for NodeStack {
                 reduction: 0,
                 num_fail_highs: 0,
             }; MAX_PLY + 8],
+        }
+    }
+}
+
+impl Node {
+    pub fn update_killer(&mut self, mv: Move, depth: i32) {
+        let entry = KillerEntry { mv, depth };
+        if let Some(killer) = self.killer {
+            if entry.depth >= killer.depth {
+                self.killer = Some(entry);
+            }
+        } else {
+            self.killer = Some(entry);
         }
     }
 }
