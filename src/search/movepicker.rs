@@ -10,7 +10,7 @@ use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
 use Piece::Knight;
-use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
+use Stage::{GenerateNoisies, GenerateQuiets, Killer, Quiets, TTMove};
 
 /// Selects the next move to try in a given position. We save time during search by trying moves in
 /// stages. Typically, the TT move is tried first, then 'good' noisy moves, then quiet moves, and
@@ -35,6 +35,7 @@ pub enum Stage {
     TTMove,
     GenerateNoisies,
     GoodNoisies,
+    Killer,
     GenerateQuiets,
     Quiets,
     BadNoisies,
@@ -91,7 +92,22 @@ impl MovePicker {
             if let Some(best_move) = self.pick_best(false) {
                 return Some(best_move);
             } else {
-                self.stage = GenerateQuiets;
+                self.stage = Killer;
+            }
+        }
+        if self.stage == Killer {
+            self.stage = GenerateQuiets;
+            if !self.skip_quiets {
+                if let Some(killer) = td.stack[self.ply].killer {
+                    if killer.exists()
+                        && killer != self.tt_move
+                        && board.is_pseudo_legal(&killer)
+                        && !board.is_noisy(&killer)
+                        && board.is_legal(&killer)
+                    {
+                        return Some(killer);
+                    }
+                }
             }
         }
         if self.stage == GenerateQuiets {
@@ -130,8 +146,9 @@ impl MovePicker {
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
         let mut temp = MoveList::new();
         board.gen_moves(MoveFilter::Quiets, &mut temp);
+        let killer = td.stack[self.ply].killer;
         for entry in temp.iter_mut() {
-            if entry.mv == self.tt_move {
+            if entry.mv == self.tt_move || killer == Some(entry.mv) {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
