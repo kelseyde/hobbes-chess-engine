@@ -1019,6 +1019,14 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             continue;
         }
 
+        // Delta Pruning
+        if !in_check
+            && captured.is_some()
+            && !mv.is_promo()
+            && static_eval + see::value(captured.unwrap(), Pruning) + 100 < alpha {
+            continue;
+        }
+
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
         if !in_check
