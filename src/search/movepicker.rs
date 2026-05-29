@@ -51,7 +51,7 @@ impl MovePicker {
     }
 
     pub fn new_probcut(tt_move: Move,  ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, MoveFilter::Noisies, ply, threats, true, false)
+        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, false)
     }
 
     #[rustfmt::skip]
