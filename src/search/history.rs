@@ -5,26 +5,7 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
-use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
-    capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
-    cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
-    cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
-    cont_hist_2_bonus_offset, cont_hist_2_bonus_scale, cont_hist_2_malus_max,
-    cont_hist_2_malus_offset, cont_hist_2_malus_scale, from_hist_bonus_max, from_hist_bonus_offset,
-    from_hist_bonus_scale, from_hist_malus_max, from_hist_malus_offset, from_hist_malus_scale,
-    lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
-    lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
-    lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
-};
+use crate::search::parameters::*;
 use crate::tools::utils::lerp;
 use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 
@@ -365,14 +346,18 @@ impl ThreatIndex {
     }
 }
 
-/// Compute a history bonus, using the formula `scale * depth - offset`, clamped to the maximum bonus.
-fn history_bonus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    (scale * depth as i16 - offset).min(max)
+/// Compute a history bonus, using the formula `lerp(lin_scale * depth, quad_scale * depth * depth) - offset`.
+fn history_bonus(depth: i32, scale: i16, quad_scale: i16, offset: i16, max: i16, lerp_factor: i16) -> i16 {
+    let linear = scale as i32 * depth;
+    let quadratic = quad_scale as i32 * depth * depth;
+    (lerp(linear, quadratic, lerp_factor as i32) as i16 - offset).min(max)
 }
 
-/// Compute a history malus, using the formula `-(scale * depth - offset)`, clamped to the maximum malus.
-fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
-    -(scale * depth as i16 - offset).min(max)
+/// Compute a history malus, using the formula `lerp(scale * depth, scale * depth * depth) - offset`.
+fn history_malus(depth: i32, scale: i16, quad_scale: i16, offset: i16, max: i16, lerp_factor: i16) -> i16 {
+    let linear = scale as i32 * depth;
+    let quadratic = quad_scale as i32 * depth * depth;
+    -(lerp(linear, quadratic, lerp_factor as i32) as i16 - offset).min(max)
 }
 
 /// Apply the gravity formula to a single `i16` table entry in-place.
@@ -388,39 +373,39 @@ mod bonuses {
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {
         (
-            $bonus_fn:ident ($bs:ident, $bo:ident, $bm:ident),
-            $malus_fn:ident ($ms:ident, $mo:ident, $mm:ident)
+            $bonus_fn:ident ($bs:ident, $bqs:ident, $bo:ident, $bm:ident, $bl:ident),
+            $malus_fn:ident ($ms:ident, $mqs:ident, $mo:ident, $mm:ident, $ml:ident)
         ) => {
             pub fn $bonus_fn(depth: i32) -> i16 {
-                history_bonus(depth, $bs() as i16, $bo() as i16, $bm() as i16)
+                history_bonus(depth, $bs() as i16, $bqs() as i16, $bo() as i16, $bm() as i16, $bl() as i16)
             }
             pub fn $malus_fn(depth: i32) -> i16 {
-                history_malus(depth, $ms() as i16, $mo() as i16, $mm() as i16)
+                history_malus(depth, $ms() as i16, $mqs() as i16, $mo() as i16, $mm() as i16, $ml() as i16)
             }
         };
     }
 
-    history_bonuses!(quiet_history_bonus       (quiet_hist_bonus_scale,    quiet_hist_bonus_offset,    quiet_hist_bonus_max),
-                     quiet_history_malus       (quiet_hist_malus_scale,    quiet_hist_malus_offset,    quiet_hist_malus_max));
-    history_bonuses!(quiet_factoriser_bonus    (quiet_fact_bonus_scale,    quiet_fact_bonus_offset,    quiet_fact_bonus_max),
-                     quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_offset,    quiet_fact_malus_max));
-    history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_offset,     capt_hist_bonus_max),
-                     capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_offset,     capt_hist_malus_max));
-    history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max),
-                     cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_offset,   cont_hist_1_malus_max));
-    history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max),
-                     cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
-    history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
-                     from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
-    history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
-                     to_history_malus          (to_hist_malus_scale,       to_hist_malus_offset,       to_hist_malus_max));
-    history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max),
-                     qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max));
-    history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max),
-                     lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
-    history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
-                     lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
-    history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
-                     prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
+    history_bonuses!(quiet_history_bonus       (quiet_hist_bonus_scale,    quiet_hist_bonus_quad,    quiet_hist_bonus_offset,    quiet_hist_bonus_max,    quiet_hist_bonus_lerp),
+                     quiet_history_malus       (quiet_hist_malus_scale,    quiet_hist_malus_quad,    quiet_hist_malus_offset,    quiet_hist_malus_max,    quiet_hist_malus_lerp));
+    history_bonuses!(quiet_factoriser_bonus    (quiet_fact_bonus_scale,    quiet_fact_bonus_quad,    quiet_fact_bonus_offset,    quiet_fact_bonus_max,    quiet_fact_bonus_lerp),
+                     quiet_factoriser_malus    (quiet_fact_malus_scale,    quiet_fact_malus_quad,    quiet_fact_malus_offset,    quiet_fact_malus_max,    quiet_fact_malus_lerp));
+    history_bonuses!(capture_history_bonus     (capt_hist_bonus_scale,     capt_hist_bonus_quad,     capt_hist_bonus_offset,     capt_hist_bonus_max,     capt_hist_bonus_lerp),
+                     capture_history_malus     (capt_hist_malus_scale,     capt_hist_malus_quad,     capt_hist_malus_offset,     capt_hist_malus_max,     capt_hist_malus_lerp));
+    history_bonuses!(cont_history_1_bonus      (cont_hist_1_bonus_scale,   cont_hist_1_bonus_quad,   cont_hist_1_bonus_offset,   cont_hist_1_bonus_max,   cont_hist_1_bonus_lerp),
+                     cont_history_1_malus      (cont_hist_1_malus_scale,   cont_hist_1_malus_quad,   cont_hist_1_malus_offset,   cont_hist_1_malus_max,   cont_hist_1_malus_lerp));
+    history_bonuses!(cont_history_2_bonus      (cont_hist_2_bonus_scale,   cont_hist_2_bonus_quad,   cont_hist_2_bonus_offset,   cont_hist_2_bonus_max,   cont_hist_2_bonus_lerp),
+                     cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_quad,   cont_hist_2_malus_offset,   cont_hist_2_malus_max,   cont_hist_2_malus_lerp));
+    history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_quad,     from_hist_bonus_offset,     from_hist_bonus_max,     from_hist_bonus_lerp),
+                     from_history_malus        (from_hist_malus_scale,     from_hist_malus_quad,     from_hist_malus_offset,     from_hist_malus_max,     from_hist_malus_lerp));
+    history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_quad,       to_hist_bonus_offset,       to_hist_bonus_max,       to_hist_bonus_lerp),
+                     to_history_malus          (to_hist_malus_scale,       to_hist_malus_quad,       to_hist_malus_offset,       to_hist_malus_max,       to_hist_malus_lerp));
+    history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_quad,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max,  qs_capt_hist_bonus_lerp),
+                     qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_quad,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max,  qs_capt_hist_malus_lerp));
+    history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_quad,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max,    lmr_cont_1_bonus_lerp),
+                     lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_quad,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max,    lmr_cont_1_malus_lerp));
+    history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_quad,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max,    lmr_cont_2_bonus_lerp),
+                     lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_quad,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max,    lmr_cont_2_malus_lerp));
+    history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_quad,           pcm_bonus_offset,           pcm_bonus_max,           pcm_bonus_lerp),
+                     prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_quad,           pcm_bonus_offset,           pcm_bonus_max,           pcm_bonus_lerp));
 }
 pub use bonuses::*;
