@@ -382,7 +382,7 @@ fn alpha_beta<NODE: NodeType>(
             && !(tt_hit && tt_depth >= depth - 3 && tt_score < pc_beta) {
 
             let see_threshold = (pc_beta - static_eval) * 128 / 128;
-            let mut move_picker = MovePicker::new(tt_move, ply, threats);
+            let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats);
 
             while let Some(mv) = move_picker.next(board, td) {
                 if !see(board, &mv, see_threshold, Pruning) {
