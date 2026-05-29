@@ -248,7 +248,7 @@ fn alpha_beta<NODE: NodeType>(
         if !tt_hit {
             td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, ply) * 100 / 100 - 10 * tt_move_noisy as i32;
         static_eval = raw_eval + correction;
     }
 
