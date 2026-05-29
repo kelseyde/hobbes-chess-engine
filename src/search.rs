@@ -385,6 +385,9 @@ fn alpha_beta<NODE: NodeType>(
             let mut move_picker = MovePicker::new_probcut(tt_move, ply, threats);
 
             while let Some(mv) = move_picker.next(board, td) {
+                if move_picker.stage() == BadNoisies {
+                    break;
+                }
                 if !see(board, &mv, see_threshold, Pruning) {
                     continue;
                 }
@@ -396,7 +399,7 @@ fn alpha_beta<NODE: NodeType>(
                 let mut score = -qs(&board, td, -pc_beta, -pc_beta + 1, ply + 1);
 
                 if score >= pc_beta {
-                    score = -alpha_beta::<NonPV>(&board, td, pc_depth - 1, ply + 1, -pc_beta, -pc_beta + 1, !cut_node);
+                    score = -alpha_beta::<NonPV>(&board, td, pc_depth, ply + 1, -pc_beta, -pc_beta + 1, false);
                 }
 
                 unmake_move(td, ply);
