@@ -372,6 +372,48 @@ fn alpha_beta<NODE: NodeType>(
             }
         }
 
+        let pc_beta = beta + 300;
+        let pc_depth = depth - 3;
+
+        if !tt_pv
+            && depth > 7
+            && !is_mate(beta)
+            && (tt_move.is_null() || tt_move_noisy)
+            && !(tt_hit && tt_depth >= depth - 3 && tt_score < pc_beta) {
+
+            let see_threshold = (pc_beta - static_eval) * 128 / 128;
+            let mut move_picker = MovePicker::new(tt_move, ply, threats);
+
+            while let Some(mv) = move_picker.next(board, td) {
+                if !see(board, &mv, see_threshold, Pruning) {
+                    continue;
+                }
+                let pc = board.piece_at(mv.from()).unwrap();
+                let captured = board.captured(&mv);
+                let mut board = *board;
+                make_move(td, &mut board, mv, pc, captured, ply);
+
+                let mut score = -qs(&board, td, -pc_beta, -pc_beta + 1, ply + 1);
+
+                if score >= pc_beta {
+                    score = -alpha_beta::<NonPV>(&board, td, pc_depth - 1, ply + 1, -pc_beta, -pc_beta + 1, !cut_node);
+                }
+
+                unmake_move(td, ply);
+
+                if td.should_stop(Hard) {
+                    return 0;
+                }
+
+                if score >= pc_beta {
+                    td.tt.insert(board.hash_with_50mr_bucket(), mv, score, raw_eval, pc_depth, ply, Lower, false);
+                    return score;
+                }
+
+            }
+
+        }
+
     }
 
     // Internal Iterative Reductions
