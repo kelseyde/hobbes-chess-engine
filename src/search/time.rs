@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::search::parameters::*;
+use crate::search::score;
 
 pub const UCI_OVERHEAD_MS: u64 = 50;
 
@@ -20,6 +21,10 @@ pub struct TimeParams {
     pub score_tm_base:       f32,
     pub score_tm_scale:      f32,
     pub score_tm_min:        f32,
+    pub complexity_tm_base:  f32,
+    pub complexity_tm_scale: f32,
+    pub complexity_tm_div:   f32,
+    pub complexity_tm_max:   f32,
 }
 
 impl TimeParams {
@@ -40,6 +45,10 @@ impl TimeParams {
             score_tm_base:      tm_score_base() as f32 / 1000.0,
             score_tm_scale:     tm_score_scale() as f32 / 1000.0,
             score_tm_min:       tm_score_min() as f32 / 1000.0,
+            complexity_tm_base:  tm_complexity_base() as f32 / 1000.0,
+            complexity_tm_scale: tm_complexity_scale() as f32 / 1000.0,
+            complexity_tm_div:   tm_complexity_div() as f32,
+            complexity_tm_max:   tm_complexity_max() as f32,
         }
     }
 }
@@ -111,6 +120,8 @@ impl SearchLimits {
         &self,
         depth: i32,
         nodes: u64,
+        score: i32,
+        static_eval: i32,
         best_move_nodes: u64,
         best_move_stability: u64,
         score_stability: u64,
@@ -120,7 +131,8 @@ impl SearchLimits {
             let scaled = soft_time.as_secs_f32()
                 * Self::node_tm_scale(p, depth, nodes, best_move_nodes)
                 * Self::best_move_stability_scale(p, best_move_stability)
-                * Self::score_stability_scale(p, score_stability);
+                * Self::score_stability_scale(p, score_stability)
+                * Self::complexity_scale(p, score, static_eval, depth);
             Duration::from_secs_f32(scaled)
         })
     }
@@ -145,6 +157,18 @@ impl SearchLimits {
     /// iterations.
     fn score_stability_scale(p: &TimeParams, stability: u64) -> f32 {
         (p.score_tm_base - p.score_tm_scale * stability as f32).max(p.score_tm_min)
+    }
+
+    fn complexity_scale(p: &TimeParams, score: i32, static_eval: i32, depth: i32) -> f32 {
+        let complexity = if !score::is_mate(score) {
+            p.complexity_tm_scale * ((static_eval - score).abs() as f32) * (depth as f32).ln()
+        } else {
+            1.0
+        };
+        f32::max(
+            p.complexity_tm_base + complexity.clamp(0.0, p.complexity_tm_max) / p.complexity_tm_div,
+            1.0,
+        )
     }
 
     fn calc_time_limits(

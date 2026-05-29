@@ -278,4 +278,8 @@ tunable_params! {
     tm_score_base                = 1188, 800..=1800,       true;
     tm_score_scale               = 40, 10..=100,           true;
     tm_score_min                 = 883, 500..=1000,        true;
+    tm_complexity_base           = 800, 500..=1000,        true;
+    tm_complexity_scale          = 800, 500..=1000,        true;
+    tm_complexity_div            = 400, 200..=800,         true;
+    tm_complexity_max            = 200, 64..=512,          true;
 }

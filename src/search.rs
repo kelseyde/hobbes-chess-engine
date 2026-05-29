@@ -43,6 +43,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.nnue.activate(board);
     td.lmr.init();
     td.limits.init();
+    td.root_static_eval = td.nnue.evaluate(board);
 
     let mut root_moves = MoveList::new();
     board.gen_moves(MoveFilter::All, &mut root_moves);
