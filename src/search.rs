@@ -224,6 +224,18 @@ fn alpha_beta<NODE: NodeType>(
                 && tt_depth >= depth
                 && (tt_score <= alpha || cut_node)
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
+
+                let correction = td.correction_history.correction(board, &td.stack, ply);
+                let static_eval = tt_eval + correction;
+
+                if !(in_check
+                    || tt_move_noisy
+                    || (tt_score <= alpha && tt_score >= static_eval)
+                    || (tt_score >= beta && tt_score <= static_eval)) {
+                    td.correction_history
+                        .update_correction_history(board, &td.stack, depth / 2 + 1, ply, static_eval, tt_score);
+                }
+
                 return tt_score;
             }
         }
