@@ -26,8 +26,7 @@ Hobbes started off as a rewrite of my Java chess engine, [Calvin](https://github
 
 |                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
 |:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
-| [2.1](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.1) |  2026-05-26  | **3725** |     -      | - |     -      |
-| [2.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.0) |  2026-05-25  | **3725** |     -      | - |     -      |
+| [2.1](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.1) |  2026-05-26  | **3725** |     3729 (#12)      | - |     -      |
 | [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      | 3572 (#20) |     -      |
 
 ## Search
