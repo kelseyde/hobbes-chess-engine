@@ -225,7 +225,12 @@ fn score_move(
         } else {
             0
         };
-        entry.score = killer_bonus + quiet_score + cont_score;
+        let promo_bonus = match mv.promo_piece() {
+            Some(Queen) => 8000,
+            Some(Knight) => 2000,
+            _ => 0,
+        };
+        entry.score = killer_bonus + promo_bonus + quiet_score + cont_score;
     }
 }
 
