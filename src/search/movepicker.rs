@@ -103,7 +103,7 @@ impl MovePicker {
                         && killer != self.tt_move
                         && board.is_pseudo_legal(&killer)
                         && board.is_legal(&killer)
-                        && board.captured(&killer).is_none()
+                        && !board.is_noisy(&killer)
                     {
                         return Some(killer);
                     }
@@ -160,9 +160,8 @@ impl MovePicker {
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
         let mut temp = MoveList::new();
         board.gen_moves(self.filter, &mut temp);
-        let killer = td.stack[self.ply].killer;
         for entry in temp.iter_mut() {
-            if entry.mv == self.tt_move || killer == Some(entry.mv) {
+            if entry.mv == self.tt_move {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
