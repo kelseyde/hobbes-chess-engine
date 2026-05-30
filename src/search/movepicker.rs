@@ -103,6 +103,7 @@ impl MovePicker {
                         && killer != self.tt_move
                         && board.is_pseudo_legal(&killer)
                         && board.is_legal(&killer)
+                        && board.captured(&killer).is_none()
                     {
                         return Some(killer);
                     }

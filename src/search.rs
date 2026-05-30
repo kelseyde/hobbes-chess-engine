@@ -486,6 +486,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut best_move = Move::NONE;
     let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
+    let mut killer_found = false;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
