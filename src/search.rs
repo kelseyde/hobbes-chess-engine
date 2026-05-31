@@ -9,8 +9,6 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
-use std::time::Duration;
-
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
@@ -223,6 +221,7 @@ fn alpha_beta<NODE: NodeType>(
                 && !pv_node
                 && tt_depth >= depth
                 && (tt_score <= alpha || cut_node)
+                && board.hm < 90
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
                 return tt_score;
             }
@@ -927,7 +926,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
         let score = entry.score(ply) as i32;
 
-        if entry.flag().bounds_match(score, alpha, beta) {
+        if entry.flag().bounds_match(score, alpha, beta) && board.hm < 90 {
             return score;
         }
     }
