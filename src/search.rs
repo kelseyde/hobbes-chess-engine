@@ -9,8 +9,6 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
-use std::time::Duration;
-
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
@@ -221,7 +219,7 @@ fn alpha_beta<NODE: NodeType>(
 
             if !root_node
                 && !pv_node
-                && tt_depth >= depth
+                && tt_depth >= depth - (tt_score < beta) as i32
                 && (tt_score <= alpha || cut_node)
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
                 return tt_score;
