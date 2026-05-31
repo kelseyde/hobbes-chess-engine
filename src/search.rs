@@ -1224,12 +1224,9 @@ fn update_tm_heuristics(td: &mut ThreadData, prev_mv: Move, prev_score: i32, sco
 }
 
 fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
-    // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, or
-    // if we have a fail high/fail low in the first second of the search, to avoid excess noise.
-    if !td.main
-        || (td.minimal_output && !force)
-        || (bound != Exact && td.start_time.elapsed() < Duration::from_secs(1))
-    {
+    // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, and
+    // we're not printing the final line of the search.
+    if !td.main || (td.minimal_output && !force) {
         return;
     }
     let depth = td.depth;
