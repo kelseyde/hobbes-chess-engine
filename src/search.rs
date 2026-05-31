@@ -9,8 +9,6 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
-use std::time::Duration;
-
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
