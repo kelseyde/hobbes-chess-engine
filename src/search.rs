@@ -142,6 +142,9 @@ fn alpha_beta<NODE: NodeType>(
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
 
+    // An all-node is one that is neither a PV nor an expected cut node, and is expected to fail low.
+    let all_node = !pv_node && !cut_node;
+
     // Clear the principal variation for this ply.
     if pv_node {
         td.pv.clear(ply);
@@ -615,6 +618,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
             r += lmr_cut_node() * cut_node as i32;
+            r += 768 * all_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * gives_check as i32;
