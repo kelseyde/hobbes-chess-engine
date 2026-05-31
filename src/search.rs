@@ -142,7 +142,7 @@ fn alpha_beta<NODE: NodeType>(
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
 
-    // An all-node is one that is neither a PV nor an expected cut node, and is expected to fail low.
+    // An expected all-node is one that is neither a PV nor an expected cut node, and is expected to fail low.
     let all_node = !pv_node && !cut_node;
 
     // Clear the principal variation for this ply.
