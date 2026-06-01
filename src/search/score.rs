@@ -55,9 +55,9 @@ pub const fn to_tt(score: i32, ply: usize) -> i32 {
     if !is_mate(score) {
         score
     } else if score > 0 {
-        score - ply as i32
-    } else {
         score + ply as i32
+    } else {
+        score - ply as i32
     }
 }
 
@@ -68,9 +68,9 @@ pub const fn to_search(score: i32, ply: usize) -> i32 {
     if !is_mate(score) {
         score
     } else if score > 0 {
-        score + ply as i32
-    } else {
         score - ply as i32
+    } else {
+        score + ply as i32
     }
 }
 
