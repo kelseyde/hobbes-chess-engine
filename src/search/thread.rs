@@ -138,19 +138,19 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-        // Only check hard limits every 2048 nodes to reduce overhead
+        if let Some(hard_nodes) = self.limits.hard_nodes {
+            if self.nodes >= hard_nodes {
+                return true;
+            }
+        }
+
+        // Only check hard time/depth limits every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;
         }
 
         if let Some(hard_time) = self.limits.hard_time {
             if self.start_time.elapsed() >= hard_time {
-                return true;
-            }
-        }
-
-        if let Some(hard_nodes) = self.limits.hard_nodes {
-            if self.nodes >= hard_nodes {
                 return true;
             }
         }
