@@ -36,6 +36,7 @@ pub struct ThreadData {
     pub nmp_min_ply: i32,
     pub best_move: Move,
     pub best_score: i32,
+    pub stopped: bool,
 }
 
 impl Default for ThreadData {
@@ -65,6 +66,7 @@ impl Default for ThreadData {
             nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: score::MIN,
+            stopped: false,
         }
     }
 }
@@ -80,6 +82,7 @@ impl ThreadData {
         self.best_score = 0;
         self.best_move_stability = 0;
         self.score_stability = 0;
+        self.stopped = false;
     }
 
     pub fn clear(&mut self) {
@@ -94,15 +97,22 @@ impl ThreadData {
         self.start_time.elapsed().as_millis()
     }
 
-    pub fn should_stop(&self, limit_type: LimitType) -> bool {
+    pub fn should_stop(&mut self, limit_type: LimitType) -> bool {
+        if self.stopped {
+            return true;
+        }
         if self.depth <= 1 {
             // Always clear the first depth, to ensure at least one legal move
             return false;
         }
-        match limit_type {
+        let res = match limit_type {
             LimitType::Soft => self.soft_limit_reached(),
             LimitType::Hard => self.hard_limit_reached(),
+        };
+        if res {
+            self.stopped = true;
         }
+        res
     }
 
     pub fn soft_limit_reached(&self) -> bool {
@@ -138,19 +148,19 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-        // Only check hard limits every 2048 nodes to reduce overhead
+        if let Some(hard_nodes) = self.limits.hard_nodes {
+            if self.nodes >= hard_nodes {
+                return true;
+            }
+        }
+
+        // Only check the hard time every 2048 nodes to reduce overhead
         if self.nodes % 2048 != 0 {
             return false;
         }
 
         if let Some(hard_time) = self.limits.hard_time {
             if self.start_time.elapsed() >= hard_time {
-                return true;
-            }
-        }
-
-        if let Some(hard_nodes) = self.limits.hard_nodes {
-            if self.nodes >= hard_nodes {
                 return true;
             }
         }

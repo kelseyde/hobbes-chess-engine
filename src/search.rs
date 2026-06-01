@@ -864,7 +864,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Store the best move and score in the transposition table
-    if !singular_search && !td.hard_limit_reached(){
+    if !singular_search && !td.stopped {
         td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
@@ -1077,7 +1077,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     // Write to transposition table
-    if !td.hard_limit_reached() {
+    if !td.stopped {
         td.tt.insert(
             board.hash_with_50mr_bucket(),
             best_move,
