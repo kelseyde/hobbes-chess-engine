@@ -85,7 +85,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             prev_mv = td.best_move;
             prev_score = score;
 
-            if td.should_stop(Hard) || is_mate(score) {
+            if td.should_stop(Hard) || score <= score::MIN || score >= score::MAX {
                 break;
             }
 
