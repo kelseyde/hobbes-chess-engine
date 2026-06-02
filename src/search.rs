@@ -845,8 +845,8 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Checkmate / Stalemate Detection
-    if legal_moves == 0 {
-        return if singular_search {
+    if searched_moves == 0 {
+        return if legal_moves > 0 {
             alpha
         } else if in_check {
             mated_in(ply)
@@ -867,6 +867,8 @@ fn alpha_beta<NODE: NodeType>(
     if !singular_search && !td.hard_limit_reached(){
         td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
+
+    debug_assert!(best_score > score::MIN && best_score < score::MAX);
 
     best_score
 }
