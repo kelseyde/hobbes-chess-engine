@@ -144,6 +144,10 @@ fn alpha_beta<NODE: NodeType>(
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
 
+    debug_assert!(ply <= MAX_PLY);
+    debug_assert!(score::MIN <= alpha && alpha < beta && beta <= score::MAX);
+    debug_assert!(pv_node || alpha == beta - 1);
+
     // Clear the principal variation for this ply.
     if pv_node {
         td.pv.clear(ply);
@@ -348,6 +352,8 @@ fn alpha_beta<NODE: NodeType>(
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper {
+
+            debug_assert!(td.stack[ply - 1].mv.is_some_and(|m| m.exists()));
 
             let r = (nmp_red_base()
                 + nmp_red_depth_mult() * depth
@@ -889,8 +895,9 @@ fn alpha_beta<NODE: NodeType>(
 fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize) -> i32 {
     let pv_node = beta - alpha > 1;
 
-    // PV handling might be incorrect if qsearch is called at root
-    debug_assert!(ply > 0);
+    debug_assert!(ply > 0 && ply <= MAX_PLY);
+    debug_assert!(score::MIN < alpha && alpha < beta && beta < score::MAX);
+    debug_assert!(pv_node || alpha == beta - 1);
 
     if alpha < 0 && has_upcoming_repetition(board, td, ply) {
         alpha = 0;
@@ -1107,6 +1114,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             tt_pv,
         );
     }
+
+    debug_assert!(best_score > score::MIN && best_score < score::MAX);
 
     best_score
 }
