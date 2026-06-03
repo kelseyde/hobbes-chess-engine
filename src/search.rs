@@ -523,7 +523,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // Check Extensions
         // If we are in check then the position is likely tactical, so we extend the search depth.
-        if in_check && extension == 0 {
+        if in_check && depth <= 6 && extension == 0 {
             extension = is_quiet as i32;
         }
 
