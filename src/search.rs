@@ -166,6 +166,7 @@ fn alpha_beta<NODE: NodeType>(
 
     if !root_node && alpha < 0 && has_upcoming_repetition(board, td, ply) {
         alpha = 0;
+        td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, 0, alpha, 0, ply, Lower, pv_node);
         if alpha >= beta {
             return alpha;
         }
@@ -894,6 +895,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if alpha < 0 && has_upcoming_repetition(board, td, ply) {
         alpha = 0;
+        td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, 0, alpha, 0, ply, Lower, pv_node);
         if alpha >= beta {
             return alpha;
         }
