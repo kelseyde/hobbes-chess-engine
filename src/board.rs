@@ -12,6 +12,8 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod cuckoo;
+
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]
     mod avx512;
