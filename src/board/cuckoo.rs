@@ -36,61 +36,51 @@ impl Cuckoo {
 }
 
 pub fn init() {
-    unsafe {
-        let mut count: usize = 0;
-        let pieces = [
-            Piece::Knight,
-            Piece::Bishop,
-            Piece::Rook,
-            Piece::Queen,
-            Piece::King,
-        ];
-        let sides = [Side::White, Side::Black];
+    const PIECES: [Piece; 5] = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
+    const SIDES: [Side; 2] = [Side::White, Side::Black];
 
-        for &piece in &pieces {
-            for &side in &sides {
-                for from in 0..64 {
-                    for to in (from + 1)..64 {
-                        let from_sq = Square(from as u8);
-                        let to_sq = Square(to as u8);
-                        let attacks = attacks::attacks(from_sq, piece, side, Bitboard::empty());
-                        if !attacks.contains(to_sq) {
-                            continue;
-                        }
+    let mut count = 0usize;
 
-                        let mut mv = Move::new(from_sq, to_sq, MoveFlag::Standard);
-                        let mut key_diff =
-                            Keys::sq(piece, side, from_sq) ^ Keys::sq(piece, side, to_sq) ^ Keys::stm();
-                        let mut slot = Cuckoo::h1(key_diff);
+    for &piece in &PIECES {
+        for &side in &SIDES {
+            for from in 0..64u8 {
+                let from_sq = Square(from);
+                let attacks = attacks::attacks(from_sq, piece, side, Bitboard::empty());
 
-                        loop {
-                            let key_temp = CUCKOO_KEYS[slot];
-                            CUCKOO_KEYS[slot] = key_diff;
-                            key_diff = key_temp;
-
-                            let move_temp = CUCKOO_MOVES[slot];
-                            CUCKOO_MOVES[slot] = mv;
-                            mv = move_temp;
-
-                            if mv.is_null() {
-                                break;
-                            }
-
-                            let h1 = Cuckoo::h1(key_diff);
-                            let h2 = Cuckoo::h2(key_diff);
-                            slot = if slot == h1 { h2 } else { h1 };
-                        }
-                        count += 1;
+                for to in (from + 1)..64 {
+                    let to_sq = Square(to);
+                    if !attacks.contains(to_sq) {
+                        continue;
                     }
+
+                    let key = Keys::sq(piece, side, from_sq) ^ Keys::sq(piece, side, to_sq) ^ Keys::stm();
+                    let mv = Move::new(from_sq, to_sq, MoveFlag::Standard);
+                    insert(key, mv);
+                    count += 1;
                 }
             }
         }
+    }
 
-        assert_eq!(
-            count, 3668,
-            "Failed to initialise cuckoo tables: expected 3668, got {}",
-            count
-        );
+    assert_eq!(count, 3668, "Failed to initialise cuckoo tables: expected 3668, got {}", count);
+}
+
+fn insert(mut key: u64, mut mv: Move) {
+    let mut slot = Cuckoo::h1(key);
+
+    loop {
+        unsafe {
+            std::mem::swap(&mut CUCKOO_KEYS[slot], &mut key);
+            std::mem::swap(&mut CUCKOO_MOVES[slot], &mut mv);
+        }
+
+        if mv.is_null() {
+            break;
+        }
+
+        let h1 = Cuckoo::h1(key);
+        let h2 = Cuckoo::h2(key);
+        slot = if slot == h1 { h2 } else { h1 };
     }
 }
 
