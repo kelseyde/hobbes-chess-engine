@@ -1,3 +1,4 @@
+use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::node::NodeStack;
@@ -14,15 +15,20 @@ pub struct CorrectionHistory<const N: usize> {
     entries: Box<[[i32; N]; 2]>,
 }
 
+/// Move correction history, indexed by [side][move_key][captured_piece].
+/// Uses King as the captured-piece slot when no capture occurred.
+pub struct MoveCorrectionHistory {
+    entries: Box<[[[i32; Piece::COUNT]; 4096]; 2]>,
+}
+
 pub type HashCorrectionHistory = CorrectionHistory<16384>;
-pub type FromToCorrectionHistory = CorrectionHistory<4096>;
 
 #[derive(Default)]
 pub struct CorrectionHistories {
     pawn_corrhist: HashCorrectionHistory,
     nonpawn_corrhist: [HashCorrectionHistory; 2],
-    countermove_corrhist: FromToCorrectionHistory,
-    follow_up_move_corrhist: FromToCorrectionHistory,
+    countermove_corrhist: MoveCorrectionHistory,
+    follow_up_move_corrhist: MoveCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
 }
@@ -53,11 +59,11 @@ impl CorrectionHistories {
         self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
         self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
 
-        if let Some(key) = prev_move_key(ss, ply, 1) {
-            self.countermove_corrhist.update(us, key, counter_corr_bonus(diff, depth));
+        if let Some((key, captured)) = prev_move_info(ss, ply, 1) {
+            self.countermove_corrhist.update(us, key, captured, counter_corr_bonus(diff, depth));
         }
-        if let Some(key) = prev_move_key(ss, ply, 2) {
-            self.follow_up_move_corrhist.update(us, key, follow_up_corr_bonus(diff, depth));
+        if let Some((key, captured)) = prev_move_info(ss, ply, 2) {
+            self.follow_up_move_corrhist.update(us, key, captured, follow_up_corr_bonus(diff, depth));
         }
     }
 
@@ -70,8 +76,8 @@ impl CorrectionHistories {
         let black     = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hash(Black));
         let major     = self.major_corrhist.get(us, board.hashes.major_hash());
         let minor     = self.minor_corrhist.get(us, board.hashes.minor_hash());
-        let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(us, k));
-        let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
+        let counter   = prev_move_info(ss, ply, 1).map_or(0, |(k, c)| self.countermove_corrhist.get(us, k, c));
+        let follow_up = prev_move_info(ss, ply, 2).map_or(0, |(k, c)| self.follow_up_move_corrhist.get(us, k, c));
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -130,10 +136,55 @@ impl<const N: usize> CorrectionHistory<N> {
     }
 }
 
-/// Returns the encoded key of the move played `offset` plies ago, if any.
-fn prev_move_key(ss: &NodeStack, ply: usize, offset: usize) -> Option<u64> {
+impl Default for MoveCorrectionHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
+impl MoveCorrectionHistory {
+    const MAX_HISTORY: i32 = 14734;
+    const MASK: usize = 4096 - 1;
+
+    /// Returns the correction value for the given move key, captured piece, and side.
+    pub fn get(&self, stm: Side, key: u64, captured: Piece) -> i32 {
+        let index = Self::index(key);
+        self.entries[stm][index][captured]
+    }
+
+    /// Updates the correction value for the given move key, captured piece, and side.
+    pub fn update(&mut self, stm: Side, key: u64, captured: Piece, bonus: i32) {
+        let index = Self::index(key);
+        let entry = &mut self.entries[stm][index][captured];
+        *entry = gravity(*entry, bonus, Self::MAX_HISTORY);
+    }
+
+    /// Clears the correction history tables.
+    pub fn clear(&mut self) {
+        for side in self.entries.iter_mut() {
+            for slot in side.iter_mut() {
+                slot.fill(0);
+            }
+        }
+    }
+
+    #[inline(always)]
+    const fn index(key: u64) -> usize {
+        key as usize & Self::MASK
+    }
+}
+
+/// Returns the encoded key and captured piece of the move played `offset` plies ago, if any.
+/// Uses `Piece::King` as the captured-piece slot when no capture occurred.
+fn prev_move_info(ss: &NodeStack, ply: usize, offset: usize) -> Option<(u64, Piece)> {
     if ply >= offset {
-        ss[ply - offset].mv.map(|mv| mv.encoded() as u64)
+        ss[ply - offset].mv.map(|mv| {
+            let key = mv.encoded() as u64;
+            let captured = ss[ply - offset].captured.unwrap_or(Piece::King);
+            (key, captured)
+        })
     } else {
         None
     }
