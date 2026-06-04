@@ -331,7 +331,7 @@ fn alpha_beta<NODE: NodeType>(
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base()
-            + rfp_scale() * depth
+            + rfp_scale() * depth * depth
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
