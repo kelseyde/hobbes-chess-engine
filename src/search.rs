@@ -257,7 +257,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, 0, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -968,7 +968,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.tt.insert(
                 board.hash_with_50mr_bucket(),
                 Move::NONE,
-                0,
+                score::MIN,
                 raw_eval,
                 0,
                 ply,
