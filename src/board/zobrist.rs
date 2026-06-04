@@ -10,11 +10,12 @@ use crate::board::Board;
 #[rustfmt::skip]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Hashes {
-    board: u64,           // Zobrist hash for the entire board
-    pawn: u64,            // Zobrist hash for pawns
-    non_pawn: [u64; 2],   // Zobrist hashes for non-pawns
-    major: u64,           // Zobrist hash for major pieces
-    minor: u64,           // Zobrist hash for minor pieces
+    board: u64,            // Zobrist hash for the entire board
+    pawn: u64,             // Zobrist hash for all pawns
+    pawn_side: [u64; 2],   // Zobrist hashes for pawns by side
+    non_pawn: [u64; 2],    // Zobrist hashes for non-pawns
+    major: u64,            // Zobrist hash for major pieces
+    minor: u64,            // Zobrist hash for minor pieces
 }
 
 /// Represents the set of random numbers used to generate the zobrist hashes.
@@ -68,6 +69,7 @@ impl Hashes {
         Self {
             board: Keys::get_hash(board),
             pawn: Keys::get_pawn_hash(board),
+            pawn_side: Keys::get_pawn_side_hashes(board),
             non_pawn: Keys::get_non_pawn_hashes(board),
             major: Keys::get_major_hash(board),
             minor: Keys::get_minor_hash(board),
@@ -94,6 +96,7 @@ impl Hashes {
         let minor_mask = -((flags & MINOR_FLAG != 0) as i64) as u64;
 
         self.pawn ^= hash & pawn_mask;
+        self.pawn_side[side] ^= hash & pawn_mask;
         self.non_pawn[side] ^= hash & non_pawn_mask;
         self.major ^= hash & major_mask;
         self.minor ^= hash & minor_mask;
@@ -105,6 +108,10 @@ impl Hashes {
 
     pub const fn pawn_hash(&self) -> u64 {
         self.pawn
+    }
+
+    pub fn pawn_side_hash(&self, side: Side) -> u64 {
+        self.pawn_side[side]
     }
 
     pub fn non_pawn_hash(&self, side: Side) -> u64 {
@@ -155,6 +162,16 @@ impl Keys {
             }
         }
         hash
+    }
+
+    pub fn get_pawn_side_hashes(board: &Board) -> [u64; 2] {
+        let mut hashes: [u64; 2] = [0, 0];
+        for sq in board.pieces[Pawn] {
+            if let Some(side) = board.side_at(sq) {
+                hashes[side] ^= Self::sq(Pawn, side, sq);
+            }
+        }
+        hashes
     }
 
     pub fn get_non_pawn_hashes(board: &Board) -> [u64; 2] {
