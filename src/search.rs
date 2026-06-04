@@ -277,6 +277,20 @@ fn alpha_beta<NODE: NodeType>(
     let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
 
+    // Use the TT score as a more accurate static evaluation
+    let estimated_score = if !in_check
+        && !singular_search
+        && is_defined(tt_score)
+        && match tt_flag {
+            Upper => tt_score < static_eval,
+            Lower => tt_score > static_eval,
+            _ => true,
+        } {
+        tt_score
+    } else {
+        static_eval
+    };
+
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
@@ -335,7 +349,7 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() && static_eval - futility_margin >= beta {
+        if depth <= rfp_max_depth() && estimated_score - futility_margin >= beta {
             return lerp(beta, static_eval, rfp_lerp_factor());
         }
 
