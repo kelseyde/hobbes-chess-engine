@@ -292,8 +292,8 @@ fn alpha_beta<NODE: NodeType>(
         let prev_pc = td.stack[ply - 1].pc.unwrap();
         let prev_threats = td.stack[ply - 1].threats;
 
-        let value = dynamic_policy_mult() * -(static_eval + prev_eval);
-        let bonus = value.clamp(dynamic_policy_min(), dynamic_policy_max()) as i16;
+        let value = hindsight_hist_mult() * -(static_eval + prev_eval);
+        let bonus = value.clamp(hindsight_hist_min(), hindsight_hist_max()) as i16;
         td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
     }
 

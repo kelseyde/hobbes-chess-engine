@@ -40,9 +40,9 @@ tunable_params! {
     hindsight_red_min_depth      = 2, 1..=5,               false;
     hindsight_red_min_reduction  = 1, 1..=5,               false;
     hindsight_red_eval_diff      = 51, 0..=120,            true;
-    dynamic_policy_mult          = 9, 0..=20,              true;
-    dynamic_policy_min           = -56, -100..=0,          true;
-    dynamic_policy_max           = 203, 75..=300,          true;
+    hindsight_hist_mult          = 9, 0..=20,              true;
+    hindsight_hist_min           = -56, -100..=0,          true;
+    hindsight_hist_max           = 203, 75..=300,          true;
     fp_max_depth                 = 8, 4..=10,              false;
     fp_base                      = 165, 50..=250,          true;
     fp_scale                     = 92, 50..=200,           true;
