@@ -210,6 +210,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
+    let mut tt_cut = cut_node;
 
     // Transposition table
     // Check if this node has already been searched before. If it has, and the depth + bounds match
@@ -225,6 +226,7 @@ fn alpha_beta<NODE: NodeType>(
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
+            tt_cut = tt_cut || entry.was_cutnode();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
                 tt_move_noisy = board.is_noisy(&tt_move)
@@ -257,7 +259,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv, cut_node);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -629,7 +631,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * cut_node as i32;
+            r += lmr_cut_node() * tt_cut as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * gives_check as i32;
@@ -880,7 +882,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv, cut_node);
     }
 
     debug_assert!(best_score > score::MIN && best_score < score::MAX);
@@ -974,6 +976,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
                 ply,
                 TTFlag::None,
                 tt_pv,
+                false,
             );
         }
         let correction = td.correction_history.correction(board, &td.stack, ply);
@@ -1112,6 +1115,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             ply,
             flag,
             tt_pv,
+            false,
         );
     }
 

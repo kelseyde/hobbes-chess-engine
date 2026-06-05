@@ -1,6 +1,6 @@
 use crate::board::moves::Move;
 use crate::search::score;
-use crate::search::score::{to_search, to_tt};
+use crate::search::score::{is_defined, to_search, to_tt};
 use std::mem::size_of;
 
 /// The transposition table is a lookup table that stores the results of previously searched
@@ -13,6 +13,18 @@ const ENTRIES_PER_BUCKET: usize = 3;
 const BUCKET_SIZE: usize = size_of::<Bucket>();
 const AGE_CYCLE: u8 = 1 << 5;
 const AGE_MASK: u8 = AGE_CYCLE - 1;
+
+// Eval packing constants: 13 bits for eval, 3 bits for extra data
+const EVAL_BITS: u32 = 13;
+const EXTRA_BITS: u32 = 16 - EVAL_BITS;
+const EVAL_MASK: u16 = (1 << EVAL_BITS) - 1;
+const EXTRA_MASK: u8 = (1 << EXTRA_BITS) as u8 - 1;
+
+pub const EVAL_MIN: i16 = -4095;
+pub const EVAL_MAX: i16 = 4095;
+
+/// Sentinel value for "no eval" (e.g. in check).
+pub const EVAL_NONE: i16 = -4096;
 
 pub struct TranspositionTable {
     table: Vec<Bucket>,
@@ -70,6 +82,30 @@ pub struct Flags {
     data: u8,
 }
 
+/// Pack a 13-bit eval and 3 extra bits into a single i16.
+#[inline(always)]
+const fn pack_eval(eval: i16, extra: u8) -> i16 {
+    ((eval as u16 & EVAL_MASK) | ((extra as u16) << EVAL_BITS)) as i16
+}
+
+/// Unpack the 13-bit eval from a packed i16, sign-extending from bit 12.
+#[inline(always)]
+const fn unpack_eval(packed: i16) -> i16 {
+    (packed << EXTRA_BITS) >> EXTRA_BITS
+}
+
+// Just packing cutnode for now, not sure yet what else to use the extra bits for.
+#[inline(always)]
+const fn pack_extra(cutnode: bool) -> u8 {
+    cutnode as u8
+}
+
+/// Unpack the 3 extra bits from a packed i16.
+#[inline(always)]
+const fn unpack_extra(packed: i16) -> u8 {
+    ((packed as u16) >> EVAL_BITS) as u8 & EXTRA_MASK
+}
+
 impl Default for Entry {
     fn default() -> Entry {
         Entry {
@@ -77,7 +113,7 @@ impl Default for Entry {
             depth: 0,
             best_move: 0,
             score: score::MIN as i16,
-            eval: score::MIN as i16,
+            eval: pack_eval(EVAL_NONE, 0),
             flags: Flags::new(TTFlag::None, false, 0),
         }
     }
@@ -92,8 +128,17 @@ impl Entry {
         to_search(self.score as i32, ply) as i16
     }
 
-    pub fn static_eval(&self) -> i16 {
-        self.eval
+    pub const fn static_eval(&self) -> i16 {
+        let eval = unpack_eval(self.eval);
+        if eval == EVAL_NONE { score::MIN as i16 } else { eval }
+    }
+
+    pub const fn extra(&self) -> u8 {
+        unpack_extra(self.eval)
+    }
+    
+    pub const fn was_cutnode(&self) -> bool {
+        self.extra() & 0b001 != 0
     }
 
     pub const fn depth(&self) -> u8 {
@@ -186,6 +231,7 @@ impl TranspositionTable {
         ply: usize,
         flag: TTFlag,
         pv: bool,
+        cutnode: bool,
     ) {
         let idx = self.idx(hash);
         let tt_age = self.age;
@@ -228,7 +274,9 @@ impl TranspositionTable {
         entry.key = key_part;
         entry.best_move = mv.0;
         entry.score = to_tt(score, ply) as i16;
-        entry.eval = static_eval as i16;
+        let stored_eval = if is_defined(static_eval) { static_eval as i16 } else { EVAL_NONE };
+        let extra = pack_extra(cutnode);
+        entry.eval = pack_eval(stored_eval, extra);
         entry.depth = depth as u8;
         entry.flags = Flags::new(flag, pv, tt_age);
     }
