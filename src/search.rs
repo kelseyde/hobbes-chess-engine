@@ -439,6 +439,7 @@ fn alpha_beta<NODE: NodeType>(
         && tt_move.exists() {
         if depth >= se_min_depth() + tt_pv as i32
             && tt_flag != Upper
+            && (pv_node || cut_node)
             && tt_depth >= depth - se_tt_depth_offset() {
 
             let is_quiet = board.captured(&tt_move).is_some();
