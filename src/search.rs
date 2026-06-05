@@ -210,7 +210,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
-    let mut tt_cut = cut_node;
+    let mut tt_was_singular = false;
 
     // Transposition table
     // Check if this node has already been searched before. If it has, and the depth + bounds match
@@ -226,7 +226,7 @@ fn alpha_beta<NODE: NodeType>(
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
-            tt_cut = tt_cut || entry.was_cutnode();
+            tt_was_singular = entry.was_singular();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
                 tt_move_noisy = board.is_noisy(&tt_move)
@@ -259,7 +259,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv, cut_node);
+            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv, tt_was_singular);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -430,6 +430,7 @@ fn alpha_beta<NODE: NodeType>(
 
     let mut extension = 0;
     let mut singular_score = score::MIN;
+    let mut was_singular_extended = false;
 
     // Singular Extensions
     // Do a reduced-depth search with the TT move excluded. If the result of that search plus
@@ -456,7 +457,8 @@ fn alpha_beta<NODE: NodeType>(
 
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
-                extension = 1;
+                was_singular_extended = true;
+                extension = 1 + tt_was_singular as i32;
                 extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
                 extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
             } else if s_beta >= beta {
@@ -631,7 +633,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * tt_cut as i32;
+            r += lmr_cut_node() * cut_node as i32;
             r -= lmr_capture() * captured.is_some() as i32;
             r -= lmr_in_check() * in_check as i32;
             r -= lmr_gives_check() * gives_check as i32;
@@ -880,9 +882,12 @@ fn alpha_beta<NODE: NodeType>(
         td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
+    let was_singular = best_move.exists() && best_move == tt_move && was_singular_extended;
+    tt_was_singular = (tt_was_singular && tt_depth > depth) || was_singular;
+
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv, cut_node);
+        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv, tt_was_singular);
     }
 
     debug_assert!(best_score > score::MIN && best_score < score::MAX);
@@ -943,10 +948,12 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = score::MIN;
+    let mut tt_was_singular = false;
     if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
+        tt_was_singular = entry.was_singular();
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -976,7 +983,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
                 ply,
                 TTFlag::None,
                 tt_pv,
-                false,
+                tt_was_singular,
             );
         }
         let correction = td.correction_history.correction(board, &td.stack, ply);
@@ -1115,7 +1122,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             ply,
             flag,
             tt_pv,
-            false,
+            tt_was_singular,
         );
     }
 

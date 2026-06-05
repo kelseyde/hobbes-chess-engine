@@ -20,8 +20,8 @@ const EXTRA_BITS: u32 = 16 - EVAL_BITS;
 const EVAL_MASK: u16 = (1 << EVAL_BITS) - 1;
 const EXTRA_MASK: u8 = (1 << EXTRA_BITS) as u8 - 1;
 
-pub const EVAL_MIN: i16 = -4095;
-pub const EVAL_MAX: i16 = 4095;
+pub const EVAL_MIN: i32 = -4095;
+pub const EVAL_MAX: i32 = 4095;
 
 /// Sentinel value for "no eval" (e.g. in check).
 pub const EVAL_NONE: i16 = -4096;
@@ -94,10 +94,10 @@ const fn unpack_eval(packed: i16) -> i16 {
     (packed << EXTRA_BITS) >> EXTRA_BITS
 }
 
-// Just packing cutnode for now, not sure yet what else to use the extra bits for.
+// Just packing was_singular for now, not sure yet what else to use the extra bits for.
 #[inline(always)]
-const fn pack_extra(cutnode: bool) -> u8 {
-    cutnode as u8
+const fn pack_extra(was_singular: bool) -> u8 {
+    was_singular as u8
 }
 
 /// Unpack the 3 extra bits from a packed i16.
@@ -136,9 +136,9 @@ impl Entry {
     pub const fn extra(&self) -> u8 {
         unpack_extra(self.eval)
     }
-    
-    pub const fn was_cutnode(&self) -> bool {
-        self.extra() & 0b001 != 0
+
+    pub const fn was_singular(&self) -> bool {
+        (self.extra() & 0b001) != 0
     }
 
     pub const fn depth(&self) -> u8 {
@@ -231,8 +231,9 @@ impl TranspositionTable {
         ply: usize,
         flag: TTFlag,
         pv: bool,
-        cutnode: bool,
+        was_singular: bool,
     ) {
+        debug_assert!(!is_defined(static_eval) || (static_eval >= EVAL_MIN && static_eval <= EVAL_MAX));
         let idx = self.idx(hash);
         let tt_age = self.age;
         let key_part = hash as u16;
@@ -275,7 +276,7 @@ impl TranspositionTable {
         entry.best_move = mv.0;
         entry.score = to_tt(score, ply) as i16;
         let stored_eval = if is_defined(static_eval) { static_eval as i16 } else { EVAL_NONE };
-        let extra = pack_extra(cutnode);
+        let extra = pack_extra(was_singular);
         entry.eval = pack_eval(stored_eval, extra);
         entry.depth = depth as u8;
         entry.flags = Flags::new(flag, pv, tt_age);
