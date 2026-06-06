@@ -1,6 +1,6 @@
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::MoveList;
-use crate::board::Board;
+use crate::board::{Board, NullBoardObserver};
 
 pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
     let mut moves = MoveList::new();
@@ -12,7 +12,7 @@ pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
         .map(|entry| {
             let mv = entry.mv;
             let mut child = *board;
-            child.make(&mv);
+            child.make(&mv, &mut NullBoardObserver);
             let nodes = if depth <= 1 {
                 1
             } else {
@@ -43,7 +43,7 @@ fn perft_inner<const BULK: bool>(board: &Board, depth: u8) -> u64 {
     for entry in moves.iter() {
         let mv = entry.mv;
         let mut child = *board;
-        child.make(&mv);
+        child.make(&mv, &mut NullBoardObserver);
         nodes += if depth == 1 {
             1
         } else {

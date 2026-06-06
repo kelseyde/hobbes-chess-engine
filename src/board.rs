@@ -121,6 +121,7 @@ impl Board {
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
     #[rustfmt::skip]
     pub fn make<T: BoardObserver>(&mut self, m: &Move, observer: &mut T) {
+        observer.before_make(self, m);
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).expect("No piece on starting square");
@@ -567,21 +568,20 @@ impl Board {
     }
 }
 
-/// Observer trait for monitoring changes to the board state. Used for updating NNUE accumulator
-/// state incrementally as moves are made.
+/// Observer trait for monitoring board state changes. Implement this to receive a callback
+/// immediately before `Board::make` mutates the board, while the position is still intact.
+/// Used to drive incremental NNUE accumulator updates during search.
 /// Implementation adapted from Reckless.
 pub trait BoardObserver {
-    fn on_piece_change(&mut self, board: &Board, side: Side, piece: Piece, sq: Square, add: bool);
-    fn on_piece_move(&mut self, board: &Board, side: Side, piece: Piece, from: Square, to: Square);
-    fn on_piece_mutate(&mut self, board: &Board, side: Side, old_piece: Piece, new_piece: Piece, sq: Square);
+    fn before_make(&mut self, board: &Board, mv: &Move);
 }
 
+/// A no-op observer used everywhere NNUE does not need to be updated (perft, tests, etc.).
 pub struct NullBoardObserver;
 
 impl BoardObserver for NullBoardObserver {
-    fn on_piece_change(&mut self, _: &Board, _: Side, _: Piece, _: Square, _: bool) {}
-    fn on_piece_move(&mut self, _: &Board, _: Side, _: Piece, _: Square, _: Square) {}
-    fn on_piece_mutate(&mut self, _: &Board, _: Side, _: Piece, _: Piece, _: Square) {}
+    #[inline(always)]
+    fn before_make(&mut self, _board: &Board, _mv: &Move) {}
 }
 
 #[cfg(test)]
@@ -589,7 +589,7 @@ mod tests {
     use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
     use crate::board::side::Side;
-    use crate::board::{ray, Board};
+    use crate::board::{ray, Board, NullBoardObserver};
 
     #[test]
     fn computing_correct_pins() {
@@ -720,7 +720,7 @@ mod tests {
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
         let mut board = Board::from_fen(start_fen).unwrap();
-        board.make(&m);
+        board.make(&m, &mut NullBoardObserver);
         assert_eq!(board.to_fen(), end_fen);
     }
 }

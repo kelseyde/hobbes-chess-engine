@@ -35,7 +35,7 @@ use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::board::{castling, Board};
+use crate::board::{castling, Board, BoardObserver};
 use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
@@ -333,6 +333,18 @@ impl NNUE {
     /// Undo the last move by decrementing the current accumulator index.
     pub fn undo(&mut self) {
         self.current = self.current.saturating_sub(1);
+    }
+}
+
+impl BoardObserver for NNUE {
+    /// Called by `Board::make` before any board mutations, so the board still reflects the
+    /// pre-move state. Derives the moving piece and captured piece from the board and delegates
+    /// to the existing lazy-update logic.
+    #[inline]
+    fn before_make(&mut self, board: &Board, mv: &Move) {
+        let pc = board.piece_at(mv.from()).expect("no piece on from square");
+        let captured = board.captured(mv);
+        self.update(mv, pc, captured, board);
     }
 }
 

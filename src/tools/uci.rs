@@ -1,7 +1,7 @@
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::side::Side::{Black, White};
-use crate::board::Board;
+use crate::board::{Board, NullBoardObserver};
 use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
@@ -256,7 +256,7 @@ impl UCI {
                 .find(|lm| lm.matches(m));
             match legal_move {
                 Some(m) => {
-                    self.board.make(&m);
+                    self.board.make(&m, &mut NullBoardObserver);
                     self.td.keys.push(self.board.hash());
                     self.td.root_ply += 1;
                 }

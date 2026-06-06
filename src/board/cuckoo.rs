@@ -89,7 +89,7 @@ mod tests {
     use crate::board::cuckoo;
     use crate::board::moves::Move;
     use crate::board::ray;
-    use crate::board::Board;
+    use crate::board::{Board, NullBoardObserver};
     use crate::search::has_upcoming_repetition;
     use crate::search::thread::ThreadData;
     use std::sync::Once;
@@ -111,7 +111,7 @@ mod tests {
 
         for mv_str in moves {
             let mv = Move::parse_uci(mv_str);
-            board.make(&mv);
+            board.make(&mv, &mut NullBoardObserver);
             td.keys.push(board.hash());
         }
 
