@@ -446,10 +446,9 @@ fn alpha_beta<NODE: NodeType>(
 
             let is_quiet = board.captured(&tt_move).is_some();
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
-            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div
-                + 10 * tt_was_singular as i32;
+            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
-            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
+            let s_depth = (depth - se_depth_offset()) / se_depth_divisor() - tt_was_singular as i32;
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
