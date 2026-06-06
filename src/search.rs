@@ -540,6 +540,7 @@ fn alpha_beta<NODE: NodeType>(
             && !in_check
             && is_quiet
             && lmr_depth < fp_max_depth()
+            && searched_moves > 2
             && !is_mated
             && static_eval + futility_margin <= alpha {
             move_picker.skip_quiets();
