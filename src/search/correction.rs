@@ -23,6 +23,7 @@ pub struct CorrectionHistories {
     nonpawn_corrhist: [HashCorrectionHistory; 2],
     countermove_corrhist: FromToCorrectionHistory,
     follow_up_move_corrhist: FromToCorrectionHistory,
+    tt_move_corrhist: FromToCorrectionHistory,
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
 }
@@ -37,6 +38,7 @@ impl CorrectionHistories {
         ply: usize,
         static_eval: i32,
         best_score: i32,
+        tt_move: Move,
     ) {
         let us = board.stm;
         let diff = best_score - static_eval;
@@ -53,6 +55,9 @@ impl CorrectionHistories {
         self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
         self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
 
+        if tt_move.exists() {
+            self.tt_move_corrhist.update(us, tt_move.encoded() as u64, ttmove_corr_bonus(diff, depth));
+        }
         if let Some(key) = prev_move_key(ss, ply, 1) {
             self.countermove_corrhist.update(us, key, counter_corr_bonus(diff, depth));
         }
@@ -62,7 +67,7 @@ impl CorrectionHistories {
     }
 
     #[rustfmt::skip]
-    pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
+    pub fn correction(&self, board: &Board, ss: &NodeStack, tt_move: Move, ply: usize) -> i32 {
         let us = board.stm;
 
         let pawn      = self.pawn_corrhist.get(us, board.hashes.pawn_hash());
@@ -70,6 +75,7 @@ impl CorrectionHistories {
         let black     = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hash(Black));
         let major     = self.major_corrhist.get(us, board.hashes.major_hash());
         let minor     = self.minor_corrhist.get(us, board.hashes.minor_hash());
+        let ttmove    = if tt_move.exists() { self.tt_move_corrhist.get(us, tt_move.encoded() as u64) } else { 0 };
         let counter   = prev_move_key(ss, ply, 1).map_or(0, |k| self.countermove_corrhist.get(us, k));
         let follow_up = prev_move_key(ss, ply, 2).map_or(0, |k| self.follow_up_move_corrhist.get(us, k));
 
@@ -78,6 +84,7 @@ impl CorrectionHistories {
             + (black * 100 / corr_non_pawn_weight())
             + (major * 100 / corr_major_weight())
             + (minor * 100 / corr_minor_weight())
+            + (ttmove * 100 / corr_ttmove_weight())
             + (counter * 100 / corr_counter_weight())
             + (follow_up * 100 / corr_follow_up_weight()))
             / CORRECTION_SCALE
@@ -88,6 +95,7 @@ impl CorrectionHistories {
         self.nonpawn_corrhist.iter_mut().for_each(|h| h.clear());
         self.countermove_corrhist.clear();
         self.follow_up_move_corrhist.clear();
+        self.tt_move_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
     }
@@ -154,8 +162,10 @@ mod bonuses {
     corr_bonus!(pawn_corr_bonus,      corr_pawn_bonus_mult,      corr_pawn_bonus_div,      corr_pawn_bonus_min,      corr_pawn_bonus_max);
     corr_bonus!(nonpawn_corr_bonus,   corr_nonpawn_bonus_mult,   corr_nonpawn_bonus_div,   corr_nonpawn_bonus_min,   corr_nonpawn_bonus_max);
     corr_bonus!(major_corr_bonus,     corr_major_bonus_mult,     corr_major_bonus_div,     corr_major_bonus_min,     corr_major_bonus_max);
+    corr_bonus!(ttmove_corr_bonus,    corr_ttmove_bonus_mult,    corr_ttmove_bonus_div,     corr_ttmove_bonus_min,     corr_ttmove_bonus_max);
     corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
     corr_bonus!(counter_corr_bonus,   corr_counter_bonus_mult,   corr_counter_bonus_div,   corr_counter_bonus_min,   corr_counter_bonus_max);
     corr_bonus!(follow_up_corr_bonus, corr_follow_up_bonus_mult, corr_follow_up_bonus_div, corr_follow_up_bonus_min, corr_follow_up_bonus_max);
 }
 use bonuses::*;
+use crate::board::moves::Move;

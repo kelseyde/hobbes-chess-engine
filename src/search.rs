@@ -259,7 +259,7 @@ fn alpha_beta<NODE: NodeType>(
         if !tt_hit {
             td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
-        correction = td.correction_history.correction(board, &td.stack, ply);
+        correction = td.correction_history.correction(board, &td.stack, tt_move, ply);
         static_eval = raw_eval + correction;
     }
 
@@ -875,7 +875,8 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        tt_move = if best_move.exists() { best_move } else { tt_move };
+        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score, tt_move);
     }
 
     // Store the best move and score in the transposition table
@@ -976,7 +977,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
                 tt_pv,
             );
         }
-        let correction = td.correction_history.correction(board, &td.stack, ply);
+        let correction = td.correction_history.correction(board, &td.stack, tt_move, ply);
         static_eval = raw_eval + correction;
     }
 
