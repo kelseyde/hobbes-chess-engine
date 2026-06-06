@@ -448,7 +448,7 @@ fn alpha_beta<NODE: NodeType>(
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
             let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
-            let s_depth = (depth - se_depth_offset()) / se_depth_divisor() - tt_was_singular as i32;
+            let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
@@ -458,9 +458,12 @@ fn alpha_beta<NODE: NodeType>(
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 was_singular_extended = true;
+                let dext_margin = (se_dext_margin(is_quiet) - 10 * tt_was_singular as i32).max(0);
+                let text_margin = se_text_margin(is_quiet);
+
                 extension = 1;
-                extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
-                extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
+                extension += (!pv_node && singular_score < s_beta - dext_margin) as i32;
+                extension += (!pv_node && is_quiet && singular_score < s_beta - text_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
