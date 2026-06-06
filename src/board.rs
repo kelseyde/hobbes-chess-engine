@@ -115,11 +115,12 @@ impl Board {
         }
     }
 
+
     /// Applies a move to the board, updating all state: piece positions, side to move, castling
     /// rights, en passant square, half-move clock, Zobrist hashes, threats, checkers, and pinned
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
     #[rustfmt::skip]
-    pub fn make(&mut self, m: &Move) {
+    pub fn make<T: BoardObserver>(&mut self, m: &Move, observer: &mut T) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).expect("No piece on starting square");
@@ -564,6 +565,23 @@ impl Board {
     pub const fn set_frc(&mut self, frc: bool) {
         self.frc = frc;
     }
+}
+
+/// Observer trait for monitoring changes to the board state. Used for updating NNUE accumulator
+/// state incrementally as moves are made.
+/// Implementation adapted from Reckless.
+pub trait BoardObserver {
+    fn on_piece_change(&mut self, board: &Board, side: Side, piece: Piece, sq: Square, add: bool);
+    fn on_piece_move(&mut self, board: &Board, side: Side, piece: Piece, from: Square, to: Square);
+    fn on_piece_mutate(&mut self, board: &Board, side: Side, old_piece: Piece, new_piece: Piece, sq: Square);
+}
+
+pub struct NullBoardObserver;
+
+impl BoardObserver for NullBoardObserver {
+    fn on_piece_change(&mut self, _: &Board, _: Side, _: Piece, _: Square, _: bool) {}
+    fn on_piece_move(&mut self, _: &Board, _: Side, _: Piece, _: Square, _: Square) {}
+    fn on_piece_mutate(&mut self, _: &Board, _: Side, _: Piece, _: Piece, _: Square) {}
 }
 
 #[cfg(test)]
