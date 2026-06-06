@@ -338,12 +338,10 @@ impl NNUE {
 
 impl BoardObserver for NNUE {
     /// Called by `Board::make` before any board mutations, so the board still reflects the
-    /// pre-move state. Derives the moving piece and captured piece from the board and delegates
-    /// to the existing lazy-update logic.
+    /// pre-move state. The moving piece and captured piece are passed in pre-computed so we
+    /// don't repeat the mailbox lookups already done by `Board::make`.
     #[inline]
-    fn before_make(&mut self, board: &Board, mv: &Move) {
-        let pc = board.piece_at(mv.from()).expect("no piece on from square");
-        let captured = board.captured(mv);
+    fn before_make(&mut self, board: &Board, mv: &Move, pc: Piece, captured: Option<Piece>) {
         self.update(mv, pc, captured, board);
     }
 }

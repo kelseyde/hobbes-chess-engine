@@ -121,11 +121,11 @@ impl Board {
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
     #[rustfmt::skip]
     pub fn make<T: BoardObserver>(&mut self, m: &Move, observer: &mut T) {
-        observer.before_make(self, m);
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).expect("No piece on starting square");
         let captured = self.captured(m);
+        observer.before_make(self, m, pc, captured);
         let (new_pc, new_to) = (self.new_pc(m, pc), self.new_to(m, from, to));
 
         // Unset the piece from the starting square.
@@ -570,10 +570,12 @@ impl Board {
 
 /// Observer trait for monitoring board state changes. Implement this to receive a callback
 /// immediately before `Board::make` mutates the board, while the position is still intact.
+/// The moving piece `pc` and `captured` piece are pre-computed by `Board::make` so the observer
+/// does not need to repeat those lookups.
 /// Used to drive incremental NNUE accumulator updates during search.
 /// Implementation adapted from Reckless.
 pub trait BoardObserver {
-    fn before_make(&mut self, board: &Board, mv: &Move);
+    fn before_make(&mut self, board: &Board, mv: &Move, pc: Piece, captured: Option<Piece>);
 }
 
 /// A no-op observer used everywhere NNUE does not need to be updated (perft, tests, etc.).
@@ -581,7 +583,7 @@ pub struct NullBoardObserver;
 
 impl BoardObserver for NullBoardObserver {
     #[inline(always)]
-    fn before_make(&mut self, _board: &Board, _mv: &Move) {}
+    fn before_make(&mut self, _board: &Board, _mv: &Move, _pc: Piece, _captured: Option<Piece>) {}
 }
 
 #[cfg(test)]
