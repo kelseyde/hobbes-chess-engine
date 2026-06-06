@@ -458,7 +458,7 @@ fn alpha_beta<NODE: NodeType>(
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 was_singular_extended = true;
-                let dext_margin = (se_dext_margin(is_quiet) - 10 * tt_was_singular as i32).max(0);
+                let dext_margin = se_dext_margin(is_quiet) + 15 * tt_was_singular as i32;
                 let text_margin = se_text_margin(is_quiet);
 
                 extension = 1;
