@@ -4,6 +4,10 @@ use crate::board::square::Square;
 use arrayvec::ArrayVec;
 use std::fmt;
 
+/// Represents a chess move encoded as a 16-bit unsigned integer. The encoding is as follows:
+/// - Bits 0-5: From square (0-63)
+/// - Bits 6-11: To square (0-63)
+/// - Bits 12-15: Special move flags (promotion, en-passant etc.)
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct Move(pub u16);
 

@@ -6,6 +6,9 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::zobrist::Keys;
 
+/// A mechanism used to determine if a move will lead to a repetition on the next ply. This is used
+/// to detect repetitions one ply earlier during search. Implementation based on this paper:
+/// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
 pub struct Cuckoo;
 
 const SIZE: usize = 8192;

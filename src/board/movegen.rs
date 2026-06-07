@@ -10,6 +10,9 @@ use crate::board::square::Square;
 use crate::board::{attacks, castling, ray};
 use crate::board::{setwise, Board};
 
+/// A filter used to generate only certain types of moves during search. `All` generates all legal 
+// moves, `Quiets` generates only non-captures (including promotions), `Noisies` generates captures 
+// and promotions, and `Captures` generates only captures.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveFilter {
     All,

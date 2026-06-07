@@ -5,6 +5,7 @@ use crate::board::side::Side;
 use crate::board::side::Side::White;
 use crate::board::square::Square;
 
+/// Compute the bitboard representing the squares attacked by a piece of type `piece` on square `sq`.
 #[inline(always)]
 pub fn attacks(sq: Square, piece: Piece, side: Side, occ: Bitboard) -> Bitboard {
     match piece {
@@ -17,6 +18,7 @@ pub fn attacks(sq: Square, piece: Piece, side: Side, occ: Bitboard) -> Bitboard 
     }
 }
 
+/// Compute the bitboard representing the squares attacked by the pawns of a given side.
 #[inline(always)]
 pub fn pawn_attacks(pawns: Bitboard, side: Side) -> Bitboard {
     if side == White {
@@ -26,17 +28,20 @@ pub fn pawn_attacks(pawns: Bitboard, side: Side) -> Bitboard {
     }
 }
 
+/// Compute the bitboard representing the squares attacked by a pawn of side `side` on square `sq`.
 #[inline(always)]
 pub fn pawn(sq: Square, side: Side) -> Bitboard {
     let bb = Bitboard::of_sq(sq);
     pawn_attacks(bb, side)
 }
 
+/// Compute the bitboard representing the squares attacked by a knight on square `sq`.
 #[inline(always)]
 pub fn knight(sq: Square) -> Bitboard {
     KNIGHT[sq]
 }
 
+/// Compute the bitboard representing the squares attacked by a bishop on square `sq`.
 #[inline(always)]
 pub fn bishop(sq: Square, blockers: Bitboard) -> Bitboard {
     let magic = BISHOP_MAGICS[sq];
@@ -44,6 +49,7 @@ pub fn bishop(sq: Square, blockers: Bitboard) -> Bitboard {
     BISHOP_ATTACKS[idx]
 }
 
+/// Compute the bitboard representing the squares attacked by a rook on square `sq`.
 #[inline(always)]
 pub fn rook(sq: Square, blockers: Bitboard) -> Bitboard {
     let magic = ROOK_MAGICS[sq];
@@ -51,16 +57,19 @@ pub fn rook(sq: Square, blockers: Bitboard) -> Bitboard {
     ROOK_ATTACKS[idx]
 }
 
+/// Compute the bitboard representing the squares attacked by a queen on square `sq`.
 #[inline(always)]
 pub fn queen(sq: Square, occ: Bitboard) -> Bitboard {
     rook(sq, occ) | bishop(sq, occ)
 }
 
+/// Compute the bitboard representing the squares attacked by a king on square `sq`.
 #[inline(always)]
 pub fn king(sq: Square) -> Bitboard {
     KING[sq]
 }
 
+/// Lookup table for the squares attacked by a king on each square of the board.
 #[rustfmt::skip]
 pub const KING: [Bitboard; 64] = [
     Bitboard(0x0000000000000302), Bitboard(0x0000000000000705), Bitboard(0x0000000000000e0a), Bitboard(0x0000000000001c14),
@@ -81,6 +90,7 @@ pub const KING: [Bitboard; 64] = [
     Bitboard(0x2838000000000000), Bitboard(0x5070000000000000), Bitboard(0xa0e0000000000000), Bitboard(0x40c0000000000000)
 ];
 
+/// Lookup table for the squares attacked by a knight on each square of the board.
 #[rustfmt::skip]
 pub const KNIGHT: [Bitboard; 64] = [
     Bitboard(0x0000000000020400), Bitboard(0x0000000000050800), Bitboard(0x00000000000a1100), Bitboard(0x0000000000142200),
