@@ -597,7 +597,7 @@ fn alpha_beta<NODE: NodeType>(
         };
         if !pv_node
             && depth <= see_max_depth()
-            && threats.contains(mv.to())
+            && to_threatened
             && searched_moves >= 1
             && !is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
