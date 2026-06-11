@@ -553,7 +553,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improvement) {
+            && searched_moves > late_move_threshold(depth, improvement, history_score) {
             move_picker.skip_quiets();
         }
 
@@ -1255,12 +1255,12 @@ fn calc_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_che
 }
 
 #[inline]
-fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
+fn late_move_threshold(depth: i32, improvement: i32, history_score: i32) -> i32 {
     let adjust = improvement.clamp(lmp_improvement_min(), lmp_improvement_max());
     let factor0 = lmp_factor0_base() + lmp_factor0_scale() * adjust / 16;
     let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
 
-    (factor0 + factor1 * depth * depth) / 1024
+    ((factor0 + factor1 * depth * depth) / 1024) + (history_score * 512 / 4000000)
 }
 
 #[inline]
