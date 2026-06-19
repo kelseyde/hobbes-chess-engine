@@ -174,6 +174,8 @@ impl Default for TranspositionTable {
     }
 }
 
+unsafe impl Sync for TranspositionTable {}
+
 impl TranspositionTable {
     /// Create a new transposition table with the given size in megabytes.
     pub fn new(size_mb: usize) -> TranspositionTable {
@@ -267,6 +269,7 @@ impl TranspositionTable {
                 min_value = entry_value;
             }
         }
+
 
         if flag == TTFlag::Exact
             || old.is_none_or(|old| {
