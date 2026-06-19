@@ -109,11 +109,13 @@ impl TTClusterMemory {
         unsafe { transmute([a, b, c, d]) }
     }
 
-    fn store(&self, cluster: TTCluster) {
+    fn store(&self, cluster: TTCluster, cluster_idx: usize) {
         let [a, b, c, d]: [u64; 4] = unsafe { transmute(cluster) };
-        self.data[0].store(a, Relaxed);
-        self.data[1].store(b, Relaxed);
-        self.data[2].store(c, Relaxed);
+        match cluster_idx {
+            0 => { self.data[0].store(a, Relaxed); }
+            1 => { self.data[1].store(b, Relaxed); }
+            _ => { self.data[2].store(c, Relaxed); }
+        }
         self.data[3].store(d, Relaxed);
     }
 
@@ -204,7 +206,7 @@ impl TranspositionTable {
     /// Increment the age of the transposition table. This is used to track the relative age of the
     /// entries in the table, which is a factor in the entry replacement scheme.
     pub fn birthday(&self) {
-        self.age.fetch_update(Relaxed, Relaxed, |age| Some((age + 1) & AGE_MASK)).ok();
+        self.age.try_update(Relaxed, Relaxed, |age| Some((age + 1) & AGE_MASK)).ok();
     }
 
     /// Probe the transposition table for an entry with the given hash. The hash is used as an index
@@ -281,15 +283,13 @@ impl TranspositionTable {
 
             keys[cluster_idx] = key_part;
             cluster.set_keys(keys);
-            cluster.entries[cluster_idx] = TTEntry {
-                eval: static_eval as i16,
-                score: to_tt(score, ply) as i16,
-                best_move: mv.0,
-                depth: depth as u8,
-                flags: Flags::new(flag, pv, age),
-            };
-
-            self.table[index].store(cluster);
+            let entry = &mut cluster.entries[cluster_idx];
+            entry.eval = static_eval as i16;
+            entry.score = to_tt(score, ply) as i16;
+            entry.best_move = mv.0;
+            entry.depth = depth as u8;
+            entry.flags = Flags::new(flag, pv, age);
+            self.table[index].store(cluster, cluster_idx);
         }
     }
 
