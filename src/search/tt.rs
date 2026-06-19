@@ -1,7 +1,7 @@
 use crate::board::moves::Move;
-use crate::search::score;
 use crate::search::score::{to_search, to_tt};
-use std::mem::size_of;
+use std::mem::{size_of, transmute};
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering::Relaxed};
 
 /// The transposition table is a lookup table that stores the results of previously searched
 /// positions, including the search depth, the score, the best move found, and other relevant
@@ -10,33 +10,37 @@ use std::mem::size_of;
 /// since on subsequent visits we can re-use the results of previous searches.
 const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
-const BUCKET_SIZE: usize = size_of::<Bucket>();
 const AGE_CYCLE: u8 = 1 << 5;
 const AGE_MASK: u8 = AGE_CYCLE - 1;
 
-pub struct TranspositionTable {
-    table: Vec<Bucket>,
-    size_mb: usize,
-    size: usize,
-    age: u8,
-}
-
-#[derive(Clone, Default)]
-#[repr(align(32))]
-struct Bucket {
-    entries: [Entry; ENTRIES_PER_BUCKET],
-}
-
-#[derive(Clone)]
+/// A single transposition table entry, packed into 8 bytes.
+#[derive(Clone, Copy)]
 #[repr(C)]
-pub struct Entry {
-    key: u16,       // 2 bytes
-    best_move: u16, // 2 bytes
-    score: i16,     // 2 bytes
-    eval: i16,      // 2 bytes
-    depth: u8,      // 1 byte
-    flags: Flags,   // 1 byte
+pub struct TTEntry {
+    pub eval: i16,
+    pub score: i16,
+    best_move: u16,
+    pub depth: u8,
+    pub flags: Flags,
 }
+
+const _: () = assert!(size_of::<TTEntry>() == 8);
+
+#[repr(C, align(32))]
+struct TTClusterMemory {
+    data: [AtomicU64; 4],
+}
+
+/// A cluster of 3 entries plus packed keys
+#[derive(Clone, Copy)]
+#[repr(C, align(32))]
+struct TTCluster {
+    entries: [TTEntry; ENTRIES_PER_BUCKET],
+    keys: u64,
+}
+
+const _: () = assert!(size_of::<TTCluster>() == 32);
+const _: () = assert!(size_of::<TTClusterMemory>() == 32);
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum TTFlag {
@@ -70,20 +74,7 @@ pub struct Flags {
     data: u8,
 }
 
-impl Default for Entry {
-    fn default() -> Entry {
-        Entry {
-            key: 0,
-            depth: 0,
-            best_move: 0,
-            score: score::MIN as i16,
-            eval: score::MIN as i16,
-            flags: Flags::new(TTFlag::None, false, 0),
-        }
-    }
-}
-
-impl Entry {
+impl TTEntry {
     pub const fn best_move(&self) -> Move {
         Move(self.best_move)
     }
@@ -107,14 +98,72 @@ impl Entry {
     pub const fn pv(&self) -> bool {
         self.flags.pv()
     }
+}
 
-    pub const fn validate_key(&self, key: u64) -> bool {
-        self.key == (key & 0xFFFF) as u16
+impl TTClusterMemory {
+    fn load(&self) -> TTCluster {
+        let a = self.data[0].load(Relaxed);
+        let b = self.data[1].load(Relaxed);
+        let c = self.data[2].load(Relaxed);
+        let d = self.data[3].load(Relaxed);
+        unsafe { transmute([a, b, c, d]) }
     }
 
-    pub const fn relative_age(&self, tt_age: u8) -> i32 {
-        ((AGE_CYCLE + tt_age - self.flags.age()) & AGE_MASK) as i32
+    fn store(&self, cluster: TTCluster) {
+        let [a, b, c, d]: [u64; 4] = unsafe { transmute(cluster) };
+        self.data[0].store(a, Relaxed);
+        self.data[1].store(b, Relaxed);
+        self.data[2].store(c, Relaxed);
+        self.data[3].store(d, Relaxed);
     }
+
+    fn clear(&self) {
+        self.data[0].store(0, Relaxed);
+        self.data[1].store(0, Relaxed);
+        self.data[2].store(0, Relaxed);
+        self.data[3].store(0, Relaxed);
+    }
+
+    fn empty() -> Self {
+        Self {
+            data: [AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0)],
+        }
+    }
+}
+
+impl TTCluster {
+    /// Returns the index of the entry whose key matches, or None if no matching entry is found
+    fn key_idx(&self, key: u16) -> Option<usize> {
+        let low_bits: u64 = 0x0001_0001_0001_0001;
+        let high_bits = low_bits << 15;
+        let splat = (key as u64).wrapping_mul(low_bits);
+        let diff = splat ^ self.keys;
+        let i = (!diff & diff.wrapping_sub(low_bits) & high_bits).trailing_zeros() / 16;
+        if i < 3 { Some(i as usize) } else { None }
+    }
+
+    #[allow(clippy::identity_op)]
+    fn keys(&self) -> [u16; ENTRIES_PER_BUCKET] {
+        [
+            (self.keys >> (0 * 16)) as u16,
+            (self.keys >> (1 * 16)) as u16,
+            (self.keys >> (2 * 16)) as u16,
+        ]
+    }
+
+    #[allow(clippy::identity_op)]
+    fn set_keys(&mut self, keys: [u16; ENTRIES_PER_BUCKET]) {
+        self.keys = ((keys[0] as u64) << (0 * 16))
+            | ((keys[1] as u64) << (1 * 16))
+            | ((keys[2] as u64) << (2 * 16));
+    }
+}
+
+pub struct TranspositionTable {
+    table: Vec<TTClusterMemory>,
+    size_mb: usize,
+    size: usize,
+    age: AtomicU8,
 }
 
 impl Default for TranspositionTable {
@@ -124,52 +173,51 @@ impl Default for TranspositionTable {
 }
 
 impl TranspositionTable {
-    /// Create a new transposition table with the given size in megabytes. The number of entries in
-    /// the table is calculated based on the size of each bucket and the number of entries per bucket.
+    /// Create a new transposition table with the given size in megabytes.
     pub fn new(size_mb: usize) -> TranspositionTable {
-        let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
-        let table = vec![Bucket::default(); size];
-        let age = 0;
+        let size = size_mb * 1024 * 1024 / size_of::<TTClusterMemory>();
+        let table: Vec<TTClusterMemory> =
+            std::iter::repeat_with(TTClusterMemory::empty).take(size).collect();
+        let age = AtomicU8::new(0);
         TranspositionTable {
             table,
             size_mb,
             size,
-            age,
+            age
         }
     }
 
-    /// Resize the transposition table to the given size in megabytes. This will reallocate the table
-    /// and reset all entries to their default values.
+    /// Resize the transposition table to the given size in megabytes.
     pub fn resize(&mut self, size_mb: usize) {
-        let size = size_mb * 1024 * 1024 / BUCKET_SIZE;
-        self.table = vec![Bucket::default(); size];
+        let size = size_mb * 1024 * 1024 / size_of::<TTClusterMemory>();
+        self.table = std::iter::repeat_with(TTClusterMemory::empty).take(size).collect();
         self.size_mb = size_mb;
         self.size = size;
     }
 
-    /// Clear all entries in the transposition table by resetting them to their default values.
-    pub fn clear(&mut self) {
-        self.table
-            .iter_mut()
-            .for_each(|entry| *entry = Bucket::default());
-        self.age = 0;
+    /// Clear all entries in the transposition table.
+    pub fn clear(&self) {
+        self.table.iter().for_each(|entry| entry.clear());
+        self.age.store(0, Relaxed);
     }
 
     /// Increment the age of the transposition table. This is used to track the relative age of the
     /// entries in the table, which is a factor in the entry replacement scheme.
-    pub const fn birthday(&mut self) {
-        self.age = (self.age + 1) & AGE_MASK;
+    pub fn birthday(&self) {
+        self.age.fetch_update(Relaxed, Relaxed, |age| Some((age + 1) & AGE_MASK)).ok();
     }
 
     /// Probe the transposition table for an entry with the given hash. The hash is used as an index
     /// into a bucket, and the entries in the bucket are searched for a matching key.
-    pub fn probe(&self, hash: u64) -> Option<&Entry> {
+    pub fn probe(&self, hash: u64) -> Option<TTEntry> {
         let idx = self.idx(hash);
-        let bucket = &self.table[idx];
-        bucket
-            .entries
-            .iter()
-            .find(|&entry| entry.validate_key(hash))
+        let key_part = hash as u16;
+        let cluster = self.table[idx].load();
+        if let Some(entry_idx) = cluster.key_idx(key_part) {
+            Some(cluster.entries[entry_idx])
+        } else {
+            None
+        }
     }
 
     /// Insert a new entry into the transposition table. We iterate through the entries in the bucket
@@ -177,7 +225,7 @@ impl TranspositionTable {
     /// that considers both search depth and entry age.
     #[allow(clippy::too_many_arguments)]
     pub fn insert(
-        &mut self,
+        &self,
         hash: u64,
         best_move: Move,
         score: i32,
@@ -187,50 +235,62 @@ impl TranspositionTable {
         flag: TTFlag,
         pv: bool,
     ) {
-        let idx = self.idx(hash);
-        let tt_age = self.age;
+        let index = self.idx(hash);
         let key_part = hash as u16;
-        let cluster = &mut self.table[idx];
+        let age = self.age.load(Relaxed);
 
-        let mut index = 0;
-        let mut minimum = i32::MAX;
+        let mut cluster = self.table[index].load();
+        let mut keys = cluster.keys();
 
-        for (i, entry) in cluster.entries.iter_mut().enumerate() {
-            if entry.key == key_part || entry.flag() == TTFlag::None {
-                index = i;
+        let mut cluster_idx = 0;
+        let mut min_value = i32::MAX;
+        let mut old = None;
+
+        for i in 0..ENTRIES_PER_BUCKET {
+            let entry = cluster.entries[i];
+
+            if keys[i] == key_part {
+                old = Some(entry);
+            }
+
+            if keys[i] == key_part || entry.flags.bound() == TTFlag::None {
+                cluster_idx = i;
                 break;
             }
 
-            let quality = entry.depth as i32 - 4 * entry.relative_age(tt_age);
-            if quality < minimum {
-                index = i;
-                minimum = quality;
+            let relative_age = ((AGE_CYCLE + age - entry.flags.age()) & AGE_MASK) as i32;
+            let entry_value = entry.depth as i32 - 4 * relative_age;
+            if entry_value < min_value {
+                cluster_idx = i;
+                min_value = entry_value;
             }
         }
 
-        let entry = &mut cluster.entries[index];
-
-        let key_match = key_part == entry.key;
-        let mv = if !best_move.exists() && key_match {
-            entry.best_move()
-        } else {
-            best_move
-        };
-
-        if !(key_part != entry.key
-            || flag == TTFlag::Exact
-            || depth + 4 > entry.depth as i32
-            || entry.flags.age() != tt_age)
+        if flag == TTFlag::Exact
+            || old.is_none_or(|old| {
+                depth + 4 > old.depth as i32
+                    || old.flags.bound() == TTFlag::None
+                    || age != old.flags.age()
+            })
         {
-            return;
-        }
+            let mv = if !best_move.exists() && old.is_some() {
+                Move(old.unwrap().best_move)
+            } else {
+                best_move
+            };
 
-        entry.key = key_part;
-        entry.best_move = mv.0;
-        entry.score = to_tt(score, ply) as i16;
-        entry.eval = static_eval as i16;
-        entry.depth = depth as u8;
-        entry.flags = Flags::new(flag, pv, tt_age);
+            keys[cluster_idx] = key_part;
+            cluster.set_keys(keys);
+            cluster.entries[cluster_idx] = TTEntry {
+                eval: static_eval as i16,
+                score: to_tt(score, ply) as i16,
+                best_move: mv.0,
+                depth: depth as u8,
+                flags: Flags::new(flag, pv, age),
+            };
+
+            self.table[index].store(cluster);
+        }
     }
 
     /// For efficient indexing into an arbitrarily-sized hash table, we use Lemire's multiplication
@@ -249,8 +309,9 @@ impl TranspositionTable {
     /// entries out of the first 1000. This information is printed to UCI.
     pub fn fill(&self) -> usize {
         let mut fill = 0;
-        for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
-            for entry in &bucket.entries {
+        for cluster_mem in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
+            let cluster = cluster_mem.load();
+            for entry in &cluster.entries {
                 if entry.flags.bound() != TTFlag::None {
                     fill += 1;
                 }
@@ -280,7 +341,7 @@ impl Flags {
     }
 
     pub const fn bound(self) -> TTFlag {
-        unsafe { std::mem::transmute(self.data & 0b11) }
+        unsafe { transmute(self.data & 0b11) }
     }
 
     pub const fn pv(self) -> bool {
