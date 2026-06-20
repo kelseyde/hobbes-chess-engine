@@ -211,6 +211,12 @@ tunable_params! {
     qs_capt_hist_malus_scale     = 147, 80..=280,          true;
     qs_capt_hist_malus_offset    = 101, 0..=200,           true;
     qs_capt_hist_malus_max       = 1231, 1000..=1600,      true;
+    static_hist_bonus_scale      = 200, 80..=280,          true;
+    static_hist_bonus_offset     = 80, 0..=200,            true;
+    static_hist_bonus_max        = 1280, 800..=1600,       true;
+    static_hist_malus_scale      = 200, 64..=280,           true;
+    static_hist_malus_offset     = 80, 0..=200,            true;
+    static_hist_malus_max        = 1280, 1000..=1600,      true;
     corr_pawn_bonus_mult         = 225, 100..=300,         true;
     corr_pawn_bonus_div          = 97, 64..=256,           true;
     corr_pawn_bonus_min          = -4315, -6000..=-2000,   true;

@@ -30,6 +30,7 @@ use score::is_mate;
 use SeeType::{Ordering, Pruning};
 use crate::board::cuckoo::Cuckoo;
 use crate::board::zobrist::Keys;
+use crate::measure;
 
 pub const MAX_PLY: usize = 256;
 
@@ -132,6 +133,12 @@ fn alpha_beta<NODE: NodeType>(
     mut alpha: i32,
     mut beta: i32,
     cut_node: bool) -> i32 {
+
+    for sq in board.us() {
+        let pc = board.piece_at(sq).unwrap();
+        let score = td.history.static_history.get(board.stm, pc, sq);
+        measure!("score", score as i64);
+    }
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -808,6 +815,8 @@ fn alpha_beta<NODE: NodeType>(
         let from_malus = from_history_malus(depth);
         let to_bonus = to_history_bonus(depth);
         let to_malus = to_history_malus(depth);
+        let static_bonus = static_history_bonus(depth);
+        let static_malus = static_history_malus(depth);
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
@@ -842,6 +851,18 @@ fn alpha_beta<NODE: NodeType>(
                 }
             }
         }
+
+        for sq in board.us() {
+            let pc = board.piece_at(sq).unwrap();
+            let sq = if sq == best_move.from() { best_move.to() } else { sq };
+            td.history.static_history.update(board.stm, pc, sq, static_bonus);
+        }
+        for sq in board.them() {
+            let pc = board.piece_at(sq).unwrap();
+            td.history.static_history.update(!board.stm, pc, sq, static_malus);
+        }
+        let best_mv_static_score = td.history.static_history.get(board.stm, pc, best_move.from());
+        measure!("bm_score", best_mv_static_score as i64);
     }
 
     // Prior Countermove Bonus
