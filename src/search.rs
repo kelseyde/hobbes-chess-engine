@@ -811,7 +811,8 @@ fn alpha_beta<NODE: NodeType>(
 
         if let Some(captured) = board.captured(&best_move) {
              // If the best move was a capture, give it a capture history bonus.
-            td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
+            let capture_sq = best_move.capture_sq();
+            td.history.capture_history.update(board.stm, pc, best_move.from(), capture_sq, captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
@@ -838,7 +839,8 @@ fn alpha_beta<NODE: NodeType>(
         for mv in captures.iter() {
             if mv != &best_move {
                 if let Some(captured) = board.captured(mv) {
-                    td.history.capture_history.update(board.stm, pc, mv, captured, capt_malus);
+                    let capture_sq = best_move.capture_sq();
+                    td.history.capture_history.update(board.stm, pc, mv.from(), capture_sq, captured, capt_malus);
                 }
             }
         }

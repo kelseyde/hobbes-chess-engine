@@ -278,10 +278,10 @@ impl CaptureHistory {
         lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
     }
 
-    pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
+    pub fn update(&mut self, stm: Side, pc: Piece, from: Square, to: Square, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
-        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
+        let pt_entry = &mut self.piece_to_entries[stm][pc][to][captured];
+        let ft_entry = &mut self.from_to_entries[stm][from][to];
         update_entry(pt_entry, bonus, Self::MAX);
         update_entry(ft_entry, bonus, Self::MAX);
     }

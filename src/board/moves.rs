@@ -55,6 +55,14 @@ impl Move {
     pub const fn to(self) -> Square {
         Square(((self.0 & TO_MASK) >> 6) as u8)
     }
+    
+    pub fn capture_sq(self) -> Square {
+        if self.is_ep() {
+            Square(self.to().0 ^ 8)
+        } else {
+            self.to()
+        }
+    }
 
     pub const fn flag(self) -> MoveFlag {
         match (self.0 & FLAG_MASK) >> 12 {

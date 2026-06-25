@@ -293,15 +293,10 @@ impl NNUE {
         captured: Piece,
         side: Side,
     ) -> AccumulatorUpdate {
-        let capture_sq = if mv.is_ep() {
-            Square(mv.to().0 ^ 8)
-        } else {
-            mv.to()
-        };
         AccumulatorUpdate::AddSubSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
-            Feature::new(captured, capture_sq, !side),
+            Feature::new(captured, mv.capture_sq(), !side),
         )
     }
 
