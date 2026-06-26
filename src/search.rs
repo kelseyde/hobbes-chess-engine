@@ -809,14 +809,21 @@ fn alpha_beta<NODE: NodeType>(
         let to_bonus = to_history_bonus(depth);
         let to_malus = to_history_malus(depth);
 
+        let promo_bonus = promo_history_bonus(depth);
+        let promo_malus = promo_history_malus(depth);
+
         if let Some(captured) = board.captured(&best_move) {
-             // If the best move was a capture, give it a capture history bonus.
+            // If the best move was a capture, give it a capture history bonus.
             td.history.capture_history.update(board.stm, pc, &best_move, captured, capt_bonus);
         } else {
             // If the best move was quiet, record it as a 'killer' and give it a quiet history bonus.
             td.stack[ply].killer = Some(best_move);
             let pc = board.piece_at(best_move.from()).unwrap();
-            td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
+            if best_move.is_promo() {
+                td.history.promo_history.update(board.stm, &best_move, promo_bonus);
+            } else {
+                td.history.quiet_history.update(board.stm, &best_move, pc, threats, quiet_bonus, quiet_factoriser_bonus);
+            }
             td.history.update_continuation_history(board, &td.stack, ply, &best_move, pc, &cont_bonuses);
             td.history.from_history.update(board.stm, best_move.from(), from_bonus);
             td.history.to_history.update(board.stm, best_move.to(), to_bonus);
@@ -825,8 +832,12 @@ fn alpha_beta<NODE: NodeType>(
             for mv in quiets.iter() {
                 if mv != &best_move {
                     let pc = board.piece_at(mv.from()).unwrap();
-                    td.history.quiet_history
-                        .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
+                    if mv.is_promo() {
+                        td.history.promo_history.update(board.stm, mv, promo_malus);
+                    } else {
+                        td.history.quiet_history
+                            .update(board.stm, mv, pc, threats, quiet_malus, quiet_factoriser_malus);
+                    }
                     td.history.update_continuation_history(board, &td.stack, ply, mv, pc, &cont_maluses);
                     td.history.from_history.update(board.stm, mv.from(), from_malus);
                     td.history.to_history.update(board.stm, mv.to(), to_malus);

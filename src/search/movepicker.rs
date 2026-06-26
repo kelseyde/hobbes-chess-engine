@@ -224,8 +224,11 @@ fn score_move(
             .capture_history_score(board, mv, attacker, victim);
         entry.score = 16 * victim_value + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
-        // Score quiet
-        let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
+        let quiet_score = if mv.is_promo() {
+            td.history.promo_history.get(board.stm, *mv) as i32
+        } else {
+            td.history.quiet_history_score(board, mv, pc, threats)
+        };
         let cont_score = td.history.cont_history_score(board, &td.stack, mv, ply);
         let killer_bonus = if td.stack[ply].killer == Some(*mv) {
             KILLER_BONUS

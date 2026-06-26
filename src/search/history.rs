@@ -16,14 +16,15 @@ use crate::search::parameters::{
     lmr_cont_1_bonus_max, lmr_cont_1_bonus_offset, lmr_cont_1_bonus_scale, lmr_cont_1_malus_max,
     lmr_cont_1_malus_offset, lmr_cont_1_malus_scale, lmr_cont_2_bonus_max, lmr_cont_2_bonus_offset,
     lmr_cont_2_bonus_scale, lmr_cont_2_malus_max, lmr_cont_2_malus_offset, lmr_cont_2_malus_scale,
-    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, qs_capt_hist_bonus_max,
-    qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale, qs_capt_hist_malus_max,
-    qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
-    quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
-    quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
-    to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
-    to_hist_malus_offset, to_hist_malus_scale,
+    pcm_bonus_max, pcm_bonus_offset, pcm_bonus_scale, promo_hist_bonus_max, promo_hist_bonus_offset,
+    promo_hist_bonus_scale, promo_hist_malus_max, promo_hist_malus_offset, promo_hist_malus_scale,
+    qs_capt_hist_bonus_max, qs_capt_hist_bonus_offset, qs_capt_hist_bonus_scale,
+    qs_capt_hist_malus_max, qs_capt_hist_malus_offset, qs_capt_hist_malus_scale,
+    quiet_fact_bonus_max, quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max,
+    quiet_fact_malus_offset, quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset,
+    quiet_hist_bonus_scale, quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset,
+    quiet_hist_malus_scale, to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale,
+    to_hist_malus_max, to_hist_malus_offset, to_hist_malus_scale,
 };
 use crate::tools::utils::lerp;
 use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
@@ -69,6 +70,11 @@ pub struct SquareHistory {
     pub entries: Box<[[i16; 64]; 2]>,
 }
 
+/// History table for push promotions. Indexed by [stm][file][promo_piece].
+pub struct PromoHistory {
+    entries: Box<[[[i16; Piece::COUNT]; 8]; 2]>,
+}
+
 /// Container for a [`ThreatBucket`] and a factoriser, which are updated together for each quiet move.
 #[derive(Default, Copy, Clone)]
 struct QuietHistoryEntry {
@@ -83,6 +89,7 @@ pub struct Histories {
     pub cont_history: ContinuationHistory,
     pub from_history: SquareHistory,
     pub to_history: SquareHistory,
+    pub promo_history: PromoHistory,
 }
 
 impl Histories {
@@ -100,7 +107,11 @@ impl Histories {
         if let Some(captured) = captured {
             self.capture_history_score(board, mv, pc, captured)
         } else {
-            let quiet_score = self.quiet_history_score(board, mv, pc, threats);
+            let quiet_score = if mv.is_promo() {
+                self.promo_history.get(board.stm, *mv) as i32
+            } else {
+                self.quiet_history_score(board, mv, pc, threats)
+            };
             let cont_score = self.cont_history_score(board, ss, mv, ply);
             let from_score = self.from_history.get(board.stm, mv.from()) as i32;
             let to_score = self.to_history.get(board.stm, mv.to()) as i32;
@@ -172,6 +183,7 @@ impl Histories {
         self.cont_history.clear();
         self.from_history.clear();
         self.to_history.clear();
+        self.promo_history.clear();
     }
 }
 
@@ -202,6 +214,14 @@ impl Default for ContinuationHistory {
 }
 
 impl Default for SquareHistory {
+    fn default() -> Self {
+        Self {
+            entries: unsafe { boxed_and_zeroed() },
+        }
+    }
+}
+
+impl Default for PromoHistory {
     fn default() -> Self {
         Self {
             entries: unsafe { boxed_and_zeroed() },
@@ -343,6 +363,31 @@ impl SquareHistory {
     }
 }
 
+impl PromoHistory {
+    const MAX: i32 = 16384;
+    const BONUS_MAX: i16 = Self::MAX as i16 / 4;
+
+    /// Score for a push promotion, indexed by [stm][file][promo_piece].
+    pub fn get(&self, stm: Side, mv: Move) -> i16 {
+        let Some(promo_piece) = mv.promo_piece() else { return 0 };
+        self.entries[stm][mv.to().file() as usize][promo_piece]
+    }
+
+    pub fn update(&mut self, stm: Side, mv: &Move, bonus: i16) {
+        let Some(promo_piece) = mv.promo_piece() else { return };
+        let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
+        update_entry(
+            &mut self.entries[stm][mv.to().file() as usize][promo_piece],
+            bonus,
+            Self::MAX,
+        );
+    }
+
+    pub fn clear(&mut self) {
+        self.entries = unsafe { boxed_and_zeroed() };
+    }
+}
+
 pub struct ThreatIndex {
     pub from_attacked: bool,
     pub to_attacked: bool,
@@ -416,6 +461,8 @@ mod bonuses {
                      to_history_malus          (to_hist_malus_scale,       to_hist_malus_offset,       to_hist_malus_max));
     history_bonuses!(qs_capthist_bonus         (qs_capt_hist_bonus_scale,  qs_capt_hist_bonus_offset,  qs_capt_hist_bonus_max),
                      qs_capthist_malus         (qs_capt_hist_malus_scale,  qs_capt_hist_malus_offset,  qs_capt_hist_malus_max));
+    history_bonuses!(promo_history_bonus       (promo_hist_bonus_scale,    promo_hist_bonus_offset,    promo_hist_bonus_max),
+                     promo_history_malus       (promo_hist_malus_scale,    promo_hist_malus_offset,    promo_hist_malus_max));
     history_bonuses!(lmr_conthist_1_bonus      (lmr_cont_1_bonus_scale,    lmr_cont_1_bonus_offset,    lmr_cont_1_bonus_max),
                      lmr_conthist_1_malus      (lmr_cont_1_malus_scale,    lmr_cont_1_malus_offset,    lmr_cont_1_malus_max));
     history_bonuses!(lmr_conthist_2_bonus      (lmr_cont_2_bonus_scale,    lmr_cont_2_bonus_offset,    lmr_cont_2_bonus_max),
