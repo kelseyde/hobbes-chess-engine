@@ -1128,6 +1128,7 @@ fn make_move(
     captured: Option<Piece>,
     ply: usize,
 ) {
+    td.tt.prefetch(board.key_after(mv));
     td.nnue.update(&mv, pc, captured, board);
     board.make(&mv);
     td.stack[ply].mv = Some(mv);

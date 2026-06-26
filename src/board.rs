@@ -358,15 +358,39 @@ impl Board {
     }
 
     pub fn hash_with_50mr_bucket(&self) -> u64 {
-        self.hashes.hash() ^ Keys::hm(self.hm_bucket())
+        self.hashes.hash() ^ Keys::hm(self.hm_bucket(self.hm))
     }
 
-    pub fn hm_bucket(&self) -> usize {
-        if self.hm < 50 {
+    fn hm_bucket(&self, hm: u8) -> usize {
+        if hm < 50 {
             0
         } else {
-            (self.hm.saturating_sub(8) as usize / 8).min(15)
+            (hm.saturating_sub(8) as usize / 8).min(15)
         }
+    }
+
+    pub fn key_after(&self, mv: Move) -> u64 {
+        let from = mv.from();
+        let to = mv.to();
+        let pc = self.piece_at(from).unwrap();
+        let captured = self.captured(&mv);
+
+        let from_hash = Keys::sq(pc, self.stm, from);
+        let to_hash = Keys::sq(pc, self.stm, to);
+        let mut key = self.hashes.hash() ^ from_hash ^ to_hash;
+
+        if let Some(captured) = captured {
+            key ^= Keys::sq(captured, !self.stm, self.capture_sq(mv.flag(), to))
+        }
+
+        let hm = if captured.is_some() || pc == Piece::Pawn {
+            0
+        } else {
+            self.hm + 1
+        };
+        let bucket = self.hm_bucket(hm);
+
+        key ^ Keys::hm(bucket)
     }
 
     #[inline]
