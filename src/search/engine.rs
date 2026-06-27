@@ -136,8 +136,7 @@ impl Engine {
         }));
     }
 
-    /// Signal the current search to stop. The main thread will finish its current iteration,
-    /// print `bestmove`, and all helpers will stop at their next `should_stop` check.
+    /// Set the global abort flag, signalling all search threads to stop.
     pub fn stop(&self) {
         self.abort.store(true, Relaxed);
     }
@@ -161,8 +160,7 @@ impl Engine {
         self.handle.is_some()
     }
 
-    /// Clear the transposition table and all per-thread search state (history, correction
-    /// history, keys, etc.). Called on `ucinewgame`.
+    /// Clear the TT and all thread-local state. Called on `ucinewgame`.
     pub fn new_game(&mut self) {
         let threads = self.threads.as_mut().unwrap();
         threads[0].clear(); // clears the shared TT + this thread's local state
