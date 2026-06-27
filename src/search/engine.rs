@@ -87,8 +87,7 @@ impl Engine {
     }
 
     /// Start a new search on the given `board` with the given `limits`. Spawns a coordinator
-    /// thread that runs the main search alongside `num_threads - 1` helpers in a `thread::scope`,
-    /// then returns immediately.
+    /// thread that runs the main search alongside `num_threads - 1` helpers.
     pub fn go(&mut self, board: Board, limits: SearchLimits) {
         self.sync_thread_pool();
 
@@ -105,8 +104,7 @@ impl Engine {
         threads[0].start_time = start_time;
         threads[0].limits = limits.clone();
 
-        // Configure each helper: copy the position history (for repetition detection) but keep
-        // its own history tables (for search diversity), and share the same time limits.
+        // Configure helpers.
         for helper in threads[1..].iter_mut() {
             helper.keys = keys.clone();
             helper.root_ply = root_ply;
@@ -117,14 +115,11 @@ impl Engine {
             helper.limits = limits.clone();
         }
 
-        // Age the TT once per search and clear the abort flag.
+        // Age the TT and clear the abort flag.
         threads[0].tt().birthday();
         self.abort.store(false, Relaxed);
 
         self.handle = Some(std::thread::spawn(move || {
-            // `split_first_mut` gives disjoint mutable references to [0] and [1..] without any
-            // unsafe code. `thread::scope` guarantees every helper has finished before we leave,
-            // so we can safely return the whole vec afterwards.
             std::thread::scope(|s| {
                 let (main_td, helpers) = threads.split_first_mut().unwrap();
                 for helper in helpers.iter_mut() {
