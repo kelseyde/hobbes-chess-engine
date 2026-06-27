@@ -29,12 +29,11 @@ pub struct TranspositionTable {
     age: AtomicU8,
 }
 
-/// The encoded data word of a default (empty) entry: `best_move = 0`, `score = eval = score::MIN`,
-/// `depth = 0`, and `flags = 0` (i.e. [`TTFlag::None`]). Used to initialise/clear buckets.
-const DEFAULT_ENTRY_DATA: u64 = {
+/// Pack the default score and eval values into their appropriate positions in the 64-bit data word.
+const DEFAULT_ENTRY_RAW: u64 = {
     let score = (score::MIN as i16) as u16 as u64;
     let eval = (score::MIN as i16) as u16 as u64;
-    (score << 16) | (eval << 32)
+    (score << SCORE_SHIFT) | (eval << EVAL_SHIFT)
 };
 
 #[repr(align(32))]
@@ -47,9 +46,9 @@ impl Default for Bucket {
     fn default() -> Bucket {
         Bucket {
             data: [
-                AtomicU64::new(DEFAULT_ENTRY_DATA),
-                AtomicU64::new(DEFAULT_ENTRY_DATA),
-                AtomicU64::new(DEFAULT_ENTRY_DATA),
+                AtomicU64::new(DEFAULT_ENTRY_RAW),
+                AtomicU64::new(DEFAULT_ENTRY_RAW),
+                AtomicU64::new(DEFAULT_ENTRY_RAW),
             ],
             keys: AtomicU64::new(0),
         }
@@ -220,7 +219,7 @@ impl TranspositionTable {
     pub fn clear(&mut self) {
         for bucket in self.table.iter() {
             for word in &bucket.data {
-                word.store(DEFAULT_ENTRY_DATA, Relaxed);
+                word.store(DEFAULT_ENTRY_RAW, Relaxed);
             }
             bucket.keys.store(0, Relaxed);
         }
