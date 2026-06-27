@@ -163,7 +163,7 @@ impl Engine {
     /// Clear the TT and all thread-local state. Called on `ucinewgame`.
     pub fn new_game(&mut self) {
         let threads = self.threads.as_mut().unwrap();
-        threads[0].clear(); // clears the shared TT + this thread's local state
+        threads[0].clear();
         for helper in threads[1..].iter_mut() {
             helper.clear_local();
         }
