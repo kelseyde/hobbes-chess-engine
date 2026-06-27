@@ -35,11 +35,16 @@ impl Cuckoo {
     pub fn moves(idx: usize) -> Move {
         unsafe { CUCKOO_MOVES[idx] }
     }
-
 }
 
 pub fn init() {
-    const PIECES: [Piece; 5] = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
+    const PIECES: [Piece; 5] = [
+        Piece::Knight,
+        Piece::Bishop,
+        Piece::Rook,
+        Piece::Queen,
+        Piece::King,
+    ];
     const SIDES: [Side; 2] = [Side::White, Side::Black];
 
     let mut count = 0usize;
@@ -56,7 +61,8 @@ pub fn init() {
                         continue;
                     }
 
-                    let key = Keys::sq(piece, side, from_sq) ^ Keys::sq(piece, side, to_sq) ^ Keys::stm();
+                    let key =
+                        Keys::sq(piece, side, from_sq) ^ Keys::sq(piece, side, to_sq) ^ Keys::stm();
                     let mv = Move::new(from_sq, to_sq, MoveFlag::Standard);
                     insert(key, mv);
                     count += 1;
@@ -65,7 +71,11 @@ pub fn init() {
         }
     }
 
-    assert_eq!(count, 3668, "Failed to initialise cuckoo tables: expected 3668, got {}", count);
+    assert_eq!(
+        count, 3668,
+        "Failed to initialise cuckoo tables: expected 3668, got {}",
+        count
+    );
 }
 
 fn insert(mut key: u64, mut mv: Move) {

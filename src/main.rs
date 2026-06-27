@@ -1,6 +1,6 @@
+use crate::board::cuckoo;
 use crate::tools::uci::UCI;
 use board::ray;
-use crate::board::cuckoo;
 
 pub const AUTHOR: &str = "Dan Kelsey";
 pub const CONTRIBUTORS: &str = "Jonathan Hallström, Mattia Giambirtone";

@@ -175,7 +175,8 @@ impl MovePicker {
         if self.idx >= end {
             return None;
         }
-        let packed = self.moves
+        let packed = self
+            .moves
             .list
             .iter()
             .enumerate()

@@ -39,6 +39,10 @@ pub struct ThreadData {
     pub start_time: Instant,
     pub best_move_stability: u32,
     pub score_stability: u32,
+    /// This thread's own node count. Unlike the shared global counter, this is private to the
+    /// thread and drives the per-root-move node accounting used by node-based time management,
+    /// which must reflect only this thread's own work.
+    pub local_nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
@@ -46,15 +50,18 @@ pub struct ThreadData {
     pub best_score: i32,
 }
 
-impl Default for ThreadData {
-    fn default() -> Self {
+impl ThreadData {
+    /// Construct a thread's search data, sharing the given [`SharedContext`] (transposition table
+    /// and global node counter) and abort flag. This does not allocate a transposition table of
+    /// its own, so it is cheap enough to build a pool of helper threads.
+    pub fn new(id: usize, main: bool, shared: Arc<SharedContext>, abort: Arc<AtomicBool>) -> Self {
         ThreadData {
-            id: 0,
-            main: true,
+            id,
+            main,
             minimal_output: false,
             use_soft_nodes: false,
-            shared: Arc::new(SharedContext::default()),
-            abort: Arc::new(AtomicBool::new(false)),
+            shared,
+            abort,
             pv: PrincipalVariationTable::default(),
             stack: NodeStack::default(),
             nnue: NNUE::default(),
@@ -68,12 +75,24 @@ impl Default for ThreadData {
             start_time: Instant::now(),
             best_move_stability: 0,
             score_stability: 0,
+            local_nodes: 0,
             depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
             best_score: score::MIN,
         }
+    }
+}
+
+impl Default for ThreadData {
+    fn default() -> Self {
+        Self::new(
+            0,
+            true,
+            Arc::new(SharedContext::default()),
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 }
 
@@ -104,23 +123,25 @@ impl ThreadData {
         self.shared.nodes.load(Relaxed)
     }
 
-    /// Increment the global node counter.
+    /// This thread's own node count.
     #[inline]
-    pub fn inc_nodes(&self) {
-        self.shared.nodes.fetch_add(1, Relaxed);
+    pub fn local_nodes(&self) -> u64 {
+        self.local_nodes
     }
-    
-    pub fn resize_tt(&mut self, mb: usize) {
-        match Arc::get_mut(&mut self.shared) {
-            Some(shared) => shared.tt.resize(mb),
-            None => self.shared = Arc::new(SharedContext::new(mb)),
-        }
+
+    /// Increment both this thread's local counter and the shared global node counter.
+    #[inline]
+    pub fn inc_nodes(&mut self) {
+        self.local_nodes += 1;
+        self.shared.nodes.fetch_add(1, Relaxed);
     }
 
     pub fn reset(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
         self.shared.nodes.store(0, Relaxed);
+        self.local_nodes = 0;
+        self.abort.store(false, Relaxed);
         self.depth = 1;
         self.seldepth = 0;
         self.best_move = Move::NONE;
@@ -129,8 +150,15 @@ impl ThreadData {
         self.score_stability = 0;
     }
 
+    /// Clear the (shared) transposition table and this thread's per-thread search tables.
     pub fn clear(&mut self) {
         self.tt().clear();
+        self.clear_local();
+    }
+
+    /// Clear this thread's per-thread search tables, without touching the shared transposition
+    /// table. Used when clearing a pool of threads that all share a single table.
+    pub fn clear_local(&mut self) {
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
@@ -142,30 +170,41 @@ impl ThreadData {
     }
 
     pub fn should_stop(&self, limit_type: LimitType) -> bool {
+        // Always complete the first depth, to ensure at least one legal move.
         if self.depth <= 1 {
-            // Always clear the first depth, to ensure at least one legal move
             return false;
         }
-        // An external abort (e.g. the UCI 'stop' command) halts the search immediately, returning
-        // the best move found so far.
+        // Helper threads do no time management of their own: they search until the main thread
+        // signals an abort (either because a limit was reached, or because of a UCI 'stop').
+        if !self.main {
+            return self.abort.load(Relaxed);
+        }
+        // The main thread aborts immediately on an external stop (e.g. the UCI 'stop' command).
         if self.abort.load(Relaxed) {
             return true;
         }
-        match limit_type {
+        // Only the main thread checks the search limits. When one is reached it raises the shared
+        // abort flag, so the helper threads stop too, then returns the best move found so far.
+        let stop = match limit_type {
             LimitType::Soft => self.soft_limit_reached(),
             LimitType::Hard => self.hard_limit_reached(),
+        };
+        if stop {
+            self.abort.store(true, Relaxed);
         }
+        stop
     }
 
     pub fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
         let score_stability = self.score_stability as u64;
-        let nodes = self.nodes();
 
+        // Node-based time scaling uses this thread's own (local) node count, so that the fraction
+        // of nodes spent on the best move is self-consistent and unaffected by helper threads.
         if let Some(soft_time) = self.limits.scaled_soft_limit(
             self.depth,
-            nodes,
+            self.local_nodes,
             best_move_nodes,
             best_move_stability,
             score_stability,
@@ -175,8 +214,9 @@ impl ThreadData {
             }
         }
 
+        // The node budget, by contrast, is a global limit across all threads.
         if let Some(soft_nodes) = self.limits.soft_nodes {
-            if nodes >= soft_nodes {
+            if self.nodes() >= soft_nodes {
                 return true;
             }
         }
@@ -191,16 +231,16 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
-        let nodes = self.nodes();
-
+        // The node budget is a global limit across all threads.
         if let Some(hard_nodes) = self.limits.hard_nodes {
-            if nodes >= hard_nodes {
+            if self.nodes() >= hard_nodes {
                 return true;
             }
         }
 
-        // Only check hard time/depth limits every 2048 nodes to reduce overhead
-        if nodes % 2048 != 0 {
+        // Only check hard time/depth limits every 2048 nodes to reduce overhead. We throttle on
+        // this thread's own node count so the cadence is independent of the number of threads.
+        if self.local_nodes % 2048 != 0 {
             return false;
         }
 

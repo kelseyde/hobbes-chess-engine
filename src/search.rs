@@ -1,4 +1,5 @@
 pub mod correction;
+pub mod engine;
 pub mod history;
 pub mod movepicker;
 pub mod node;
@@ -9,9 +10,11 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use crate::board::cuckoo::Cuckoo;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
+use crate::board::zobrist::Keys;
 use crate::board::{ray, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -28,8 +31,6 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::board::cuckoo::Cuckoo;
-use crate::board::zobrist::Keys;
 
 pub const MAX_PLY: usize = 256;
 
@@ -613,7 +614,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let gives_check = board.threats.contains(board.king_sq(board.stm));
 
-        let initial_nodes = td.nodes();
+        let initial_nodes = td.local_nodes();
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
         let mut score = score::MIN;
@@ -702,7 +703,7 @@ fn alpha_beta<NODE: NodeType>(
         unmake_move(td, ply);
 
         if root_node {
-            td.node_table.add(&mv, td.nodes() - initial_nodes);
+            td.node_table.add(&mv, td.local_nodes() - initial_nodes);
             if searched_moves == 1 {
                 td.pv.update(0, mv);
             }
@@ -1266,9 +1267,17 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
 #[inline]
 fn se_config(is_quiet: bool) -> (i32, i32, i32) {
     if is_quiet {
-        (se_beta_quiet_base(), se_beta_quiet_scale(), se_beta_quiet_div())
+        (
+            se_beta_quiet_base(),
+            se_beta_quiet_scale(),
+            se_beta_quiet_div(),
+        )
     } else {
-        (se_beta_noisy_base(), se_beta_noisy_scale(), se_beta_noisy_div())
+        (
+            se_beta_noisy_base(),
+            se_beta_noisy_scale(),
+            se_beta_noisy_div(),
+        )
     }
 }
 
@@ -1360,4 +1369,3 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_score = score;
     (td.best_move, td.best_score)
 }
-
