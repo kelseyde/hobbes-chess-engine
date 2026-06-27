@@ -17,6 +17,11 @@ const AGE_MASK: u8 = AGE_CYCLE - 1;
 
 const _: () = assert!(BUCKET_SIZE == 32);
 
+const SCORE_SHIFT: u32 = 16;
+const EVAL_SHIFT: u32 = 32;
+const DEPTH_SHIFT: u32 = 48;
+const FLAGS_SHIFT: u32 = 56;
+
 pub struct TranspositionTable {
     table: Vec<Bucket>,
     size_mb: usize,
@@ -129,11 +134,11 @@ impl Entry {
         Entry {
             key,
             best_move: data as u16,
-            score: (data >> 16) as i16,
-            eval: (data >> 32) as i16,
-            depth: (data >> 48) as u8,
+            score: (data >> SCORE_SHIFT) as i16,
+            eval: (data >> EVAL_SHIFT) as i16,
+            depth: (data >> DEPTH_SHIFT) as u8,
             flags: Flags {
-                data: (data >> 56) as u8,
+                data: (data >> FLAGS_SHIFT) as u8,
             },
         }
     }
@@ -142,10 +147,10 @@ impl Entry {
     #[inline]
     fn to_data(&self) -> u64 {
         (self.best_move as u64)
-            | ((self.score as u16 as u64) << 16)
-            | ((self.eval as u16 as u64) << 32)
-            | ((self.depth as u64) << 48)
-            | ((self.flags.data as u64) << 56)
+            | ((self.score as u16 as u64) << SCORE_SHIFT)
+            | ((self.eval as u16 as u64) << EVAL_SHIFT)
+            | ((self.depth as u64) << DEPTH_SHIFT)
+            | ((self.flags.data as u64) << FLAGS_SHIFT)
     }
 
     pub const fn best_move(&self) -> Move {
@@ -337,7 +342,7 @@ impl TranspositionTable {
         for bucket in self.table.iter().take(1000 / ENTRIES_PER_BUCKET) {
             for word in &bucket.data {
                 let flags = Flags {
-                    data: (word.load(Relaxed) >> 56) as u8,
+                    data: (word.load(Relaxed) >> FLAGS_SHIFT) as u8,
                 };
                 if flags.bound() != TTFlag::None {
                     fill += 1;
