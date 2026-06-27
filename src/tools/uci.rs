@@ -440,6 +440,8 @@ impl UCI {
         println!("info {d:.2?} ({mnps:.2}Mnps)\n");
     }
 
+    /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
+    /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
         let count = self.parse_uint(&tokens, "genfens").unwrap_or({
             println!("info error: count is not a valid number");

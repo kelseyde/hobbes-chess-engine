@@ -195,7 +195,6 @@ impl Engine {
             helper.abort = Arc::clone(&abort);
         }
 
-        // Keep our own abort clone in sync.
         self.abort = abort;
     }
 }
