@@ -3,11 +3,11 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 use crate::evaluation::stats;
+use crate::search::engine::{Engine, MAX_THREADS};
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
-use crate::search::search;
-use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
+use crate::search::tt;
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
@@ -19,7 +19,7 @@ use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
+    pub engine: Engine,
     pub frc: bool,
 }
 
@@ -33,7 +33,7 @@ impl UCI {
     pub fn new() -> UCI {
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            engine: Engine::new(),
             frc: false,
         }
     }
@@ -59,26 +59,33 @@ impl UCI {
                 .expect("info error failed to parse command");
             let tokens = self.split_args(line.clone());
 
+            self.engine.try_reclaim();
+
             if let Some(command) = line.split_ascii_whitespace().next() {
+                // If a search is running, only 'stop', 'quit', and 'isready' are handled.
+                // All other commands are ignored until the search finishes.
                 match command {
-                    "uci" => self.handle_uci(),
-                    "isready" => self.handle_isready(),
-                    "setoption" => self.handle_setoption(tokens),
-                    "ucinewgame" => self.handle_ucinewgame(),
-                    "bench" => self.handle_bench(),
-                    "position" => self.handle_position(tokens),
-                    "go" => self.handle_go(tokens),
                     "stop" => self.handle_stop(),
-                    "fen" => self.handle_fen(),
-                    "eval" => self.handle_eval(),
-                    "eval_stats" => self.handle_eval_stats(tokens),
-                    "perft" => self.handle_perft(tokens),
-                    "genfens" => self.handle_genfens(tokens),
-                    "help" => self.handle_help(),
-                    #[cfg(feature = "tuning")]
-                    "params" => print_params_ob(),
                     "quit" => self.handle_quit(),
-                    _ => println!("info error: unknown command"),
+                    "isready" => self.handle_isready(),
+                    _ if self.engine.searching() => continue,
+                    _ => match command {
+                        "uci" => self.handle_uci(),
+                        "setoption" => self.handle_setoption(tokens),
+                        "ucinewgame" => self.handle_ucinewgame(),
+                        "bench" => self.handle_bench(),
+                        "position" => self.handle_position(tokens),
+                        "go" => self.handle_go(tokens),
+                        "fen" => self.handle_fen(),
+                        "eval" => self.handle_eval(),
+                        "eval_stats" => self.handle_eval_stats(tokens),
+                        "perft" => self.handle_perft(tokens),
+                        "genfens" => self.handle_genfens(tokens),
+                        "help" => self.handle_help(),
+                        #[cfg(feature = "tuning")]
+                        "params" => print_params_ob(),
+                        _ => println!("info error: unknown command"),
+                    },
                 }
             } else {
                 continue;
@@ -89,10 +96,13 @@ impl UCI {
     fn handle_uci(&self) {
         println!("id name Hobbes {}", VERSION);
         println!("id author Dan Kelsey");
-        println!("option name Threads type spin default 1 min 1 max 1");
+        println!(
+            "option name Threads type spin default 1 min 1 max {}",
+            MAX_THREADS
+        );
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            tt::DEFAULT_TT_SIZE
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -115,7 +125,7 @@ impl UCI {
 
         match tokens.as_slice() {
             ["setoption", "name", "hash", "value", size_str] => self.set_hash_size(size_str),
-            ["setoption", "name", "threads", "value", _] => (), // TODO set threads
+            ["setoption", "name", "threads", "value", n_str] => self.set_threads(n_str),
             ["setoption", "name", "uci_chess960", "value", bool_str] => {
                 self.set_chess_960(bool_str)
             }
@@ -125,9 +135,7 @@ impl UCI {
             }
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
-            _ => {
-                println!("info error unknown option");
-            }
+            _ => println!("info error unknown option"),
         }
     }
 
@@ -139,8 +147,18 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        self.engine.set_hash(value);
         println!("info string Hash {}", value);
+    }
+
+    fn set_threads(&mut self, value_str: &str) {
+        match value_str.parse::<usize>() {
+            Ok(n) if n >= 1 => {
+                self.engine.set_threads(n);
+                println!("info string Threads {}", self.engine.num_threads());
+            }
+            _ => println!("info error: invalid value '{}'", value_str),
+        }
     }
 
     fn set_chess_960(&mut self, bool_str: &str) {
@@ -166,7 +184,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.minimal_output = value;
+        self.engine.set_minimal_output(value);
         println!("info string Minimal {}", value);
     }
 
@@ -179,7 +197,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.use_soft_nodes = value;
+        self.engine.set_use_soft_nodes(value);
         println!("info string UseSoftNodes {}", value);
     }
 
@@ -196,11 +214,11 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.clear();
+        self.engine.new_game();
     }
 
     fn handle_bench(&mut self) {
-        bench(&mut self.td);
+        bench(self.engine.td_mut());
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -243,36 +261,33 @@ impl UCI {
             Vec::new()
         };
 
-        self.td.keys.clear();
-        self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash());
+        let start_hash = self.board.hash();
+        let td = self.engine.td_mut();
+        td.keys.clear();
+        td.root_ply = 0;
+        td.keys.push(start_hash);
 
-        moves.iter().for_each(|m| {
+        for m in &moves {
             let mut legal_moves = MoveList::new();
             self.board.gen_moves(MoveFilter::All, &mut legal_moves);
-            let legal_move = legal_moves
-                .iter()
-                .map(|entry| entry.mv)
-                .find(|lm| lm.matches(m));
-            match legal_move {
+            let legal = legal_moves.iter().map(|e| e.mv).find(|lm| lm.matches(m));
+            match legal {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash());
-                    self.td.root_ply += 1;
+                    let hash = self.board.hash();
+                    let td = self.engine.td_mut();
+                    td.keys.push(hash);
+                    td.root_ply += 1;
                 }
-                None => {
-                    println!("info error: illegal move {}", m.to_uci());
-                }
+                None => println!("info error: illegal move {}", m.to_uci()),
             }
-        });
+        }
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-        self.td.reset();
-        self.td.start_time = Instant::now();
-        self.td.tt.birthday();
+        let use_soft_nodes = self.engine.use_soft_nodes();
 
-        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -335,7 +350,7 @@ impl UCI {
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+        } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -366,7 +381,7 @@ impl UCI {
             }
         }
 
-        self.td.limits = SearchLimits::new(
+        let limits = SearchLimits::new(
             fischer,
             movetime,
             softnodes,
@@ -374,17 +389,15 @@ impl UCI {
             depth,
             self.board.fm as usize,
         );
+        self.engine.go(self.board, limits);
+    }
 
-        // Perform the search
-        search(&self.board, &mut self.td);
-
-        // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+    fn handle_stop(&mut self) {
+        self.engine.stop();
     }
 
     fn handle_eval(&mut self) {
-        self.td.nnue.activate(&self.board);
-        let eval: i32 = self.td.nnue.evaluate(&self.board);
+        let eval = self.engine.eval(self.board);
         println!("{}", eval);
     }
 
@@ -393,9 +406,7 @@ impl UCI {
             println!("info error: missing input file argument");
             return;
         }
-
-        let input_path = Path::new(&tokens[1]);
-        stats::eval_stats(&mut self.td, input_path);
+        stats::eval_stats(self.engine.td_mut(), Path::new(&tokens[1]));
     }
 
     fn handle_fen(&self) {
@@ -459,13 +470,9 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
+        for opening in generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
-    }
-
-    fn handle_stop(&mut self) {
-        //self.td.cancelled = true;
     }
 
     fn handle_help(&self) {
@@ -482,7 +489,9 @@ impl UCI {
         println!("quit        -- exit the application");
     }
 
-    fn handle_quit(&self) {
+    fn handle_quit(&mut self) {
+        self.engine.stop();
+        self.engine.join();
         std::process::exit(0);
     }
 

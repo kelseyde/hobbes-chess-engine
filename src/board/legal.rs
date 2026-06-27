@@ -10,8 +10,7 @@ use crate::board::square::Square;
 use crate::board::{attacks, ray, Board};
 
 impl Board {
-    
-    /// Check if a move is pseudo-legal in the current position. A move is pseudo-legal if it follows 
+    /// Check if a move is pseudo-legal in the current position. A move is pseudo-legal if it follows
     /// the basic rules of chess, but may leave the king in check.
     pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
         if !mv.exists() {
@@ -258,7 +257,7 @@ impl Board {
         }
     }
 
-    /// Checks is a move is legal in the current position. This function assumes that the move is 
+    /// Checks is a move is legal in the current position. This function assumes that the move is
     /// pseudo-legal.
     pub fn is_legal(&self, mv: &Move) -> bool {
         let from = mv.from();

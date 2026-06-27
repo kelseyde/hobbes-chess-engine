@@ -5,6 +5,7 @@ use crate::search::parameters::*;
 pub const UCI_OVERHEAD_MS: u64 = 50;
 
 #[rustfmt::skip]
+#[derive(Clone)]
 pub struct TimeParams {
     pub soft_tm_base:        f64,
     pub soft_tm_scale:       f64,
@@ -60,6 +61,7 @@ pub type FischerTime = (u64, u64);
 /// 'How stable the search is' can be captured a few ways: how many iterations the best move has
 /// remained the same, how stable the search score has been across iterations, or what portion of
 /// nodes have been spent searching the current best move.
+#[derive(Clone)]
 pub struct SearchLimits {
     pub hard_time: Option<Duration>,
     pub soft_time: Option<Duration>,

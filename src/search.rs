@@ -1,4 +1,5 @@
 pub mod correction;
+pub mod engine;
 pub mod history;
 pub mod movepicker;
 pub mod node;
@@ -9,9 +10,11 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use crate::board::cuckoo::Cuckoo;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
+use crate::board::zobrist::Keys;
 use crate::board::{ray, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
@@ -28,8 +31,6 @@ use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
 use SeeType::{Ordering, Pruning};
-use crate::board::cuckoo::Cuckoo;
-use crate::board::zobrist::Keys;
 
 pub const MAX_PLY: usize = 256;
 
@@ -217,7 +218,7 @@ fn alpha_beta<NODE: NodeType>(
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
+        if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -257,7 +258,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt().insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -362,9 +363,9 @@ fn alpha_beta<NODE: NodeType>(
 
             let mut board = *board;
             board.make_null_move();
-            td.nodes += 1;
+            td.inc_nodes();
             td.keys.push(board.hash());
-            td.tt.prefetch(board.hash_with_50mr_bucket());
+            td.tt().prefetch(board.hash_with_50mr_bucket());
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -613,7 +614,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let gives_check = board.threats.contains(board.king_sq(board.stm));
 
-        let initial_nodes = td.nodes;
+        let initial_nodes = td.local_nodes();
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
         let mut score = score::MIN;
@@ -702,7 +703,7 @@ fn alpha_beta<NODE: NodeType>(
         unmake_move(td, ply);
 
         if root_node {
-            td.node_table.add(&mv, td.nodes - initial_nodes);
+            td.node_table.add(&mv, td.local_nodes() - initial_nodes);
             if searched_moves == 1 {
                 td.pv.update(0, mv);
             }
@@ -880,7 +881,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt().insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     debug_assert!(best_score > score::MIN && best_score < score::MAX);
@@ -941,7 +942,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = score::MIN;
-    if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
+    if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
@@ -965,7 +966,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(
+            td.tt().insert(
                 board.hash_with_50mr_bucket(),
                 Move::NONE,
                 score::MIN,
@@ -1103,7 +1104,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(
+        td.tt().insert(
             board.hash_with_50mr_bucket(),
             best_move,
             best_score,
@@ -1134,8 +1135,8 @@ fn make_move(
     td.stack[ply].pc = Some(pc);
     td.stack[ply].captured = captured;
     td.keys.push(board.hash());
-    td.tt.prefetch(board.hash_with_50mr_bucket());
-    td.nodes += 1;
+    td.tt().prefetch(board.hash_with_50mr_bucket());
+    td.inc_nodes();
 }
 
 fn unmake_move(td: &mut ThreadData, ply: usize) {
@@ -1266,9 +1267,17 @@ fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
 #[inline]
 fn se_config(is_quiet: bool) -> (i32, i32, i32) {
     if is_quiet {
-        (se_beta_quiet_base(), se_beta_quiet_scale(), se_beta_quiet_div())
+        (
+            se_beta_quiet_base(),
+            se_beta_quiet_scale(),
+            se_beta_quiet_div(),
+        )
     } else {
-        (se_beta_noisy_base(), se_beta_noisy_scale(), se_beta_noisy_div())
+        (
+            se_beta_noisy_base(),
+            se_beta_noisy_scale(),
+            se_beta_noisy_div(),
+        )
     }
 }
 
@@ -1312,14 +1321,14 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     }
     let depth = td.depth;
     let seldepth = td.seldepth;
-    let nodes = td.nodes;
+    let nodes = td.nodes();
     let time = td.start_time.elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
         (nodes as u128 / time) * 1000
     } else {
         0
     };
-    let hashfull = td.tt.fill();
+    let hashfull = td.tt().fill();
     let bound = match bound {
         Lower => " lowerbound",
         Upper => " upperbound",
@@ -1360,4 +1369,3 @@ fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.best_score = score;
     (td.best_move, td.best_score)
 }
-

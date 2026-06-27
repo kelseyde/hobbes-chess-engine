@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, AtomicU8, Ordering::Relaxed};
 /// information. Since positions are often encountered via different move orders (via
 /// 'transposition'), the transposition table therefore greatly reduces the size of the search tree,
 /// since on subsequent visits we can re-use the results of previous searches.
-const DEFAULT_TT_SIZE: usize = 16;
+pub const DEFAULT_TT_SIZE: usize = 16;
 const ENTRIES_PER_BUCKET: usize = 3;
 const BUCKET_SIZE: usize = size_of::<Bucket>();
 const AGE_CYCLE: u8 = 1 << 5;
@@ -216,7 +216,7 @@ impl TranspositionTable {
     }
 
     /// Clear all entries in the transposition table by resetting them to their default values.
-    pub fn clear(&mut self) {
+    pub fn clear(&self) {
         for bucket in self.table.iter() {
             for word in &bucket.data {
                 word.store(DEFAULT_ENTRY_RAW, Relaxed);

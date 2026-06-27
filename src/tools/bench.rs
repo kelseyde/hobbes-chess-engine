@@ -76,7 +76,7 @@ pub fn bench(td: &mut ThreadData) {
         td.start_time = Instant::now();
         search(&board, td);
         println!("bestmove {}\n", td.best_move.to_uci());
-        nodes += td.nodes;
+        nodes += td.nodes();
         time += td.start_time.elapsed().as_millis() as u64;
     }
 
