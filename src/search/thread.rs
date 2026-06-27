@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::board::moves::Move;
@@ -11,12 +13,18 @@ use crate::search::tt::TranspositionTable;
 use crate::search::{score, MAX_PLY};
 use crate::tools::utils::boxed_and_zeroed;
 
+/// State shared between all search threads.
+pub struct SharedContext {
+    pub tt: TranspositionTable,
+    pub nodes: AtomicU64,
+}
+
 pub struct ThreadData {
     pub id: usize,
     pub main: bool,
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
-    pub tt: TranspositionTable,
+    pub shared: Arc<SharedContext>,
     pub pv: PrincipalVariationTable,
     pub stack: NodeStack,
     pub nnue: NNUE,
@@ -30,7 +38,6 @@ pub struct ThreadData {
     pub start_time: Instant,
     pub best_move_stability: u32,
     pub score_stability: u32,
-    pub nodes: u64,
     pub depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
@@ -45,7 +52,7 @@ impl Default for ThreadData {
             main: true,
             minimal_output: false,
             use_soft_nodes: false,
-            tt: TranspositionTable::new(64),
+            shared: Arc::new(SharedContext::default()),
             pv: PrincipalVariationTable::default(),
             stack: NodeStack::default(),
             nnue: NNUE::default(),
@@ -59,7 +66,6 @@ impl Default for ThreadData {
             start_time: Instant::now(),
             best_move_stability: 0,
             score_stability: 0,
-            nodes: 0,
             depth: 1,
             seldepth: 0,
             nmp_min_ply: 0,
@@ -69,11 +75,50 @@ impl Default for ThreadData {
     }
 }
 
+impl SharedContext {
+    pub fn new(tt_size_mb: usize) -> SharedContext {
+        SharedContext {
+            tt: TranspositionTable::new(tt_size_mb),
+            nodes: AtomicU64::new(0),
+        }
+    }
+}
+
+impl Default for SharedContext {
+    fn default() -> Self {
+        SharedContext::new(64)
+    }
+}
+
 impl ThreadData {
+    #[inline]
+    pub fn tt(&self) -> &TranspositionTable {
+        &self.shared.tt
+    }
+
+    /// The total number of nodes searched across all threads.
+    #[inline]
+    pub fn nodes(&self) -> u64 {
+        self.shared.nodes.load(Relaxed)
+    }
+
+    /// Increment the global node counter.
+    #[inline]
+    pub fn inc_nodes(&self) {
+        self.shared.nodes.fetch_add(1, Relaxed);
+    }
+    
+    pub fn resize_tt(&mut self, mb: usize) {
+        match Arc::get_mut(&mut self.shared) {
+            Some(shared) => shared.tt.resize(mb),
+            None => self.shared = Arc::new(SharedContext::new(mb)),
+        }
+    }
+
     pub fn reset(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
-        self.nodes = 0;
+        self.shared.nodes.store(0, Relaxed);
         self.depth = 1;
         self.seldepth = 0;
         self.best_move = Move::NONE;
@@ -83,7 +128,7 @@ impl ThreadData {
     }
 
     pub fn clear(&mut self) {
-        self.tt.clear();
+        self.tt().clear();
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
@@ -109,10 +154,11 @@ impl ThreadData {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
         let score_stability = self.score_stability as u64;
+        let nodes = self.nodes();
 
         if let Some(soft_time) = self.limits.scaled_soft_limit(
             self.depth,
-            self.nodes,
+            nodes,
             best_move_nodes,
             best_move_stability,
             score_stability,
@@ -123,7 +169,7 @@ impl ThreadData {
         }
 
         if let Some(soft_nodes) = self.limits.soft_nodes {
-            if self.nodes >= soft_nodes {
+            if nodes >= soft_nodes {
                 return true;
             }
         }
@@ -138,14 +184,16 @@ impl ThreadData {
     }
 
     pub fn hard_limit_reached(&self) -> bool {
+        let nodes = self.nodes();
+
         if let Some(hard_nodes) = self.limits.hard_nodes {
-            if self.nodes >= hard_nodes {
+            if nodes >= hard_nodes {
                 return true;
             }
         }
 
         // Only check hard time/depth limits every 2048 nodes to reduce overhead
-        if self.nodes % 2048 != 0 {
+        if nodes % 2048 != 0 {
             return false;
         }
 

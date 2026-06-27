@@ -217,7 +217,7 @@ fn alpha_beta<NODE: NodeType>(
     // If the depth and bounds do not match, we can still use information from the TT - such as the
     // best move, score, and static eval - to inform the current search.
     if !singular_search {
-        if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
+        if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
             tt_hit = true;
             tt_score = entry.score(ply) as i32;
             tt_eval = entry.static_eval() as i32;
@@ -257,7 +257,7 @@ fn alpha_beta<NODE: NodeType>(
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
+            td.tt().insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
         static_eval = raw_eval + correction;
@@ -362,9 +362,9 @@ fn alpha_beta<NODE: NodeType>(
 
             let mut board = *board;
             board.make_null_move();
-            td.nodes += 1;
+            td.inc_nodes();
             td.keys.push(board.hash());
-            td.tt.prefetch(board.hash_with_50mr_bucket());
+            td.tt().prefetch(board.hash_with_50mr_bucket());
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -613,7 +613,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let gives_check = board.threats.contains(board.king_sq(board.stm));
 
-        let initial_nodes = td.nodes;
+        let initial_nodes = td.nodes();
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
 
         let mut score = score::MIN;
@@ -702,7 +702,7 @@ fn alpha_beta<NODE: NodeType>(
         unmake_move(td, ply);
 
         if root_node {
-            td.node_table.add(&mv, td.nodes - initial_nodes);
+            td.node_table.add(&mv, td.nodes() - initial_nodes);
             if searched_moves == 1 {
                 td.pv.update(0, mv);
             }
@@ -880,7 +880,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // Store the best move and score in the transposition table
     if !singular_search && !td.hard_limit_reached(){
-        td.tt.insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
+        td.tt().insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
     debug_assert!(best_score > score::MIN && best_score < score::MAX);
@@ -941,7 +941,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
     let mut tt_eval = score::MIN;
-    if let Some(entry) = td.tt.probe(board.hash_with_50mr_bucket()) {
+    if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
         tt_eval = entry.static_eval() as i32;
@@ -965,7 +965,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             td.nnue.evaluate(board)
         };
         if !tt_hit {
-            td.tt.insert(
+            td.tt().insert(
                 board.hash_with_50mr_bucket(),
                 Move::NONE,
                 score::MIN,
@@ -1103,7 +1103,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // Write to transposition table
     if !td.hard_limit_reached() {
-        td.tt.insert(
+        td.tt().insert(
             board.hash_with_50mr_bucket(),
             best_move,
             best_score,
@@ -1134,8 +1134,8 @@ fn make_move(
     td.stack[ply].pc = Some(pc);
     td.stack[ply].captured = captured;
     td.keys.push(board.hash());
-    td.tt.prefetch(board.hash_with_50mr_bucket());
-    td.nodes += 1;
+    td.tt().prefetch(board.hash_with_50mr_bucket());
+    td.inc_nodes();
 }
 
 fn unmake_move(td: &mut ThreadData, ply: usize) {
@@ -1312,14 +1312,14 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
     }
     let depth = td.depth;
     let seldepth = td.seldepth;
-    let nodes = td.nodes;
+    let nodes = td.nodes();
     let time = td.start_time.elapsed().as_millis();
     let nps = if time > 0 && nodes > 0 {
         (nodes as u128 / time) * 1000
     } else {
         0
     };
-    let hashfull = td.tt.fill();
+    let hashfull = td.tt().fill();
     let bound = match bound {
         Lower => " lowerbound",
         Upper => " upperbound",

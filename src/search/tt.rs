@@ -216,7 +216,7 @@ impl TranspositionTable {
     }
 
     /// Clear all entries in the transposition table by resetting them to their default values.
-    pub fn clear(&mut self) {
+    pub fn clear(&self) {
         for bucket in self.table.iter() {
             for word in &bucket.data {
                 word.store(DEFAULT_ENTRY_RAW, Relaxed);

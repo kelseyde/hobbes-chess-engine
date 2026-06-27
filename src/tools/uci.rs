@@ -92,7 +92,7 @@ impl UCI {
         println!("option name Threads type spin default 1 min 1 max 1");
         println!(
             "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt.size_mb()
+            self.td.tt().size_mb()
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -139,7 +139,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.tt.resize(value);
+        self.td.resize_tt(value);
         println!("info string Hash {}", value);
     }
 
@@ -270,7 +270,7 @@ impl UCI {
     fn handle_go(&mut self, tokens: Vec<String>) {
         self.td.reset();
         self.td.start_time = Instant::now();
-        self.td.tt.birthday();
+        self.td.tt().birthday();
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
