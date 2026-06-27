@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -25,6 +25,7 @@ pub struct ThreadData {
     pub minimal_output: bool,
     pub use_soft_nodes: bool,
     pub shared: Arc<SharedContext>,
+    pub abort: Arc<AtomicBool>,
     pub pv: PrincipalVariationTable,
     pub stack: NodeStack,
     pub nnue: NNUE,
@@ -53,6 +54,7 @@ impl Default for ThreadData {
             minimal_output: false,
             use_soft_nodes: false,
             shared: Arc::new(SharedContext::default()),
+            abort: Arc::new(AtomicBool::new(false)),
             pv: PrincipalVariationTable::default(),
             stack: NodeStack::default(),
             nnue: NNUE::default(),
@@ -143,6 +145,11 @@ impl ThreadData {
         if self.depth <= 1 {
             // Always clear the first depth, to ensure at least one legal move
             return false;
+        }
+        // An external abort (e.g. the UCI 'stop' command) halts the search immediately, returning
+        // the best move found so far.
+        if self.abort.load(Relaxed) {
+            return true;
         }
         match limit_type {
             LimitType::Soft => self.soft_limit_reached(),

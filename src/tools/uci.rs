@@ -5,7 +5,7 @@ use crate::board::Board;
 use crate::evaluation::stats;
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param};
-use crate::search::search;
+use crate::search::{search, tt};
 use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
@@ -15,11 +15,16 @@ use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::Arc;
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 pub struct UCI {
     pub board: Board,
-    pub td: Box<ThreadData>,
+    pub td: Option<Box<ThreadData>>,
+    pub abort: Arc<AtomicBool>,
+    pub search_handle: Option<JoinHandle<Box<ThreadData>>>,
     pub frc: bool,
 }
 
@@ -31,9 +36,13 @@ impl Default for UCI {
 
 impl UCI {
     pub fn new() -> UCI {
+        let td = Box::new(ThreadData::default());
+        let abort = Arc::clone(&td.abort);
         UCI {
             board: Board::new(),
-            td: Box::new(ThreadData::default()),
+            td: Some(td),
+            abort,
+            search_handle: None,
             frc: false,
         }
     }
@@ -59,26 +68,33 @@ impl UCI {
                 .expect("info error failed to parse command");
             let tokens = self.split_args(line.clone());
 
+            self.try_reclaim_search();
+
             if let Some(command) = line.split_ascii_whitespace().next() {
+                // If a search is running, only the 'stop', 'quit', and 'isready' commands are handled.
+                // All other commands are ignored until the search is finished.
                 match command {
-                    "uci" => self.handle_uci(),
-                    "isready" => self.handle_isready(),
-                    "setoption" => self.handle_setoption(tokens),
-                    "ucinewgame" => self.handle_ucinewgame(),
-                    "bench" => self.handle_bench(),
-                    "position" => self.handle_position(tokens),
-                    "go" => self.handle_go(tokens),
                     "stop" => self.handle_stop(),
-                    "fen" => self.handle_fen(),
-                    "eval" => self.handle_eval(),
-                    "eval_stats" => self.handle_eval_stats(tokens),
-                    "perft" => self.handle_perft(tokens),
-                    "genfens" => self.handle_genfens(tokens),
-                    "help" => self.handle_help(),
-                    #[cfg(feature = "tuning")]
-                    "params" => print_params_ob(),
                     "quit" => self.handle_quit(),
-                    _ => println!("info error: unknown command"),
+                    "isready" => self.handle_isready(),
+                    _ if self.searching() => continue,
+                    _ => match command {
+                        "uci" => self.handle_uci(),
+                        "setoption" => self.handle_setoption(tokens),
+                        "ucinewgame" => self.handle_ucinewgame(),
+                        "bench" => self.handle_bench(),
+                        "position" => self.handle_position(tokens),
+                        "go" => self.handle_go(tokens),
+                        "fen" => self.handle_fen(),
+                        "eval" => self.handle_eval(),
+                        "eval_stats" => self.handle_eval_stats(tokens),
+                        "perft" => self.handle_perft(tokens),
+                        "genfens" => self.handle_genfens(tokens),
+                        "help" => self.handle_help(),
+                        #[cfg(feature = "tuning")]
+                        "params" => print_params_ob(),
+                        _ => println!("info error: unknown command"),
+                    },
                 }
             } else {
                 continue;
@@ -91,8 +107,8 @@ impl UCI {
         println!("id author Dan Kelsey");
         println!("option name Threads type spin default 1 min 1 max 1");
         println!(
-            "option name Hash type spin default {} min 1 max 1024",
-            self.td.tt().size_mb()
+            "option name Hash type spin default {} min 1 max 1024", 
+            tt::DEFAULT_TT_SIZE
         );
         println!(
             "option name UCI_Chess960 type check default {}",
@@ -139,7 +155,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.resize_tt(value);
+        self.td.as_mut().unwrap().resize_tt(value);
         println!("info string Hash {}", value);
     }
 
@@ -166,7 +182,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.minimal_output = value;
+        self.td.as_mut().unwrap().minimal_output = value;
         println!("info string Minimal {}", value);
     }
 
@@ -179,7 +195,7 @@ impl UCI {
                 return;
             }
         };
-        self.td.use_soft_nodes = value;
+        self.td.as_mut().unwrap().use_soft_nodes = value;
         println!("info string UseSoftNodes {}", value);
     }
 
@@ -196,11 +212,12 @@ impl UCI {
     }
 
     fn handle_ucinewgame(&mut self) {
-        self.td.clear();
+        self.td.as_mut().unwrap().clear();
     }
 
     fn handle_bench(&mut self) {
-        bench(&mut self.td);
+        self.abort.store(false, Relaxed);
+        bench(self.td.as_mut().unwrap());
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -243,9 +260,11 @@ impl UCI {
             Vec::new()
         };
 
-        self.td.keys.clear();
-        self.td.root_ply = 0;
-        self.td.keys.push(self.board.hash());
+        let start_hash = self.board.hash();
+        let td = self.td.as_mut().unwrap();
+        td.keys.clear();
+        td.root_ply = 0;
+        td.keys.push(start_hash);
 
         moves.iter().for_each(|m| {
             let mut legal_moves = MoveList::new();
@@ -257,8 +276,10 @@ impl UCI {
             match legal_move {
                 Some(m) => {
                     self.board.make(&m);
-                    self.td.keys.push(self.board.hash());
-                    self.td.root_ply += 1;
+                    let hash = self.board.hash();
+                    let td = self.td.as_mut().unwrap();
+                    td.keys.push(hash);
+                    td.root_ply += 1;
                 }
                 None => {
                     println!("info error: illegal move {}", m.to_uci());
@@ -268,11 +289,9 @@ impl UCI {
     }
 
     fn handle_go(&mut self, tokens: Vec<String>) {
-        self.td.reset();
-        self.td.start_time = Instant::now();
-        self.td.tt().birthday();
+        let use_soft_nodes = self.td.as_ref().unwrap().use_soft_nodes;
 
-        let mut nodes = if tokens.contains(&String::from("nodes")) && !self.td.use_soft_nodes {
+        let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -335,7 +354,7 @@ impl UCI {
                     return;
                 }
             }
-        } else if tokens.contains(&String::from("nodes")) && self.td.use_soft_nodes {
+        } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
@@ -366,7 +385,7 @@ impl UCI {
             }
         }
 
-        self.td.limits = SearchLimits::new(
+        let limits = SearchLimits::new(
             fischer,
             movetime,
             softnodes,
@@ -375,16 +394,28 @@ impl UCI {
             self.board.fm as usize,
         );
 
-        // Perform the search
-        search(&self.board, &mut self.td);
+        // Take ownership of the thread data and configure it for the new search.
+        let mut td = self.td.take().unwrap();
+        td.reset();
+        td.start_time = Instant::now();
+        td.tt().birthday();
+        td.limits = limits;
 
-        // Print the best move
-        println!("bestmove {}", self.td.best_move.to_uci());
+        // Clear the abort flag and launch the search thread.
+        self.abort.store(false, Relaxed);
+        let board = self.board;
+        self.search_handle = Some(std::thread::spawn(move || {
+            search(&board, &mut td);
+            println!("bestmove {}", td.best_move.to_uci());
+            td
+        }));
     }
 
     fn handle_eval(&mut self) {
-        self.td.nnue.activate(&self.board);
-        let eval: i32 = self.td.nnue.evaluate(&self.board);
+        let board = self.board;
+        let td = self.td.as_mut().unwrap();
+        td.nnue.activate(&board);
+        let eval: i32 = td.nnue.evaluate(&board);
         println!("{}", eval);
     }
 
@@ -395,7 +426,7 @@ impl UCI {
         }
 
         let input_path = Path::new(&tokens[1]);
-        stats::eval_stats(&mut self.td, input_path);
+        stats::eval_stats(self.td.as_mut().unwrap(), input_path);
     }
 
     fn handle_fen(&self) {
@@ -459,13 +490,38 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(&mut self.td, count, seed, random_moves, dfrc) {
+        for opening in
+            generate_random_openings(self.td.as_mut().unwrap(), count, seed, random_moves, dfrc)
+        {
             println!("info string genfens {}", opening);
         }
     }
 
     fn handle_stop(&mut self) {
-        //self.td.cancelled = true;
+        // Signal the search thread to abort. It will print its best move and finish; the next
+        // command that needs the ThreadData will reclaim it via `join_search`.
+        self.abort.store(true, Relaxed);
+    }
+
+    /// Wait for any in-progress search to finish, reclaiming ownership of the thread data in the process.
+    fn join_search(&mut self) {
+        if let Some(handle) = self.search_handle.take() {
+            let td = handle.join().expect("search thread panicked");
+            self.td = Some(td);
+        }
+    }
+
+    /// Reclaim the thread data from the search thread, but only if it has already finished. Unlike
+    /// `join_search`, this never blocks the UCI loop waiting for an in-progress search.
+    fn try_reclaim_search(&mut self) {
+        if self.search_handle.as_ref().is_some_and(|h| h.is_finished()) {
+            self.join_search();
+        }
+    }
+
+    /// Whether a search is currently running (i.e. the search thread still owns the thread data).
+    fn searching(&self) -> bool {
+        self.search_handle.is_some()
     }
 
     fn handle_help(&self) {
@@ -482,7 +538,10 @@ impl UCI {
         println!("quit        -- exit the application");
     }
 
-    fn handle_quit(&self) {
+    fn handle_quit(&mut self) {
+        // Abort and join any running search so it finishes cleanly before we exit.
+        self.abort.store(true, Relaxed);
+        self.join_search();
         std::process::exit(0);
     }
 
