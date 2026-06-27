@@ -140,13 +140,15 @@ impl UCI {
     }
 
     fn set_hash_size(&mut self, value_str: &str) {
-        match value_str.parse::<usize>() {
-            Ok(mb) => {
-                self.engine.set_hash(mb);
-                println!("info string Hash {}", mb);
+        let value: usize = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
             }
-            Err(_) => println!("info error: invalid value '{}'", value_str),
-        }
+        };
+        self.engine.set_hash(value);
+        println!("info string Hash {}", value);
     }
 
     fn set_threads(&mut self, value_str: &str) {
@@ -160,55 +162,55 @@ impl UCI {
     }
 
     fn set_chess_960(&mut self, bool_str: &str) {
-        match bool_str {
-            "true" => {
-                self.frc = true;
-                self.board.set_frc(true);
-                println!("info string Chess960 true");
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
             }
-            "false" => {
-                self.frc = false;
-                self.board.set_frc(false);
-                println!("info string Chess960 false");
-            }
-            _ => println!("info error: invalid value '{}'", bool_str),
-        }
+        };
+        self.frc = value;
+        self.board.set_frc(value);
+        println!("info string Chess960 {}", value);
     }
 
     fn set_minimal(&mut self, bool_str: &str) {
-        match bool_str {
-            "true" => {
-                self.engine.set_minimal_output(true);
-                println!("info string Minimal true");
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
             }
-            "false" => {
-                self.engine.set_minimal_output(false);
-                println!("info string Minimal false");
-            }
-            _ => println!("info error: invalid value '{}'", bool_str),
-        }
+        };
+        self.engine.set_minimal_output(value);
+        println!("info string Minimal {}", value);
     }
 
     fn set_use_soft_nodes(&mut self, bool_str: &str) {
-        match bool_str {
-            "true" => {
-                self.engine.set_use_soft_nodes(true);
-                println!("info string UseSoftNodes true");
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
             }
-            "false" => {
-                self.engine.set_use_soft_nodes(false);
-                println!("info string UseSoftNodes false");
-            }
-            _ => println!("info error: invalid value '{}'", bool_str),
-        }
+        };
+        self.engine.set_use_soft_nodes(value);
+        println!("info string UseSoftNodes {}", value);
     }
 
     #[cfg(feature = "tuning")]
     fn set_tunable(&self, name: &str, value_str: &str) {
-        match value_str.parse::<i32>() {
-            Ok(v) => set_param(name, v),
-            Err(_) => println!("info error: invalid value '{}'", value_str),
-        }
+        let value: i32 = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                println!("info error: invalid value '{}'", value_str);
+                return;
+            }
+        };
+        set_param(name, value);
     }
 
     fn handle_ucinewgame(&mut self) {
@@ -225,22 +227,22 @@ impl UCI {
             return;
         }
 
-        let fen_str = match tokens[1].as_str() {
+        let fen = match tokens[1].as_str() {
             "startpos" => fen::STARTPOS.to_string(),
             "fen" => tokens
                 .iter()
                 .skip(2)
-                .take_while(|&t| t != "moves")
+                .take_while(|&token| token != "moves")
                 .map(|s| s.as_str())
                 .collect::<Vec<&str>>()
-                .join(" "),
+                .join(" "), // Returns owned String
             _ => {
                 println!("info error: invalid position command");
                 return;
             }
         };
 
-        self.board = match Board::from_fen(&fen_str) {
+        self.board = match Board::from_fen(&fen) {
             Ok(board) => board,
             Err(e) => {
                 println!("info error invalid fen: {}", e);
@@ -287,7 +289,7 @@ impl UCI {
 
         let mut nodes = if tokens.contains(&String::from("nodes")) && !use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
-                Ok(n) => Some(n),
+                Ok(nodes) => Some(nodes),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
                     return;
@@ -299,7 +301,7 @@ impl UCI {
 
         let movetime = if tokens.contains(&String::from("movetime")) {
             match self.parse_uint(&tokens, "movetime") {
-                Ok(mt) => Some(mt),
+                Ok(movetime) => Some(movetime),
                 Err(_) => {
                     println!("info error: movetime is not a valid number");
                     Some(500)
@@ -314,22 +316,27 @@ impl UCI {
                 println!("info error: wtime is not a valid number");
                 500
             });
+
             let btime = self.parse_uint(&tokens, "btime").unwrap_or_else(|_| {
                 println!("info error: btime is not a valid number");
                 500
             });
+
             let winc = self.parse_uint(&tokens, "winc").unwrap_or_else(|_| {
                 println!("info error: winc is not a valid number");
                 0
             });
+
             let binc = self.parse_uint(&tokens, "binc").unwrap_or_else(|_| {
                 println!("info error: binc is not a valid number");
                 0
             });
+
             let (time, inc) = match self.board.stm {
                 White => (wtime, winc),
                 Black => (btime, binc),
             };
+
             Some((time, inc))
         } else {
             None
@@ -337,7 +344,7 @@ impl UCI {
 
         let softnodes = if tokens.contains(&String::from("softnodes")) {
             match self.parse_uint(&tokens, "softnodes") {
-                Ok(sn) => Some(sn),
+                Ok(softnodes) => Some(softnodes),
                 Err(_) => {
                     println!("info error: softnodes is not a valid number");
                     return;
@@ -345,7 +352,7 @@ impl UCI {
             }
         } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
             match self.parse_uint(&tokens, "nodes") {
-                Ok(n) => Some(n),
+                Ok(nodes) => Some(nodes),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
                     return;
@@ -357,7 +364,7 @@ impl UCI {
 
         let depth = if tokens.contains(&String::from("depth")) {
             match self.parse_uint(&tokens, "depth") {
-                Ok(d) => Some(d),
+                Ok(depth) => Some(depth),
                 Err(_) => {
                     println!("info error: depth is not a valid number");
                     return;
@@ -367,9 +374,10 @@ impl UCI {
             None
         };
 
-        if let Some(sn) = softnodes {
+        if let Some(soft_nodes) = softnodes {
             if nodes.is_none() {
-                nodes = Some(sn * 10);
+                // When doing a soft-nodes search, always ensure a hard node limit is set.
+                nodes = Some(soft_nodes * 10);
             }
         }
 
@@ -410,6 +418,7 @@ impl UCI {
             println!("info error: missing depth argument");
             return;
         }
+
         let depth = match tokens[1].parse::<u8>() {
             Ok(d) => d,
             Err(_) => {
@@ -417,6 +426,7 @@ impl UCI {
                 return;
             }
         };
+
         let bulk = match tokens.get(2).map(|s| s.as_str()) {
             Some("false") => false,
             Some("true") | None => true,
@@ -428,6 +438,7 @@ impl UCI {
                 return;
             }
         };
+
         let t = Instant::now();
         let n = if bulk {
             perft::<true>(&self.board, depth)
@@ -447,18 +458,19 @@ impl UCI {
             println!("info error: count is not a valid number");
             0
         }) as usize;
+
         let seed = self.parse_uint(&tokens, "seed").unwrap_or({
             println!("info error: seed is not a valid number");
             0
         });
+
         let random_moves = self.parse_uint(&tokens, "random_moves").unwrap_or(8) as usize;
+
         let dfrc = self.parse_bool(&tokens, "dfrc", false).unwrap_or_else(|_| {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in
-            generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc)
-        {
+        for opening in generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
     }
@@ -485,10 +497,11 @@ impl UCI {
 
     fn parse_uint(&self, tokens: &[String], name: &str) -> Result<u64, String> {
         match tokens.iter().position(|x| x == name) {
-            Some(i) => match tokens.get(i + 1) {
-                Some(v) => v
-                    .parse::<u64>()
-                    .map_err(|_| format!("info error: {} is not a valid number", name)),
+            Some(index) => match tokens.get(index + 1) {
+                Some(value) => match value.parse::<u64>() {
+                    Ok(num) => Ok(num),
+                    Err(_) => Err(format!("info error: {} is not a valid number", name)),
+                },
                 None => Err(format!("info error: {} is missing a value", name)),
             },
             None => Err(format!("info error: {} is missing", name)),
@@ -497,8 +510,8 @@ impl UCI {
 
     fn parse_bool(&self, tokens: &[String], name: &str, default: bool) -> Result<bool, String> {
         match tokens.iter().position(|x| x == name) {
-            Some(i) => match tokens.get(i + 1) {
-                Some(v) => match v.as_str() {
+            Some(index) => match tokens.get(index + 1) {
+                Some(value) => match value.as_str() {
                     "true" => Ok(true),
                     "false" => Ok(false),
                     _ => Err(format!("info error: {} is not a valid boolean", name)),

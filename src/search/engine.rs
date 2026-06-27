@@ -127,7 +127,6 @@ impl Engine {
                         search(&board, helper);
                     });
                 }
-                // The main thread is the only one that checks time and raises the abort flag.
                 search(&board, main_td);
             });
 
