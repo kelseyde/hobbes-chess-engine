@@ -40,7 +40,7 @@ struct ThreadPool {
 enum EngineCommand {
     /// Start a new search with the given parameters.
     Search(SearchParams),
-    /// Clear local search state (called on `ucinewgame`).
+    /// Clear local search state.
     NewGame,
     /// Shut the thread down cleanly.
     Quit,
