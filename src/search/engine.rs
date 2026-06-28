@@ -66,10 +66,10 @@ impl Default for Engine {
 
 impl Engine {
     pub fn new() -> Self {
-        let uci_td = Box::new(ThreadData::default());
-        let abort = Arc::clone(&uci_td.abort);
+        let main = Box::new(ThreadData::default());
+        let abort = Arc::clone(&main.abort);
         Engine {
-            td: uci_td,
+            td: main,
             pool: None,
             num_threads: 1,
             abort,
@@ -77,20 +77,19 @@ impl Engine {
         }
     }
 
-    /// Resize the transposition table. Drops the thread pool so that it is recreated on the next
-    /// search with the new shared context.
+    /// Resize the transposition table. Rebuilds the `SharedContext` and re-assigns it to worker threads.
     pub fn set_hash(&mut self, mb: usize) {
         let shared = Arc::new(SharedContext::new(mb));
         self.td.shared = Arc::clone(&shared);
         self.pool = None;
     }
 
+    /// Return the transposition table size in megabytes.
     pub fn hash_mb(&self) -> usize {
         self.td.tt().size_mb()
     }
 
-    /// Set the thread count. Drops the thread pool so that it is recreated on the next search with
-    /// the new shared context.
+    /// Update the number of search threads. Takes effect on the next `go`.
     pub fn set_threads(&mut self, n: usize) {
         let n = n.clamp(1, MAX_THREADS);
         if n != self.num_threads {
@@ -99,10 +98,12 @@ impl Engine {
         }
     }
 
+    /// Return the number of configured search threads.
     pub fn num_threads(&self) -> usize {
         self.num_threads
     }
 
+    /// Set whether the engine should print minimal output (only the last info line before bestmove).
     pub fn set_minimal_output(&mut self, value: bool) {
         self.td.minimal_output = value;
     }
@@ -115,12 +116,20 @@ impl Engine {
         self.td.use_soft_nodes
     }
 
+    /// Immutable access to the main thread's data.
     pub fn td(&self) -> &ThreadData {
         &self.td
     }
 
+    /// Mutable access to the main thread's data.
     pub fn td_mut(&mut self) -> &mut ThreadData {
         &mut self.td
+    }
+
+    pub fn eval(&mut self, board: Board) -> i32 {
+        let td = self.td_mut();
+        td.nnue.activate(&board);
+        td.nnue.evaluate(&board)
     }
 
     /// Start a search. Broadcasts `Search(params)` to all threads in the pool.
@@ -151,12 +160,12 @@ impl Engine {
             .send(EngineCommand::Search(params));
     }
 
-    /// Signal the running search to stop.
+    /// Set the global abort flag, signalling all search threads to stop.
     pub fn stop(&self) {
         self.abort.store(true, Relaxed);
     }
 
-    /// Block until the current search finishes.
+    /// Block until the current search finishes and reclaim the thread vec.
     pub fn join(&mut self) {
         let mut n = self.num_searching.load(Acquire);
         while n > 0 {
@@ -170,7 +179,7 @@ impl Engine {
         self.num_searching.load(Relaxed) > 0
     }
 
-    /// Clear the transposition table and all per-thread search state.
+    /// Clear the TT and all thread-local state. Called on `ucinewgame`.
     pub fn new_game(&mut self) {
         self.td.clear();
         if let Some(ref mut p) = self.pool {
