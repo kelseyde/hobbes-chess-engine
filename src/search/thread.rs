@@ -131,11 +131,19 @@ impl ThreadData {
     }
 
     pub fn reset(&mut self) {
+        self.reset_local();
+        self.shared.nodes.store(0, Relaxed);
+        self.abort.store(false, Relaxed);
+    }
+
+    /// Reset per-thread state without touching the shared node counter or abort flag.
+    ///
+    /// Safe to call from helper threads during a search: the shared state is managed
+    /// exclusively by the main thread via [`Engine::go`], so helpers must not reset it.
+    pub fn reset_local(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
-        self.shared.nodes.store(0, Relaxed);
         self.local_nodes = 0;
-        self.abort.store(false, Relaxed);
         self.depth = 1;
         self.seldepth = 0;
         self.best_move = Move::NONE;

@@ -1,19 +1,146 @@
 use crate::board::Board;
-use crate::search::search;
+use crate::search::channel::{self, Receiver, Sender};
 use crate::search::thread::{SharedContext, ThreadData};
 use crate::search::time::SearchLimits;
+use crate::search::search;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Instant;
 
+/// Maximum number of search threads that can be configured.
 pub const MAX_THREADS: usize = 256;
 
+// -----------------------------------------------------------------------
+// Channel message types
+// -----------------------------------------------------------------------
+
+/// Data broadcast to all helper threads at the start of each search.
+/// All fields must be `Sync` because the channel temporarily shares a
+/// pointer to this value across threads.
+struct SearchParams {
+    board:         Board,
+    keys:          Vec<u64>,
+    root_ply:      usize,
+    limits:        SearchLimits,
+    start_time:    Instant,
+    minimal:       bool,
+    use_soft_nodes: bool,
+}
+
+/// Commands broadcast to helper threads via the pool channel.
+enum HelperMsg {
+    /// Start a new search with the given parameters.
+    Search(SearchParams),
+    /// Clear local search state (called on `ucinewgame`).
+    NewGame,
+    /// Shut the helper thread down cleanly.
+    Quit,
+}
+
+// -----------------------------------------------------------------------
+// Persistent thread pool
+// -----------------------------------------------------------------------
+
+/// A fixed-size pool of persistent helper search threads.
+///
+/// Helpers are created once when the pool is built and loop indefinitely,
+/// waiting for commands via a broadcast channel. This avoids spawning new
+/// OS threads on every `go` command.
+///
+/// Dropping the pool broadcasts a [`HelperMsg::Quit`] to all helpers,
+/// blocking until every helper has acknowledged and exited.
+struct ThreadPool {
+    sender:      Sender<HelperMsg>,
+    num_helpers: usize,
+}
+
+impl ThreadPool {
+    fn new(num_helpers: usize, shared: Arc<SharedContext>, abort: Arc<AtomicBool>) -> Self {
+        let (sender, rx_iter) = channel::channel::<HelperMsg>(num_helpers as u32);
+        for (id, rx) in (1..=num_helpers).zip(rx_iter) {
+            let td = Box::new(ThreadData::new(
+                id,
+                false,
+                Arc::clone(&shared),
+                Arc::clone(&abort),
+            ));
+            std::thread::spawn(move || run_helper(td, rx));
+        }
+        ThreadPool { sender, num_helpers }
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        // Wake all helpers with Quit. Blocks until every helper acknowledges.
+        self.sender.send(HelperMsg::Quit);
+    }
+}
+
+/// Entry point for each persistent helper thread.
+///
+/// Loops waiting for channel messages:
+/// - `Search`: configure `td` using [`ThreadData::reset_local`] (safe: does not
+///   touch shared state owned by the main thread), then run the search.
+/// - `NewGame`: clear local history tables.
+/// - `Quit`: exit.
+fn run_helper(mut td: Box<ThreadData>, mut rx: Receiver<HelperMsg>) {
+    loop {
+        let keep_going = rx.recv(|msg| match msg {
+            HelperMsg::Search(params) => {
+                // Initialise position state for this search.
+                td.keys          = params.keys.clone();
+                td.root_ply      = params.root_ply;
+                td.minimal_output = params.minimal;
+                td.use_soft_nodes = params.use_soft_nodes;
+
+                // reset_local() resets only per-thread fields: it does NOT touch
+                // shared.nodes (reset by the main thread before sending) or abort
+                // (set to false by go() before the scope; helpers must not clear it
+                // after the main thread may have already raised it).
+                td.reset_local();
+                td.start_time = params.start_time;
+                td.limits     = params.limits.clone();
+                search(&params.board, &mut td);
+                true
+            }
+            HelperMsg::NewGame => {
+                td.clear_local();
+                true
+            }
+            HelperMsg::Quit => false,
+        });
+        if !keep_going {
+            break;
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
+// Engine
+// -----------------------------------------------------------------------
+
+/// Manages the main search thread and a pool of persistent helper threads.
+///
+/// `Engine` owns the main [`ThreadData`] (id 0) directly. Helper threads
+/// are owned by the [`ThreadPool`] and persist across searches, retaining
+/// their history tables for search diversity.
+///
+/// Only the main thread performs time management. When a limit is reached
+/// (or a UCI `stop` arrives) it raises the shared abort flag, and every
+/// helper stops at its next [`ThreadData::should_stop`] check.
 pub struct Engine {
-    threads: Option<Vec<Box<ThreadData>>>,
+    /// Main thread data. Moved into the coordinator thread during a search.
+    main_td:     Option<Box<ThreadData>>,
+    /// Persistent helper pool (ids 1..num_threads-1).
+    pool:        Option<ThreadPool>,
+    /// Configured thread count (1 = main only, N = main + N-1 helpers).
     num_threads: usize,
-    abort: Arc<AtomicBool>,
-    handle: Option<JoinHandle<Vec<Box<ThreadData>>>>,
+    /// Clone of the abort flag for the UCI `stop` command.
+    abort:       Arc<AtomicBool>,
+    /// Handle to the coordinator thread, while a search is running.
+    handle:      Option<JoinHandle<(Box<ThreadData>, Option<ThreadPool>)>>,
 }
 
 impl Default for Engine {
@@ -27,123 +154,137 @@ impl Engine {
         let main = Box::new(ThreadData::default());
         let abort = Arc::clone(&main.abort);
         Engine {
-            threads: Some(vec![main]),
+            main_td: Some(main),
+            pool: None,
             num_threads: 1,
             abort,
             handle: None,
         }
     }
 
-    /// Resize the transposition table. Rebuilds the `SharedContext` and re-assigns it to worker threads.
+    // --- Configuration ---------------------------------------------------
+
+    /// Resize the transposition table shared by all threads.
+    ///
+    /// The existing pool is dropped (helpers receive `Quit` and exit), and
+    /// a new pool will be built with the fresh shared context on the next `go`.
     pub fn set_hash(&mut self, mb: usize) {
         let shared = Arc::new(SharedContext::new(mb));
-        for td in self.threads.as_mut().unwrap().iter_mut() {
-            td.shared = Arc::clone(&shared);
+        self.main_td.as_mut().unwrap().shared = Arc::clone(&shared);
+        // Drop old pool; helpers will be re-created with the new shared context.
+        self.pool = None;
+    }
+
+    pub fn hash_mb(&self) -> usize {
+        self.main_td.as_ref().unwrap().tt().size_mb()
+    }
+
+    /// Set the number of search threads. Takes effect on the next `go`.
+    ///
+    /// If the count changes the existing pool is dropped so it can be
+    /// rebuilt at the right size.
+    pub fn set_threads(&mut self, n: usize) {
+        let n = n.clamp(1, MAX_THREADS);
+        if n != self.num_threads {
+            self.num_threads = n;
+            self.pool = None;
         }
     }
 
-    /// Return the transposition table size in megabytes.
-    pub fn hash_mb(&self) -> usize {
-        self.threads.as_ref().unwrap()[0].tt().size_mb()
-    }
-
-    /// Update the number of search threads. Takes effect on the next `go`.
-    pub fn set_threads(&mut self, n: usize) {
-        self.num_threads = n.clamp(1, MAX_THREADS);
-    }
-
-    /// Return the number of configured search threads.
     pub fn num_threads(&self) -> usize {
         self.num_threads
     }
 
-    /// Set whether the engine should print minimal output (only the last info line before bestmove).
     pub fn set_minimal_output(&mut self, value: bool) {
-        self.threads.as_mut().unwrap()[0].minimal_output = value;
+        self.main_td.as_mut().unwrap().minimal_output = value;
     }
 
     pub fn set_use_soft_nodes(&mut self, value: bool) {
-        self.threads.as_mut().unwrap()[0].use_soft_nodes = value;
+        self.main_td.as_mut().unwrap().use_soft_nodes = value;
     }
 
     pub fn use_soft_nodes(&self) -> bool {
-        self.threads.as_ref().unwrap()[0].use_soft_nodes
+        self.main_td.as_ref().unwrap().use_soft_nodes
     }
 
-    /// Immutable access to the main thread's data.
+    // --- ThreadData access -----------------------------------------------
+
     pub fn td(&self) -> &ThreadData {
-        &self.threads.as_ref().unwrap()[0]
+        self.main_td.as_ref().unwrap()
     }
 
-    /// Mutable access to the main thread's data.
     pub fn td_mut(&mut self) -> &mut ThreadData {
-        &mut self.threads.as_mut().unwrap()[0]
+        self.main_td.as_mut().unwrap()
     }
 
-    pub fn eval(&mut self, board: Board) -> i32 {
-        let td = self.td_mut();
-        td.nnue.activate(&board);
-        td.nnue.evaluate(&board)
-    }
+    // --- Search lifecycle ------------------------------------------------
 
-    /// Start a new search on the given `board` with the given `limits`. Spawns a coordinator
-    /// thread that runs the main search alongside `num_threads - 1` helpers.
+    /// Start a search on the given `board` with the given `limits`.
+    ///
+    /// Spawns a coordinator thread that:
+    /// 1. Broadcasts `Search(params)` to all helpers (blocking until they finish).
+    /// 2. Concurrently runs the main search on the coordinator thread.
+    ///
+    /// Returns immediately; the coordinator runs in the background.
     pub fn go(&mut self, board: Board, limits: SearchLimits) {
-        self.sync_thread_pool();
+        self.ensure_pool();
 
-        let mut threads = self.threads.take().unwrap();
+        let mut main_td = self.main_td.take().unwrap();
+        let mut pool    = self.pool.take();
 
         let start_time = Instant::now();
-        let keys = threads[0].keys.clone();
-        let root_ply = threads[0].root_ply;
-        let minimal = threads[0].minimal_output;
-        let use_soft_nodes = threads[0].use_soft_nodes;
 
-        // Configure the main thread.
-        threads[0].reset();
-        threads[0].start_time = start_time;
-        threads[0].limits = limits.clone();
+        // Snapshot position state for helpers *before* resetting main_td.
+        let params = SearchParams {
+            board,
+            keys:           main_td.keys.clone(),
+            root_ply:       main_td.root_ply,
+            limits:         limits.clone(),
+            start_time,
+            minimal:        main_td.minimal_output,
+            use_soft_nodes: main_td.use_soft_nodes,
+        };
 
-        // Configure helpers.
-        for helper in threads[1..].iter_mut() {
-            helper.keys = keys.clone();
-            helper.root_ply = root_ply;
-            helper.minimal_output = minimal;
-            helper.use_soft_nodes = use_soft_nodes;
-            helper.reset();
-            helper.start_time = start_time;
-            helper.limits = limits.clone();
-        }
-
-        // Age the TT and clear the abort flag.
-        threads[0].tt().birthday();
-        self.abort.store(false, Relaxed);
+        // Reset shared state once, before any thread starts searching.
+        main_td.reset();
+        main_td.start_time = start_time;
+        main_td.limits     = limits;
 
         self.handle = Some(std::thread::spawn(move || {
+            // thread::scope lets us borrow params/pool by reference from spawned threads,
+            // while running the main search concurrently on the coordinator.
+            // The scope does not exit until all spawned threads have returned, which means
+            // all helpers have finished their searches before we continue.
             std::thread::scope(|s| {
-                let (main_td, helpers) = threads.split_first_mut().unwrap();
-                for helper in helpers.iter_mut() {
-                    s.spawn(move || {
-                        search(&board, helper);
-                    });
+                if let Some(ref mut p) = pool {
+                    // The send thread broadcasts the Search message to all helpers.
+                    // It blocks until every helper has finished its recv handler (i.e.
+                    // finished searching), so we know helpers are done when the scope exits.
+                    s.spawn(|| p.sender.send(HelperMsg::Search(params)));
                 }
-                search(&board, main_td);
+                // Main search runs concurrently with the helpers.
+                search(&board, &mut main_td);
             });
 
-            println!("bestmove {}", threads[0].best_move.to_uci());
-            threads
+            println!("bestmove {}", main_td.best_move.to_uci());
+            (main_td, pool)
         }));
     }
 
-    /// Set the global abort flag, signalling all search threads to stop.
+    /// Signal the running search to stop. The main thread will end its current
+    /// iteration, helpers will stop at their next `should_stop` check, and
+    /// `bestmove` will be printed.
     pub fn stop(&self) {
         self.abort.store(true, Relaxed);
     }
 
-    /// Block until the current search finishes and reclaim the thread vec.
+    /// Block until the search finishes and reclaim both the main thread data
+    /// and the pool.
     pub fn join(&mut self) {
         if let Some(handle) = self.handle.take() {
-            self.threads = Some(handle.join().expect("search thread panicked"));
+            let (main_td, pool) = handle.join().expect("coordinator thread panicked");
+            self.main_td = Some(main_td);
+            self.pool    = pool;
         }
     }
 
@@ -159,41 +300,41 @@ impl Engine {
         self.handle.is_some()
     }
 
-    /// Clear the TT and all thread-local state. Called on `ucinewgame`.
+    // --- Game management -------------------------------------------------
+
+    /// Clear the transposition table and all per-thread search state.
+    /// Called on `ucinewgame`.
     pub fn new_game(&mut self) {
-        let threads = self.threads.as_mut().unwrap();
-        threads[0].clear();
-        for helper in threads[1..].iter_mut() {
-            helper.clear_local();
+        self.main_td.as_mut().unwrap().clear();
+        // Broadcast NewGame to helpers so they also clear their local state.
+        if let Some(ref mut p) = self.pool {
+            p.sender.send(HelperMsg::NewGame);
         }
     }
 
-    /// Ensure the thread vec has exactly `num_threads` entries. `threads[0]` (the main thread) is
-    /// always retained. Surplus helpers are dropped and new ones are created as needed.
-    fn sync_thread_pool(&mut self) {
-        let threads = self.threads.as_mut().unwrap();
-        threads.truncate(self.num_threads);
+    // --- Private helpers -------------------------------------------------
 
-        let shared = Arc::clone(&threads[0].shared);
-        let abort = Arc::clone(&threads[0].abort);
+    /// Ensure the pool contains exactly `num_threads - 1` helpers.
+    ///
+    /// Rebuilds the pool (sending `Quit` to old helpers first) only when the
+    /// desired count differs from the current pool size. Existing helpers are
+    /// retained to preserve their history tables.
+    fn ensure_pool(&mut self) {
+        let want    = self.num_threads.saturating_sub(1);
+        let current = self.pool.as_ref().map_or(0, |p| p.num_helpers);
 
-        while threads.len() < self.num_threads {
-            let id = threads.len();
-            threads.push(Box::new(ThreadData::new(
-                id,
-                false,
-                Arc::clone(&shared),
-                Arc::clone(&abort),
-            )));
+        if current == want {
+            return;
         }
 
-        // Re-point every helper at the current shared context in case they changed (e.g. after the
-        // TT was resized).
-        for helper in threads[1..].iter_mut() {
-            helper.shared = Arc::clone(&shared);
-            helper.abort = Arc::clone(&abort);
-        }
+        // Drop old pool first (Quit broadcast is synchronous via ThreadPool::drop).
+        self.pool = None;
 
-        self.abort = abort;
+        if want > 0 {
+            let main   = self.main_td.as_ref().unwrap();
+            let shared = Arc::clone(&main.shared);
+            let abort  = Arc::clone(&main.abort);
+            self.pool  = Some(ThreadPool::new(want, shared, abort));
+        }
     }
 }

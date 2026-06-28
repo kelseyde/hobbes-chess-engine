@@ -397,8 +397,10 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        let eval = self.engine.eval(self.board);
-        println!("{}", eval);
+        let board = self.board;
+        let td = self.engine.td_mut();
+        td.nnue.activate(&board);
+        println!("{}", td.nnue.evaluate(&board));
     }
 
     fn handle_eval_stats(&mut self, tokens: Vec<String>) {
