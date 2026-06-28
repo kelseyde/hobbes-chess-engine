@@ -13,21 +13,26 @@ use std::time::Instant;
 
 pub const MAX_THREADS: usize = 256;
 
-/// Parameters broadcast to every search thread at the start of a search.
-///
-/// Derives `Clone` so that each thread's channel recv handler can **clone** the
-/// message and return immediately, allowing `Sender::send` to unblock as soon as
-/// all threads have their copy. The actual search then runs outside the handler,
-/// so all N threads search concurrently from the moment `go()` returns.
-#[derive(Clone)]
-struct SearchParams {
-    board: Board,
-    keys: Vec<u64>,
-    root_ply: usize,
-    limits: SearchLimits,
-    start_time: Instant,
-    minimal: bool,
-    use_soft_nodes: bool,
+/// Manages the UCI thread's state and a pool of N persistent search threads.
+pub struct Engine {
+    /// UCI-side thread data for holding settings, position state, and running NNUE evals.
+    td: Box<ThreadData>,
+    /// Pool of N persistent search threads. Dropped and recreated when the thread count changes.
+    pool: Option<ThreadPool>,
+    /// Number of threads to use for the next search.
+    num_threads: usize,
+    /// Shared atomic flag that signals all threads to stop searching.
+    abort: Arc<AtomicBool>,
+    /// Number of threads currently searching. Main thread waits for helpers to finish before printing best move.
+    num_searching: Arc<AtomicU32>,
+}
+
+/// A fixed-size pool of N persistent search threads.
+/// Thread 0 is the "main" thread. It performs time management, waits for helpers to stop, and then
+/// prints the best move. On `Drop`, the pool broadcasts `Quit` to all threads and joins them synchronously.
+struct ThreadPool {
+    sender: Sender<EngineCommand>,
+    handles: Vec<JoinHandle<()>>,
 }
 
 /// Commands broadcast to every thread in the pool.
@@ -41,108 +46,16 @@ enum EngineCommand {
     Quit,
 }
 
-/// A fixed-size pool of N persistent search threads.
-/// Thread 0 is the "main" thread. It performs time management, waits for helpers to stop, and then
-/// prints the best move. On `Drop`, the pool broadcasts `Quit` to all threads and joins them synchronously.
-struct ThreadPool {
-    sender: Sender<EngineCommand>,
-    handles: Vec<JoinHandle<()>>,
-}
-
-impl ThreadPool {
-    fn new(
-        num_threads: usize,
-        shared: Arc<SharedContext>,
-        abort: Arc<AtomicBool>,
-        num_searching: Arc<AtomicU32>,
-    ) -> Self {
-        // Create a channel with `num_threads` receivers, one for each search thread.
-        let (sender, receivers) = channel::channel::<EngineCommand>(num_threads as u32);
-        let handles = (0..num_threads)
-            .zip(receivers)
-            .map(|(id, rx)| {
-                let main_thread = id == 0;
-                let shared = Arc::clone(&shared);
-                let abort = Arc::clone(&abort);
-                let td = Box::new(ThreadData::new(id, main_thread, shared, abort));
-                let ns = Arc::clone(&num_searching);
-                std::thread::spawn(move || run_thread(td, rx, ns))
-            })
-            .collect();
-        ThreadPool { sender, handles }
-    }
-
-    fn num_threads(&self) -> usize {
-        self.handles.len()
-    }
-}
-
-impl Drop for ThreadPool {
-    fn drop(&mut self) {
-        // Synchronous broadcast: blocks until every thread has handled Quit.
-        self.sender.send(EngineCommand::Quit);
-        for handle in self.handles.drain(..) {
-            handle.join().expect("search thread panicked");
-        }
-    }
-}
-
-/// Entry point for every search thread (main and helpers).
-fn run_thread(
-    mut td: Box<ThreadData>,
-    mut rx: Receiver<EngineCommand>,
-    num_searching: Arc<AtomicU32>,
-) {
-    // Wait until we have received a new message from the sender.
-    loop {
-        let msg = rx.recv(|msg| msg.clone());
-        match msg {
-            EngineCommand::Search(params) => {
-                // Prepare this thread's local state.
-                td.keys = params.keys;
-                td.root_ply = params.root_ply;
-                td.minimal_output = params.minimal;
-                td.use_soft_nodes = params.use_soft_nodes;
-                td.reset_local();
-                td.start_time = params.start_time;
-                td.limits = params.limits;
-
-                search(&params.board, &mut td);
-
-                if td.main {
-                    // Main thread: wait for all helpers to finish, then print the best move.
-                    let mut n = num_searching.load(Acquire);
-                    while n > 1 {
-                        atomic_wait::wait(&*num_searching, n);
-                        n = num_searching.load(Acquire);
-                    }
-                    println!("bestmove {}", td.best_move.to_uci());
-                    num_searching.store(0, Release);
-                    atomic_wait::wake_all(&*num_searching);
-                } else {
-                    // Helper thread: decrement the num_searching counter and wake the main thread.
-                    num_searching.fetch_sub(1, Release);
-                    atomic_wait::wake_all(&*num_searching);
-                }
-            }
-            EngineCommand::NewGame => td.clear_local(),
-            EngineCommand::Quit => break,
-        }
-    }
-}
-
-/// Manages the UCI thread's state and a pool of N persistent search threads.
-pub struct Engine {
-    /// UCI-side thread data for holding settings, position state, and running NNUE evals.
-    td: Box<ThreadData>,
-    /// Pool of N persistent search threads. Dropped and recreated when the thread count changes.
-    pool: Option<ThreadPool>,
-    /// Number of threads to use for the next search.
-    num_threads: usize,
-    /// Shared atomic flag that signals all threads to stop searching.
-    abort: Arc<AtomicBool>,
-    /// Number of threads currently searching. Main thread waits for helpers to finish before printing best move.
-    num_searching: Arc<AtomicU32>,
+/// Parameters broadcast to every search thread at the start of a search.
+#[derive(Clone)]
+struct SearchParams {
+    board: Board,
+    keys: Vec<u64>,
+    root_ply: usize,
+    limits: SearchLimits,
+    start_time: Instant,
+    minimal: bool,
+    use_soft_nodes: bool,
 }
 
 impl Default for Engine {
@@ -281,5 +194,87 @@ impl Engine {
             abort,
             Arc::clone(&self.num_searching),
         ));
+    }
+}
+
+impl ThreadPool {
+    fn new(
+        num_threads: usize,
+        shared: Arc<SharedContext>,
+        abort: Arc<AtomicBool>,
+        num_searching: Arc<AtomicU32>,
+    ) -> Self {
+        // Create a channel with `num_threads` receivers, one for each search thread.
+        let (sender, receivers) = channel::channel::<EngineCommand>(num_threads as u32);
+        let handles = (0..num_threads)
+            .zip(receivers)
+            .map(|(id, rx)| {
+                let main_thread = id == 0;
+                let shared = Arc::clone(&shared);
+                let abort = Arc::clone(&abort);
+                let td = Box::new(ThreadData::new(id, main_thread, shared, abort));
+                let ns = Arc::clone(&num_searching);
+                std::thread::spawn(move || run_thread(td, rx, ns))
+            })
+            .collect();
+        ThreadPool { sender, handles }
+    }
+
+    fn num_threads(&self) -> usize {
+        self.handles.len()
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        // Synchronous broadcast: blocks until every thread has handled Quit.
+        self.sender.send(EngineCommand::Quit);
+        for handle in self.handles.drain(..) {
+            handle.join().expect("search thread panicked");
+        }
+    }
+}
+
+/// Entry point for every search thread (main and helpers).
+fn run_thread(
+    mut td: Box<ThreadData>,
+    mut rx: Receiver<EngineCommand>,
+    num_searching: Arc<AtomicU32>,
+) {
+    // Wait until we have received a new message from the sender.
+    loop {
+        let msg = rx.recv(|msg| msg.clone());
+        match msg {
+            EngineCommand::Search(params) => {
+                // Prepare this thread's local state.
+                td.keys = params.keys;
+                td.root_ply = params.root_ply;
+                td.minimal_output = params.minimal;
+                td.use_soft_nodes = params.use_soft_nodes;
+                td.reset_local();
+                td.start_time = params.start_time;
+                td.limits = params.limits;
+
+                search(&params.board, &mut td);
+
+                if td.main {
+                    // Main thread: wait for all helpers to finish, then print the best move.
+                    let mut n = num_searching.load(Acquire);
+                    while n > 1 {
+                        atomic_wait::wait(&*num_searching, n);
+                        n = num_searching.load(Acquire);
+                    }
+                    println!("bestmove {}", td.best_move.to_uci());
+                    num_searching.store(0, Release);
+                    atomic_wait::wake_all(&*num_searching);
+                } else {
+                    // Helper thread: decrement the num_searching counter and wake the main thread.
+                    num_searching.fetch_sub(1, Release);
+                    atomic_wait::wake_all(&*num_searching);
+                }
+            }
+            EngineCommand::NewGame => td.clear_local(),
+            EngineCommand::Quit => break,
+        }
     }
 }
