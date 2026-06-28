@@ -1,4 +1,3 @@
-pub mod channel;
 pub mod correction;
 pub mod engine;
 pub mod history;

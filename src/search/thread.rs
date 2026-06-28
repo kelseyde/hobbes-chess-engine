@@ -130,16 +130,16 @@ impl ThreadData {
         self.shared.nodes.fetch_add(1, Relaxed);
     }
 
+    /// Reset global and local thread data for the start of a new search.
+    /// Should only be called by the main thread, which is responsible for global state.
     pub fn reset(&mut self) {
         self.reset_local();
         self.shared.nodes.store(0, Relaxed);
         self.abort.store(false, Relaxed);
     }
 
-    /// Reset per-thread state without touching the shared node counter or abort flag.
-    ///
-    /// Safe to call from helper threads during a search: the shared state is managed
-    /// exclusively by the main thread via [`Engine::go`], so helpers must not reset it.
+    /// Reset local thread data for the start of a new search.
+    /// Should be called by helper threads, as the main thread is responsible for global state.
     pub fn reset_local(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();

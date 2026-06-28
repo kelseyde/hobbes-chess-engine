@@ -59,8 +59,6 @@ impl UCI {
                 .expect("info error failed to parse command");
             let tokens = self.split_args(line.clone());
 
-            self.engine.try_reclaim();
-
             if let Some(command) = line.split_ascii_whitespace().next() {
                 // If a search is running, only 'stop', 'quit', and 'isready' are handled.
                 // All other commands are ignored until the search finishes.
@@ -472,7 +470,9 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc) {
+        for opening in
+            generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc)
+        {
             println!("info string genfens {}", opening);
         }
     }
