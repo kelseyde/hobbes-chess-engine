@@ -227,7 +227,6 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        // Synchronous broadcast: blocks until every thread has handled Quit.
         self.sender.send(EngineCommand::Quit);
         for handle in self.handles.drain(..) {
             handle.join().expect("search thread panicked");
