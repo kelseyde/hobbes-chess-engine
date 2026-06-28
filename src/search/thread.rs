@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use crate::board::moves::Move;
 use crate::evaluation::NNUE;
-use crate::search::correction::CorrectionHistories;
+use crate::search::correction::SharedCorrectionHistories;
 use crate::search::history::Histories;
 use crate::search::node::NodeStack;
 use crate::search::parameters::{lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
@@ -17,6 +17,7 @@ use crate::tools::utils::boxed_and_zeroed;
 pub struct SharedContext {
     pub tt: TranspositionTable,
     pub nodes: AtomicU64,
+    pub correction_history: SharedCorrectionHistories,
 }
 
 pub struct ThreadData {
@@ -32,7 +33,6 @@ pub struct ThreadData {
     pub keys: Vec<u64>,
     pub root_ply: usize,
     pub history: Histories,
-    pub correction_history: CorrectionHistories,
     pub lmr: LmrTable,
     pub node_table: NodeTable,
     pub limits: SearchLimits,
@@ -62,7 +62,6 @@ impl ThreadData {
             keys: Vec::new(),
             root_ply: 0,
             history: Histories::default(),
-            correction_history: CorrectionHistories::default(),
             lmr: LmrTable::default(),
             node_table: NodeTable::default(),
             limits: SearchLimits::new(None, None, None, None, None, 0),
@@ -95,6 +94,7 @@ impl SharedContext {
         SharedContext {
             tt: TranspositionTable::new(tt_size_mb),
             nodes: AtomicU64::new(0),
+            correction_history: SharedCorrectionHistories::default(),
         }
     }
 }
@@ -147,6 +147,7 @@ impl ThreadData {
     /// Clear the (shared) transposition table and this thread's per-thread search tables.
     pub fn clear(&mut self) {
         self.tt().clear();
+        self.shared.correction_history.clear();
         self.clear_local();
     }
 
@@ -155,7 +156,6 @@ impl ThreadData {
         self.keys.clear();
         self.root_ply = 0;
         self.history.clear();
-        self.correction_history.clear();
     }
 
     pub fn time(&self) -> u128 {

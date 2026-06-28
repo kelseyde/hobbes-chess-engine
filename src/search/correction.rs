@@ -1,3 +1,5 @@
+use std::cell::UnsafeCell;
+
 use crate::board::side::Side;
 use crate::board::Board;
 use crate::search::node::NodeStack;
@@ -90,6 +92,33 @@ impl CorrectionHistories {
         self.follow_up_move_corrhist.clear();
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
+    }
+}
+
+pub struct SharedCorrectionHistories(UnsafeCell<CorrectionHistories>);
+
+unsafe impl Send for SharedCorrectionHistories {}
+unsafe impl Sync for SharedCorrectionHistories {}
+
+impl Default for SharedCorrectionHistories {
+    fn default() -> Self {
+        SharedCorrectionHistories(UnsafeCell::new(CorrectionHistories::default()))
+    }
+}
+
+impl SharedCorrectionHistories {
+    #[inline]
+    pub fn get(&self) -> &CorrectionHistories {
+        unsafe { &*self.0.get() }
+    }
+
+    #[inline]
+    pub fn get_mut(&self) -> &mut CorrectionHistories {
+        unsafe { &mut *self.0.get() }
+    }
+
+    pub fn clear(&self) {
+        self.get_mut().clear();
     }
 }
 
