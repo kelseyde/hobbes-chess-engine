@@ -11,6 +11,12 @@ pub const fn is_mate(score: i32) -> bool {
     score.abs() >= MATE - MAX_PLY as i32
 }
 
+/// Returns true if the score indicates the side to move is mating.
+#[inline]
+pub const fn is_mating(score: i32) -> bool {
+    score >= MATE - MAX_PLY as i32
+}
+
 /// Returns true if the score indicates the side to move is being mated.
 #[inline]
 pub const fn is_mated(score: i32) -> bool {

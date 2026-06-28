@@ -1,7 +1,10 @@
 use crate::board::Board;
 use crate::search::search;
+use crate::search::score;
 use crate::search::thread::{SharedContext, ThreadData};
 use crate::search::time::SearchLimits;
+use crate::search::parameters::thread_weight_score_offset;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -130,7 +133,8 @@ impl Engine {
                 search(&board, main_td);
             });
 
-            println!("bestmove {}", threads[0].best_move.to_uci());
+            let best_idx = select_best_thread(&threads);
+            println!("bestmove {}", threads[best_idx].best_move.to_uci());
             threads
         }));
     }
@@ -195,5 +199,116 @@ impl Engine {
         }
 
         self.abort = abort;
+    }
+}
+
+/// Select the best thread to use for the final bestmove output using a voting scheme.
+/// Each thread casts weighted votes for its best move; the move with the most votes wins.
+/// Implementation heavily based on Stormphrax.
+fn select_best_thread(threads: &[Box<ThreadData>]) -> usize {
+    if threads.len() == 1 {
+        return 0;
+    }
+
+    // Find the lowest root score across all threads that completed at least one iteration.
+    let lowest_root_score = threads
+        .iter()
+        .filter(|td| score::is_defined(td.best_score))
+        .map(|td| td.best_score)
+        .min()
+        .unwrap_or(score::MIN);
+
+    // Thread weight = (score - lowest_score + offset) * completed depth
+    let thread_weight = |td: &ThreadData| -> i64 {
+        (td.best_score - lowest_root_score + thread_weight_score_offset()) as i64 * td.completed_depth as i64
+    };
+
+    // Accumulate votes per move
+    let mut move_votes: HashMap<u16, i64> = HashMap::new();
+    for td in threads.iter().filter(|t| score::is_defined(t.best_score)) {
+        *move_votes.entry(td.best_move.0).or_insert(0) += thread_weight(td);
+    }
+
+    let votes_for = |td: &ThreadData| -> i64 {
+        *move_votes.get(&td.best_move.0).unwrap_or(&0)
+    };
+
+    let mut result = ElectionResult {
+        best_idx: 0,
+        best_score: threads[0].best_score,
+        best_votes: votes_for(&threads[0]),
+    };
+
+    for (i, td) in threads.iter().enumerate().skip(1) {
+        let root_score = td.best_score;
+
+        if !score::is_defined(root_score) {
+            continue;
+        }
+
+        if !score::is_defined(result.best_score) {
+            result.update(i, root_score, votes_for(td));
+            continue;
+        }
+
+        // If the current best is us mating, only replace with a faster mate.
+        if score::is_mating(result.best_score) {
+            if root_score > result.best_score {
+                result.update(i, root_score, votes_for(td));
+            }
+            continue;
+        }
+
+        // If the current best is us getting mating, prefer a less bad (slower) loss.
+        if score::is_mated(result.best_score) {
+            if root_score < result.best_score {
+                result.update(i, root_score, votes_for(td));
+            }
+            continue;
+        }
+
+        // If the candidate has any decisive score, take it.
+        if score::is_mate(root_score) {
+            result.update(i, root_score, votes_for(td));
+            continue;
+        }
+
+        let votes = votes_for(td);
+
+        // Take the move with the most votes.
+        if votes > result.best_votes {
+            result.update(i, root_score, votes);
+            continue;
+        }
+
+        // On equal votes, prefer the higher-weighted thread, but penalise truncated PVs.
+        if votes == result.best_votes {
+            let pv_len = |td: &ThreadData| -> usize {
+                td.pv.line().len()
+            };
+            let cand_pv_len = pv_len(td);
+            let curr_pv_len = pv_len(&threads[result.best_idx]);
+            let cand_weight = thread_weight(td) * (cand_pv_len > 2) as i64;
+            let curr_weight = thread_weight(&threads[result.best_idx]) * (curr_pv_len > 2) as i64;
+            if cand_weight > curr_weight {
+                result.update(i, root_score, votes);
+            }
+        }
+    }
+
+    result.best_idx
+}
+
+struct ElectionResult {
+    best_idx: usize,
+    best_score: i32,
+    best_votes: i64,
+}
+
+impl ElectionResult {
+    pub fn update(&mut self, idx: usize, score: i32, votes: i64) {
+        self.best_idx = idx;
+        self.best_score = score;
+        self.best_votes = votes;
     }
 }

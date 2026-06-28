@@ -115,6 +115,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
         delta = asp_delta() + score * score / asp_prev_score_div();
         reduction = 0;
+        td.completed_depth = td.depth;
         td.depth += 1;
     }
 

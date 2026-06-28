@@ -278,4 +278,5 @@ tunable_params! {
     tm_score_base                = 1188, 800..=1800,       true;
     tm_score_scale               = 40, 10..=100,           true;
     tm_score_min                 = 883, 500..=1000,        true;
+    thread_weight_score_offset   = 10, 0..=20,             true;
 }
