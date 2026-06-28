@@ -240,36 +240,30 @@ fn select_best_thread(threads: &[Box<ThreadData>]) -> usize {
     };
 
     for (i, td) in threads.iter().enumerate().skip(1) {
-        let root_score = td.best_score;
+        let score = td.best_score;
 
-        if !score::is_defined(root_score) {
+        if !score::is_defined(score) {
             continue;
         }
 
         if !score::is_defined(result.best_score) {
-            result.update(i, root_score, votes_for(td));
+            result.update(i, score, votes_for(td));
             continue;
         }
 
         // If the current best is us mating, only replace with a faster mate.
         if score::is_mating(result.best_score) {
-            if root_score > result.best_score {
-                result.update(i, root_score, votes_for(td));
+            if score > result.best_score {
+                result.update(i, score, votes_for(td));
             }
             continue;
         }
 
-        // If the current best is us getting mating, prefer a less bad (slower) loss.
+        // If the current best is us getting mating, prefer a longer mate.
         if score::is_mated(result.best_score) {
-            if root_score < result.best_score {
-                result.update(i, root_score, votes_for(td));
+            if score < result.best_score {
+                result.update(i, score, votes_for(td));
             }
-            continue;
-        }
-
-        // If the candidate has any decisive score, take it.
-        if score::is_mate(root_score) {
-            result.update(i, root_score, votes_for(td));
             continue;
         }
 
@@ -277,21 +271,16 @@ fn select_best_thread(threads: &[Box<ThreadData>]) -> usize {
 
         // Take the move with the most votes.
         if votes > result.best_votes {
-            result.update(i, root_score, votes);
+            result.update(i, score, votes);
             continue;
         }
 
-        // On equal votes, prefer the higher-weighted thread, but penalise truncated PVs.
+        // On equal votes, prefer the higher-weighted thread
         if votes == result.best_votes {
-            let pv_len = |td: &ThreadData| -> usize {
-                td.pv.line().len()
-            };
-            let cand_pv_len = pv_len(td);
-            let curr_pv_len = pv_len(&threads[result.best_idx]);
-            let cand_weight = thread_weight(td) * (cand_pv_len > 2) as i64;
-            let curr_weight = thread_weight(&threads[result.best_idx]) * (curr_pv_len > 2) as i64;
+            let cand_weight = thread_weight(td);
+            let curr_weight = thread_weight(&threads[result.best_idx]);
             if cand_weight > curr_weight {
-                result.update(i, root_score, votes);
+                result.update(i, score, votes);
             }
         }
     }

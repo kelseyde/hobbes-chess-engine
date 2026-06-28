@@ -10,6 +10,7 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
+use std::sync::atomic::Ordering::Relaxed;
 use crate::board::cuckoo::Cuckoo;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
@@ -113,9 +114,13 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             break;
         }
 
+        // Only count this depth as completed if the search wasn't aborted part-way through.
+        if !td.abort.load(Relaxed) {
+            td.completed_depth = td.depth;
+        }
+
         delta = asp_delta() + score * score / asp_prev_score_div();
         reduction = 0;
-        td.completed_depth = td.depth;
         td.depth += 1;
     }
 
