@@ -234,7 +234,7 @@ impl Drop for ThreadPool {
     }
 }
 
-/// Entry point for every search thread (main and helpers).
+/// Entry point for every search thread, both main and helpers.
 fn run_thread(
     mut td: Box<ThreadData>,
     mut rx: Receiver<EngineCommand>,
@@ -257,7 +257,7 @@ fn run_thread(
                 search(&params.board, &mut td);
 
                 if td.main {
-                    // Main thread: wait for all helpers to finish, then print the best move.
+                    // Main thread: wait for all helpers to finish, then print the bestmove.
                     let mut n = num_searching.load(Acquire);
                     while n > 1 {
                         atomic_wait::wait(&*num_searching, n);
