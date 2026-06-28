@@ -272,6 +272,7 @@ fn run_thread(
                         atomic_wait::wait(&*num_searching, n);
                         n = num_searching.load(Acquire);
                     }
+                    // TODO thread voting/meritocracy
                     println!("bestmove {}", td.best_move.to_uci());
                     num_searching.store(0, Release);
                     atomic_wait::wake_all(&*num_searching);
