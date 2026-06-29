@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -17,6 +17,7 @@ use crate::tools::utils::boxed_and_zeroed;
 pub struct SharedContext {
     pub tt: TranspositionTable,
     pub nodes: AtomicU64,
+    pub num_searching: AtomicU32,
 }
 
 pub struct ThreadData {
@@ -95,6 +96,7 @@ impl SharedContext {
         SharedContext {
             tt: TranspositionTable::new(tt_size_mb),
             nodes: AtomicU64::new(0),
+            num_searching: AtomicU32::new(0),
         }
     }
 }
@@ -130,12 +132,20 @@ impl ThreadData {
         self.shared.nodes.fetch_add(1, Relaxed);
     }
 
+    /// Reset global and local thread data for the start of a new search.
+    /// Should only be called by the main thread, which is responsible for global state.
     pub fn reset(&mut self) {
+        self.reset_local();
+        self.shared.nodes.store(0, Relaxed);
+        self.abort.store(false, Relaxed);
+    }
+
+    /// Reset local thread data for the start of a new search.
+    /// Should be called by helper threads, as the main thread is responsible for global state.
+    pub fn reset_local(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
-        self.shared.nodes.store(0, Relaxed);
         self.local_nodes = 0;
-        self.abort.store(false, Relaxed);
         self.depth = 1;
         self.seldepth = 0;
         self.best_move = Move::NONE;

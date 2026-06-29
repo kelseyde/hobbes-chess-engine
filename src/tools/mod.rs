@@ -1,4 +1,5 @@
 pub mod bench;
+pub mod channel;
 pub mod datagen;
 pub mod debug;
 pub mod fen;

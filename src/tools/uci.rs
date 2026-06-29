@@ -8,7 +8,6 @@ use crate::search::engine::{Engine, MAX_THREADS};
 use crate::search::parameters::{list_params, print_params_ob, set_param};
 use crate::search::time::SearchLimits;
 use crate::search::tt;
-use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
 use crate::tools::{fen, pretty};
@@ -58,8 +57,6 @@ impl UCI {
                 .read_line(&mut line)
                 .expect("info error failed to parse command");
             let tokens = self.split_args(line.clone());
-
-            self.engine.try_reclaim();
 
             if let Some(command) = line.split_ascii_whitespace().next() {
                 // If a search is running, only 'stop', 'quit', and 'isready' are handled.
@@ -218,7 +215,8 @@ impl UCI {
     }
 
     fn handle_bench(&mut self) {
-        bench(self.engine.td_mut());
+        self.engine.bench();
+        self.engine.join();
     }
 
     fn handle_position(&mut self, tokens: Vec<String>) {
@@ -261,11 +259,9 @@ impl UCI {
             Vec::new()
         };
 
-        let start_hash = self.board.hash();
-        let td = self.engine.td_mut();
-        td.keys.clear();
-        td.root_ply = 0;
-        td.keys.push(start_hash);
+        self.engine.keys.clear();
+        self.engine.root_ply = 0;
+        self.engine.keys.push(self.board.hash());
 
         for m in &moves {
             let mut legal_moves = MoveList::new();
@@ -274,10 +270,8 @@ impl UCI {
             match legal {
                 Some(m) => {
                     self.board.make(&m);
-                    let hash = self.board.hash();
-                    let td = self.engine.td_mut();
-                    td.keys.push(hash);
-                    td.root_ply += 1;
+                    self.engine.keys.push(self.board.hash());
+                    self.engine.root_ply += 1;
                 }
                 None => println!("info error: illegal move {}", m.to_uci()),
             }
@@ -397,7 +391,7 @@ impl UCI {
     }
 
     fn handle_eval(&mut self) {
-        let eval = self.engine.eval(self.board);
+        let eval = self.engine.eval(&self.board);
         println!("{}", eval);
     }
 
@@ -406,7 +400,8 @@ impl UCI {
             println!("info error: missing input file argument");
             return;
         }
-        stats::eval_stats(self.engine.td_mut(), Path::new(&tokens[1]));
+        let mut td = self.engine.new_td();
+        stats::eval_stats(&mut td, Path::new(&tokens[1]));
     }
 
     fn handle_fen(&self) {
@@ -470,7 +465,8 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc) {
+        let mut td = self.engine.new_td();
+        for opening in generate_random_openings(&mut td, count, seed, random_moves, dfrc) {
             println!("info string genfens {}", opening);
         }
     }
