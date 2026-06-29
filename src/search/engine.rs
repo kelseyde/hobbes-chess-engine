@@ -6,7 +6,7 @@ use crate::search::time::SearchLimits;
 use crate::tools::bench::bench;
 use crate::tools::channel::{self, Receiver, Sender};
 use std::sync::atomic::{
-    AtomicBool, AtomicU32,
+    AtomicBool,
     Ordering::{Acquire, Relaxed, Release},
 };
 use std::sync::Arc;
@@ -33,8 +33,6 @@ pub struct Engine {
     pool: Option<ThreadPool>,
     /// Number of threads to use for the next search.
     num_threads: usize,
-    /// Number of threads currently searching. Main thread waits for helpers to finish before printing best move.
-    num_searching: Arc<AtomicU32>,
 }
 
 /// A fixed-size pool of N persistent search threads.
@@ -86,7 +84,6 @@ impl Engine {
             abort,
             pool: None,
             num_threads: 1,
-            num_searching: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -164,7 +161,7 @@ impl Engine {
         self.abort.store(false, Relaxed);
         self.shared.nodes.store(0, Relaxed);
         self.shared.tt.birthday();
-        self.num_searching.store(self.num_threads as u32, Relaxed);
+        self.shared.num_searching.store(self.num_threads as u32, Relaxed);
 
         self.pool
             .as_mut()
@@ -176,7 +173,7 @@ impl Engine {
     /// Bench is executed by the main thread only.
     pub fn bench(&mut self) {
         self.ensure_pool();
-        self.num_searching.store(1, Relaxed);
+        self.shared.num_searching.store(1, Relaxed);
         self.pool
             .as_mut()
             .unwrap()
@@ -188,18 +185,18 @@ impl Engine {
         self.abort.store(true, Relaxed);
     }
 
-    /// Block until the current search finishes and reclaim the thread vec.
+    /// Block until the current search finishes.
     pub fn join(&mut self) {
-        let mut n = self.num_searching.load(Acquire);
+        let mut n = self.shared.num_searching.load(Acquire);
         while n > 0 {
-            atomic_wait::wait(&*self.num_searching, n);
-            n = self.num_searching.load(Acquire);
+            atomic_wait::wait(&self.shared.num_searching, n);
+            n = self.shared.num_searching.load(Acquire);
         }
     }
 
     /// Whether a search is currently running.
     pub fn searching(&self) -> bool {
-        self.num_searching.load(Relaxed) > 0
+        self.shared.num_searching.load(Relaxed) > 0
     }
 
     /// Clear the TT and all thread-local state. Called on `ucinewgame`.
@@ -223,7 +220,6 @@ impl Engine {
         self.pool = Some(ThreadPool::new(
             Arc::clone(&self.shared),
             Arc::clone(&self.abort),
-            Arc::clone(&self.num_searching),
             wanted,
         ));
     }
@@ -233,7 +229,6 @@ impl ThreadPool {
     fn new(
         shared: Arc<SharedContext>,
         abort: Arc<AtomicBool>,
-        num_searching: Arc<AtomicU32>,
         num_threads: usize,
     ) -> Self {
         // Create a channel with `num_threads` receivers, one for each search thread.
@@ -245,8 +240,15 @@ impl ThreadPool {
                 let shared = Arc::clone(&shared);
                 let abort = Arc::clone(&abort);
                 let td = Box::new(ThreadData::new(id, main_thread, shared, abort));
-                let ns = Arc::clone(&num_searching);
-                std::thread::spawn(move || run_thread(td, rx, ns))
+                std::thread::spawn(move || {
+                    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        run_thread(td, rx)
+                    }))
+                    .is_err()
+                    {
+                        std::process::exit(-1);
+                    }
+                })
             })
             .collect();
         ThreadPool { sender, handles }
@@ -267,11 +269,7 @@ impl Drop for ThreadPool {
 }
 
 /// Entry point for every search thread, both main and helpers.
-fn run_thread(
-    mut td: Box<ThreadData>,
-    mut rx: Receiver<EngineCommand>,
-    num_searching: Arc<AtomicU32>,
-) {
+fn run_thread(mut td: Box<ThreadData>, mut rx: Receiver<EngineCommand>) {
     // Wait until we have received a new message from the sender.
     loop {
         let msg = rx.recv(|msg| msg.clone());
@@ -288,28 +286,30 @@ fn run_thread(
 
                 search(&params.board, &mut td);
 
+                let num_searching = &td.shared.num_searching;
                 if td.main {
                     // Main thread: wait for all helpers to finish, then print the bestmove.
                     let mut n = num_searching.load(Acquire);
                     while n > 1 {
-                        atomic_wait::wait(&*num_searching, n);
+                        atomic_wait::wait(num_searching, n);
                         n = num_searching.load(Acquire);
                     }
                     // TODO thread voting/meritocracy
                     println!("bestmove {}", td.best_move.to_uci());
                     num_searching.store(0, Release);
-                    atomic_wait::wake_all(&*num_searching);
+                    atomic_wait::wake_all(num_searching);
                 } else {
                     // Helper thread: decrement the num_searching counter and wake the main thread.
                     num_searching.fetch_sub(1, Release);
-                    atomic_wait::wake_all(&*num_searching);
+                    atomic_wait::wake_all(num_searching);
                 }
             }
             EngineCommand::Bench => {
                 if td.main {
                     bench(&mut td);
+                    let num_searching = &td.shared.num_searching;
                     num_searching.store(0, Release);
-                    atomic_wait::wake_all(&*num_searching);
+                    atomic_wait::wake_all(num_searching);
                 }
             }
             EngineCommand::UpdateShared(shared) => td.shared = shared,

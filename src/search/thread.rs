@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -17,6 +17,7 @@ use crate::tools::utils::boxed_and_zeroed;
 pub struct SharedContext {
     pub tt: TranspositionTable,
     pub nodes: AtomicU64,
+    pub num_searching: AtomicU32,
 }
 
 pub struct ThreadData {
@@ -95,6 +96,7 @@ impl SharedContext {
         SharedContext {
             tt: TranspositionTable::new(tt_size_mb),
             nodes: AtomicU64::new(0),
+            num_searching: AtomicU32::new(0),
         }
     }
 }
