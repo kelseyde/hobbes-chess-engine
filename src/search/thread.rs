@@ -41,6 +41,7 @@ pub struct ThreadData {
     pub score_stability: u32,
     pub local_nodes: u64,
     pub depth: i32,
+    pub completed_depth: i32,
     pub seldepth: usize,
     pub nmp_min_ply: i32,
     pub best_move: Move,
@@ -71,6 +72,7 @@ impl ThreadData {
             score_stability: 0,
             local_nodes: 0,
             depth: 1,
+            completed_depth: 0,
             seldepth: 0,
             nmp_min_ply: 0,
             best_move: Move::NONE,
@@ -137,6 +139,7 @@ impl ThreadData {
         self.local_nodes = 0;
         self.abort.store(false, Relaxed);
         self.depth = 1;
+        self.completed_depth = 0;
         self.seldepth = 0;
         self.best_move = Move::NONE;
         self.best_score = 0;
