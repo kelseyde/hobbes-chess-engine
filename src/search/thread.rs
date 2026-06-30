@@ -185,7 +185,7 @@ impl ThreadData {
         stop
     }
 
-    pub fn soft_limit_reached(&self) -> bool {
+    fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
         let score_stability = self.score_stability as u64;
@@ -217,7 +217,7 @@ impl ThreadData {
         false
     }
 
-    pub fn hard_limit_reached(&self) -> bool {
+    fn hard_limit_reached(&self) -> bool {
         if let Some(hard_nodes) = self.limits.hard_nodes {
             if self.nodes() >= hard_nodes {
                 return true;
