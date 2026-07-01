@@ -10,6 +10,9 @@ use crate::board::square::Square;
 use crate::board::{attacks, castling, ray};
 use crate::board::{setwise, Board};
 
+/// A filter used to generate only certain types of moves during search. `All` generates all legal
+// moves, `Quiets` generates only non-captures (including promotions), `Noisies` generates captures
+// and promotions, and `Captures` generates only captures.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum MoveFilter {
     All,
@@ -280,7 +283,9 @@ impl Board {
                 | ray::between(king_from, king_to)
                 | Bitboard::of_sq(king_to);
 
-            if blocked_sqs.is_empty() && !is_attacked(safe_sqs, side, occ, &self) {
+            if blocked_sqs.is_empty()
+                && !is_attacked(safe_sqs, side, occ ^ Bitboard::of_sq(rook_from), &self)
+            {
                 let flag = if kingside {
                     MoveFlag::CastleK
                 } else {

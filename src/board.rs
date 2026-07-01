@@ -1,6 +1,7 @@
 pub mod attacks;
 pub mod bitboard;
 pub mod castling;
+pub mod cuckoo;
 pub mod file;
 pub mod legal;
 pub mod magics;
@@ -12,6 +13,7 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]
     mod avx512;

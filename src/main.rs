@@ -1,3 +1,4 @@
+use crate::board::cuckoo;
 use crate::tools::uci::UCI;
 use board::ray;
 
@@ -24,6 +25,7 @@ pub mod tools;
 fn main() {
     // Initialise static data
     ray::init();
+    cuckoo::init();
 
     // Start up the UCI (Universal Chess Interface)
     let args: Vec<String> = std::env::args().collect();

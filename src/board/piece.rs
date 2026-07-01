@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+/// Enum representing each chess piece type.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Piece {

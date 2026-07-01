@@ -1,6 +1,7 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::square::Square;
 
+/// Enum representing each rank on the chessboard.
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum Rank {
