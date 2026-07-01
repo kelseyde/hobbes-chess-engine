@@ -493,6 +493,22 @@ fn alpha_beta<NODE: NodeType>(
 
     }
 
+    // Internal Iterative Deepening (IID)
+    // If we're in a PV node with no TT move, do a reduced-depth search to find one.
+    if !root_node
+        && pv_node
+        && depth >= iid_min_depth()
+        && !in_check
+        && !singular_search
+        && tt_move.is_null() {
+        let iid_depth = (iid_base() * depth - iid_offset()) / iid_div();
+        let _ = alpha_beta::<PV>(board, td, iid_depth, ply, alpha, beta, cut_node);
+
+        if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
+            tt_move = entry.best_move();
+        }
+    }
+
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 

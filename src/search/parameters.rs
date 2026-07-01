@@ -43,6 +43,10 @@ tunable_params! {
     hindsight_hist_mult          = 9, 0..=20,              true;
     hindsight_hist_min           = -56, -100..=0,          true;
     hindsight_hist_max           = 203, 75..=300,          true;
+    iid_min_depth                = 8, 4..=12,              false;
+    iid_base                     = 3, 1..=5,               false;
+    iid_offset                   = 7, 2..=10,              false;
+    iid_div                      = 4, 2..=8,               false;
     fp_max_depth                 = 8, 4..=10,              false;
     fp_base                      = 165, 50..=250,          true;
     fp_scale                     = 92, 50..=200,           true;
