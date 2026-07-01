@@ -113,7 +113,7 @@ impl Engine {
             helper.root_ply = root_ply;
             helper.minimal_output = minimal;
             helper.use_soft_nodes = use_soft_nodes;
-            helper.reset();
+            helper.reset_local();
             helper.start_time = start_time;
             helper.limits = limits.clone();
         }
