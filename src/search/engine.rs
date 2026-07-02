@@ -222,17 +222,85 @@ fn select_best_thread(threads: &[Box<ThreadData>]) -> usize {
     };
 
     // Accumulate weights per move.
-    let mut move_scores: HashMap<u16, i64> = HashMap::new();
+    let mut move_votes: HashMap<u16, i64> = HashMap::new();
     for td in threads.iter().filter(|td| score::is_defined(td.best_score)) {
-        *move_scores.entry(td.best_move.0).or_insert(0) += thread_weight(td);
+        *move_votes.entry(td.best_move.0).or_insert(0) += thread_weight(td);
     }
 
-    // Pick the thread whose best_move has the highest accumulated score.
-    threads
-        .iter()
-        .enumerate()
-        .filter(|(_, td)| score::is_defined(td.best_score))
-        .max_by_key(|(_, td)| move_scores.get(&td.best_move.0).copied().unwrap_or(0))
-        .map(|(i, _)| i)
-        .unwrap_or(0)
+    let votes_for = |td: &ThreadData| -> i64 {
+        *move_votes.get(&td.best_move.0).unwrap_or(&0)
+    };
+
+    let mut result = ElectionResult {
+        best_idx: 0,
+        best_score: threads[0].best_score,
+        best_votes: votes_for(&threads[0]),
+    };
+
+    for (i, td) in threads.iter().enumerate().skip(1) {
+        let score = td.best_score;
+        let votes = votes_for(td);
+
+        if !score::is_defined(score) {
+            continue;
+        }
+
+        if !score::is_defined(result.best_score) {
+            result.update(i, score, votes);
+            continue;
+        }
+
+        // If the current best is us mating, only replace with a faster mate. Conversely, if the
+        // current best is us getting mated, only replace with a slower mate.
+        if score::is_mating(result.best_score) {
+            if score > result.best_score {
+                result.update(i, score, votes);
+            }
+            continue;
+        }
+
+        // Prefer mating over not mating
+        if score::is_mating(score) {
+            result.update(i, score, votes);
+            continue;
+        }
+
+        // Don't get mated
+        if score::is_mated(score) {
+            continue;
+        }
+
+        // If both the current and best are non-mate scores, prefer the move with the most votes
+        if votes > result.best_votes {
+            result.update(i, score, votes);
+            continue;
+        }
+
+        // On equal votes, prefer the higher-weighted thread, but penalise truncated PVs
+        if votes == result.best_votes {
+            let cand_pv_len = td.pv.line().len();
+            let curr_pv_len = threads[result.best_idx].pv.line().len();
+            let cand_weight = thread_weight(td) * (cand_pv_len > 2) as i64;
+            let curr_weight = thread_weight(&threads[result.best_idx]) * (curr_pv_len > 2) as i64;
+            if cand_weight > curr_weight {
+                result.update(i, score, votes);
+            }
+        }
+    }
+
+    result.best_idx
+}
+
+struct ElectionResult {
+    best_idx: usize,
+    best_score: i32,
+    best_votes: i64,
+}
+
+impl ElectionResult {
+    pub fn update(&mut self, idx: usize, score: i32, votes: i64) {
+        self.best_idx = idx;
+        self.best_score = score;
+        self.best_votes = votes;
+    }
 }
