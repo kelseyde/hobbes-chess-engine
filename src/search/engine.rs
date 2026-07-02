@@ -25,6 +25,17 @@ impl Default for Engine {
     }
 }
 
+/// A guard that sets the global abort flag to true if the thread panics, designed to prevent stalling.
+struct AbortOnPanic(Arc<AtomicBool>);
+
+impl Drop for AbortOnPanic {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.0.store(true, Relaxed);
+        }
+    }
+}
+
 impl Engine {
     pub fn new() -> Self {
         let main = Box::new(ThreadData::default());
