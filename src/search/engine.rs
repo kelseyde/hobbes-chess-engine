@@ -275,7 +275,7 @@ fn select_best_thread(threads: &[Box<ThreadData>]) -> usize {
 
         // If the current best is us mating, only replace with a faster mate. Conversely, if the
         // current best is us getting mated, only replace with a slower mate.
-        if score::is_mating(result.best_score) {
+        if score::is_mate(result.best_score) {
             if score > result.best_score {
                 result.update(i, score, votes);
             }
