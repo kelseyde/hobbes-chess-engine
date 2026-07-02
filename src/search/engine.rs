@@ -113,7 +113,7 @@ impl Engine {
             helper.root_ply = root_ply;
             helper.minimal_output = minimal;
             helper.use_soft_nodes = use_soft_nodes;
-            helper.reset();
+            helper.reset_local();
             helper.start_time = start_time;
             helper.limits = limits.clone();
         }
@@ -125,11 +125,15 @@ impl Engine {
         self.handle = Some(std::thread::spawn(move || {
             std::thread::scope(|s| {
                 let (main_td, helpers) = threads.split_first_mut().unwrap();
+                let abort = Arc::clone(&main_td.abort);
                 for helper in helpers.iter_mut() {
+                    let guard = AbortOnPanic(Arc::clone(&abort));
                     s.spawn(move || {
+                        let _guard = guard;
                         search(&board, helper);
                     });
                 }
+                let _guard = AbortOnPanic(Arc::clone(&abort));
                 search(&board, main_td);
             });
 
@@ -147,7 +151,15 @@ impl Engine {
     /// Block until the current search finishes and reclaim the thread vec.
     pub fn join(&mut self) {
         if let Some(handle) = self.handle.take() {
-            self.threads = Some(handle.join().expect("search thread panicked"));
+            match handle.join() {
+                Ok(threads) => self.threads = Some(threads),
+                Err(_) => {
+                    eprintln!("info string error: main thread panicked, reinitialising");
+                    let main = Box::new(ThreadData::default());
+                    self.abort = Arc::clone(&main.abort);
+                    self.threads = Some(vec![main]);
+                }
+            }
         }
     }
 

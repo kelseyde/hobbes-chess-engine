@@ -133,6 +133,12 @@ impl ThreadData {
     }
 
     pub fn reset(&mut self) {
+        self.shared.nodes.store(0, Relaxed);
+        self.abort.store(false, Relaxed);
+        self.reset_local();
+    }
+
+    pub fn reset_local(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
         self.shared.nodes.store(0, Relaxed);
@@ -188,7 +194,7 @@ impl ThreadData {
         stop
     }
 
-    pub fn soft_limit_reached(&self) -> bool {
+    fn soft_limit_reached(&self) -> bool {
         let best_move_nodes = self.node_table.get(&self.best_move);
         let best_move_stability = self.best_move_stability as u64;
         let score_stability = self.score_stability as u64;
@@ -220,7 +226,7 @@ impl ThreadData {
         false
     }
 
-    pub fn hard_limit_reached(&self) -> bool {
+    fn hard_limit_reached(&self) -> bool {
         if let Some(hard_nodes) = self.limits.hard_nodes {
             if self.nodes() >= hard_nodes {
                 return true;
