@@ -7,3 +7,4 @@ pub mod pretty;
 pub mod scharnagl;
 pub mod uci;
 pub mod utils;
+pub mod command;
