@@ -86,24 +86,6 @@ enum ParseError {
     InvalidBool(String),
 }
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ParseError::Empty => write!(f, "empty command"),
-            ParseError::UnknownCommand(c) => write!(f, "unknown command '{c}'"),
-            ParseError::MissingPositionType => write!(f, "expected 'startpos' or 'fen'"),
-            ParseError::InvalidFen(s) => write!(f, "invalid fen '{s}'"),
-            ParseError::InvalidMove(s) => write!(f, "invalid or illegal move '{s}'"),
-            ParseError::MissingOptionName => write!(f, "missing option name"),
-            ParseError::MissingOptionValue => write!(f, "missing option value"),
-            ParseError::UnknownOption(s) => write!(f, "unknown option '{s}'"),
-            ParseError::MissingValue(n) => write!(f, "missing value for '{n}'"),
-            ParseError::InvalidInt(s) => write!(f, "'{s}' is not a valid number"),
-            ParseError::InvalidBool(s) => write!(f, "'{s}' is not a valid boolean"),
-        }
-    }
-}
-
 impl Command {
     /// Parse a single line of input into a [`Command`]. `frc` is the engine's current Chess960
     /// setting, used to encode castling correctly for freshly parsed positions.
@@ -200,7 +182,7 @@ impl UCI {
         loop {
             let mut line = String::new();
             match io::stdin().read_line(&mut line) {
-                Ok(0) => self.handle_quit(), // EOF: shut down gracefully (never returns)
+                Ok(0) => self.handle_quit(),
                 Ok(_) => {}
                 Err(_) => {
                     println!("info error: failed to read input");
@@ -213,7 +195,6 @@ impl UCI {
 
             match Command::parse(&line, self.frc) {
                 Ok(cmd) => {
-                    // While a search is running, only a select few commands are handled.
                     if self.engine.searching() && !cmd.runs_during_search() {
                         continue;
                     }
@@ -570,3 +551,20 @@ fn bool_after(tokens: &[&str], name: &str) -> bool {
     value_after(tokens, name) == Some("true")
 }
 
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::Empty => write!(f, "empty command"),
+            ParseError::UnknownCommand(c) => write!(f, "unknown command '{c}'"),
+            ParseError::MissingPositionType => write!(f, "expected 'startpos' or 'fen'"),
+            ParseError::InvalidFen(s) => write!(f, "invalid fen '{s}'"),
+            ParseError::InvalidMove(s) => write!(f, "invalid or illegal move '{s}'"),
+            ParseError::MissingOptionName => write!(f, "missing option name"),
+            ParseError::MissingOptionValue => write!(f, "missing option value"),
+            ParseError::UnknownOption(s) => write!(f, "unknown option '{s}'"),
+            ParseError::MissingValue(n) => write!(f, "missing value for '{n}'"),
+            ParseError::InvalidInt(s) => write!(f, "'{s}' is not a valid number"),
+            ParseError::InvalidBool(s) => write!(f, "'{s}' is not a valid boolean"),
+        }
+    }
+}
