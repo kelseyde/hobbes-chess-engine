@@ -82,6 +82,10 @@ tunable_params! {
     se_beta_quiet_div            = 55, 40..=100,           true;
     se_dext_quiet_margin         = 7, 0..=30,              true;
     se_text_quiet_margin         = 67, 20..=120,           true;
+    se_dext_quiet_ttpv_margin    = 48, 0..=100,            true;
+    se_dext_noisy_ttpv_margin    = 48, 0..=100,            true;
+    se_text_quiet_ttpv_margin    = 56, 0..=100,            true;
+    se_text_noisy_ttpv_margin    = 56, 0..=100,            true;
     se_beta_noisy_base           = 57, 0..=100,            true;
     se_beta_noisy_scale          = 19, 16..=48,            true;
     se_beta_noisy_div            = 54, 40..=100,           true;

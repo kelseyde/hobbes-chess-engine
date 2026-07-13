@@ -217,6 +217,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
     let mut tt_pv = pv_node;
+    let mut tt_was_pv = false;
 
     // Transposition table
     // Check if this node has already been searched before. If it has, and the depth + bounds match
@@ -232,6 +233,7 @@ fn alpha_beta<NODE: NodeType>(
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
+            tt_was_pv = entry.pv();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
                 tt_move_noisy = board.is_noisy(&tt_move)
@@ -462,8 +464,14 @@ fn alpha_beta<NODE: NodeType>(
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 extension = 1;
-                extension += (!pv_node && singular_score < s_beta - se_dext_margin(is_quiet)) as i32;
-                extension += (!pv_node && is_quiet && singular_score < s_beta - se_text_margin(is_quiet)) as i32;
+
+                // Double extensions
+                let double_margin = se_dext_margin(is_quiet, pv_node, tt_was_pv);
+                extension += (!pv_node && singular_score < s_beta - double_margin) as i32;
+
+                // Triple extensions
+                let triple_margin = se_text_margin(is_quiet, pv_node, tt_was_pv);
+                extension += (!pv_node && is_quiet && singular_score < s_beta - triple_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
@@ -1288,20 +1296,20 @@ fn se_config(is_quiet: bool) -> (i32, i32, i32) {
 }
 
 #[inline]
-fn se_dext_margin(is_quiet: bool) -> i32 {
+fn se_dext_margin(is_quiet: bool, pv_node: bool, tt_was_pv: bool) -> i32 {
     if is_quiet {
-        se_dext_quiet_margin()
+        se_dext_quiet_margin() + (pv_node && !tt_was_pv) as i32 * se_dext_quiet_ttpv_margin()
     } else {
-        se_dext_noisy_margin()
+        se_dext_noisy_margin() + (pv_node && !tt_was_pv) as i32 * se_dext_noisy_ttpv_margin()
     }
 }
 
 #[inline]
-fn se_text_margin(is_quiet: bool) -> i32 {
+fn se_text_margin(is_quiet: bool, pv_node: bool, tt_was_pv: bool) -> i32 {
     if is_quiet {
-        se_text_quiet_margin()
+        se_text_quiet_margin() + (pv_node && !tt_was_pv) as i32 * se_text_quiet_ttpv_margin()
     } else {
-        se_text_noisy_margin()
+        se_text_noisy_margin() + (pv_node && !tt_was_pv) as i32 * se_text_noisy_ttpv_margin()
     }
 }
 
