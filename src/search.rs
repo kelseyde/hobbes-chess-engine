@@ -608,6 +608,9 @@ fn alpha_beta<NODE: NodeType>(
             && searched_moves >= 1
             && !is_mate(best_score)
             && !see(board, &mv, see_threshold, Pruning) {
+            if is_quiet {
+                move_picker.skip_quiets();
+            }
             continue;
         }
 
