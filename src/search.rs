@@ -138,7 +138,7 @@ fn alpha_beta<NODE: NodeType>(
     ply: usize,
     mut alpha: i32,
     mut beta: i32,
-    cut_node: bool) -> i32 {
+    mut cut_node: bool) -> i32 {
 
     // If search is aborted, exit immediately
     if td.should_stop(Hard) {
@@ -492,6 +492,8 @@ fn alpha_beta<NODE: NodeType>(
         }
 
     }
+
+    cut_node |= extension < 0;
 
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
