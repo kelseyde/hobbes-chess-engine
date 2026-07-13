@@ -40,10 +40,7 @@ use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
 use crate::evaluation::forward::{inference, Forward};
-use crate::search::parameters::{
-    material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
-    scale_value_queen, scale_value_rook,
-};
+use crate::search::parameters::{material_scaling_base, optimism_scale_base, scale_value_bishop, scale_value_knight, scale_value_pawn, scale_value_queen, scale_value_rook};
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
@@ -76,7 +73,7 @@ impl NNUE {
     /// Forward pass through the neural network. We apply any pending accumulator updates and end up
     /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
     /// through L1, L2, and L3 to get the final output.
-    pub fn evaluate(&mut self, board: &Board) -> i32 {
+    pub fn evaluate(&mut self, board: &Board, optimism: i32) -> i32 {
         self.apply_lazy_updates(board);
 
         let acc = &self.stack[self.current];
@@ -100,7 +97,7 @@ impl NNUE {
         };
 
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
-        scale_evaluation(board, output as i32)
+        scale_evaluation(board, output as i32, optimism)
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -381,9 +378,11 @@ fn should_mirror(king_sq: Square) -> bool {
 }
 
 #[inline]
-fn scale_evaluation(board: &Board, eval: i32) -> i32 {
+fn scale_evaluation(board: &Board, eval: i32, optimism: i32) -> i32 {
     let phase = material_phase(board);
-    eval * (material_scaling_base() + phase) / 32768 * (200 - board.hm as i32) / 200
+    let material_scale = material_scaling_base() + phase;
+    let optimism_bonus = optimism * (optimism_scale_base() + phase);
+    ((eval * material_scale) + optimism_bonus) / 32768 * (200 - board.hm as i32) / 200
 }
 
 #[inline]

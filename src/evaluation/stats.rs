@@ -24,7 +24,7 @@ pub fn eval_stats(td: &mut ThreadData, input: &Path) {
         if board.threats.contains(board.our_king_sq()) {
             continue;
         }
-        let eval = td.nnue.evaluate(&board);
+        let eval = td.nnue.evaluate(&board, 0);
 
         count += 1;
         total += i128::from(eval);

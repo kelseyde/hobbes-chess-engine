@@ -264,6 +264,9 @@ tunable_params! {
     movepick_see_divisor         = 45, 30..=60,            true;
     movepick_see_offset          = 120, 80..=200,          true;
     score_stability_threshold    = 14, 4..=24,             true;
+    optimism_scale_base          = 2000, 1000..=4000,      true;
+    optimism_max_bonus           = 150, 75..=300,          true;
+    optimism_stretch             = 100, 50..=200,          true;
     tm_soft_base                 = 23, 10..=60,            true;
     tm_soft_scale                = 47, 20..=80,            true;
     tm_soft_inc_scale            = 733, 400..=1000,        true;

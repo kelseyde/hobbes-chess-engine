@@ -86,7 +86,7 @@ impl Engine {
     pub fn eval(&mut self, board: Board) -> i32 {
         let td = self.td_mut();
         td.nnue.activate(&board);
-        td.nnue.evaluate(&board)
+        td.nnue.evaluate(&board, 0)
     }
 
     /// Start a new search on the given `board` with the given `limits`. Spawns a coordinator

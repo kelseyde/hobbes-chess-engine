@@ -63,6 +63,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     let mut reduction = 0;
     let mut prev_mv = Move::NONE;
     let mut prev_score: i32 = 0;
+    let mut avg_score = score::MIN;
 
     // Iterative Deepening
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
@@ -106,9 +107,16 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                     delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
                 }
-                _ => break,
+                _ => {
+                    avg_score = if !is_defined(avg_score) { score } else { (avg_score + score) / 2 };
+                    break
+                },
             }
         }
+
+        let optimism = optimism_max_bonus() * avg_score / (avg_score.abs() + optimism_stretch());
+        td.optimism[board.stm] = optimism;
+        td.optimism[!board.stm] = -optimism;
 
         if td.should_stop(Hard) {
             break;
@@ -194,7 +202,7 @@ fn alpha_beta<NODE: NodeType>(
 
     // If the maximum depth is reached, return the static evaluation of the position
     if ply >= MAX_PLY {
-        return td.nnue.evaluate(board);
+        return td.nnue.evaluate(board, 0);
     }
 
     // Mate Distance Pruning
@@ -261,7 +269,8 @@ fn alpha_beta<NODE: NodeType>(
         } else if tt_hit && is_defined(tt_eval) {
             tt_eval
         } else {
-            td.nnue.evaluate(board)
+            let optimism = td.optimism[board.stm];
+            td.nnue.evaluate(board, optimism)
         };
         if !tt_hit {
             td.tt().insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
@@ -935,7 +944,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     // If the maximum depth is reached, return the static evaluation of the position.
     if ply >= MAX_PLY {
-        return td.nnue.evaluate(board);
+        return td.nnue.evaluate(board, 0);
     }
 
     // Determine if we are currently in check.
@@ -969,7 +978,8 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         raw_eval = if tt_hit && is_defined(tt_eval) {
             tt_eval
         } else {
-            td.nnue.evaluate(board)
+            let optimism = td.optimism[board.stm];
+            td.nnue.evaluate(board, optimism)
         };
         if !tt_hit {
             td.tt().insert(
@@ -1359,7 +1369,7 @@ fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTF
 
 fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
-    let static_eval = td.nnue.evaluate(board);
+    let static_eval = td.nnue.evaluate(board, 0);
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;

@@ -51,7 +51,7 @@ fn generate_random_opening(
 
     // Skip wildly imbalanced exits
     td.nnue.activate(&board);
-    if td.nnue.evaluate(&board).abs() > 1000 {
+    if td.nnue.evaluate(&board, 0).abs() > 1000 {
         return generate_random_opening(td, rng, random_moves, dfrc);
     }
 
