@@ -292,7 +292,8 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && td.stack[ply - 1].mv.is_some()
         && td.stack[ply - 1].captured.is_none()
-        && is_defined(td.stack[ply - 1].static_eval) {
+        && is_defined(td.stack[ply - 1].static_eval)
+        && (depth < 7 || !tt_hit) {
 
         let prev_eval = td.stack[ply - 1].static_eval;
         let prev_mv = td.stack[ply - 1].mv.unwrap();
