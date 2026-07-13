@@ -21,7 +21,8 @@ use crate::search::parameters::{
     qs_capt_hist_malus_offset, qs_capt_hist_malus_scale, quiet_fact_bonus_max,
     quiet_fact_bonus_offset, quiet_fact_bonus_scale, quiet_fact_malus_max, quiet_fact_malus_offset,
     quiet_fact_malus_scale, quiet_hist_bonus_max, quiet_hist_bonus_offset, quiet_hist_bonus_scale,
-    quiet_hist_lerp_factor, quiet_hist_malus_max, quiet_hist_malus_offset, quiet_hist_malus_scale,
+    quiet_from_to_age_weight, quiet_hist_lerp_factor, quiet_hist_malus_max,
+    quiet_hist_malus_offset, quiet_hist_malus_scale, quiet_piece_to_age_weight,
     to_hist_bonus_max, to_hist_bonus_offset, to_hist_bonus_scale, to_hist_malus_max,
     to_hist_malus_offset, to_hist_malus_scale,
 };
@@ -260,6 +261,36 @@ impl QuietHistory {
         );
 
         self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus, factoriser_bonus);
+    }
+
+    pub fn age(&mut self) {
+        #[inline]
+        fn age_entry(entry: &mut QuietHistoryEntry, weight: i32) {
+            entry.factoriser = (entry.factoriser as i32 * weight / 1000) as i16;
+            for from in entry.bucket.iter_mut() {
+                for val in from.iter_mut() {
+                    *val = (*val as i32 * weight / 1000) as i16;
+                }
+            }
+        }
+
+        let from_to_weight = quiet_from_to_age_weight();
+        for side in self.from_to_entries.iter_mut() {
+            for row in side.iter_mut() {
+                for entry in row.iter_mut() {
+                    age_entry(entry, from_to_weight);
+                }
+            }
+        }
+
+        let piece_to_weight = quiet_piece_to_age_weight();
+        for side in self.piece_to_entries.iter_mut() {
+            for row in side.iter_mut() {
+                for entry in row.iter_mut() {
+                    age_entry(entry, piece_to_weight);
+                }
+            }
+        }
     }
 
     pub fn clear(&mut self) {

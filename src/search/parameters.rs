@@ -161,6 +161,8 @@ tunable_params! {
     quiet_fact_ttmove_malus      = 76, 0..=200,            true;
     quiet_fact_malus_max         = 1333, 1000..=1600,      true;
     quiet_hist_lerp_factor       = 37, 0..=100,            true;
+    quiet_piece_to_age_weight    = 750, 500..=1000,        true;
+    quiet_from_to_age_weight     = 750, 500..=1000,        true;
     capt_hist_lerp_factor        = 33, 0..=100,            true;
     capt_hist_bonus_scale        = 234, 80..=360,          true;
     capt_hist_bonus_offset       = 47, 0..=200,            true;

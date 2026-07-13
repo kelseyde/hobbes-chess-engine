@@ -126,6 +126,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     // Print the final search stats
     print_search_info(board, td, score.clamp(alpha, beta), bound, true);
+    if td.main {
+        td.history.quiet_history.age();
+    }
 
     (td.best_move, td.best_score)
 }
