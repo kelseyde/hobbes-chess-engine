@@ -14,7 +14,7 @@ pub struct CorrectionHistory<const N: usize> {
     entries: Box<[[i32; N]; 2]>,
 }
 
-pub type HashCorrectionHistory = CorrectionHistory<16384>;
+pub type HashCorrectionHistory = CorrectionHistory<65536>;
 pub type FromToCorrectionHistory = CorrectionHistory<4096>;
 
 #[derive(Default)]
