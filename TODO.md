@@ -12,7 +12,7 @@
 #### RFP
 - [x] RFP
 - [x] RFP improving
-- [ ] RFP opponent worsening
+- [x] RFP opponent worsening
 - [x] RFP fail firm
 - [ ] RFP constant offset
 - [ ] RFP prev-move history
@@ -38,9 +38,9 @@
 - [ ] Factorised LMR
 - [ ] PV-distance LMR
 - [ ] Corrplexity LMR
-- [ ] Futility LMR
-- [ ] LMR if no TT-PV
-- [ ] Cutoff-count LMR
+- [x] Futility LMR
+- [x] LMR if no TT-PV
+- [x] Cutoff-count LMR
 
 #### Move-loop pruning
 - [x] Late move pruning
@@ -139,6 +139,10 @@
 - [x] Lazy updates
 - [x] Finny tables
 - [x] Remove unnecessary copy
+- [x] Multilayer
+- [x] Sparse matrix multiplication
+- [x] Dual activation
+- [ ] Threat inputs
 
 ## Time Management
 - [x] Hard bound (applies to the entire search)

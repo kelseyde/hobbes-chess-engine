@@ -7,9 +7,7 @@ pub struct Vectorised;
 impl Forward for Vectorised {
     /// L0 ('feature transformer') activation
     /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE] {
-        let mut output = [0u8; L1_SIZE];
-
+    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], output: &mut [u8; L1_SIZE]) {
         let lo = simd::splat_i16(0);
         let hi = simd::splat_i16(L0_QUANT as i16);
 
@@ -34,12 +32,14 @@ impl Forward for Vectorised {
                 simd::store_u8(output.as_mut_ptr().add(i + base), packed);
             }
         }
-
-        output
     }
 
     /// L1 propagation
-    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2] {
+    unsafe fn propagate_l1(
+        input: &[u8; L1_SIZE],
+        output_bucket: usize,
+        output: &mut [i32; L2_SIZE * 2],
+    ) {
         const ACC_LANES: usize = L2_SIZE / simd::I32_LANES;
         const WEIGHT_STRIDE: usize = simd::I32_LANES * 4;
         const UNROLL: usize = 4;
@@ -84,7 +84,6 @@ impl Forward for Vectorised {
         let hi = simd::splat_i32(Q as i32);
         let hi2 = simd::splat_i32((Q * Q) as i32);
 
-        let mut output = [0i32; L2_SIZE * 2];
         let out_ptr = output.as_mut_ptr() as *mut simd::VecI32;
 
         for (lane, acc_lane) in acc.iter().enumerate() {
@@ -101,12 +100,14 @@ impl Forward for Vectorised {
             simd::store_i32(out_ptr.add(lane) as *mut i32, crelu);
             simd::store_i32(out_ptr.add(lane + ACC_LANES) as *mut i32, csrelu);
         }
-
-        output
     }
 
     /// L2 propagation
-    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize) -> [i32; L3_SIZE] {
+    unsafe fn propagate_l2(
+        input: &[i32; L2_SIZE * 2],
+        output_bucket: usize,
+        output: &mut [i32; L3_SIZE],
+    ) {
         const LANES: usize = L3_SIZE / simd::I32_LANES;
         let weights = &NETWORK.l2_weights[output_bucket];
         let biases = &NETWORK.l2_biases[output_bucket];
@@ -140,11 +141,9 @@ impl Forward for Vectorised {
             }
         }
 
-        let mut output = [0i32; L3_SIZE];
         for (lane, acc_lane) in acc.iter().enumerate() {
             simd::store_i32(output.as_mut_ptr().add(lane * simd::I32_LANES), *acc_lane);
         }
-        output
     }
 
     /// L3 propagation

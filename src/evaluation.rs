@@ -2,7 +2,7 @@ mod accumulator;
 mod cache;
 mod feature;
 mod forward;
-mod sparse;
+pub mod sparse;
 pub mod stats;
 
 mod simd {
@@ -47,7 +47,9 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use arrayvec::ArrayVec;
-use hobbes_nnue_arch::{Network, BUCKETS, OUTPUT_BUCKET_COUNT, Q, SCALE};
+use hobbes_nnue_arch::{
+    Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
+};
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -83,11 +85,17 @@ impl NNUE {
             Black => (&acc.black_features, &acc.white_features),
         };
 
+        let mut l0_outputs = [0u8; L1_SIZE];
+        let mut l1_outputs = [0i32; L2_SIZE * 2];
+        let mut l2_outputs = [0i32; L3_SIZE];
         let output_bucket = get_output_bucket(board);
+
         let raw = unsafe {
-            let l0_outputs = inference::activate_l0(us, them);
-            let l1_outputs = inference::propagate_l1(&l0_outputs, output_bucket);
-            let l2_outputs = inference::propagate_l2(&l1_outputs, output_bucket);
+            inference::activate_l0(us, them, &mut l0_outputs);
+            #[cfg(feature = "track_l0_activations")]
+            sparse::track_activations(&l0_outputs);
+            inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);
+            inference::propagate_l2(&l1_outputs, output_bucket, &mut l2_outputs);
             inference::propagate_l3(&l2_outputs, output_bucket)
         };
 
@@ -126,7 +134,7 @@ impl NNUE {
         for side in [White, Black] {
             for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
                 let pieces = board.pieces(pc) & board.side(side);
-                let cached_pieces = cache_entry.bitboards[pc] & cache_entry.bitboards[side.idx()];
+                let cached_pieces = cache_entry.pieces[pc] & cache_entry.colours[side];
 
                 let added = pieces & !cached_pieces;
                 for add in added {
@@ -179,7 +187,8 @@ impl NNUE {
         acc.computed[side] = true;
         acc.needs_refresh[side] = false;
 
-        cache_entry.bitboards = board.bb;
+        cache_entry.pieces = board.pieces;
+        cache_entry.colours = board.colours;
         cache_entry.features = *acc.features(side);
     }
 
@@ -270,7 +279,7 @@ impl NNUE {
     fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
         AccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
-            Feature::new(pc, mv.from(), side)
+            Feature::new(pc, mv.from(), side),
         )
     }
 

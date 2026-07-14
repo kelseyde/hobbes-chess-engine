@@ -8,6 +8,9 @@ pub struct Square(pub u8);
 
 impl Square {
     pub const COUNT: u8 = 64;
+    pub const LEFT: i8 = -1;
+    pub const RIGHT: i8 = 1;
+    pub const UP: [i8; 2] = [8, -8];
 
     #[inline(always)]
     pub const fn from(file: File, rank: Rank) -> Square {
@@ -42,6 +45,13 @@ impl Square {
     #[inline(always)]
     pub const fn minus(self, offset: u8) -> Square {
         Square(self.0 - offset)
+    }
+
+    #[inline(always)]
+    pub const fn shift(self, offset: i8) -> Square {
+        let value = self.0 as i8 + offset;
+        debug_assert!(value >= 0 && value < Square::COUNT as i8);
+        Square(value as u8)
     }
 
     pub fn iter() -> impl Iterator<Item = Square> {

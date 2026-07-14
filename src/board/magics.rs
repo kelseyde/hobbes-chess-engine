@@ -16,21 +16,6 @@ impl MagicLookup {
     }
 }
 
-// Slide in one direction, accumulating set bits until a blocker is hit.
-// `delta` is the square-index step; `stop` returns true when the edge is reached.
-fn slide(square: usize, blockers: u64, delta: i32, stop: fn(usize) -> bool) -> u64 {
-    let mut bb: u64 = 0;
-    let mut tgt = square;
-    while !stop(tgt) {
-        tgt = (tgt as i32 + delta) as usize;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) != 0 {
-            break;
-        }
-    }
-    bb
-}
-
 pub fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
     slide(square, blockers,  7, |s| s % 8 == 0 || s / 8 == 7)   // north-west
     | slide(square, blockers,  9, |s| s % 8 == 7 || s / 8 == 7) // north-east
@@ -45,13 +30,16 @@ pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
     | slide(square, blockers, -1, |s| s % 8 == 0) // west
 }
 
+use crate::tools::utils;
 use std::sync::LazyLock;
+use utils::slide;
 
-fn gen_attacks_table<const N: usize>(
+fn gen_attacks_table(
     magics: &[MagicLookup; 64],
     gen: fn(usize, u64) -> u64,
-) -> [Bitboard; N] {
-    let mut table = [Bitboard(0); N];
+    n: usize,
+) -> Vec<Bitboard> {
+    let mut table = vec![Bitboard(0); n];
     let mut sq = 0;
     while sq < 64 {
         let entry = magics[sq];
@@ -68,10 +56,10 @@ fn gen_attacks_table<const N: usize>(
     table
 }
 
-pub static BISHOP_ATTACKS: LazyLock<[Bitboard; 5248]> =
-    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks));
-pub static ROOK_ATTACKS: LazyLock<[Bitboard; 102400]> =
-    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks));
+pub static BISHOP_ATTACKS: LazyLock<Vec<Bitboard>> =
+    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks, 5248));
+pub static ROOK_ATTACKS: LazyLock<Vec<Bitboard>> =
+    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks, 102400));
 
 #[rustfmt::skip]
 pub const BISHOP_MAGICS: [MagicLookup; 64] = [

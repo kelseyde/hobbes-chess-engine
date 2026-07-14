@@ -47,6 +47,22 @@ pub const KEYS: Keys = {
     unsafe { std::mem::transmute(zobrist) }
 };
 
+/// Bit flags indicating which sub-hashes a piece type contributes to.
+const PAWN_FLAG: u8 = 1 << 0;
+const NON_PAWN_FLAG: u8 = 1 << 1;
+const MAJOR_FLAG: u8 = 1 << 2;
+const MINOR_FLAG: u8 = 1 << 3;
+
+/// Precomputed hash update flags indexed by piece type.
+const HASH_FLAGS: [u8; 6] = [
+    PAWN_FLAG,                               // Pawn -> pawn only
+    NON_PAWN_FLAG | MINOR_FLAG,              // Knight -> non_pawn + minor
+    NON_PAWN_FLAG | MINOR_FLAG,              // Bishop -> non_pawn + minor
+    NON_PAWN_FLAG | MAJOR_FLAG,              // Rook  -> non_pawn + major
+    NON_PAWN_FLAG | MAJOR_FLAG,              // Queen -> non_pawn + major
+    NON_PAWN_FLAG | MAJOR_FLAG | MINOR_FLAG, // King -> non_pawn + major + minor
+];
+
 impl Hashes {
     pub fn new(board: &Board) -> Self {
         Self {
@@ -66,20 +82,21 @@ impl Hashes {
         self.board ^= hash;
     }
 
-    pub fn update_pawn_hash(&mut self, hash: u64) {
-        self.pawn ^= hash;
-    }
+    /// Updates all relevant sub-hashes for a piece toggle in one go.
+    #[inline(always)]
+    pub fn update_piece(&mut self, pc: Piece, side: Side, hash: u64) {
+        let flags = HASH_FLAGS[pc as usize];
+        self.board ^= hash;
 
-    pub fn update_non_pawn_hash(&mut self, side: Side, hash: u64) {
-        self.non_pawn[side] ^= hash;
-    }
+        let pawn_mask = -((flags & PAWN_FLAG != 0) as i64) as u64;
+        let non_pawn_mask = -((flags & NON_PAWN_FLAG != 0) as i64) as u64;
+        let major_mask = -((flags & MAJOR_FLAG != 0) as i64) as u64;
+        let minor_mask = -((flags & MINOR_FLAG != 0) as i64) as u64;
 
-    pub fn update_major_hash(&mut self, hash: u64) {
-        self.major ^= hash;
-    }
-
-    pub fn update_minor_hash(&mut self, hash: u64) {
-        self.minor ^= hash;
+        self.pawn ^= hash & pawn_mask;
+        self.non_pawn[side] ^= hash & non_pawn_mask;
+        self.major ^= hash & major_mask;
+        self.minor ^= hash & minor_mask;
     }
 
     pub const fn hash(&self) -> u64 {
@@ -104,7 +121,6 @@ impl Hashes {
 }
 
 impl Keys {
-
     pub fn get_hash(board: &Board) -> u64 {
         let mut hash: u64 = 0;
         // Iterate over all squares and pieces
@@ -133,7 +149,7 @@ impl Keys {
 
     pub fn get_pawn_hash(board: &Board) -> u64 {
         let mut hash: u64 = 0;
-        for sq in board.bb[Pawn] {
+        for sq in board.pieces[Pawn] {
             if let Some(side) = board.side_at(sq) {
                 hash ^= Self::sq(Pawn, side, sq);
             }
@@ -198,5 +214,9 @@ impl Keys {
 
     fn piece_index(piece: Piece, side: Side) -> usize {
         piece as usize + if side == Side::White { 0 } else { 6 }
+    }
+
+    pub const fn hm(hm_bucket: usize) -> u64 {
+        KEYS.hm[hm_bucket]
     }
 }

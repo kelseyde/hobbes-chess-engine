@@ -1,4 +1,5 @@
 use crate::board::Board;
+use crate::print_measurements;
 use crate::search::search;
 use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
@@ -75,14 +76,13 @@ pub fn bench(td: &mut ThreadData) {
         td.start_time = Instant::now();
         search(&board, td);
         println!("bestmove {}\n", td.best_move.to_uci());
-        nodes += td.nodes;
+        nodes += td.nodes();
         time += td.start_time.elapsed().as_millis() as u64;
     }
 
     let end = Instant::now();
 
-    #[cfg(debug_assertions)]
-    td.debug_stats.print();
+    print_measurements!();
     td.minimal_output = minimal_enabled;
     td.clear();
 
@@ -91,4 +91,7 @@ pub fn bench(td: &mut ThreadData) {
 
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
+
+    #[cfg(feature = "track_l0_activations")]
+    crate::evaluation::sparse::dump_activation_counts();
 }

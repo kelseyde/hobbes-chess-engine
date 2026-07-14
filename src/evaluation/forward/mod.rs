@@ -4,11 +4,19 @@ use hobbes_nnue_arch::{L1_SIZE, L2_SIZE, L3_SIZE};
 /// is both a `Vectorised` and `Scalar` implementation of this trait; the appropriate one is
 /// selected at compile time.
 pub trait Forward {
-    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE]) -> [u8; L1_SIZE];
+    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], output: &mut [u8; L1_SIZE]);
 
-    unsafe fn propagate_l1(input: &[u8; L1_SIZE], output_bucket: usize) -> [i32; L2_SIZE * 2];
+    unsafe fn propagate_l1(
+        input: &[u8; L1_SIZE],
+        output_bucket: usize,
+        output: &mut [i32; L2_SIZE * 2],
+    );
 
-    unsafe fn propagate_l2(input: &[i32; L2_SIZE * 2], output_bucket: usize) -> [i32; L3_SIZE];
+    unsafe fn propagate_l2(
+        input: &[i32; L2_SIZE * 2],
+        output_bucket: usize,
+        output: &mut [i32; L3_SIZE],
+    );
 
     unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32;
 }

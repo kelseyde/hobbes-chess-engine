@@ -1,36 +1,38 @@
-name: Hobbes Releases
+name: Bench
 
 on: [workflow_dispatch]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  build:
-    name: Build for ${{ matrix.name }}
+  bench:
+    name: Build and Bench ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            name: hobbes-linux-avx2
+            name: linux-avx2
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+            target: x86_64-unknown-linux-gnu
 
           - os: ubuntu-latest
-            name: hobbes-linux-avx512
+            name: linux-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+            target: x86_64-unknown-linux-gnu
 
           - os: windows-latest
-            name: hobbes-windows-avx2
+            name: windows-avx2
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+            target: x86_64-pc-windows-msvc
 
           - os: windows-latest
-            name: hobbes-windows-avx512
+            name: windows-avx512
             rustflags: "-C target-cpu=x86-64-v4 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+            target: x86_64-pc-windows-msvc
 
           - os: macos-latest
-            name: hobbes-macos
+            name: macos
             rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
+            target: aarch64-apple-darwin
 
     steps:
       - name: Checkout repository
@@ -39,9 +41,17 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Read network name
-        shell: bash
+      - name: Read network name (Unix)
+        if: runner.os != 'Windows'
         run: echo "DEFAULT_NET=$(cat network.txt)" >> $GITHUB_ENV
+
+      - name: Read network name (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $net = Get-Content network.txt -Raw
+          $net = $net.Trim()
+          echo "DEFAULT_NET=$net" >> $env:GITHUB_ENV
 
       - name: Download network
         run: |
@@ -76,49 +86,3 @@ jobs:
         env:
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
           CARGO_INCREMENTAL: 1
-
-      - name: Rename binary with platform suffix (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cp target/release/hobbes-chess-engine ${{ matrix.name }}
-
-      - name: Rename binary with platform suffix (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cp target/release/hobbes-chess-engine.exe ${{ matrix.name }}.exe
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v5.0.0
-        with:
-          name: ${{ matrix.name }}
-          path: |
-            ${{ matrix.name }}
-            ${{ matrix.name }}.exe
-          retention-days: 1
-
-  release:
-    name: Development release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Get short SHA hash
-        id: hash
-        run: echo "COMMIT_SHA=$(git rev-parse HEAD | cut -c 1-8)" >> $GITHUB_ENV
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v6.0.0
-        with:
-          path: artifacts
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.4.1
-        with:
-          name: Hobbes 1.0-dev-${{ env.COMMIT_SHA }}
-          draft: true
-          prerelease: true
-          files: artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
