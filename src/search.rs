@@ -119,7 +119,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             td.completed_depth = td.depth;
         }
 
-        delta = asp_delta() + score * score / asp_prev_score_div();
+        delta = asp_delta()
+            + score * score / asp_prev_score_div()
+            - td.score_stability.min(td.best_move_stability).min(7) as i32;
         reduction = 0;
         td.depth += 1;
     }
