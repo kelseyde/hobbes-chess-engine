@@ -235,10 +235,16 @@ fn alpha_beta<NODE: NodeType>(
                 tt_move_noisy = board.is_noisy(&tt_move)
             }
 
+            let tt_cutoff_ok = if cut_node {
+                tt_score >= beta || depth > 4
+            } else {
+                tt_score <= alpha && depth <= 4
+            };
+
             if !root_node
                 && !pv_node
                 && tt_depth >= depth
-                && (tt_score <= alpha || cut_node)
+                && tt_cutoff_ok
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
                 return tt_score;
             }
