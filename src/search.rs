@@ -353,8 +353,8 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         let nmp_margin = nmp_margin_depth_mult() * depth
-            + nmp_margin_improving() * improving as i32
-            - nmp_margin_offset();
+            - nmp_margin_improving() * improving as i32
+            + nmp_margin_offset();
         if depth >= nmp_min_depth()
             && static_eval >= beta - nmp_margin
             && ply as i32 > td.nmp_min_ply
