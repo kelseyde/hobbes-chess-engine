@@ -58,7 +58,7 @@ tunable_params! {
     lmp_factor1_scale            = 87, 50..=200,           true;
     lmp_improvement_min          = -116, -300..=0,         true;
     lmp_improvement_max          = 212, 0..=500,           true;
-    hp_max_depth                 = 4, 4..=8,               false;
+    hp_max_depth                 = 8, 4..=8,               false;
     hp_scale                     = -2373, -3072..=-1024,   true;
     bnp_max_depth                = 6, 4..=10,              false;
     bnp_scale                    = 149, 64..=256,          true;
