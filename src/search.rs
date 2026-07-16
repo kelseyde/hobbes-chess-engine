@@ -880,7 +880,8 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        let corr_weight = depth + 2 * (tt_flag == Exact) as i32;
+        td.correction_history.update_correction_history(board, &td.stack, corr_weight, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
