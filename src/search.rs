@@ -11,12 +11,10 @@ pub mod time;
 pub mod tt;
 
 use std::sync::atomic::Ordering::Relaxed;
-use crate::board::cuckoo::Cuckoo;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
-use crate::board::zobrist::Keys;
-use crate::board::{ray, Board};
+use crate::board::Board;
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
@@ -175,7 +173,7 @@ fn alpha_beta<NODE: NodeType>(
         return qs(board, td, alpha, beta, ply);
     }
 
-    if !root_node && alpha < 0 && has_upcoming_repetition(board, td, ply) {
+    if !root_node && alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
         if alpha >= beta {
             return alpha;
@@ -906,7 +904,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     debug_assert!(score::MIN < alpha && alpha < beta && beta < score::MAX);
     debug_assert!(pv_node || alpha == beta - 1);
 
-    if alpha < 0 && has_upcoming_repetition(board, td, ply) {
+    if alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
         if alpha >= beta {
             return alpha;
@@ -1175,62 +1173,6 @@ fn is_repetition(board: &Board, td: &ThreadData) -> bool {
             return true;
         }
     }
-    false
-}
-
-/// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
-pub fn has_upcoming_repetition(board: &Board, td: &ThreadData, ply: usize) -> bool {
-    // TODO plies from null?
-    let hm = (board.hm as usize).min(td.keys.len().saturating_sub(1));
-    if hm < 3 {
-        return false;
-    }
-
-    let occ = board.occ();
-    let get_prev_key = |plies: usize| td.keys[td.keys.len() - 1 - plies];
-    let curr_key = board.hashes.hash();
-
-    let mut other = curr_key ^ get_prev_key(1) ^ Keys::stm();
-
-    for i in (3..=hm).step_by(2) {
-        other ^= get_prev_key(i - 1) ^ get_prev_key(i) ^ Keys::stm();
-
-        if other != 0 {
-            continue;
-        }
-
-        let diff = curr_key ^ get_prev_key(i);
-        let mut slot = Cuckoo::h1(diff);
-
-        if Cuckoo::keys(slot) != diff {
-            slot = Cuckoo::h2(diff);
-
-            if Cuckoo::keys(slot) != diff {
-                continue;
-            }
-        }
-
-        let mv = Cuckoo::moves(slot);
-        let ray = ray::between(mv.from(), mv.to());
-
-        if !(ray & occ).is_empty() {
-            continue;
-        }
-
-        if ply > i {
-            return true;
-        }
-
-        let from = mv.from();
-        let to = mv.to();
-        let mut target_sq = from;
-        if board.piece_at(from).is_none() {
-            target_sq = to;
-        }
-        let us = board.us();
-        return us.contains(target_sq);
-    }
-
     false
 }
 

@@ -133,6 +133,12 @@ impl ThreadData {
     }
 
     pub fn reset(&mut self) {
+        self.shared.nodes.store(0, Relaxed);
+        self.abort.store(false, Relaxed);
+        self.reset_local();
+    }
+
+    pub fn reset_local(&mut self) {
         self.stack = NodeStack::default();
         self.node_table.clear();
         self.shared.nodes.store(0, Relaxed);

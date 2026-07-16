@@ -1,10 +1,11 @@
-use crate::board::attacks;
+use crate::board::{attacks, ray, Board};
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::{Move, MoveFlag};
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::zobrist::Keys;
+use crate::search::thread::ThreadData;
 
 /// A mechanism used to determine if a move will lead to a repetition on the next ply. This is used
 /// to detect repetitions one ply earlier during search. Implementation based on this paper:
@@ -97,13 +98,72 @@ fn insert(mut key: u64, mut mv: Move) {
     }
 }
 
+impl Board {
+
+    /// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
+    pub fn has_upcoming_repetition(&self, td: &ThreadData, ply: usize) -> bool {
+        // TODO plies from null?
+        let hm = (self.hm as usize).min(td.keys.len().saturating_sub(1));
+        if hm < 3 {
+            return false;
+        }
+
+        let occ = self.occ();
+        let get_prev_key = |plies: usize| td.keys[td.keys.len() - 1 - plies];
+        let curr_key = self.hashes.hash();
+
+        let mut other = curr_key ^ get_prev_key(1) ^ Keys::stm();
+
+        for i in (3..=hm).step_by(2) {
+            other ^= get_prev_key(i - 1) ^ get_prev_key(i) ^ Keys::stm();
+
+            if other != 0 {
+                continue;
+            }
+
+            let diff = curr_key ^ get_prev_key(i);
+            let mut slot = Cuckoo::h1(diff);
+
+            if Cuckoo::keys(slot) != diff {
+                slot = Cuckoo::h2(diff);
+
+                if Cuckoo::keys(slot) != diff {
+                    continue;
+                }
+            }
+
+            let mv = Cuckoo::moves(slot);
+            let ray = ray::between(mv.from(), mv.to());
+
+            if !(ray & occ).is_empty() {
+                continue;
+            }
+
+            if ply > i {
+                return true;
+            }
+
+            let from = mv.from();
+            let to = mv.to();
+            let mut target_sq = from;
+            if self.piece_at(from).is_none() {
+                target_sq = to;
+            }
+            let us = self.us();
+            return us.contains(target_sq);
+        }
+
+        false
+    }
+    
+}
+
 #[cfg(test)]
 mod tests {
     use crate::board::cuckoo;
     use crate::board::moves::Move;
     use crate::board::ray;
     use crate::board::Board;
-    use crate::search::has_upcoming_repetition;
     use crate::search::thread::ThreadData;
     use std::sync::Once;
 
@@ -138,7 +198,7 @@ mod tests {
             &["e1e2", "e8d8", "e2e1", "d8e8"],
         );
         assert_eq!(board.hm, 4);
-        assert!(has_upcoming_repetition(&board, &td, 0));
+        assert!(board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -147,7 +207,7 @@ mod tests {
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             &[],
         );
-        assert!(!has_upcoming_repetition(&board, &td, 0));
+        assert!(!board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -156,7 +216,7 @@ mod tests {
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             &["g1f3"],
         );
-        assert!(!has_upcoming_repetition(&board, &td, 0));
+        assert!(!board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -166,7 +226,7 @@ mod tests {
             &["a1a3", "e8d8", "a3a1", "d8e8"],
         );
         assert_eq!(board.hm, 4);
-        assert!(has_upcoming_repetition(&board, &td, 0));
+        assert!(board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -175,7 +235,7 @@ mod tests {
             "4k3/8/8/8/8/R7/P7/4K3 w - - 0 1",
             &["a3a4", "e8d8", "a4a3", "d8e8"],
         );
-        assert!(has_upcoming_repetition(&board, &td, 0));
+        assert!(board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -185,7 +245,7 @@ mod tests {
             &["a1a3", "e8d8", "a3a1", "d8e8", "a2a4"],
         );
         assert_eq!(board.hm, 0);
-        assert!(!has_upcoming_repetition(&board, &td, 0));
+        assert!(!board.has_upcoming_repetition(&td, 0));
     }
 
     #[test]
@@ -195,6 +255,6 @@ mod tests {
             &["g1f3", "g8f6", "f3g1", "f6g8", "e2e4"],
         );
         assert_eq!(board.hm, 0);
-        assert!(!has_upcoming_repetition(&board, &td, 0));
+        assert!(!board.has_upcoming_repetition(&td, 0));
     }
 }
