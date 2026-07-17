@@ -7,6 +7,11 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 
+/// Below is a jumbled mess of code used to compute the index of a given threat in the threat inputs
+/// accumulator.
+/// N.B. Everything here is heavily inspired by other engines, specifically Viridithas, Reckless, &
+/// Stormphrax. My only contribution is a demented level of comments to aid my own understanding.
+
 /// The total number of threat features encoded in the network.
 ///
 /// Why 60144? Naively, the total possible space of threat features is side * piece * square * side
