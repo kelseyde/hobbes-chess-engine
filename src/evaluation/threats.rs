@@ -1,4 +1,3 @@
-use std::ptr::null;
 use crate::board::file::File;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
@@ -10,7 +9,7 @@ use crate::board::square::Square;
 /// * piece * square = 2 * 6 * 64 * 2 * 6 * 64 = 589824 inputs. However, encoding the entire space
 /// would be prohibitively slow. Fortunately for us, many of these encodings are redundant, for
 /// reasons explained below. After deduplicating the redundant inputs, we arrive at a total of 60144
-/// threat features.
+/// threat features - a much more manageable number.
 pub const THREAT_FEATURES: usize = 60144;
 
 /// Lookup table indexed by [attacker][victim].
@@ -49,13 +48,13 @@ static ATTACK_INDEX: [[[u32; 2]; 12]; 12] = [[[0; 2]; 12]; 12];
 static OFFSETS: [[u32; 64]; 12] = [[0; 64]; 12];
 static PIECE_INDEX: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
 
-
-
-
 fn is_threat_included(attacker: Piece, victim: Piece) -> bool {
     PIECE_TARGET_MAP[attacker as usize][victim as usize] >= 0
 }
 
+/// Compute the index of the given threat. We return a tuple containing the index itself, and a bool
+/// indicating whether the threat is included in the threat inputs. We could return an `Option<i32>`,
+/// but this way allows for branchless execution.
 pub fn threat_index(
     side: Side,
     king_sq: Square,
@@ -79,15 +78,19 @@ pub fn threat_index(
         to = to.flip_file();
     }
 
+    // When two pieces of the same type threaten each other, their attacks are by definition
+    // symmetrical: A attacking B implies B attacking A. Encoding both attacks is therefore
+    // redundant. We select which one to encode based on whether it is a 'forward' or 'backward'
+    // attack (from the perspective of square indices, with A1 being 0 and H8 being 63).
     let is_forward_threat = from.0 < to.0;
 
-    // relative-colour coloured-piece indices
-    let att = piece_index(attacker, attacker_side);
-    let vic = piece_index(victim, victim_side);
+    // Get the indices of the attacking and defending piece (white 0-5, black 6-11).
+    let att_idx = piece_index(attacker, attacker_side);
+    let vic_idx = piece_index(victim, victim_side);
 
-    let base   = ATTACK_INDEX[att][vic];           // precomputed global base
-    let offset = OFFSETS[att][from];               // from-square offset within attacker block
-    let victim_idx = PIECE_INDEX[att][from][to];   // compressed victim square
+    let base = ATTACK_INDEX[att_idx][vic_idx][is_forward_threat as usize]; // TODO
+    let offset = OFFSETS[att_idx][from];               // TODO
+    let victim_idx = PIECE_INDEX[att_idx][from][to];   // TODO
 
     (
         base != u32::MAX,
