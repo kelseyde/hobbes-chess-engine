@@ -1,6 +1,103 @@
+use std::ptr::null;
+use crate::board::file::File;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
+
+/// The total number of threat features encoded in the network.
+///
+/// Why 60144? Naively, the total possible space of threat features is side * piece * square * side
+/// * piece * square = 2 * 6 * 64 * 2 * 6 * 64 = 589824 inputs. However, encoding the entire space
+/// would be prohibitively slow. Fortunately for us, many of these encodings are redundant, for
+/// reasons explained below. After deduplicating the redundant inputs, we arrive at a total of 60144
+/// threat features.
+pub const THREAT_FEATURES: usize = 60144;
+
+/// Lookup table indexed by [attacker][victim].
+/// This table tells us whether a given attacker/victim combination is included in the threat inputs.
+/// Some combinations are redundant: e.g., pawn-attacking-bishop is implied by pawn-attacking-pawn.
+/// We can therefore decrease the number of threat features by deduplicating these redundant inputs.
+///
+/// All king-threats are fully excluded following this logic, in addition to the following list:
+///     - PAWN-attacking-BISHOP
+///     - PAWN-attacking-ROOK
+///     - PAWN-attacking-QUEEN
+///     - BISHOP-attacking-QUEEN
+///     - ROOK-attacking-QUEEN
+///
+/// Same-type threats, e.g. knight-attacks-knight, are 'semi-excluded' later in the process, but
+/// included here.
+///
+/// -1 tells us the threat is fully excluded. Otherwise, we return the index of the victim in the
+/// attacker's list of valid targets.
+#[rustfmt::skip]
+const PIECE_TARGET_MAP: [[i32; 6]; 6] = [
+    [ 0,  1, -1,  2, -1, -1], // pawn    -> P N R
+    [ 0,  1,  2,  3,  4, -1], // knight  -> P N B R Q
+    [ 0,  1,  2,  3, -1, -1], // bishop  -> P N B R
+    [ 0,  1,  2,  3, -1, -1], // rook    -> P N B R
+    [ 0,  1,  2,  3,  4, -1], // queen   -> P N B R Q
+    [-1, -1, -1, -1, -1, -1], // king    -> nothing
+];
+
+/// For each attacker piece type, tell me how many valid victim types it has, counting each colour
+/// separately. This is essentially a pre-computed summary of the `PIECE_TARGET_MAP` table, with each
+/// entry multiplied by 2 to account for the two sides.
+const PIECE_TARGET_COUNT: [i32; 6] = [6, 10, 8, 8, 10, 8];
+
+static ATTACK_INDEX: [[[u32; 2]; 12]; 12] = [[[0; 2]; 12]; 12];
+static OFFSETS: [[u32; 64]; 12] = [[0; 64]; 12];
+static PIECE_INDEX: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
+
+
+
+
+fn is_threat_included(attacker: Piece, victim: Piece) -> bool {
+    PIECE_TARGET_MAP[attacker as usize][victim as usize] >= 0
+}
+
+pub fn threat_index(
+    side: Side,
+    king_sq: Square,
+    mut attacker: Piece,
+    mut attacker_side: Side,
+    mut victim: Piece,
+    mut victim_side: Side,
+    mut from: Square,
+    mut to: Square
+) -> (bool, i32) {
+    // Threat indices are reversed for black.
+    if side == Side::Black {
+        attacker_side = !attacker_side;
+        victim_side = !victim_side;
+        from = from.flip_rank();
+        to = to.flip_rank();
+    }
+    // Threat indices are horizontally mirrored if the king is on the right side of the board.
+    if king_sq.file() >= File::E {
+        from = from.flip_file();
+        to = to.flip_file();
+    }
+
+    let is_forward_threat = from.0 < to.0;
+
+    // relative-colour coloured-piece indices
+    let att = piece_index(attacker, attacker_side);
+    let vic = piece_index(victim, victim_side);
+
+    let base   = ATTACK_INDEX[att][vic];           // precomputed global base
+    let offset = OFFSETS[att][from];               // from-square offset within attacker block
+    let victim_idx = PIECE_INDEX[att][from][to];   // compressed victim square
+
+    (
+        base != u32::MAX,
+        base.wrapping_add(offset).wrapping_add(victim_idx as u32) as i32
+    )
+}
+
+const fn piece_index(pc: Piece, side: Side) -> usize {
+    pc as usize + 6 * side as usize
+}
 
 /// A compact encoding of a single threat change, packed into a `u32`.
 ///
