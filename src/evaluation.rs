@@ -4,7 +4,7 @@ mod feature;
 mod forward;
 pub mod sparse;
 pub mod stats;
-mod threats;
+pub mod threats;
 
 mod simd {
     #[cfg(target_feature = "avx512f")]
