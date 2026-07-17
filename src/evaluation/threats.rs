@@ -91,7 +91,7 @@ unsafe fn init_victim_ordinal() {
         for from in Square::iter() {
             let attacks = attacks::attacks(from, pc, side, Bitboard::NONE);
             for to in Square::iter() {
-                // The compressed ordinal of `to` is the number of squares this attacker strikes that
+                // The compressed ordinal of `to` is the number of squares this piece attacks that
                 // lie strictly below `to` in index order.
                 let attacks_below = attacks & Bitboard::below(to);
                 VICTIM_ORDINAL[pc_idx][from][to] = attacks_below.count() as u8;
