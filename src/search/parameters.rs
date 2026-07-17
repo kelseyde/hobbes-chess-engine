@@ -86,7 +86,7 @@ tunable_params! {
     se_beta_noisy_scale          = 19, 16..=48,            true;
     se_beta_noisy_div            = 54, 40..=100,           true;
     se_dext_noisy_margin         = 10, 0..=30,             true;
-    se_text_noisy_margin         = 48, 20..=120,           true;
+    se_text_noisy_margin         = 69, 20..=120,           true;
     se_dext_pv_margin            = 100, 0..=200,           true;
     se_text_pv_margin            = 100, 0..=200,           true;
     ldse_max_depth               = 7, 1..=12,              false;
