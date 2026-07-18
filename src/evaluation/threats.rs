@@ -1,3 +1,4 @@
+use hobbes_nnue_arch::L0_THREAT_FEATURES;
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
@@ -12,13 +13,12 @@ use crate::board::square::Square;
 /// N.B. Everything here is heavily inspired by other engines, specifically Viridithas, Reckless, &
 /// Stormphrax. My only contribution is a demented level of comments to aid my own understanding.
 
-/// The total number of threat features encoded in the network.
+/// The total number of threat features encoded in the network is 60144.
 ///
 /// Why 60144? Naively, the total possible space of threat features is side * piece * square * side
 /// * piece * square = 2 * 6 * 64 * 2 * 6 * 64 = 589824 inputs. However, encoding the entire space
 /// would be prohibitively slow. Fortunately for us, many of these encodings are redundant, for
 /// reasons explained below. After deduplicating the redundant inputs, we arrive at a total of 60144.
-pub const THREAT_FEATURES: usize = 60144;
 
 /// This table tells us whether a given attacker/victim combination is included in the threat inputs.
 /// Some combinations are redundant: e.g., pawn-attacking-bishop is implied by pawn-attacking-pawn.
@@ -232,8 +232,8 @@ fn threat_indices_correct_count_no_collisions() {
                         let (valid, idx) = threat_index(White, Square(0), attacker_pc, attacker_side, victim_pc, victim_side, from, to);
                         if valid {
                             assert!(
-                                idx >= 0 && (idx as usize) < THREAT_FEATURES,
-                                "index {idx} out of range [0, {THREAT_FEATURES})"
+                                idx >= 0 && (idx as usize) < L0_THREAT_FEATURES,
+                                "index {idx} out of range [0, {L0_THREAT_FEATURES})"
                             );
                             assert!(seen.insert(idx), "collision at index {idx}");
                         }
@@ -244,6 +244,6 @@ fn threat_indices_correct_count_no_collisions() {
     }
 
     let max = *seen.iter().max().unwrap();
-    assert_eq!(max as usize, THREAT_FEATURES - 1);
+    assert_eq!(max as usize, L0_THREAT_FEATURES - 1);
     assert_eq!(seen.len(), 53564);
 }
