@@ -149,7 +149,7 @@ impl NNUE {
             }
         }
 
-        let weights = &NETWORK.l0_weights[bucket];
+        let weights = &NETWORK.l0_psq_weights[bucket];
         let mirror = acc.mirrored[side as usize];
 
         // Fuse together updates to the accumulator for efficiency using iterators.
@@ -258,7 +258,7 @@ impl NNUE {
                 self.full_refresh(board, self.current, side, mirror, bucket);
             } else {
                 // Otherwise, move forward through the stack applying all updates one by one.
-                let weights = &NETWORK.l0_weights[bucket];
+                let weights = &NETWORK.l0_psq_weights[bucket];
                 while curr < self.current {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
                     let prev_acc = front.last().unwrap();

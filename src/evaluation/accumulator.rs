@@ -2,7 +2,7 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::evaluation::feature::Feature;
 use crate::evaluation::{simd, NETWORK};
-use hobbes_nnue_arch::{FeatureWeights, L1_SIZE};
+use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 
 /// The `Accumulator` holds the pre-activations of the first layer of the neural network. The input
 /// layer just encodes the positions of pieces on the board, from the perspective of both sides.
@@ -101,7 +101,7 @@ impl Accumulator {
 pub fn apply_update(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     update: &AccumulatorUpdate,
     perspective: Side,
     mirror: bool,
@@ -125,7 +125,7 @@ pub fn add1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
     add: Feature,
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -140,7 +140,7 @@ pub fn sub1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
     sub: Feature,
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -156,7 +156,7 @@ pub fn add1_sub1(
     output_features: &mut [i16; L1_SIZE],
     add: Feature,
     sub: Feature,
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -175,7 +175,7 @@ pub fn add1_sub2(
     add: Feature,
     sub1: Feature,
     sub2: Feature,
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -196,7 +196,7 @@ pub fn add2_sub2(
     add2: Feature,
     sub1: Feature,
     sub2: Feature,
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -214,7 +214,7 @@ pub fn add4(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
     adds: &[Feature; 4],
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -232,7 +232,7 @@ pub fn sub4(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
     subs: &[Feature; 4],
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
@@ -271,7 +271,7 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
 
 #[inline(always)]
 pub fn weight_ptr(
-    weights: &FeatureWeights,
+    weights: &PieceSquareWeights,
     feature: Feature,
     perspective: Side,
     mirror: bool,

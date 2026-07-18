@@ -109,7 +109,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
 
     repermute_l0_biases(&mut dst.l0_biases, &src.l0_biases, &repermute);
 
-    for (dst_bucket, src_bucket) in dst.l0_weights.iter_mut().zip(src.l0_weights.iter()) {
+    for (dst_bucket, src_bucket) in dst.l0_psq_weights.iter_mut().zip(src.l0_psq_weights.iter()) {
         repermute_l0_bucket(dst_bucket, src_bucket, &repermute);
     }
 
@@ -122,7 +122,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         let block_size = num_chunks * chunk_size;
 
         // Permute L0 weights per bucket.
-        for bucket in dst.l0_weights.iter_mut() {
+        for bucket in dst.l0_psq_weights.iter_mut() {
             permute_i16s(bucket, order, chunk_size, block_size);
         }
         // Permute L0 biases.
