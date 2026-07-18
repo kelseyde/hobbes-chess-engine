@@ -1,4 +1,3 @@
-use crate::board::bitboard::Bitboard;
 use crate::board::castling::{CastleSafety, CastleTravel};
 use crate::board::file::File;
 use crate::board::movegen::is_attacked;
@@ -11,6 +10,8 @@ use crate::board::square::Square;
 use crate::board::{attacks, ray, Board};
 
 impl Board {
+    /// Check if a move is pseudo-legal in the current position. A move is pseudo-legal if it follows
+    /// the basic rules of chess, but may leave the king in check.
     pub fn is_pseudo_legal(&self, mv: &Move) -> bool {
         if !mv.exists() {
             return false;
@@ -256,7 +257,8 @@ impl Board {
         }
     }
 
-    /// This function assumes that the move is pseudo-legal
+    /// Checks is a move is legal in the current position. This function assumes that the move is
+    /// pseudo-legal.
     pub fn is_legal(&self, mv: &Move) -> bool {
         let from = mv.from();
         let to = mv.to();
@@ -266,10 +268,8 @@ impl Board {
         let pinned = self.our_pinned();
 
         if mv.is_ep() {
-            let from_bb = Bitboard::of_sq(from);
-            let to_bb = Bitboard::of_sq(to);
-            let ep_bb = Bitboard::of_sq(self.ep_capture_sq(to));
-            let occ = self.occ() ^ from_bb ^ to_bb ^ ep_bb;
+            let ep_sq = self.ep_capture_sq(to);
+            let occ = self.occ() ^ from ^ to ^ ep_sq;
 
             let diagonals = self.their(Bishop) | self.their(Queen);
             let orthogonals = self.their(Piece::Rook) | self.their(Queen);

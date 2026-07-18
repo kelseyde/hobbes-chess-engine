@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import numpy as np
 import sys
+
+import numpy as np
 
 
 def isMirrored(sq):
@@ -38,5 +39,5 @@ for bucket in range(BUCKETS):
             continue
         mergedFt[bucket, friendlyKing, sq, :] = ft[bucket, opponentKing, sq, :]
 
-mergedNet = np.concat((mergedFt.reshape(MERGED_FT_SIZE), net[FT_SIZE:]))
+mergedNet = np.concatenate((mergedFt.reshape(MERGED_FT_SIZE), net[FT_SIZE:]))
 open("merged.nnue", "wb").write(mergedNet.tobytes())

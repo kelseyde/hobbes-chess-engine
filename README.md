@@ -1,29 +1,33 @@
-<div align="center">
-
 <p align="center"><img src="resources/hobbes.png" width="180"></p>
 
+<div align="center">
+
 <h3>Hobbes</h3>
-<b>A chess engine written in Rust.</b>
+A chess engine written in Rust.
 
 <br>
 <br>
+  <a href="https://github.com/kelseyde/hobbes-chess-engine/releases"><strong>Download Hobbes</strong></a> | <a href="https://github.com/kelseyde/hobbes-chess-engine/issues"><strong>Report a Bug</strong></a>
+<br>
+<br>
 
-[![Beta][beta-badge]][beta-link]
+[![release][release-badge]][release-link]
 [![License][license-badge]][license-link]
-
-<br>
 
 </div>
 
-A strong chess engine written in Rust, with NNUE evaluation trained from zero knowledge, using self-generated training data.
+## Overview
 
-Hobbes is a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine). Hobbes is also a collaborative effort from the members of [mattbench](https://chess.n9x.co/index/), who have each contributed hardware (and patches) towards turning Hobbes into a strong engine. 
+A strong chess engine written in Rust, with NNUE evaluation trained from zero knowledge, using self-generated training data. 
+
+Hobbes started off as a rewrite of my Java chess engine, [Calvin](https://github.com/kelseyde/calvin-chess-engine), although it has now surpassed Calvin by quite some distance. It is also my first project in the Rust programming language. 
 
 ## Strength 
 
-|                                   Version                                   | Release Date |  🎯 Elo  | CCRL Blitz | CCRL Rapid | CEGT Rapid |
-|:---------------------------------------------------------------------------:|:------------:|:--------:|:----------:|:----------:|:----------:|
-| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      | 3572 (#20) |     -      |
+|                                   Version                                   | Release Date |  🎯 Elo  | [CCRL Blitz](https://computerchess.org.uk/404/cgi/compare_engines.cgi?class=Single-CPU+engines&only_best_in_class=on&num_best_in_class=1&print=Rating+list&profile_step=50&profile_numbers=1&print=Results+table&print=LOS+table&table_size=100&ct_from_elo=0&ct_to_elo=10000&match_length=30&cross_tables_for_best_versions_only=1&sort_tables=by+rating&diag=0&reference_list=None&recalibrate=no) | [CCRL Rapid](https://computerchess.org.uk/4040/cgi/compare_engines.cgi?class=Single-CPU+engines&only_best_in_class=on&num_best_in_class=1&print=Rating+list&profile_step=50&profile_numbers=1&print=Results+table&print=LOS+table&table_size=100&ct_from_elo=0&ct_to_elo=10000&match_length=30&cross_tables_for_best_versions_only=1&sort_tables=by+rating&diag=0&reference_list=None&recalibrate=no) | [CCRL FRC](https://computerchess.org.uk/404FRC/) | [CEGT Rapid](http://www.cegt.net/40_40%20Rating%20List/40_40%20SingleVersion/rangliste.html) | [Chess324 Top 15](https://e4e6.com/324/) | [Ipman R9 List](https://ipmanchess.yolasite.com/r9-7945hx.php) |
+|:---------------------------------------------------------------------------:|:------------:|:------------:|:--------:|:----------:|:----------:|:----------:|:----------:|:----------:|
+| [2.1](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/2.1) |  2026-05-26  | **3725** |     3729 (#12)      | 3585 (#13-15) | 4046 (#9) |     -      | 3723 (#11) |  3527 (#13) |
+| [1.0](https://github.com/kelseyde/hobbes-chess-engine/releases/tag/1.0) |  2026-03-05  | **3715** |     3716 (#19)      | 3572 (#20) |     -      | - | - | - |
 
 ## Search
 
@@ -58,8 +62,8 @@ Please note, building Hobbes from source using these steps will create a basic e
 - The Stockfish discord community for endless amounts of useful information.
 - Bill Watterson, the author of the [comic book](https://en.wikipedia.org/wiki/Calvin_and_Hobbes) which gave this engine its name.
 
-[beta-badge]: https://img.shields.io/badge/version-BETA-A8DEFF?style=for-the-badge
-[beta-link]: https://github.com/kelseyde/hobbes-chess-engine
+[release-badge]: https://img.shields.io/github/v/release/kelseyde/hobbes-chess-engine?style=for-the-badge&color=A8DEFF
+[release-link]: https://github.com/kelseyde/hobbes-chess-engine/releases/latest
 
 [license-badge]: https://img.shields.io/github/license/kelseyde/hobbes-chess-engine?style=for-the-badge&color=fab157
 [license-link]: https://github.com/kelseyde/hobbes-chess-engine/blob/main/LICENSE

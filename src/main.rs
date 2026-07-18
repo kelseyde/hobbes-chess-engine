@@ -1,9 +1,10 @@
+use crate::board::cuckoo;
 use crate::tools::uci::UCI;
 use board::ray;
 
 pub const AUTHOR: &str = "Dan Kelsey";
 pub const CONTRIBUTORS: &str = "Jonathan Hallström, Mattia Giambirtone";
-pub const VERSION: &str = "1.0";
+pub const VERSION: &str = "2.1";
 
 /// The board module contains board representation, move generation, move legality checking, and
 /// everything related to the rules of chess.
@@ -24,6 +25,7 @@ pub mod tools;
 fn main() {
     // Initialise static data
     ray::init();
+    cuckoo::init();
 
     // Start up the UCI (Universal Chess Interface)
     let args: Vec<String> = std::env::args().collect();

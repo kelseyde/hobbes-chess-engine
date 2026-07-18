@@ -1,7 +1,7 @@
 use hobbes_nnue_arch::L0_SHIFT;
 use std::{arch::x86_64::*, mem::size_of};
 
-pub const U8_LANES: usize = size_of::<__m256i>() / size_of::<u8>();
+pub const U8_LANES: usize = size_of::<__m512i>() / size_of::<u8>();
 pub const I16_LANES: usize = size_of::<__m512i>() / size_of::<i16>();
 pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 

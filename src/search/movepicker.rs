@@ -16,18 +16,22 @@ use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 /// stages. Typically, the TT move is tried first, then 'good' noisy moves, then quiet moves, and
 /// finally 'bad' noisy moves. If we reach a beta cutoff in any of these stages, then we have saved
 /// the time required to generate the moves in the later stages.
+///
+/// All moves are stored in a single list with layout: [good_noisies | bad_noisies | quiets].
+/// Range boundaries are tracked by `bad_noisy_start` and `quiet_start`.
 #[rustfmt::skip]
 pub struct MovePicker {
-    moves: MoveList,       // List of moves to pick from in the current stage
-    stage: Stage,          // The current stage of move picking, e.g. generating quiets, trying captures.
-    idx: usize,            // The index of the current move being searched.
-    filter: MoveFilter,    // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
-    tt_move: Move,         // The move from the transposition table, which is tried first if it exists.
-    ply: usize,            // The ply of the current search, used for history heuristics.
-    threats: Bitboard,     // The squares threatened by the opponent, used for history heuristics.
-    skip_quiets: bool,     // Whether we should skip the remaining quiet moves.
-    split_noisies: bool,   // Whether to split noisy moves into good and bad based on a SEE threshold.
-    bad_noisies: MoveList, // Noisy moves that fail the SEE threshold, which are tried after quiet moves.
+    moves: MoveList,        // List of moves to pick from in the current stage
+    stage: Stage,           // The current stage of move picking, e.g. generating quiets, trying captures.
+    idx: usize,             // The index of the current move being searched.
+    filter: MoveFilter,     // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
+    tt_move: Move,          // The move from the transposition table, which is tried first if it exists.
+    ply: usize,             // The ply of the current search, used for history heuristics.
+    threats: Bitboard,      // The squares threatened by the opponent, used for history heuristics.
+    skip_quiets: bool,      // Whether we should skip the remaining quiet moves.
+    split_noisies: bool,    // Whether to split noisy moves into good and bad based on a SEE threshold.
+    bad_noisy_start: usize, // Index where bad noisies begin in the list.
+    quiet_start: usize,     // Index where quiets begin in the list.
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -49,14 +53,14 @@ impl MovePicker {
     pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
         Self::init(tt_move, filter, ply, threats, true, false)
     }
-    
+
     #[rustfmt::skip]
     pub fn init(
-        tt_move: Move, 
-        filter: MoveFilter, 
-        ply: usize, 
-        threats: Bitboard, 
-        skip_quiets: bool, 
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        skip_quiets: bool,
         split_noisies: bool
     ) -> Self {
         let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
@@ -70,7 +74,8 @@ impl MovePicker {
             threats,
             skip_quiets,
             split_noisies,
-            bad_noisies: MoveList::new(),
+            bad_noisy_start: 0,
+            quiet_start: 0,
         }
     }
 
@@ -88,35 +93,35 @@ impl MovePicker {
             self.stage = GoodNoisies;
         }
         if self.stage == GoodNoisies {
-            if let Some(best_move) = self.pick_best(false) {
+            if let Some(best_move) = self.pick_best(self.bad_noisy_start) {
                 return Some(best_move);
             } else {
                 self.stage = GenerateQuiets;
             }
         }
         if self.stage == GenerateQuiets {
-            self.idx = 0;
             if self.skip_quiets {
+                self.idx = self.bad_noisy_start;
                 self.stage = BadNoisies;
             } else {
-                self.moves.list.clear();
                 self.gen_quiet_moves(board, td);
+                self.idx = self.quiet_start;
                 self.stage = Quiets;
             }
         }
         if self.stage == Quiets {
             if self.skip_quiets {
-                self.idx = 0;
+                self.idx = self.bad_noisy_start;
                 self.stage = BadNoisies;
-            } else if let Some(best_move) = self.pick_best(false) {
+            } else if let Some(best_move) = self.pick_best(self.moves.len()) {
                 return Some(best_move);
             } else {
-                self.idx = 0;
+                self.idx = self.bad_noisy_start;
                 self.stage = BadNoisies;
             }
         }
         if self.stage == BadNoisies {
-            if let Some(best_move) = self.pick_best(true) {
+            if let Some(best_move) = self.pick_best(self.quiet_start) {
                 return Some(best_move);
             } else {
                 self.stage = Done;
@@ -142,6 +147,7 @@ impl MovePicker {
     #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
         let mut temp = MoveList::new();
+        let mut bad_temp = MoveList::new();
         board.gen_moves(self.filter, &mut temp);
         for entry in temp.iter_mut() {
             if entry.mv == self.tt_move {
@@ -151,45 +157,47 @@ impl MovePicker {
             if is_good_noisy(entry, board, self.split_noisies) {
                 self.moves.add(*entry);
             } else {
-                self.bad_noisies.add(*entry);
+                bad_temp.add(*entry);
             }
         }
+        self.bad_noisy_start = self.moves.len();
+        for entry in bad_temp.iter() {
+            self.moves.add(*entry);
+        }
+        self.quiet_start = self.moves.len();
     }
 
     /// Select the next move to try from the move list. We use an incremental selection sort, where
     /// only the best move is moved to the front each time. This is efficient since typically only
     /// a few moves will be tried during search, and so we save the time required to sort the rest.
     #[inline(always)]
-    fn pick_best(&mut self, use_bad_noisies: bool) -> Option<Move> {
-        let moves = if use_bad_noisies {
-            &mut self.bad_noisies
-        } else {
-            &mut self.moves
-        };
-        if self.idx >= moves.len() {
+    fn pick_best(&mut self, end: usize) -> Option<Move> {
+        if self.idx >= end {
             return None;
         }
-        let packed = moves
+        let packed = self
+            .moves
             .list
             .iter()
             .enumerate()
             .skip(self.idx)
+            .take(end - self.idx)
             .map(|(i, mv)| ((mv.score as i64) << 32) | ((u32::MAX as i64) - i as i64))
             .reduce(std::cmp::max)?;
         let best_index = (u32::MAX as usize) - (packed & 0xffffffff) as usize;
 
         if best_index != self.idx {
-            moves.list.swap(self.idx, best_index);
+            self.moves.list.swap(self.idx, best_index);
         }
-        let best_move = moves.list[self.idx].mv;
+        let best_move = self.moves.list[self.idx].mv;
         self.idx += 1;
         Some(best_move)
     }
-    
+
     pub fn skip_quiets(&mut self) {
         self.skip_quiets = true;
     }
-    
+
     pub fn stage(&self) -> Stage {
         self.stage
     }
