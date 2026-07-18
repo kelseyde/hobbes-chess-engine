@@ -1,5 +1,6 @@
-use hobbes_nnue_arch::L0_THREAT_FEATURES;
-use crate::board::attacks;
+use arrayvec::ArrayVec;
+use hobbes_nnue_arch::{L0_THREAT_FEATURES, L1_SIZE};
+use crate::board::{attacks, Board};
 use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
 use crate::board::piece::Piece;
@@ -7,6 +8,7 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
+use crate::evaluation::NETWORK;
 
 /// Below is a jumbled mess of code used to compute the index of a given threat in the threat inputs
 /// accumulator.
@@ -213,6 +215,46 @@ pub fn threat_index(
 fn is_valid_piece_placement(pc: Piece, sq: Square) -> bool {
     let rank = sq.rank();
     !(pc == Piece::Pawn && (rank == Rank::One || rank == Rank::Eight))
+}
+
+#[repr(C, align(64))]
+pub struct ThreatAccumulator {
+    pub features: [[i16; L1_SIZE]; 2],
+}
+
+impl Default for ThreatAccumulator {
+    fn default() -> Self {
+        Self {
+            features: [[0; L1_SIZE]; 2],
+        }
+    }
+}
+
+impl ThreatAccumulator {
+    pub fn refresh_threats(&mut self, board: &Board, perspective: Side) {
+        let mut indices = ArrayVec::new();
+        collect_threat_indices(board, perspective, &mut indices);
+        let out = &mut self.features[perspective];
+        out.fill(0);
+        for &idx in &indices {
+            let row = &NETWORK.l0_threat_weights[idx as usize];
+            for i in 0..L1_SIZE { out[i] += row[i] as i16; }
+        }
+    }
+}
+
+fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096>) {
+    let occ = board.occ();
+    let king_sq = board.king_sq(pov);
+    for from in occ {
+        let (atk, atk_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
+        let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
+        for to in attacks {
+            let (vic, vic_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
+            let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
+            if valid { out.push(idx as u32); }
+        }
+    }
 }
 
 #[test]

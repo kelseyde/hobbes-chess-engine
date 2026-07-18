@@ -37,7 +37,7 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::{castling, Board};
-use crate::evaluation::accumulator::{Accumulator, AccumulatorUpdate};
+use crate::evaluation::accumulator::{PieceSquareAccumulator, PieceSquareAccumulatorUpdate};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
 use crate::evaluation::forward::{inference, Forward};
@@ -51,6 +51,7 @@ use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
     Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
 };
+use crate::evaluation::threats::ThreatAccumulator;
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -58,7 +59,8 @@ pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!(env!("NETWORK_PATH"))) };
 
 pub struct NNUE {
-    pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
+    pub stack: Box<[PieceSquareAccumulator; MAX_ACCUMULATORS]>,
+    pub threat_acc: ThreatAccumulator,
     pub cache: InputBucketCache,
     pub current: usize,
 }
@@ -67,6 +69,7 @@ impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
+            threat_acc: ThreatAccumulator::default(),
             cache: InputBucketCache::default(),
             stack: unsafe { boxed_and_zeroed() },
         }
@@ -79,12 +82,26 @@ impl NNUE {
     /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         self.apply_lazy_updates(board);
+        self.threat_acc.refresh_threats(board, White);
+        self.threat_acc.refresh_threats(board, Black);
 
-        let acc = &self.stack[self.current];
-        let (us, them) = match board.stm {
-            White => (&acc.white_features, &acc.black_features),
-            Black => (&acc.black_features, &acc.white_features),
+        let psq_acc = &self.stack[self.current];
+        let (psq_us, psq_them) = match board.stm {
+            White => (&psq_acc.white_features, &psq_acc.black_features),
+            Black => (&psq_acc.black_features, &psq_acc.white_features),
         };
+
+        let (threat_us, threat_them) = match board.stm {
+            White => (&self.threat_acc.features[White], &self.threat_acc.features[Black]),
+            Black => (&self.threat_acc.features[Black], &self.threat_acc.features[White]),
+        };
+
+        let mut us = [0i16; L1_SIZE];
+        let mut them = [0i16; L1_SIZE];
+        for i in 0..L1_SIZE {
+            us[i] = psq_us[i].wrapping_add(threat_us[i]);
+            them[i] = psq_them[i].wrapping_add(threat_them[i]);
+        }
 
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
@@ -92,7 +109,7 @@ impl NNUE {
         let output_bucket = get_output_bucket(board);
 
         let raw = unsafe {
-            inference::activate_l0(us, them, &mut l0_outputs);
+            inference::activate_l0(&us, &them, &mut l0_outputs);
             #[cfg(feature = "track_l0_activations")]
             sparse::track_activations(&l0_outputs);
             inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);
@@ -109,7 +126,7 @@ impl NNUE {
     /// at the top of search, and then efficiently updated with each move.
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
-        self.stack[self.current] = Accumulator::default();
+        self.stack[self.current] = PieceSquareAccumulator::default();
         self.cache = InputBucketCache::default();
 
         for side in [White, Black] {
@@ -277,8 +294,8 @@ impl NNUE {
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
-    fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> AccumulatorUpdate {
-        AccumulatorUpdate::AddSub(
+    fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> PieceSquareAccumulatorUpdate {
+        PieceSquareAccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
         )
@@ -293,13 +310,13 @@ impl NNUE {
         new_pc: Piece,
         captured: Piece,
         side: Side,
-    ) -> AccumulatorUpdate {
+    ) -> PieceSquareAccumulatorUpdate {
         let capture_sq = if mv.is_ep() {
             Square(mv.to().0 ^ 8)
         } else {
             mv.to()
         };
-        AccumulatorUpdate::AddSubSub(
+        PieceSquareAccumulatorUpdate::AddSubSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
             Feature::new(captured, capture_sq, !side),
@@ -308,7 +325,7 @@ impl NNUE {
 
     /// Update the accumulator for a castling move. The king and rook are moved to their new
     /// positions, and the old positions are cleared.
-    fn handle_castle(board: &Board, mv: &Move, us: Side) -> AccumulatorUpdate {
+    fn handle_castle(board: &Board, mv: &Move, us: Side) -> PieceSquareAccumulatorUpdate {
         let kingside = mv.to().0 > mv.from().0;
         let king_from = mv.from();
         let king_to = if board.is_frc() {
@@ -323,7 +340,7 @@ impl NNUE {
         };
         let rook_to = castling::rook_to(us, kingside);
 
-        AccumulatorUpdate::AddAddSubSub(
+        PieceSquareAccumulatorUpdate::AddAddSubSub(
             Feature::new(King, king_to, us),
             Feature::new(Rook, rook_to, us),
             Feature::new(King, king_from, us),
