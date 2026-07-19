@@ -43,7 +43,7 @@ fn main() {
         println!("FEN:  {fen}");
         println!("EVAL: {}", eval);
     }
-    // // Start up the UCI (Universal Chess Interface)
-    // let args: Vec<String> = std::env::args().collect();
-    // UCI::new().run(&args);
+    // Start up the UCI (Universal Chess Interface)
+    let args: Vec<String> = std::env::args().collect();
+    UCI::new().run(&args);
 }
