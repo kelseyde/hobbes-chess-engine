@@ -237,8 +237,11 @@ impl ThreatAccumulator {
         let out = &mut self.features[perspective];
         out.fill(0);
         for &idx in &indices {
-            let row = &NETWORK.l0_threat_weights[idx as usize];
-            for i in 0..L1_SIZE { out[i] += row[i] as i16; }
+            let base = idx as usize * L1_SIZE;
+            let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
+            for i in 0..L1_SIZE {
+                out[i] += row[i] as i16;
+            }
         }
     }
 }

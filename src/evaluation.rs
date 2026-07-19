@@ -96,20 +96,13 @@ impl NNUE {
             Black => (&self.threat_acc.features[Black], &self.threat_acc.features[White]),
         };
 
-        let mut us = [0i16; L1_SIZE];
-        let mut them = [0i16; L1_SIZE];
-        for i in 0..L1_SIZE {
-            us[i] = psq_us[i].wrapping_add(threat_us[i]);
-            them[i] = psq_them[i].wrapping_add(threat_them[i]);
-        }
-
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
         let mut l2_outputs = [0i32; L3_SIZE];
         let output_bucket = get_output_bucket(board);
 
         let raw = unsafe {
-            inference::activate_l0(&us, &them, &mut l0_outputs);
+            inference::activate_l0(psq_us, threat_us, psq_them, threat_them, &mut l0_outputs);
             #[cfg(feature = "track_l0_activations")]
             sparse::track_activations(&l0_outputs);
             inference::propagate_l1(&l0_outputs, output_bucket, &mut l1_outputs);

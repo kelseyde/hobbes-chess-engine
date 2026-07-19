@@ -31,11 +31,6 @@ impl Feature {
             sq = sq.flip_file();
         }
 
-        // Merged king planes
-        if self.pc == Piece::King {
-            color = Side::White;
-        }
-
         let sq = sq.0 as usize;
         let pc = self.pc as usize;
         let color = color as usize;

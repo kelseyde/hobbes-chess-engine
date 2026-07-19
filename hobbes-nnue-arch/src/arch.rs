@@ -21,7 +21,7 @@ pub const L0_SHIFT: usize = 9;
 pub const INPUT_BUCKET_COUNT: usize = get_num_buckets(&BUCKETS);
 pub const OUTPUT_BUCKET_COUNT: usize = 8;
 
-pub const L1_SIZE: usize = 1536;
+pub const L1_SIZE: usize = 512;
 pub const L1_SHIFT: usize = 8;
 pub const L1_QUANT: usize = 128;
 
@@ -40,7 +40,7 @@ pub type ThreatWeights = [i8; L0_THREAT_FEATURES * L1_SIZE];
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_psq_weights: [PieceSquareWeights; INPUT_BUCKET_COUNT],
-    pub l0_threat_weights: [ThreatWeights; INPUT_BUCKET_COUNT],
+    pub l0_threat_weights: ThreatWeights,
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE]; OUTPUT_BUCKET_COUNT]; L1_SIZE],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
@@ -55,7 +55,7 @@ pub struct UntransposedNetwork {
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_psq_weights: [PieceSquareWeights; INPUT_BUCKET_COUNT],
-    pub l0_threat_weights: [ThreatWeights; INPUT_BUCKET_COUNT],
+    pub l0_threat_weights: ThreatWeights,
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE * 4]; L1_SIZE / 4]; OUTPUT_BUCKET_COUNT],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
