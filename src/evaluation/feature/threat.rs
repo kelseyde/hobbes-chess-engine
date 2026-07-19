@@ -5,10 +5,7 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::*;
 use crate::board::square::Square;
-use crate::board::{attacks, Board};
-use crate::evaluation::NETWORK;
-use arrayvec::ArrayVec;
-use hobbes_nnue_arch::L1_SIZE;
+use crate::board::attacks;
 
 /// Below is a jumbled mess of code used to compute the index of a given threat in the threat inputs
 /// accumulator.
@@ -82,7 +79,7 @@ static mut FROM_OFFSET: [[u32; 64]; 12] = [[0; 64]; 12];
 /// within the from-square's attack set.
 static mut VICTIM_ORDINAL: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
 
-/// Initialise the three threat-feature lookup tables.
+/// Initialise the threat-feature lookup tables.
 pub fn init() {
     unsafe {
         init_victim_ordinal();
@@ -223,49 +220,4 @@ pub fn threat_index(
 fn is_valid_piece_placement(pc: Piece, sq: Square) -> bool {
     let rank = sq.rank();
     !(pc == Piece::Pawn && (rank == Rank::One || rank == Rank::Eight))
-}
-
-#[repr(C, align(64))]
-pub struct ThreatAccumulator {
-    pub features: [[i16; L1_SIZE]; 2],
-}
-
-impl Default for ThreatAccumulator {
-    fn default() -> Self {
-        Self {
-            features: [[0; L1_SIZE]; 2],
-        }
-    }
-}
-
-impl ThreatAccumulator {
-    pub fn refresh_threats(&mut self, board: &Board, perspective: Side) {
-        let mut indices = ArrayVec::new();
-        collect_threat_indices(board, perspective, &mut indices);
-        let out = &mut self.features[perspective];
-        out.fill(0);
-        for &idx in &indices {
-            let base = idx as usize * L1_SIZE;
-            let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
-            for i in 0..L1_SIZE {
-                out[i] += row[i] as i16;
-            }
-        }
-    }
-}
-
-fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096>) {
-    let occ = board.occ();
-    let king_sq = board.king_sq(pov);
-    for from in occ {
-        let (atk, atk_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
-        let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
-        for to in attacks {
-            let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
-            let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
-            if valid {
-                out.push(idx as u32);
-            }
-        }
-    }
 }

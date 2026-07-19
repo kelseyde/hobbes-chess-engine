@@ -1,6 +1,6 @@
 use crate::board::cuckoo;
-use crate::evaluation::threats;
 use crate::tools::uci::UCI;
+use crate::evaluation::feature::threat;
 use board::ray;
 
 pub const AUTHOR: &str = "Dan Kelsey";
@@ -27,7 +27,7 @@ fn main() {
     // Initialise static data
     ray::init();
     cuckoo::init();
-    threats::init();
+    threat::init();
 
     // Start up the UCI (Universal Chess Interface)
     let args: Vec<String> = std::env::args().collect();
