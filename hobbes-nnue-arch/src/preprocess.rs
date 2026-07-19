@@ -23,14 +23,8 @@ pub const fn permute_config() -> PermuteConfig {
 /// format for inference).
 ///
 /// This performs the following transformations:
-/// 1. Copies L0 weights and biases through the (currently identity) sparsity repermutation.
-///    NOTE: activation-frequency reordering is disabled until fresh activation stats are gathered
-///    for the new threat-inputs architecture. To re-enable, restore an L0_ACTIVATIONS table sized
-///    [usize; L1_SIZE / 2] and sort in `compute_repermute_indices`.
+/// 1. Repermutes L0 weights and biases so the most-activated neurons come first
 /// 2. Permutes the L0 weights and biases to cancel out the cross-lane behaviour of packus.
-///    This applies to PSQ weights, biases, AND threat weights alike: threat accumulator values
-///    are summed into the same L1 lanes as PSQ values before activation, so all three must share
-///    an identical lane ordering.
 /// 3. Transposes L1 weights: src[input][bucket][output] -> dst[bucket][output][input]
 /// 4. Reorders L2 weights: src[input][bucket][output] -> dst[bucket][input][output]
 /// 5. Reorders L3 weights: src[input][bucket] -> dst[bucket][input]
@@ -49,10 +43,6 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
     if config.needs_permuting {
         let order = config.order;
 
-        // The permutation reorders groups of 8 *neurons* (8 x i16 = one 128-bit lane of the
-        // accumulator). This is a property of the accumulator layout, not the weight storage
-        // width, so the same chunk size applies to the i8 threat weights: one element is one
-        // neuron in both cases.
         let chunk_size: usize = 8;
         let block_size = order.len() * chunk_size;
 
