@@ -26,7 +26,7 @@ impl Default for ThreatAccumulator {
 }
 
 impl ThreatAccumulator {
-    
+
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         &self.features[perspective]
     }
@@ -34,7 +34,7 @@ impl ThreatAccumulator {
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
         &mut self.features[perspective]
     }
-    
+
     pub fn refresh_threats(&mut self, board: &Board, perspective: Side) {
         let mut indices = ArrayVec::new();
         Self::collect_threat_indices(board, perspective, &mut indices);
@@ -117,8 +117,8 @@ impl ThreatAccumulator {
         let deltas = &mut self.deltas;
         let attacked = attacks::attacks(sq, pc, side, occ) & occ;
         for to in attacked {
-            let vic_pc = board.piece_at(sq).unwrap();
-            let vic_side = board.side_at(sq).unwrap();
+            let vic_pc = board.piece_at(to).unwrap();
+            let vic_side = board.side_at(to).unwrap();
             deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
         }
 
@@ -147,9 +147,9 @@ impl ThreatAccumulator {
         let kings = board.pieces(Piece::King) & attacks::king(sq);
 
         for from in (black_pawns | white_pawns | knights | kings) & occ {
-            let vic_pc = board.piece_at(from).unwrap();
-            let vic_side = board.side_at(from).unwrap();
-            deltas.push(ThreatDelta::new(vic_pc, vic_side, from, pc, side, sq, add));
+            let atk_pc = board.piece_at(from).unwrap();
+            let atk_side = board.side_at(from).unwrap();
+            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, pc, side, sq, add));
         }
 
     }
