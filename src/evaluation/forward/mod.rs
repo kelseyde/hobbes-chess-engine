@@ -5,9 +5,9 @@ use hobbes_nnue_arch::{L1_SIZE, L2_SIZE, L3_SIZE};
 /// selected at compile time.
 pub trait Forward {
     unsafe fn activate_l0(
-        us_pst: &[i16; L1_SIZE], 
+        us_psq: &[i16; L1_SIZE],
         us_threat: &[i16; L1_SIZE],
-        them_pst: &[i16; L1_SIZE], 
+        them_psq: &[i16; L1_SIZE],
         them_threat: &[i16; L1_SIZE],
         output: &mut [u8; L1_SIZE],
     );

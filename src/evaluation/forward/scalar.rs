@@ -1,9 +1,9 @@
 // use crate::evaluation::forward::Forward;
 // use crate::evaluation::NETWORK;
 // use hobbes_nnue_arch::{L0_QUANT, L0_SHIFT, L1_SHIFT, L1_SIZE, L2_SIZE, L3_SIZE, Q, Q_BITS};
-// 
+//
 // pub struct Scalar;
-// 
+//
 // impl Forward for Scalar {
 //     /// L0 ('feature transformer') activation
 //     /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
@@ -15,14 +15,14 @@
 //                 // Load the pair of inputs to be multiplied.
 //                 let left: i16 = feats[i];
 //                 let right: i16 = feats[i + (L1_SIZE / 2)];
-// 
+//
 //                 // Clipped ReLU activation, in [0, 255] space.
 //                 let l_clamped: u8 = left.clamp(0, L0_QUANT as i16) as u8;
 //                 let r_clamped: u8 = right.clamp(0, L0_QUANT as i16) as u8;
-// 
+//
 //                 // Pairwise multiplication of left and right input.
 //                 let multiplied: i32 = l_clamped as i32 * r_clamped as i32;
-// 
+//
 //                 // Downshift back into [0, 127] space.
 //                 // Note: this is equivalent to the << 7 >> 16 that mulhi does.
 //                 let result: u8 = (multiplied >> L0_SHIFT).clamp(0, 255) as u8;
@@ -30,7 +30,7 @@
 //             }
 //         }
 //     }
-// 
+//
 //     /// L1 propagation
 //     #[inline(always)]
 //     unsafe fn propagate_l1(
@@ -40,10 +40,10 @@
 //     ) {
 //         let weights = &NETWORK.l1_weights[output_bucket];
 //         let biases = &NETWORK.l1_biases[output_bucket];
-// 
+//
 //         // Unactivated L1 outputs in the quantized space L0_QUANT * L1_QUANT
 //         let mut intermediate: [i32; L2_SIZE] = [0; L2_SIZE];
-// 
+//
 //         // L1 matrix multiplication
 //         for output_idx in 0..L2_SIZE {
 //             for input_idx in 0..L1_SIZE {
@@ -53,29 +53,29 @@
 //                 intermediate[output_idx] += input[input_idx] as i32 * weight;
 //             }
 //         }
-// 
+//
 //         // Re-quantise, add biases and activate L1 outputs
 //         for i in 0..L2_SIZE {
 //             let bias: i32 = biases[i];
 //             let mut out: i32 = intermediate[i];
-// 
+//
 //             // Down-shift into L1 Q space
 //             out >>= L1_SHIFT;
-// 
+//
 //             // Add the bias
 //             out += bias;
-// 
+//
 //             // crelu activation: clamp(x, 0, Q)
 //             let crelu: i32 = out.clamp(0, Q as i32) << Q_BITS;
-// 
+//
 //             // csrelu activation: clamp(x^2, 0, Q^2)
 //             let csrelu: i32 = (out * out).clamp(0, (Q * Q) as i32);
-// 
+//
 //             output[i] = crelu;
 //             output[i + L2_SIZE] = csrelu;
 //         }
 //     }
-// 
+//
 //     /// L2 propagation
 //     #[inline(always)]
 //     unsafe fn propagate_l2(
@@ -84,7 +84,7 @@
 //         output: &mut [i32; L3_SIZE],
 //     ) {
 //         let weights = &NETWORK.l2_weights[output_bucket];
-// 
+//
 //         let mut out = NETWORK.l2_biases[output_bucket];
 //         for input_idx in 0..(L2_SIZE * 2) {
 //             let input_val = input[input_idx];
@@ -96,13 +96,13 @@
 //         }
 //         *output = out;
 //     }
-// 
+//
 //     /// L3 propagation
 //     #[inline(always)]
 //     unsafe fn propagate_l3(input: &[i32; L3_SIZE], output_bucket: usize) -> i32 {
 //         let weights = &NETWORK.l3_weights[output_bucket];
 //         let bias = NETWORK.l3_biases[output_bucket];
-// 
+//
 //         let mut output: i32 = bias;
 //         for (&input, &weight) in input.iter().zip(weights.iter()) {
 //             let clamped = input.clamp(0, (Q * Q * Q) as i32);

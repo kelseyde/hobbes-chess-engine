@@ -21,7 +21,7 @@ impl Feature {
 
     #[inline]
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let (mut sq, mut color) = match perspective {
+        let (mut sq, color) = match perspective {
             Side::White => (self.sq, self.side),
             Side::Black => (self.sq.flip_rank(), !self.side),
         };

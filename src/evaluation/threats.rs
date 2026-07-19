@@ -1,14 +1,14 @@
-use arrayvec::ArrayVec;
-use hobbes_nnue_arch::{L0_THREAT_FEATURES, L1_SIZE};
-use crate::board::{attacks, Board};
 use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
-use crate::board::side::Side::{Black, White};
+use crate::board::side::Side::*;
 use crate::board::square::Square;
+use crate::board::{attacks, Board};
 use crate::evaluation::NETWORK;
+use arrayvec::ArrayVec;
+use hobbes_nnue_arch::L1_SIZE;
 
 /// Below is a jumbled mess of code used to compute the index of a given threat in the threat inputs
 /// accumulator.
@@ -26,7 +26,7 @@ use crate::evaluation::NETWORK;
 /// Some combinations are redundant: e.g., pawn-attacking-bishop is implied by pawn-attacking-pawn.
 /// We can therefore decrease the number of threat features by deduplicating these redundant inputs.
 ///
-/// All king-threats are fully excluded following this logic, in addition to the following list:
+/// All king-threats are fully excluded, in addition to the following list:
 ///     - PAWN-attacking-BISHOP
 ///     - PAWN-attacking-ROOK
 ///     - PAWN-attacking-QUEEN
@@ -155,10 +155,18 @@ unsafe fn init_pair_base() {
             let colour_base = victim_side as i32 * (PIECE_TARGET_COUNT[attacker_pc] / 2);
             let feature = block_base + (colour_base + map) * attack_total;
 
-            let backward_idx = if fully_excluded { u32::MAX } else { feature as u32 };
+            let backward_idx = if fully_excluded {
+                u32::MAX
+            } else {
+                feature as u32
+            };
             PAIR_BASE[attacker_idx][victim_idx][0] = backward_idx;
 
-            let forward_idx = if fully_excluded || semi_excluded { u32::MAX } else { feature as u32 };
+            let forward_idx = if fully_excluded || semi_excluded {
+                u32::MAX
+            } else {
+                feature as u32
+            };
             PAIR_BASE[attacker_idx][victim_idx][1] = forward_idx;
         }
     }
@@ -175,7 +183,7 @@ pub fn threat_index(
     victim: Piece,
     mut victim_side: Side,
     mut from: Square,
-    mut to: Square
+    mut to: Square,
 ) -> (bool, i32) {
     // Threat indices are reversed for black.
     if side == Black {
@@ -255,26 +263,47 @@ fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096
         for to in attacks {
             let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
             let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
-            if valid { out.push(idx as u32); }
+            if valid {
+                out.push(idx as u32);
+            }
         }
     }
 }
 
-#[test]
-fn threat_indices_correct_count_no_collisions() {
-    init();
+#[cfg(test)]
+mod test {
+    use crate::board::attacks;
+    use crate::board::bitboard::Bitboard;
+    use crate::board::piece::Piece;
+    use crate::board::side::Side::White;
+    use crate::board::square::Square;
+    use crate::evaluation::threats::{init, is_valid_piece_placement, threat_index};
+    use hobbes_nnue_arch::L0_THREAT_FEATURES;
 
-    let mut seen = std::collections::HashSet::new();
+    #[test]
+    fn threat_indices_correct_count_no_collisions() {
+        init();
 
-    for (attacker_side, attacker_pc) in Piece::coloured_pieces() {
-        for from in Square::iter() {
-            if !is_valid_piece_placement(attacker_pc, from) {
-                continue;
-            }
-            let attacks = attacks::attacks(from, attacker_pc, attacker_side, Bitboard::NONE);
-            for to in attacks {
-                for (victim_side, victim_pc) in Piece::coloured_pieces() {
-                        let (valid, idx) = threat_index(White, Square(0), attacker_pc, attacker_side, victim_pc, victim_side, from, to);
+        let mut seen = std::collections::HashSet::new();
+
+        for (attacker_side, attacker_pc) in Piece::coloured_pieces() {
+            for from in Square::iter() {
+                if !is_valid_piece_placement(attacker_pc, from) {
+                    continue;
+                }
+                let attacks = attacks::attacks(from, attacker_pc, attacker_side, Bitboard::NONE);
+                for to in attacks {
+                    for (victim_side, victim_pc) in Piece::coloured_pieces() {
+                        let (valid, idx) = threat_index(
+                            White,
+                            Square(0),
+                            attacker_pc,
+                            attacker_side,
+                            victim_pc,
+                            victim_side,
+                            from,
+                            to,
+                        );
                         if valid {
                             assert!(
                                 idx >= 0 && (idx as usize) < L0_THREAT_FEATURES,
@@ -284,11 +313,11 @@ fn threat_indices_correct_count_no_collisions() {
                         }
                     }
                 }
-
+            }
         }
-    }
 
-    let max = *seen.iter().max().unwrap();
-    assert_eq!(max as usize, L0_THREAT_FEATURES - 1);
-    assert_eq!(seen.len(), 53564);
+        let max = *seen.iter().max().unwrap();
+        assert_eq!(max as usize, L0_THREAT_FEATURES - 1);
+        assert_eq!(seen.len(), 53564);
+    }
 }

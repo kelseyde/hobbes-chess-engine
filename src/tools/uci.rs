@@ -470,7 +470,9 @@ impl UCI {
             println!("info error: dfrc is not a valid boolean");
             false
         });
-        for opening in generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc) {
+        for opening in
+            generate_random_openings(self.engine.td_mut(), count, seed, random_moves, dfrc)
+        {
             println!("info string genfens {}", opening);
         }
     }

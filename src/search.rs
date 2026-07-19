@@ -10,7 +10,6 @@ pub mod thread;
 pub mod time;
 pub mod tt;
 
-use std::sync::atomic::Ordering::Relaxed;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
@@ -29,6 +28,7 @@ use crate::tools::utils::lerp;
 use arrayvec::ArrayVec;
 use parameters::*;
 use score::is_mate;
+use std::sync::atomic::Ordering::Relaxed;
 use SeeType::{Ordering, Pruning};
 
 pub const MAX_PLY: usize = 256;

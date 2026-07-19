@@ -41,6 +41,7 @@ use crate::evaluation::accumulator::{PieceSquareAccumulator, PieceSquareAccumula
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::Feature;
 use crate::evaluation::forward::{inference, Forward};
+use crate::evaluation::threats::ThreatAccumulator;
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
@@ -51,7 +52,6 @@ use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
     Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
 };
-use crate::evaluation::threats::ThreatAccumulator;
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
@@ -92,8 +92,14 @@ impl NNUE {
         };
 
         let (threat_us, threat_them) = match board.stm {
-            White => (&self.threat_acc.features[White], &self.threat_acc.features[Black]),
-            Black => (&self.threat_acc.features[Black], &self.threat_acc.features[White]),
+            White => (
+                &self.threat_acc.features[White],
+                &self.threat_acc.features[Black],
+            ),
+            Black => (
+                &self.threat_acc.features[Black],
+                &self.threat_acc.features[White],
+            ),
         };
 
         let mut l0_outputs = [0u8; L1_SIZE];
@@ -111,8 +117,7 @@ impl NNUE {
         };
 
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
-        output as i32
-        // scale_evaluation(board, output as i32)
+        scale_evaluation(board, output as i32)
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -288,7 +293,12 @@ impl NNUE {
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
-    fn handle_standard(mv: &Move, pc: Piece, new_pc: Piece, side: Side) -> PieceSquareAccumulatorUpdate {
+    fn handle_standard(
+        mv: &Move,
+        pc: Piece,
+        new_pc: Piece,
+        side: Side,
+    ) -> PieceSquareAccumulatorUpdate {
         PieceSquareAccumulatorUpdate::AddSub(
             Feature::new(new_pc, mv.to(), side),
             Feature::new(pc, mv.from(), side),
