@@ -253,7 +253,7 @@ fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096
         let (atk, atk_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
         let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
         for to in attacks {
-            let (vic, vic_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
+            let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
             let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
             if valid { out.push(idx as u32); }
         }
