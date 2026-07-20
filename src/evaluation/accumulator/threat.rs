@@ -133,12 +133,13 @@ impl ThreatAccumulator {
         for from in sliders & occ {
             let slider_pc = board.piece_at(from).unwrap();
             let slider_side = board.side_at(from).unwrap();
-            let threatened = ray::between(from, sq) & occ & queen_attacks; // TODO raypass
+            let threatened = ray::beyond(from, sq) & occ & queen_attacks;
             if let Some(to) = threatened.into_iter().next() {
                 let vic_pc = board.piece_at(to).unwrap();
                 let vic_side = board.side_at(to).unwrap();
                 deltas.push(ThreatDelta::new(slider_pc, slider_side, from, vic_pc, vic_side, to, !add));
             }
+            deltas.push(ThreatDelta::new(slider_pc, slider_side, from, pc, side, sq, add));
         }
 
         let white_pawns = board.pawns(White) & attacks::pawn(sq, Black);
