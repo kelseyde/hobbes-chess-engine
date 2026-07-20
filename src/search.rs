@@ -604,8 +604,7 @@ fn alpha_beta<NODE: NodeType>(
                 - tt_pv as i32 * lmr_depth * see_noisy_ttpv_scale()
                 + see_noisy_offset()).min(0)
         };
-        if !pv_node
-            && depth <= see_max_depth()
+        if depth <= see_max_depth()
             && to_threatened
             && searched_moves >= 1
             && !is_mate(best_score)
