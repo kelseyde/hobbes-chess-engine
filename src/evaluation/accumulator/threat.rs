@@ -14,7 +14,8 @@ use crate::evaluation::NETWORK;
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub deltas: ArrayVec<ThreatDelta, 80>,
+    pub deltas: ArrayVec<ThreatDelta, 1640>,
+    pub needs_refresh: [bool; 2]
 }
 
 impl Default for ThreatAccumulator {
@@ -22,6 +23,7 @@ impl Default for ThreatAccumulator {
         Self {
             features: [[0; L1_SIZE]; 2],
             deltas: ArrayVec::new(),
+            needs_refresh: [false; 2]
         }
     }
 }
@@ -68,6 +70,29 @@ impl ThreatAccumulator {
             let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
             for i in 0..L1_SIZE {
                 out[i] += row[i] as i16;
+            }
+        }
+    }
+
+    pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
+        self.features[pov] = parent.features[pov];
+        let out = &mut self.features[pov];
+
+        for delta in &self.deltas {
+            let (atk_pc, atk_side) = delta.attacker();
+            let (vic_pc, vic_side) = delta.victim();
+            let (valid, idx) = threat_index(
+                pov, king_sq, atk_pc, atk_side, vic_pc, vic_side, delta.from(), delta.to(),
+            );
+            if !valid {
+                continue;
+            }
+            let base = idx as usize * L1_SIZE;
+            let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
+            if delta.add() {
+                for i in 0..L1_SIZE { out[i] += row[i] as i16; }
+            } else {
+                for i in 0..L1_SIZE { out[i] -= row[i] as i16; }
             }
         }
     }
