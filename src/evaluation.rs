@@ -319,21 +319,6 @@ impl NNUE {
         }
     }
 
-    pub fn apply_threat_updates(&mut self, board: &Board) {
-        let (parents, currents) = self.stack.split_at_mut(self.current);
-        let parent = parents[self.current - 1].threat();
-        let current = currents[0].threat_mut();
-
-        for pov in [White, Black] {
-            if current.needs_refresh[pov] {
-                // Mirror flipped for this perspective, needs refresh
-                current.refresh_threats(board, pov);
-            } else {
-                current.apply(parent, board.king_sq(pov), pov);
-            }
-        }
-    }
-
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
     /// from the starting square and the new piece (potentially a promo piece) is added to the
     /// destination square.
