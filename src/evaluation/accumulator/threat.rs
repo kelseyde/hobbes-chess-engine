@@ -378,9 +378,3 @@ impl ThreatDelta {
         unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
     }
 }
-
-#[inline(always)]
-fn weight_row(idx: u32) -> &'static [i8] {
-    let base = idx as usize * L1_SIZE;
-    &NETWORK.l0_threat_weights[base..base + L1_SIZE]
-}
