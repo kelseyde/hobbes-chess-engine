@@ -9,12 +9,23 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::evaluation::feature::threat::threat_index;
-use crate::evaluation::NETWORK;
+use crate::evaluation::{simd, NETWORK};
+
+const MAX_DELTA_INDICES: usize = 80;
+const MAX_ACTIVE_INDICES: usize = 4096;
+
+#[cfg(target_feature = "avx512f")]
+const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
+#[cfg(not(target_feature = "avx512f"))]
+const REGISTERS: usize = 8;
+
+const STEP: usize = REGISTERS * simd::I16_LANES;
+const _: () = assert!(L1_SIZE % STEP == 0, "step must divide by the accumulator evenly");
 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub deltas: ArrayVec<ThreatDelta, 1640>,
+    pub deltas: ArrayVec<ThreatDelta, MAX_DELTA_INDICES>,
     pub needs_refresh: [bool; 2],
     pub computed: [bool; 2],
 }
@@ -62,23 +73,15 @@ impl ThreatAccumulator {
         self.features = other.features;
     }
 
-    pub fn refresh_threats(&mut self, board: &Board, perspective: Side) {
-        let mut indices = ArrayVec::new();
-        Self::collect_threat_indices(board, perspective, &mut indices);
-        let out = &mut self.features[perspective];
-        out.fill(0);
-        for &idx in &indices {
-            let base = idx as usize * L1_SIZE;
-            let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
-            for i in 0..L1_SIZE {
-                out[i] += row[i] as i16;
-            }
-        }
+    pub fn refresh_threats(&mut self, board: &Board, pov: Side) {
+        let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
+        Self::collect_threat_indices(board, pov, &mut adds);
+        unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
     }
 
     pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
-        self.features[pov] = parent.features[pov];
-        let out = &mut self.features[pov];
+        let mut adds = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
+        let mut subs = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
 
         for delta in &self.deltas {
             let (atk_pc, atk_side) = delta.attacker();
@@ -89,14 +92,14 @@ impl ThreatAccumulator {
             if !valid {
                 continue;
             }
-            let base = idx as usize * L1_SIZE;
-            let row = &NETWORK.l0_threat_weights[base..base + L1_SIZE];
             if delta.add() {
-                for i in 0..L1_SIZE { out[i] += row[i] as i16; }
+                adds.push(idx as u32);
             } else {
-                for i in 0..L1_SIZE { out[i] -= row[i] as i16; }
+                subs.push(idx as u32);
             }
         }
+
+        unsafe { accumulate(&mut self.features[pov], Some(&parent.features[pov]), &adds, &subs) };
     }
 
     /// Update accumulator threat deltas when a piece is added on a square
@@ -166,10 +169,14 @@ impl ThreatAccumulator {
 
         let deltas = &mut self.deltas;
         let attacked = attacks::attacks(sq, pc, side, occ) & occ;
-        for to in attacked {
-            let vic_pc = board.piece_at(to).unwrap();
-            let vic_side = board.side_at(to).unwrap();
-            deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
+        for (vic_side, targets) in [
+            (White, attacked & board.side(White)),
+            (Black, attacked & board.side(Black)),
+        ] {
+            for to in targets {
+                let vic_pc = board.piece_at(to).unwrap();
+                deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
+            }
         }
 
         let bishop_attacks = attacks::bishop(sq, occ);
@@ -222,6 +229,75 @@ impl ThreatAccumulator {
         }
     }
 
+}
+
+#[inline(always)]
+unsafe fn accumulate(
+    out: &mut [i16; L1_SIZE],
+    parent: Option<&[i16; L1_SIZE]>,
+    adds: &[u32],
+    subs: &[u32],
+) {
+    let weights = NETWORK.l0_threat_weights.as_ptr();
+    let out_ptr = out.as_mut_ptr();
+
+    for offset in (0..L1_SIZE).step_by(STEP) {
+
+        let mut regs = [simd::zero_i16(); REGISTERS];
+        if let Some(p) = parent {
+            let in_ptr = p.as_ptr();
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::load_i16(in_ptr.add(offset + i * simd::I16_LANES));
+            }
+        }
+
+        let (mut added, mut subtracted) = (0, 0);
+
+        while added < adds.len() && subtracted < subs.len() {
+            let add_row = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let sub_row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                let lane = i * simd::I16_LANES;
+                let add_w = simd::load_i8_as_i16(add_row.add(lane));
+                let sub_w = simd::load_i8_as_i16(sub_row.add(lane));
+                *reg = simd::add_i16(*reg, simd::sub_i16(add_w, sub_w));
+            }
+            added += 1;
+            subtracted += 1;
+        }
+
+        while added + 1 < adds.len() {
+            let row1 = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let row2 = weights.add(adds[added + 1] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                let lane = i * simd::I16_LANES;
+                let w1 = simd::load_i8_as_i16(row1.add(lane));
+                let w2 = simd::load_i8_as_i16(row2.add(lane));
+                *reg = simd::add_i16(*reg, simd::add_i16(w1, w2));
+            }
+            added += 2;
+        }
+
+        while added < adds.len() {
+            let row = weights.add(adds[added] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::add_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+            }
+            added += 1;
+        }
+
+        while subtracted < subs.len() {
+            let row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::sub_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+            }
+            subtracted += 1;
+        }
+
+        for (i, reg) in regs.iter().enumerate() {
+            simd::store_i16(out_ptr.add(offset + i * simd::I16_LANES), *reg);
+        }
+    }
 }
 
 /// An encoding of one threat input change: attacker on `from` threatens victim on `to`, either
