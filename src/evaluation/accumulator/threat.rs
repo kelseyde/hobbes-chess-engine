@@ -15,7 +15,8 @@ use crate::evaluation::NETWORK;
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
     pub deltas: ArrayVec<ThreatDelta, 1640>,
-    pub needs_refresh: [bool; 2]
+    pub needs_refresh: [bool; 2],
+    pub computed: [bool; 2],
 }
 
 impl Default for ThreatAccumulator {
@@ -23,7 +24,8 @@ impl Default for ThreatAccumulator {
         Self {
             features: [[0; L1_SIZE]; 2],
             deltas: ArrayVec::new(),
-            needs_refresh: [false; 2]
+            needs_refresh: [false; 2],
+            computed: [false; 2],
         }
     }
 }

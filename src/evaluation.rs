@@ -79,7 +79,8 @@ impl NNUE {
     /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
     /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
-        self.apply_lazy_updates(board);
+        self.apply_lazy_psq_updates(board);
+        self.apply_lazy_threat_updates(board);
 
         let acc = &self.stack[self.current];
         let (psq_us, psq_them) = (&acc.psq().features(board.stm), &acc.psq().features(!board.stm));
@@ -122,6 +123,7 @@ impl NNUE {
         threat.deltas.clear();
         threat.refresh_threats(board, White);
         threat.refresh_threats(board, Black);
+        threat.computed = [true; 2];
     }
 
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
@@ -201,26 +203,25 @@ impl NNUE {
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated. The update is then stored on the accumulator to later be applied lazily.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
+        let us = board.stm;
+
         self.current += 1;
         self.stack[self.current].psq_mut().needs_refresh = self.stack[self.current - 1].psq().needs_refresh;
         self.stack[self.current].psq_mut().mirrored = self.stack[self.current - 1].psq().mirrored;
         self.stack[self.current].psq_mut().computed[White] = false;
         self.stack[self.current].psq_mut().computed[Black] = false;
 
-        let threats = self.stack[self.current].threat_mut();
-        threats.deltas.clear();
-        threats.needs_refresh = [false; 2];
-
-        let us = board.stm;
-
         let new_pc = mv.promo_piece().unwrap_or(pc);
         let mirror_changed = mirror_changed(board, *mv, new_pc);
         let bucket_changed = bucket_changed(board, *mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
-        // Threat accumulator is not king-bucketed; they only need refreshing when the king crosses
-        // the horizontal axis.
-        threats.needs_refresh[us] = mirror_changed;
+        let parent_refresh = self.stack[self.current - 1].threat().needs_refresh;
+        let threat = self.stack[self.current].threat_mut();
+        threat.deltas.clear();
+        threat.computed = [false; 2];
+        threat.needs_refresh = parent_refresh;
+        threat.needs_refresh[us] |= mirror_changed;
 
         if refresh_required {
             self.stack[self.current].psq_mut().needs_refresh[us] = true;
@@ -239,7 +240,7 @@ impl NNUE {
     /// backwards to find the nearest computed accumulator, and move forward applying all updates
     /// one by one. If at any point we encounter an accumulator that requires a refresh - due to
     /// bucket or mirror change - we bail out and perform a full refresh instead.
-    fn apply_lazy_updates(&mut self, board: &Board) {
+    fn apply_lazy_psq_updates(&mut self, board: &Board) {
         for side in [White, Black] {
             // If already up-to-date for this perspective, then there is nothing to do.
             if self.stack[self.current].psq().computed[side] {
@@ -287,17 +288,33 @@ impl NNUE {
         }
     }
 
-    pub fn apply_threat_updates(&mut self, board: &Board) {
-        let (parents, currents) = self.stack.split_at_mut(self.current);
-        let parent = parents[self.current - 1].threat();
-        let current = currents[0].threat_mut();
-
+    fn apply_lazy_threat_updates(&mut self, board: &Board) {
         for pov in [White, Black] {
-            if current.needs_refresh[pov] {
-                // Mirror flipped for this perspective, needs refresh
-                current.refresh_threats(board, pov);
-            } else {
-                current.apply(parent, board.king_sq(pov), pov);
+            if self.stack[self.current].threat().computed[pov] {
+                continue;
+            }
+
+            if self.stack[self.current].threat().needs_refresh[pov] {
+                let threat = self.stack[self.current].threat_mut();
+                threat.refresh_threats(board, pov);
+                threat.needs_refresh[pov] = false;
+                threat.computed[pov] = true;
+                continue;
+            }
+
+            let mut curr = self.current;
+            while !self.stack[curr].threat().computed[pov] {
+                curr -= 1;
+            }
+
+            let king_sq = board.king_sq(pov);
+            while curr < self.current {
+                let (parents, currents) = self.stack.split_at_mut(curr + 1);
+                let parent = parents[curr].threat();
+                let child = currents[0].threat_mut();
+                child.apply(parent, king_sq, pov);
+                child.computed[pov] = true;
+                curr += 1;
             }
         }
     }
