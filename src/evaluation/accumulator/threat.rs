@@ -251,47 +251,47 @@ unsafe fn accumulate(
             }
         }
 
-        let (mut a, mut s) = (0, 0);
+        let (mut added, mut subtracted) = (0, 0);
 
-        while a < adds.len() && s < subs.len() {
-            let add_row = weights.add(adds[a] as usize * L1_SIZE + offset);
-            let sub_row = weights.add(subs[s] as usize * L1_SIZE + offset);
+        while added < adds.len() && subtracted < subs.len() {
+            let add_row = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let sub_row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
                 let lane = i * simd::I16_LANES;
                 let add_w = simd::load_i8_as_i16(add_row.add(lane));
                 let sub_w = simd::load_i8_as_i16(sub_row.add(lane));
                 *reg = simd::add_i16(*reg, simd::sub_i16(add_w, sub_w));
             }
-            a += 1;
-            s += 1;
+            added += 1;
+            subtracted += 1;
         }
 
-        while a + 1 < adds.len() {
-            let row1 = weights.add(adds[a] as usize * L1_SIZE + offset);
-            let row2 = weights.add(adds[a + 1] as usize * L1_SIZE + offset);
+        while added + 1 < adds.len() {
+            let row1 = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let row2 = weights.add(adds[added + 1] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
                 let lane = i * simd::I16_LANES;
                 let w1 = simd::load_i8_as_i16(row1.add(lane));
                 let w2 = simd::load_i8_as_i16(row2.add(lane));
                 *reg = simd::add_i16(*reg, simd::add_i16(w1, w2));
             }
-            a += 2;
+            added += 2;
         }
 
-        while a < adds.len() {
-            let row = weights.add(adds[a] as usize * L1_SIZE + offset);
+        while added < adds.len() {
+            let row = weights.add(adds[added] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
                 *reg = simd::add_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
             }
-            a += 1;
+            added += 1;
         }
 
-        while s < subs.len() {
-            let row = weights.add(subs[s] as usize * L1_SIZE + offset);
+        while subtracted < subs.len() {
+            let row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
                 *reg = simd::sub_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
             }
-            s += 1;
+            subtracted += 1;
         }
 
         for (i, reg) in regs.iter().enumerate() {
