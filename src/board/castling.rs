@@ -291,6 +291,7 @@ mod tests {
     use crate::board::moves::Move;
     use crate::board::side::Side;
     use crate::board::Board;
+    use crate::board::observer::NullBoardObserver;
 
     #[test]
     fn test_kingside_basics() {
@@ -370,13 +371,13 @@ mod tests {
         assert!(board.has_kingside_rights(Side::Black));
         assert!(board.has_queenside_rights(Side::Black));
 
-        board.make(&Move::parse_uci("a1b1"));
+        board.make(&Move::parse_uci("a1b1"), &mut NullBoardObserver);
         assert!(board.has_kingside_rights(Side::White));
         assert!(!board.has_queenside_rights(Side::White));
         assert!(board.has_kingside_rights(Side::Black));
         assert!(board.has_queenside_rights(Side::Black));
 
-        board.make(&Move::parse_uci("h8f8"));
+        board.make(&Move::parse_uci("h8f8"), &mut NullBoardObserver);
         assert!(board.has_kingside_rights(Side::White));
         assert!(!board.has_queenside_rights(Side::White));
         assert!(!board.has_kingside_rights(Side::Black));

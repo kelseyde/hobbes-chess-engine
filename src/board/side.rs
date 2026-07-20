@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut, Not};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[repr(u8)]
 pub enum Side {
     #[default]
     White,

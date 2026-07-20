@@ -7,6 +7,13 @@ pub const I32_LANES: usize = size_of::<int32x4_t>() / size_of::<i32>();
 
 pub type VecI32 = int32x4_t;
 
+pub type VecI16 = int16x8_t;
+
+#[inline(always)]
+pub unsafe fn zero_i16() -> int16x8_t {
+    vdupq_n_s16(0)
+}
+
 #[inline(always)]
 pub unsafe fn splat_u16(a: u16) -> uint16x8_t {
     vdupq_n_u16(a)
@@ -30,6 +37,11 @@ pub unsafe fn store_u16(ptr: *mut u16, v: uint16x8_t) {
 #[inline(always)]
 pub unsafe fn load_i8(ptr: *const i8) -> int8x16_t {
     vld1q_s8(ptr)
+}
+
+#[inline(always)]
+pub unsafe fn load_i8_as_i16(ptr: *const i8) -> int16x8_t {
+    vmovl_s8(vld1_s8(ptr))
 }
 
 #[inline(always)]

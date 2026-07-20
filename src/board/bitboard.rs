@@ -114,6 +114,12 @@ impl Bitboard {
         Bitboard(self.0 >> 9 & !File::H.to_bb().0)
     }
 
+    /// A bitboard of every square strictly below `sq` in 0..63 index order. Empty when `sq` is A1.
+    #[inline(always)]
+    pub const fn below(sq: Square) -> Self {
+        Self((1u64 << sq.0) - 1)
+    }
+
     pub fn print(self) {
         for rank in (0..8).rev() {
             for file in 0..8 {
