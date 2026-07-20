@@ -1,8 +1,7 @@
-use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 use crate::board::side::Side;
-use crate::board::side::Side::{Black, White};
-use crate::evaluation::{simd, NETWORK};
 use crate::evaluation::feature::psq::Feature;
+use crate::evaluation::{simd, NETWORK};
+use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 
 /// The `PieceSquareAccumulator` holds the pre-activations of the first layer of the neural network.
 /// The input layer just encodes the positions of pieces on the board, from the perspective of both

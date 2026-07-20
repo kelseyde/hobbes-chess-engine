@@ -196,8 +196,9 @@ impl ThreatAccumulator {
         let black_pawns = board.pawns(Black) & attacks::pawn(sq, White);
         let knights = board.pieces(Knight) & attacks::knight(sq);
         let kings = board.pieces(Piece::King) & attacks::king(sq);
+        let leapers = black_pawns | white_pawns | knights | kings;
 
-        for from in (black_pawns | white_pawns | knights | kings) & occ {
+        for from in leapers & occ {
             let atk_pc = board.piece_at(from).unwrap();
             let atk_side = board.side_at(from).unwrap();
             deltas.push(ThreatDelta::new(atk_pc, atk_side, from, pc, side, sq, add));
