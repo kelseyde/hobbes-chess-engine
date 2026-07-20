@@ -36,7 +36,9 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::{castling, Board};
+use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
+use crate::evaluation::feature::psq::Feature;
 use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
@@ -44,15 +46,12 @@ use crate::search::parameters::{
 };
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
+use accumulator::psq;
+use accumulator::psq::PieceSquareAccumulatorUpdate;
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
     Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
 };
-use accumulator::psq;
-use accumulator::psq::{PieceSquareAccumulator, PieceSquareAccumulatorUpdate};
-use crate::evaluation::accumulator::Accumulator;
-use crate::evaluation::accumulator::threat::ThreatAccumulator;
-use crate::evaluation::feature::psq::Feature;
 
 pub const MAX_ACCUMULATORS: usize = MAX_PLY + 8;
 
