@@ -287,7 +287,7 @@ impl NNUE {
         }
     }
 
-    fn apply_threat_updates(&mut self, board: &Board) {
+    pub fn apply_threat_updates(&mut self, board: &Board) {
         let (parents, currents) = self.stack.split_at_mut(self.current);
         let parent = parents[self.current - 1].threat();
         let current = currents[0].threat_mut();

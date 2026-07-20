@@ -1138,6 +1138,7 @@ fn make_move(
 ) {
     td.nnue.update(&mv, pc, captured, board);
     board.make(&mv, td.nnue.stack[td.nnue.current].threat_mut());
+    td.nnue.apply_threat_updates(board);
     td.stack[ply].mv = Some(mv);
     td.stack[ply].pc = Some(pc);
     td.stack[ply].captured = captured;
