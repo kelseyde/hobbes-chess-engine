@@ -2,6 +2,7 @@ use hobbes_nnue_arch::L1_SIZE;
 use arrayvec::ArrayVec;
 use crate::board::bitboard::Bitboard;
 use crate::board::{attacks, ray, Board};
+use crate::board::observer::BoardObserver;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
@@ -25,6 +26,24 @@ impl Default for ThreatAccumulator {
     }
 }
 
+impl BoardObserver for ThreatAccumulator {
+    fn on_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_create(board, pc, side, sq);
+    }
+
+    fn on_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_destroy(board, pc, side, sq);
+    }
+
+    fn on_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
+        self.push_piece_teleport(board, pc, side, from, to);
+    }
+
+    fn on_piece_transform(&mut self, board: &Board, old_pc: Piece, old_side: Side, new_pc: Piece, side: Side, sq: Square) {
+        self.push_piece_transform(board, old_pc, old_side, new_pc, side, sq);
+    }
+}
+
 impl ThreatAccumulator {
 
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
@@ -33,6 +52,10 @@ impl ThreatAccumulator {
 
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
         &mut self.features[perspective]
+    }
+
+    pub fn copy_from(&mut self, other: &ThreatAccumulator) {
+        self.features = other.features;
     }
 
     pub fn refresh_threats(&mut self, board: &Board, perspective: Side) {
