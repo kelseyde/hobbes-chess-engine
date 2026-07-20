@@ -294,7 +294,7 @@ impl NNUE {
 
         for pov in [White, Black] {
             if current.needs_refresh[pov] {
-                // Mirror flipped for this perspective: every stored index changed meaning.
+                // Mirror flipped for this perspective, needs refresh
                 current.refresh_threats(board, pov);
             } else {
                 current.apply(parent, board.king_sq(pov), pov);
