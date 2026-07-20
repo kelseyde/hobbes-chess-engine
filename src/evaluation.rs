@@ -1,10 +1,9 @@
 mod accumulator;
 mod cache;
-mod feature;
 mod forward;
+pub mod feature;
 pub mod sparse;
 pub mod stats;
-pub mod threats;
 
 mod simd {
     #[cfg(target_feature = "avx512f")]
@@ -37,17 +36,18 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::{castling, Board};
-use crate::evaluation::accumulator::{PieceSquareAccumulator, PieceSquareAccumulatorUpdate};
+use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
-use crate::evaluation::feature::Feature;
+use crate::evaluation::feature::psq::Feature;
 use crate::evaluation::forward::{inference, Forward};
-use crate::evaluation::threats::ThreatAccumulator;
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
 };
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
+use accumulator::psq;
+use accumulator::psq::PieceSquareAccumulatorUpdate;
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
     Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
@@ -59,8 +59,7 @@ pub(crate) static NETWORK: Network =
     unsafe { std::mem::transmute(*include_bytes!(env!("NETWORK_PATH"))) };
 
 pub struct NNUE {
-    pub stack: Box<[PieceSquareAccumulator; MAX_ACCUMULATORS]>,
-    pub threat_acc: ThreatAccumulator,
+    pub stack: Box<[Accumulator; MAX_ACCUMULATORS]>,
     pub cache: InputBucketCache,
     pub current: usize,
 }
@@ -69,7 +68,6 @@ impl Default for NNUE {
     fn default() -> Self {
         NNUE {
             current: 0,
-            threat_acc: ThreatAccumulator::default(),
             cache: InputBucketCache::default(),
             stack: unsafe { boxed_and_zeroed() },
         }
@@ -82,25 +80,10 @@ impl NNUE {
     /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         self.apply_lazy_updates(board);
-        self.threat_acc.refresh_threats(board, White);
-        self.threat_acc.refresh_threats(board, Black);
 
-        let psq_acc = &self.stack[self.current];
-        let (psq_us, psq_them) = match board.stm {
-            White => (&psq_acc.white_features, &psq_acc.black_features),
-            Black => (&psq_acc.black_features, &psq_acc.white_features),
-        };
-
-        let (threat_us, threat_them) = match board.stm {
-            White => (
-                &self.threat_acc.features[White],
-                &self.threat_acc.features[Black],
-            ),
-            Black => (
-                &self.threat_acc.features[Black],
-                &self.threat_acc.features[White],
-            ),
-        };
+        let acc = &self.stack[self.current];
+        let (psq_us, psq_them) = (&acc.psq().features(board.stm), &acc.psq().features(!board.stm));
+        let (threat_us, threat_them) = (&acc.threat().features(board.stm), &acc.threat().features(!board.stm));
 
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
@@ -125,7 +108,7 @@ impl NNUE {
     /// at the top of search, and then efficiently updated with each move.
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
-        self.stack[self.current] = PieceSquareAccumulator::default();
+        self.stack[self.current] = Accumulator::default();
         self.cache = InputBucketCache::default();
 
         for side in [White, Black] {
@@ -134,13 +117,18 @@ impl NNUE {
             let bucket = king_bucket(king_sq, side);
             self.full_refresh(board, self.current, side, mirror, bucket);
         }
+
+        let threat = self.stack[self.current].threat_mut();
+        threat.deltas.clear();
+        threat.refresh_threats(board, White);
+        threat.refresh_threats(board, Black);
     }
 
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
     /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
     /// features of the board that have changed since the last refresh.
     fn full_refresh(&mut self, board: &Board, idx: usize, side: Side, mirror: bool, bucket: usize) {
-        let acc = &mut self.stack[idx];
+        let acc = &mut self.stack[idx].psq_mut();
         acc.mirrored[side] = mirror;
         let cache_entry = self.cache.get(side, mirror, bucket);
         acc.copy_from(side, &cache_entry.features);
@@ -171,7 +159,7 @@ impl NNUE {
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
             let (input, output) = acc.features_inplace(side);
-            accumulator::add4(
+            psq::add4(
                 input,
                 output,
                 chunk.try_into().unwrap(),
@@ -182,12 +170,12 @@ impl NNUE {
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
             let (input, output) = acc.features_inplace(side);
-            accumulator::add1(input, output, add, weights, side, mirror);
+            psq::add1(input, output, add, weights, side, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
             let (input, output) = acc.features_inplace(side);
-            accumulator::sub4(
+            psq::sub4(
                 input,
                 output,
                 chunk.try_into().unwrap(),
@@ -198,7 +186,7 @@ impl NNUE {
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
             let (input, output) = acc.features_inplace(side);
-            accumulator::sub1(input, output, sub, weights, side, mirror);
+            psq::sub1(input, output, sub, weights, side, mirror);
         }
 
         acc.computed[side] = true;
@@ -214,10 +202,15 @@ impl NNUE {
     /// updated. The update is then stored on the accumulator to later be applied lazily.
     pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
         self.current += 1;
-        self.stack[self.current].needs_refresh = self.stack[self.current - 1].needs_refresh;
-        self.stack[self.current].mirrored = self.stack[self.current - 1].mirrored;
-        self.stack[self.current].computed[White] = false;
-        self.stack[self.current].computed[Black] = false;
+        self.stack[self.current].psq_mut().needs_refresh = self.stack[self.current - 1].psq().needs_refresh;
+        self.stack[self.current].psq_mut().mirrored = self.stack[self.current - 1].psq().mirrored;
+        self.stack[self.current].psq_mut().computed[White] = false;
+        self.stack[self.current].psq_mut().computed[Black] = false;
+
+        let threats = self.stack[self.current].threat_mut();
+        threats.deltas.clear();
+        threats.needs_refresh = [false; 2];
+
         let us = board.stm;
 
         let new_pc = mv.promo_piece().unwrap_or(pc);
@@ -225,11 +218,15 @@ impl NNUE {
         let bucket_changed = bucket_changed(board, *mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
+        // Threat accumulator is not king-bucketed; they only need refreshing when the king crosses
+        // the horizontal axis.
+        threats.needs_refresh[us] = mirror_changed;
+
         if refresh_required {
-            self.stack[self.current].needs_refresh[us] = true;
+            self.stack[self.current].psq_mut().needs_refresh[us] = true;
         }
 
-        self.stack[self.current].update = if mv.is_castle() {
+        self.stack[self.current].psq_mut().update = if mv.is_castle() {
             Self::handle_castle(board, mv, us)
         } else if let Some(captured) = captured {
             Self::handle_capture(mv, pc, new_pc, captured, us)
@@ -245,7 +242,7 @@ impl NNUE {
     fn apply_lazy_updates(&mut self, board: &Board) {
         for side in [White, Black] {
             // If already up-to-date for this perspective, then there is nothing to do.
-            if self.stack[self.current].computed[side] {
+            if self.stack[self.current].psq().computed[side] {
                 continue;
             }
 
@@ -254,7 +251,7 @@ impl NNUE {
             let bucket = king_bucket(king_sq, side);
 
             // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
-            if self.stack[self.current].needs_refresh[side] {
+            if self.stack[self.current].psq().needs_refresh[side] {
                 self.full_refresh(board, self.current, side, mirror, bucket);
                 continue;
             }
@@ -262,14 +259,14 @@ impl NNUE {
             // Scan backwards to find the nearest parent accumulator that is computed for this
             // perspective, or requires a refresh.
             let mut curr = self.current - 1;
-            while !self.stack[curr].computed[side] && !self.stack[curr].needs_refresh[side] {
+            while !self.stack[curr].psq().computed[side] && !self.stack[curr].psq().needs_refresh[side] {
                 if curr == 0 {
                     break;
                 }
                 curr -= 1;
             }
 
-            if self.stack[curr].needs_refresh[side] {
+            if self.stack[curr].psq().needs_refresh[side] {
                 // If we found an accumulator that requires a full refresh, do that instead.
                 self.full_refresh(board, self.current, side, mirror, bucket);
             } else {
@@ -279,13 +276,28 @@ impl NNUE {
                     let (front, back) = self.stack.split_at_mut(curr + 1);
                     let prev_acc = front.last().unwrap();
                     let next_acc = back.first_mut().unwrap();
-                    let update = next_acc.update;
-                    let prev_fts = prev_acc.features(side);
-                    let next_fts = next_acc.features_mut(side);
-                    accumulator::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
-                    next_acc.computed[side] = true;
+                    let update = next_acc.psq_mut().update;
+                    let prev_fts = prev_acc.psq().features(side);
+                    let next_fts = next_acc.psq_mut().features_mut(side);
+                    psq::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
+                    next_acc.psq_mut().computed[side] = true;
                     curr += 1;
                 }
+            }
+        }
+    }
+
+    pub fn apply_threat_updates(&mut self, board: &Board) {
+        let (parents, currents) = self.stack.split_at_mut(self.current);
+        let parent = parents[self.current - 1].threat();
+        let current = currents[0].threat_mut();
+
+        for pov in [White, Black] {
+            if current.needs_refresh[pov] {
+                // Mirror flipped for this perspective, needs refresh
+                current.refresh_threats(board, pov);
+            } else {
+                current.apply(parent, board.king_sq(pov), pov);
             }
         }
     }

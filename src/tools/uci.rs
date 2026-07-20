@@ -16,6 +16,7 @@ use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
+use crate::board::observer::NullBoardObserver;
 
 pub struct UCI {
     pub board: Board,
@@ -273,7 +274,7 @@ impl UCI {
             let legal = legal_moves.iter().map(|e| e.mv).find(|lm| lm.matches(m));
             match legal {
                 Some(m) => {
-                    self.board.make(&m);
+                    self.board.make(&m, &mut NullBoardObserver);
                     let hash = self.board.hash();
                     let td = self.engine.td_mut();
                     td.keys.push(hash);

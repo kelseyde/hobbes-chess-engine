@@ -164,6 +164,7 @@ mod tests {
     use crate::board::Board;
     use crate::search::thread::ThreadData;
     use std::sync::Once;
+    use crate::board::observer::NullBoardObserver;
 
     fn init() {
         static INIT: Once = Once::new();
@@ -182,7 +183,7 @@ mod tests {
 
         for mv_str in moves {
             let mv = Move::parse_uci(mv_str);
-            board.make(&mv);
+            board.make(&mv, &mut NullBoardObserver);
             td.keys.push(board.hash());
         }
 

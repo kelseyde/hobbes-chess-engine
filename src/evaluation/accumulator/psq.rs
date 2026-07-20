@@ -1,8 +1,8 @@
+use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
-use crate::evaluation::feature::Feature;
 use crate::evaluation::{simd, NETWORK};
-use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
+use crate::evaluation::feature::psq::Feature;
 
 /// The `PieceSquareAccumulator` holds the pre-activations of the first layer of the neural network.
 /// The input layer just encodes the positions of pieces on the board, from the perspective of both
@@ -11,8 +11,7 @@ use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 #[derive(Clone, Copy)]
 #[repr(C, align(64))]
 pub struct PieceSquareAccumulator {
-    pub white_features: [i16; L1_SIZE],
-    pub black_features: [i16; L1_SIZE],
+    features: [[i16; L1_SIZE]; 2],
     pub update: PieceSquareAccumulatorUpdate,
     pub computed: [bool; 2],
     pub needs_refresh: [bool; 2],
@@ -35,8 +34,7 @@ pub enum PieceSquareAccumulatorUpdate {
 impl Default for PieceSquareAccumulator {
     fn default() -> Self {
         PieceSquareAccumulator {
-            white_features: NETWORK.l0_biases,
-            black_features: NETWORK.l0_biases,
+            features: [NETWORK.l0_biases, NETWORK.l0_biases],
             update: PieceSquareAccumulatorUpdate::default(),
             computed: [false, false],
             needs_refresh: [false, false],
@@ -49,38 +47,26 @@ impl PieceSquareAccumulator {
     /// Get a reference to the features for the given perspective.
     #[inline(always)]
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
-        match perspective {
-            White => &self.white_features,
-            Black => &self.black_features,
-        }
+        &self.features[perspective]
     }
 
     /// Get a mutable reference to the features for the given perspective.
     #[inline(always)]
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
-        match perspective {
-            White => &mut self.white_features,
-            Black => &mut self.black_features,
-        }
+        &mut self.features[perspective]
     }
 
     /// Reset the features for the given perspective to the initial biases.
     #[inline]
     pub fn reset(&mut self, perspective: Side) {
-        let feats = match perspective {
-            White => &mut self.white_features,
-            Black => &mut self.black_features,
-        };
+        let feats = &mut self.features[perspective];
         *feats = NETWORK.l0_biases;
     }
 
     /// Copy the features from another accumulator into this one, for the given perspective.
     #[inline]
     pub fn copy_from(&mut self, side: Side, features: &[i16; L1_SIZE]) {
-        match side {
-            White => self.white_features = *features,
-            Black => self.black_features = *features,
-        }
+        self.features[side] = *features;
     }
 
     /// Get a mutable and immutable reference to the features for the given perspective.
