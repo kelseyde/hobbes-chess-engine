@@ -69,10 +69,6 @@ impl ThreatAccumulator {
         &mut self.features[perspective]
     }
 
-    pub fn copy_from(&mut self, other: &ThreatAccumulator) {
-        self.features = other.features;
-    }
-
     pub fn refresh_threats(&mut self, board: &Board, pov: Side) {
         let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
         Self::collect_threat_indices(board, pov, &mut adds);
