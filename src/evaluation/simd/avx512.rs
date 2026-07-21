@@ -7,6 +7,13 @@ pub const I32_LANES: usize = size_of::<__m512i>() / size_of::<i32>();
 
 pub type VecI32 = __m512i;
 
+pub type VecI16 = __m512i;
+
+#[inline(always)]
+pub unsafe fn zero_i16() -> __m512i {
+    _mm512_setzero_si512()
+}
+
 #[inline(always)]
 pub unsafe fn splat_u16(a: u16) -> __m128i {
     _mm_set1_epi16(a as i16)
@@ -35,6 +42,11 @@ pub unsafe fn store_u8(ptr: *mut u8, v: __m512i) {
 #[inline(always)]
 pub unsafe fn load_i8(ptr: *const i8) -> __m512i {
     _mm512_loadu_si512(ptr as *const __m512i)
+}
+
+#[inline(always)]
+pub unsafe fn load_i8_as_i16(ptr: *const i8) -> __m512i {
+    _mm512_cvtepi8_epi16(_mm256_loadu_si256(ptr as *const __m256i))
 }
 
 #[inline(always)]

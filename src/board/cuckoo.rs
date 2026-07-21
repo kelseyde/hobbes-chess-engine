@@ -1,10 +1,10 @@
-use crate::board::{attacks, ray, Board};
 use crate::board::bitboard::Bitboard;
 use crate::board::moves::{Move, MoveFlag};
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::zobrist::Keys;
+use crate::board::{attacks, ray, Board};
 use crate::search::thread::ThreadData;
 
 /// A mechanism used to determine if a move will lead to a repetition on the next ply. This is used
@@ -99,7 +99,6 @@ fn insert(mut key: u64, mut mv: Move) {
 }
 
 impl Board {
-
     /// <http://web.archive.org/web/20201107002606/https://marcelk.net/2013-04-06/paper/upcoming-rep-v2.pdf>
     pub fn has_upcoming_repetition(&self, td: &ThreadData, ply: usize) -> bool {
         // TODO plies from null?
@@ -155,7 +154,6 @@ impl Board {
 
         false
     }
-    
 }
 
 #[cfg(test)]
@@ -166,6 +164,7 @@ mod tests {
     use crate::board::Board;
     use crate::search::thread::ThreadData;
     use std::sync::Once;
+    use crate::board::observer::NullBoardObserver;
 
     fn init() {
         static INIT: Once = Once::new();
@@ -184,7 +183,7 @@ mod tests {
 
         for mv_str in moves {
             let mv = Move::parse_uci(mv_str);
-            board.make(&mv);
+            board.make(&mv, &mut NullBoardObserver);
             td.keys.push(board.hash());
         }
 

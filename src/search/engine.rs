@@ -1,9 +1,9 @@
 use crate::board::Board;
-use crate::search::search;
+use crate::search::parameters::thread_weight_score_offset;
 use crate::search::score;
+use crate::search::search;
 use crate::search::thread::{SharedContext, ThreadData};
 use crate::search::time::SearchLimits;
-use crate::search::parameters::thread_weight_score_offset;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;

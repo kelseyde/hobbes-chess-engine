@@ -7,23 +7,41 @@ pub struct Vectorised;
 impl Forward for Vectorised {
     /// L0 ('feature transformer') activation
     /// We are in [0, 255] space, we want to end up in [0, 127] space for the next layer.
-    unsafe fn activate_l0(us: &[i16; L1_SIZE], them: &[i16; L1_SIZE], output: &mut [u8; L1_SIZE]) {
+    unsafe fn activate_l0(
+        us_psq: &[i16; L1_SIZE],
+        us_threat: &[i16; L1_SIZE],
+        them_psq: &[i16; L1_SIZE],
+        them_threat: &[i16; L1_SIZE],
+        output: &mut [u8; L1_SIZE],
+    ) {
         let lo = simd::splat_i16(0);
         let hi = simd::splat_i16(L0_QUANT as i16);
 
-        for (side, feats) in [us, them].into_iter().enumerate() {
+        for (side, (psq_feats, threat_feats)) in [(us_psq, us_threat), (them_psq, them_threat)]
+            .into_iter()
+            .enumerate()
+        {
             let base = side * (L1_SIZE / 2);
 
             for i in (0..L1_SIZE / 2).step_by(2 * simd::I16_LANES) {
-                let left1 = simd::load_i16(feats.as_ptr().add(i));
-                let left2 = simd::load_i16(feats.as_ptr().add(i + simd::I16_LANES));
-                let right1 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2));
-                let right2 = simd::load_i16(feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
+                let psq_left1 = simd::load_i16(psq_feats.as_ptr().add(i));
+                let psq_left2 = simd::load_i16(psq_feats.as_ptr().add(i + simd::I16_LANES));
+                let psq_right1 = simd::load_i16(psq_feats.as_ptr().add(i + L1_SIZE / 2));
+                let psq_right2 =
+                    simd::load_i16(psq_feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
 
-                let left1_clipped = simd::clamp_i16(left1, lo, hi);
-                let left2_clipped = simd::clamp_i16(left2, lo, hi);
-                let right1_clipped = simd::clamp_i16(right1, lo, hi);
-                let right2_clipped = simd::clamp_i16(right2, lo, hi);
+                let threat_left1 = simd::load_i16(threat_feats.as_ptr().add(i));
+                let threat_left2 = simd::load_i16(threat_feats.as_ptr().add(i + simd::I16_LANES));
+                let threat_right1 = simd::load_i16(threat_feats.as_ptr().add(i + L1_SIZE / 2));
+                let threat_right2 =
+                    simd::load_i16(threat_feats.as_ptr().add(i + L1_SIZE / 2 + simd::I16_LANES));
+
+                let left1_clipped = simd::clamp_i16(simd::add_i16(psq_left1, threat_left1), lo, hi);
+                let left2_clipped = simd::clamp_i16(simd::add_i16(psq_left2, threat_left2), lo, hi);
+                let right1_clipped =
+                    simd::clamp_i16(simd::add_i16(psq_right1, threat_right1), lo, hi);
+                let right2_clipped =
+                    simd::clamp_i16(simd::add_i16(psq_right2, threat_right2), lo, hi);
 
                 let product1 = simd::shift_left_mul_high_i16(left1_clipped, right1_clipped);
                 let product2 = simd::shift_left_mul_high_i16(left2_clipped, right2_clipped);

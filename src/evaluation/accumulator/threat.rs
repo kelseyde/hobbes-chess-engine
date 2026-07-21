@@ -1,0 +1,380 @@
+use hobbes_nnue_arch::L1_SIZE;
+use arrayvec::ArrayVec;
+use crate::board::bitboard::Bitboard;
+use crate::board::{attacks, ray, Board};
+use crate::board::observer::BoardObserver;
+use crate::board::piece::Piece;
+use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
+use crate::board::side::Side;
+use crate::board::side::Side::{Black, White};
+use crate::board::square::Square;
+use crate::evaluation::feature::threat::threat_index;
+use crate::evaluation::{simd, NETWORK};
+
+const MAX_DELTA_INDICES: usize = 80;
+const MAX_ACTIVE_INDICES: usize = 4096;
+
+#[cfg(target_feature = "avx512f")]
+const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
+#[cfg(not(target_feature = "avx512f"))]
+const REGISTERS: usize = 8;
+
+const STEP: usize = REGISTERS * simd::I16_LANES;
+const _: () = assert!(L1_SIZE % STEP == 0, "step must divide by the accumulator evenly");
+
+#[repr(C, align(64))]
+pub struct ThreatAccumulator {
+    features: [[i16; L1_SIZE]; 2],
+    pub deltas: ArrayVec<ThreatDelta, MAX_DELTA_INDICES>,
+    pub needs_refresh: [bool; 2],
+    pub computed: [bool; 2],
+}
+
+impl Default for ThreatAccumulator {
+    fn default() -> Self {
+        Self {
+            features: [[0; L1_SIZE]; 2],
+            deltas: ArrayVec::new(),
+            needs_refresh: [false; 2],
+            computed: [false; 2],
+        }
+    }
+}
+
+impl BoardObserver for ThreatAccumulator {
+    fn on_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_create(board, pc, side, sq);
+    }
+
+    fn on_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_destroy(board, pc, side, sq);
+    }
+
+    fn on_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
+        self.push_piece_teleport(board, pc, side, from, to);
+    }
+
+    fn on_piece_transform(&mut self, board: &Board, old_pc: Piece, old_side: Side, new_pc: Piece, side: Side, sq: Square) {
+        self.push_piece_transform(board, old_pc, old_side, new_pc, side, sq);
+    }
+}
+
+impl ThreatAccumulator {
+
+    pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
+        &self.features[perspective]
+    }
+
+    pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
+        &mut self.features[perspective]
+    }
+
+    pub fn copy_from(&mut self, other: &ThreatAccumulator) {
+        self.features = other.features;
+    }
+
+    pub fn refresh_threats(&mut self, board: &Board, pov: Side) {
+        let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
+        Self::collect_threat_indices(board, pov, &mut adds);
+        unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
+    }
+
+    pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
+        let mut adds = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
+        let mut subs = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
+
+        for delta in &self.deltas {
+            let (atk_pc, atk_side) = delta.attacker();
+            let (vic_pc, vic_side) = delta.victim();
+            let (valid, idx) = threat_index(
+                pov, king_sq, atk_pc, atk_side, vic_pc, vic_side, delta.from(), delta.to(),
+            );
+            if !valid {
+                continue;
+            }
+            if delta.add() {
+                adds.push(idx as u32);
+            } else {
+                subs.push(idx as u32);
+            }
+        }
+
+        unsafe { accumulate(&mut self.features[pov], Some(&parent.features[pov]), &adds, &subs) };
+    }
+
+    /// Update accumulator threat deltas when a piece is added on a square
+    pub fn push_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_single(board, board.occ(), pc, side, sq, true);
+    }
+
+    /// Update accumulator threat deltas when a piece is removed from a square.
+    pub fn push_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
+        self.push_piece_single(board, board.occ(), pc, side, sq, false);
+    }
+
+    /// Update accumulator threat deltas when a piece is moved from one square to another.
+    pub fn push_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
+        let occ = board.occ() ^ Bitboard::of_sq(to);
+        self.push_piece_single(board, occ, pc, side, from, false);
+        self.push_piece_single(board, occ, pc, side, to, true);
+    }
+
+    /// Update accumulator threat deltas when a piece type is changed on a single square.
+    pub fn push_piece_transform(
+        &mut self,
+        board: &Board,
+        old_pc: Piece,
+        old_side: Side,
+        new_pc: Piece,
+        new_side: Side,
+        sq: Square
+    ) {
+
+        let deltas = &mut self.deltas;
+        let occ = board.occ();
+        let attacked = attacks::attacks(sq, old_pc, old_side, occ) & occ;
+        for to in attacked {
+            let vic_pc = board.piece_at(to).unwrap();
+            let vic_side = board.side_at(to).unwrap();
+            deltas.push(ThreatDelta::new(old_pc, old_side, sq, vic_pc, vic_side, to, false));
+        }
+        let attacked = attacks::attacks(sq, new_pc, new_side, occ) & occ;
+        for to in attacked {
+            let vic_pc = board.piece_at(to).unwrap();
+            let vic_side = board.side_at(to).unwrap();
+            deltas.push(ThreatDelta::new(new_pc, new_side, sq, vic_pc, vic_side, to, true));
+        }
+
+        let rook_attacks = attacks::rook(sq, occ);
+        let bishop_attacks = attacks::bishop(sq, occ);
+
+        let diags = (board.pieces(Bishop) | board.pieces(Queen)) & bishop_attacks;
+        let orthos = (board.pieces(Rook) | board.pieces(Queen)) & rook_attacks;
+
+        let white_pawns = board.pawns(White) & attacks::pawn(sq, Black);
+        let black_pawns = board.pawns(Black) & attacks::pawn(sq, White);
+        let knights = board.pieces(Knight) & attacks::knight(sq);
+        let kings = board.pieces(Piece::King) & attacks::king(sq);
+
+        for from in (black_pawns | white_pawns | knights | diags | orthos | kings) & occ {
+            let atk_pc = board.piece_at(from).unwrap();
+            let atk_side = board.side_at(from).unwrap();
+            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, old_pc, old_side, sq, false));
+            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, new_pc, new_side, sq, true));
+        }
+
+    }
+
+    fn push_piece_single(&mut self, board: &Board, occ: Bitboard, pc: Piece, side: Side, sq: Square, add: bool) {
+
+        let deltas = &mut self.deltas;
+        let attacked = attacks::attacks(sq, pc, side, occ) & occ;
+        for (vic_side, targets) in [
+            (White, attacked & board.side(White)),
+            (Black, attacked & board.side(Black)),
+        ] {
+            for to in targets {
+                let vic_pc = board.piece_at(to).unwrap();
+                deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
+            }
+        }
+
+        let bishop_attacks = attacks::bishop(sq, occ);
+        let rook_attacks = attacks::rook(sq, occ);
+        let queen_attacks = bishop_attacks | rook_attacks;
+
+        let diags = (board.pieces(Bishop) | board.pieces(Queen)) & bishop_attacks;
+        let orthos = (board.pieces(Rook) | board.pieces(Queen)) & rook_attacks;
+        let sliders = diags | orthos;
+
+        for from in sliders & occ {
+            let slider_pc = board.piece_at(from).unwrap();
+            let slider_side = board.side_at(from).unwrap();
+            let threatened = ray::beyond(from, sq) & occ & queen_attacks;
+            if let Some(to) = threatened.into_iter().next() {
+                let vic_pc = board.piece_at(to).unwrap();
+                let vic_side = board.side_at(to).unwrap();
+                deltas.push(ThreatDelta::new(slider_pc, slider_side, from, vic_pc, vic_side, to, !add));
+            }
+            deltas.push(ThreatDelta::new(slider_pc, slider_side, from, pc, side, sq, add));
+        }
+
+        let white_pawns = board.pawns(White) & attacks::pawn(sq, Black);
+        let black_pawns = board.pawns(Black) & attacks::pawn(sq, White);
+        let knights = board.pieces(Knight) & attacks::knight(sq);
+        let kings = board.pieces(Piece::King) & attacks::king(sq);
+        let leapers = black_pawns | white_pawns | knights | kings;
+
+        for from in leapers & occ {
+            let atk_pc = board.piece_at(from).unwrap();
+            let atk_side = board.side_at(from).unwrap();
+            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, pc, side, sq, add));
+        }
+
+    }
+
+    fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096>) {
+        let occ = board.occ();
+        let king_sq = board.king_sq(pov);
+        for from in occ {
+            let (atk, atk_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
+            let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
+            for to in attacks {
+                let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
+                let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
+                if valid {
+                    out.push(idx as u32);
+                }
+            }
+        }
+    }
+
+}
+
+#[inline(always)]
+unsafe fn accumulate(
+    out: &mut [i16; L1_SIZE],
+    parent: Option<&[i16; L1_SIZE]>,
+    adds: &[u32],
+    subs: &[u32],
+) {
+    let weights = NETWORK.l0_threat_weights.as_ptr();
+    let out_ptr = out.as_mut_ptr();
+
+    for offset in (0..L1_SIZE).step_by(STEP) {
+
+        let mut regs = [simd::zero_i16(); REGISTERS];
+        if let Some(p) = parent {
+            let in_ptr = p.as_ptr();
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::load_i16(in_ptr.add(offset + i * simd::I16_LANES));
+            }
+        }
+
+        let (mut added, mut subtracted) = (0, 0);
+
+        while added < adds.len() && subtracted < subs.len() {
+            let add_row = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let sub_row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                let lane = i * simd::I16_LANES;
+                let add_w = simd::load_i8_as_i16(add_row.add(lane));
+                let sub_w = simd::load_i8_as_i16(sub_row.add(lane));
+                *reg = simd::add_i16(*reg, simd::sub_i16(add_w, sub_w));
+            }
+            added += 1;
+            subtracted += 1;
+        }
+
+        while added + 1 < adds.len() {
+            let row1 = weights.add(adds[added] as usize * L1_SIZE + offset);
+            let row2 = weights.add(adds[added + 1] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                let lane = i * simd::I16_LANES;
+                let w1 = simd::load_i8_as_i16(row1.add(lane));
+                let w2 = simd::load_i8_as_i16(row2.add(lane));
+                *reg = simd::add_i16(*reg, simd::add_i16(w1, w2));
+            }
+            added += 2;
+        }
+
+        while added < adds.len() {
+            let row = weights.add(adds[added] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::add_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+            }
+            added += 1;
+        }
+
+        while subtracted < subs.len() {
+            let row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
+            for (i, reg) in regs.iter_mut().enumerate() {
+                *reg = simd::sub_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+            }
+            subtracted += 1;
+        }
+
+        for (i, reg) in regs.iter().enumerate() {
+            simd::store_i16(out_ptr.add(offset + i * simd::I16_LANES), *reg);
+        }
+    }
+}
+
+/// An encoding of one threat input change: attacker on `from` threatens victim on `to`, either
+/// created (add = true) or destroyed (add = false).
+///
+/// Deltas are perspective-neutral, since the actual index into the threat inputs accumulator will
+/// depend on the perspective.
+///
+/// Bit layout:
+/// 0–7:    attacker (0..12)
+/// 8–15:   from square (0..64)
+/// 16–23:  victim (0..12)
+/// 24–30:  to square (0..64)
+/// 31:     add (1 = threat created, 0 = threat destroyed)
+///
+/// Implementation inspired by Reckless.
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct ThreatDelta(u32);
+
+impl ThreatDelta {
+    const FROM_SHIFT: u32 = 8;
+    const VICTIM_SHIFT: u32 = 16;
+    const TO_SHIFT: u32 = 24;
+    const ADD_SHIFT: u32 = 31;
+    const TO_MASK: u32 = 0x7F;
+
+    #[inline(always)]
+    pub fn new(
+        attacker: Piece,
+        attacker_side: Side,
+        from: Square,
+        victim: Piece,
+        victim_side: Side,
+        to: Square,
+        add: bool,
+    ) -> Self {
+        let attacker_idx = attacker.coloured_index(attacker_side) as u32;
+        let victim_idx = victim.coloured_index(victim_side) as u32;
+        Self(
+            attacker_idx
+                | (from.0 as u32) << Self::FROM_SHIFT
+                | victim_idx << Self::VICTIM_SHIFT
+                | (to.0 as u32) << Self::TO_SHIFT
+                | (add as u32) << Self::ADD_SHIFT,
+        )
+    }
+
+    #[inline(always)]
+    pub const fn attacker(self) -> (Piece, Side) {
+        Self::decode_coloured(self.0 as u8)
+    }
+
+    #[inline(always)]
+    pub const fn from(self) -> Square {
+        Square((self.0 >> Self::FROM_SHIFT) as u8)
+    }
+
+    #[inline(always)]
+    pub const fn victim(self) -> (Piece, Side) {
+        Self::decode_coloured((self.0 >> Self::VICTIM_SHIFT) as u8)
+    }
+
+    #[inline(always)]
+    pub const fn to(self) -> Square {
+        Square(((self.0 >> Self::TO_SHIFT) as u8) & Self::TO_MASK as u8)
+    }
+
+    #[inline(always)]
+    pub const fn add(self) -> bool {
+        (self.0 >> Self::ADD_SHIFT) != 0
+    }
+
+    #[inline(always)]
+    const fn decode_coloured(idx: u8) -> (Piece, Side) {
+        let pc = idx % 6;
+        let side = idx / 6;
+        unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
+    }
+}
