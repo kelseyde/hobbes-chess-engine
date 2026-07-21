@@ -21,7 +21,7 @@ impl Feature {
 
     #[inline]
     pub fn index(&self, perspective: Side, mirror: bool) -> usize {
-        let (mut sq, mut color) = match perspective {
+        let (mut sq, color) = match perspective {
             Side::White => (self.sq, self.side),
             Side::Black => (self.sq.flip_rank(), !self.side),
         };
@@ -29,11 +29,6 @@ impl Feature {
         // Horizontal mirroring
         if mirror {
             sq = sq.flip_file();
-        }
-
-        // Merged king planes
-        if self.pc == Piece::King {
-            color = Side::White;
         }
 
         let sq = sq.0 as usize;

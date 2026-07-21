@@ -13,6 +13,7 @@ pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
+pub mod observer;
 
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]
@@ -59,6 +60,7 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
+use crate::board::observer::BoardObserver;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -119,28 +121,55 @@ impl Board {
     /// rights, en passant square, half-move clock, Zobrist hashes, threats, checkers, and pinned
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
     #[rustfmt::skip]
-    pub fn make(&mut self, m: &Move) {
+    pub fn make<T: BoardObserver>(&mut self, m: &Move, observer: &mut T) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
         let pc = self.piece_at(from).expect("No piece on starting square");
         let captured = self.captured(m);
         let (new_pc, new_to) = (self.new_pc(m, pc), self.new_to(m, from, to));
+        let is_ep = flag == MoveFlag::EnPassant;
+        let is_frc_castle = self.is_frc() && m.is_castle();
+
+        // Move can be described with a single 'teleport' observer callback, with no additional
+        // pieces created/destroyed/transformed (e.g., no castling, ep, or promos).
+        let mover_teleports = captured.is_none() && !m.is_promo() && !is_frc_castle;
 
         // Unset the piece from the starting square.
         self.toggle_sq(from, pc, side);
+        if !mover_teleports {
+            // If the move can't be described with a simple teleport, we first make the observer
+            // destroy the piece on the starting square
+            observer.on_piece_destroy(self, pc, side, from);
+        }
 
         if let Some(captured) = captured {
             // Unset the captured piece.
             let capture_sq = self.capture_sq(flag, to);
             self.toggle_sq(capture_sq, captured, !side);
+            if is_ep {
+                // Tell the observer to destroy the en passant pawn
+                observer.on_piece_destroy(self, captured, !side, capture_sq);
+            }
         }
-        if self.is_frc() && m.is_castle() {
+        if is_frc_castle {
             // In the case of FRC castling, we first unset the rook to cover the
             // scenario where the king moves to the occupied rook square.
             self.toggle_sq(to, Piece::Rook, side);
+            // Tell the observer to destroy the rook
+            observer.on_piece_destroy(self, Piece::Rook, side, to);
         }
         // Set the piece on the destination square.
         self.toggle_sq(new_to, new_pc, side);
+        if let Some(captured) = captured.filter(|_| !is_ep) {
+            // Normal capture, we simply transform the captured piece in-place to the new piece.
+            observer.on_piece_transform(self, captured, !side, new_pc, side, new_to);
+        } else if mover_teleports {
+            // Standard move, simply teleport the piece
+            observer.on_piece_teleport(self, pc, side, from, new_to);
+        } else {
+            // Quiet promo, ep, castling: we already destroyed the old piece, now create the new one.
+            observer.on_piece_create(self, new_pc, side, new_to);
+        }
 
         // Handle rook movement for castling.
         if m.is_castle() {
@@ -148,8 +177,10 @@ impl Board {
             let (rook_from, rook_to) = self.rook_sqs(to, kingside);
             if self.is_frc() {
                 self.toggle_sq(rook_to, Piece::Rook, side);
+                observer.on_piece_create(self, Piece::Rook, side, rook_to);
             } else {
                 self.toggle_sqs(rook_from, rook_to, Piece::Rook, side);
+                observer.on_piece_teleport(self, Piece::Rook, side, rook_from, rook_to);
             }
         }
 
@@ -572,6 +603,7 @@ mod tests {
     use crate::board::moves::{Move, MoveFlag};
     use crate::board::side::Side;
     use crate::board::{ray, Board};
+    use crate::board::observer::NullBoardObserver;
 
     #[test]
     fn computing_correct_pins() {
@@ -702,7 +734,7 @@ mod tests {
 
     fn assert_make_move(start_fen: &str, end_fen: &str, m: Move) {
         let mut board = Board::from_fen(start_fen).unwrap();
-        board.make(&m);
+        board.make(&m, &mut NullBoardObserver);
         assert_eq!(board.to_fen(), end_fen);
     }
 }

@@ -5,6 +5,7 @@ use crate::search::thread::ThreadData;
 use crate::tools::fen;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use crate::board::observer::NullBoardObserver;
 
 pub fn generate_random_openings(
     td: &mut ThreadData,
@@ -46,7 +47,7 @@ fn generate_random_opening(
         let mv = legal_moves
             .get(rng.random_range(0..legal_moves.len()))
             .unwrap();
-        board.make(&mv.mv);
+        board.make(&mv.mv, &mut NullBoardObserver);
     }
 
     // Skip wildly imbalanced exits
