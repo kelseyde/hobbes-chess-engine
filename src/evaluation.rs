@@ -38,7 +38,7 @@ use crate::board::square::Square;
 use crate::board::{castling, Board};
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
-use crate::evaluation::feature::psq::Feature;
+use crate::evaluation::feature::psq::PieceSquareFeature;
 use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
@@ -171,8 +171,8 @@ impl NNUE {
         side: Side,
     ) -> PieceSquareAccumulatorUpdate {
         PieceSquareAccumulatorUpdate::AddSub(
-            Feature::new(new_pc, mv.to(), side),
-            Feature::new(pc, mv.from(), side),
+            PieceSquareFeature::new(new_pc, mv.to(), side),
+            PieceSquareFeature::new(pc, mv.from(), side),
         )
     }
 
@@ -192,9 +192,9 @@ impl NNUE {
             mv.to()
         };
         PieceSquareAccumulatorUpdate::AddSubSub(
-            Feature::new(new_pc, mv.to(), side),
-            Feature::new(pc, mv.from(), side),
-            Feature::new(captured, capture_sq, !side),
+            PieceSquareFeature::new(new_pc, mv.to(), side),
+            PieceSquareFeature::new(pc, mv.from(), side),
+            PieceSquareFeature::new(captured, capture_sq, !side),
         )
     }
 
@@ -216,10 +216,10 @@ impl NNUE {
         let rook_to = castling::rook_to(us, kingside);
 
         PieceSquareAccumulatorUpdate::AddAddSubSub(
-            Feature::new(King, king_to, us),
-            Feature::new(Rook, rook_to, us),
-            Feature::new(King, king_from, us),
-            Feature::new(Rook, rook_from, us),
+            PieceSquareFeature::new(King, king_to, us),
+            PieceSquareFeature::new(Rook, rook_to, us),
+            PieceSquareFeature::new(King, king_from, us),
+            PieceSquareFeature::new(Rook, rook_from, us),
         )
     }
 

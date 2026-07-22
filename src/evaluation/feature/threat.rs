@@ -191,9 +191,9 @@ fn is_valid_piece_placement(pc: Piece, sq: Square) -> bool {
 /// Implementation inspired by Reckless.
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct ThreatDelta(u32);
+pub struct ThreatFeature(u32);
 
-impl ThreatDelta {
+impl ThreatFeature {
     const FROM_SHIFT: u32 = 8;
     const VICTIM_SHIFT: u32 = 16;
     const TO_SHIFT: u32 = 24;

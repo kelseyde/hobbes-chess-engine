@@ -8,7 +8,7 @@ use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::evaluation::feature::threat::ThreatDelta;
+use crate::evaluation::feature::threat::ThreatFeature;
 use crate::evaluation::{simd, NETWORK, NNUE};
 
 const MAX_DELTA_INDICES: usize = 80;
@@ -25,7 +25,7 @@ const _: () = assert!(L1_SIZE % STEP == 0, "step must divide by the accumulator 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub deltas: ArrayVec<ThreatDelta, MAX_DELTA_INDICES>,
+    pub deltas: ArrayVec<ThreatFeature, MAX_DELTA_INDICES>,
     pub needs_refresh: [bool; 2],
     pub computed: [bool; 2],
 }
@@ -129,13 +129,13 @@ impl ThreatAccumulator {
         for to in attacked {
             let vic_pc = board.piece_at(to).unwrap();
             let vic_side = board.side_at(to).unwrap();
-            deltas.push(ThreatDelta::new(old_pc, old_side, sq, vic_pc, vic_side, to, false));
+            deltas.push(ThreatFeature::new(old_pc, old_side, sq, vic_pc, vic_side, to, false));
         }
         let attacked = attacks::attacks(sq, new_pc, new_side, occ) & occ;
         for to in attacked {
             let vic_pc = board.piece_at(to).unwrap();
             let vic_side = board.side_at(to).unwrap();
-            deltas.push(ThreatDelta::new(new_pc, new_side, sq, vic_pc, vic_side, to, true));
+            deltas.push(ThreatFeature::new(new_pc, new_side, sq, vic_pc, vic_side, to, true));
         }
 
         let rook_attacks = attacks::rook(sq, occ);
@@ -152,8 +152,8 @@ impl ThreatAccumulator {
         for from in (black_pawns | white_pawns | knights | diags | orthos | kings) & occ {
             let atk_pc = board.piece_at(from).unwrap();
             let atk_side = board.side_at(from).unwrap();
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, old_pc, old_side, sq, false));
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, new_pc, new_side, sq, true));
+            deltas.push(ThreatFeature::new(atk_pc, atk_side, from, old_pc, old_side, sq, false));
+            deltas.push(ThreatFeature::new(atk_pc, atk_side, from, new_pc, new_side, sq, true));
         }
 
     }
@@ -168,7 +168,7 @@ impl ThreatAccumulator {
         ] {
             for to in targets {
                 let vic_pc = board.piece_at(to).unwrap();
-                deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
+                deltas.push(ThreatFeature::new(pc, side, sq, vic_pc, vic_side, to, add));
             }
         }
 
@@ -187,9 +187,9 @@ impl ThreatAccumulator {
             if let Some(to) = threatened.into_iter().next() {
                 let vic_pc = board.piece_at(to).unwrap();
                 let vic_side = board.side_at(to).unwrap();
-                deltas.push(ThreatDelta::new(slider_pc, slider_side, from, vic_pc, vic_side, to, !add));
+                deltas.push(ThreatFeature::new(slider_pc, slider_side, from, vic_pc, vic_side, to, !add));
             }
-            deltas.push(ThreatDelta::new(slider_pc, slider_side, from, pc, side, sq, add));
+            deltas.push(ThreatFeature::new(slider_pc, slider_side, from, pc, side, sq, add));
         }
 
         let white_pawns = board.pawns(White) & attacks::pawn(sq, Black);
@@ -201,7 +201,7 @@ impl ThreatAccumulator {
         for from in leapers & occ {
             let atk_pc = board.piece_at(from).unwrap();
             let atk_side = board.side_at(from).unwrap();
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, pc, side, sq, add));
+            deltas.push(ThreatFeature::new(atk_pc, atk_side, from, pc, side, sq, add));
         }
 
     }
@@ -214,7 +214,7 @@ impl ThreatAccumulator {
             let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
             for to in attacks {
                 let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
-                let delta = ThreatDelta::new(atk, atk_side, from, vic, vic_side, to, true);
+                let delta = ThreatFeature::new(atk, atk_side, from, vic, vic_side, to, true);
                 let (valid, idx) = delta.index(pov, king_sq);
                 if valid {
                     out.push(idx as u32);

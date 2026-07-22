@@ -7,16 +7,16 @@ use crate::board::square::Square;
 /// is present on that square - or not  activated - meaning the piece is not present on that square.
 /// The presence or absence of a feature is represented by a 1 or 0 respectively in the input layer.
 #[derive(Copy, Clone)]
-pub struct Feature {
+pub struct PieceSquareFeature {
     pc: Piece,
     sq: Square,
     side: Side,
 }
 
-impl Feature {
+impl PieceSquareFeature {
     #[inline]
     pub fn new(pc: Piece, sq: Square, side: Side) -> Self {
-        Feature { pc, sq, side }
+        PieceSquareFeature { pc, sq, side }
     }
 
     #[inline]

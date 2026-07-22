@@ -4,7 +4,7 @@ use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 use crate::evaluation::accumulator::psq;
 use crate::evaluation::cache::InputBucketCache;
-use crate::evaluation::feature::psq::Feature;
+use crate::evaluation::feature::psq::PieceSquareFeature;
 use crate::evaluation::{king_bucket, should_mirror, simd, NETWORK, NNUE};
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
@@ -31,9 +31,9 @@ pub struct PieceSquareAccumulator {
 pub enum PieceSquareAccumulatorUpdate {
     #[default]
     None,
-    AddSub(Feature, Feature),
-    AddSubSub(Feature, Feature, Feature),
-    AddAddSubSub(Feature, Feature, Feature, Feature),
+    AddSub(PieceSquareFeature, PieceSquareFeature),
+    AddSubSub(PieceSquareFeature, PieceSquareFeature, PieceSquareFeature),
+    AddAddSubSub(PieceSquareFeature, PieceSquareFeature, PieceSquareFeature, PieceSquareFeature),
 }
 
 impl Default for PieceSquareAccumulator {
@@ -113,12 +113,12 @@ impl PieceSquareAccumulator {
 
                 let added = pieces & !cached_pieces;
                 for add in added {
-                    adds.push(Feature::new(pc, add, side));
+                    adds.push(PieceSquareFeature::new(pc, add, side));
                 }
 
                 let removed = cached_pieces & !pieces;
                 for sub in removed {
-                    subs.push(Feature::new(pc, sub, side));
+                    subs.push(PieceSquareFeature::new(pc, sub, side));
                 }
             }
         }
@@ -172,7 +172,7 @@ impl PieceSquareAccumulator {
 /// backwards to find the nearest computed accumulator, and move forward applying all updates
 /// one by one. If at any point we encounter an accumulator that requires a refresh - due to
 /// bucket or mirror change - we bail out and perform a full refresh instead.
-pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
+pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
     for side in [White, Black] {
         // If already up-to-date for this perspective, then there is nothing to do.
         if nnue.stack[nnue.current].psq.computed[side] {
@@ -250,7 +250,7 @@ pub fn apply_update(
 pub fn add1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: Feature,
+    add: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -265,7 +265,7 @@ pub fn add1(
 pub fn sub1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    sub: Feature,
+    sub: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -280,8 +280,8 @@ pub fn sub1(
 pub fn add1_sub1(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: Feature,
-    sub: Feature,
+    add: PieceSquareFeature,
+    sub: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -298,9 +298,9 @@ pub fn add1_sub1(
 pub fn add1_sub2(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add: Feature,
-    sub1: Feature,
-    sub2: Feature,
+    add: PieceSquareFeature,
+    sub1: PieceSquareFeature,
+    sub2: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -318,10 +318,10 @@ pub fn add1_sub2(
 pub fn add2_sub2(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    add1: Feature,
-    add2: Feature,
-    sub1: Feature,
-    sub2: Feature,
+    add1: PieceSquareFeature,
+    add2: PieceSquareFeature,
+    sub1: PieceSquareFeature,
+    sub2: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -339,7 +339,7 @@ pub fn add2_sub2(
 pub fn add4(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    adds: &[Feature; 4],
+    adds: &[PieceSquareFeature; 4],
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -357,7 +357,7 @@ pub fn add4(
 pub fn sub4(
     input_features: &[i16; L1_SIZE],
     output_features: &mut [i16; L1_SIZE],
-    subs: &[Feature; 4],
+    subs: &[PieceSquareFeature; 4],
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
@@ -398,7 +398,7 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
 #[inline(always)]
 pub fn weight_ptr(
     weights: &PieceSquareWeights,
-    feature: Feature,
+    feature: PieceSquareFeature,
     perspective: Side,
     mirror: bool,
 ) -> *const i16 {
