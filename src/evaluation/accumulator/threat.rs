@@ -227,12 +227,12 @@ impl ThreatAccumulator {
 
 pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
     for pov in [White, Black] {
-        if nnue.stack[nnue.current].threat().computed[pov] {
+        if nnue.stack[nnue.current].threat.computed[pov] {
             continue;
         }
 
-        if nnue.stack[nnue.current].threat().needs_refresh[pov] {
-            let threat = nnue.stack[nnue.current].threat_mut();
+        if nnue.stack[nnue.current].threat.needs_refresh[pov] {
+            let threat = &mut nnue.stack[nnue.current].threat;
             threat.refresh(board, pov);
             threat.needs_refresh[pov] = false;
             threat.computed[pov] = true;
@@ -240,15 +240,15 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
         }
 
         let mut curr = nnue.current;
-        while !nnue.stack[curr].threat().computed[pov] {
+        while !nnue.stack[curr].threat.computed[pov] {
             curr -= 1;
         }
 
         let king_sq = board.king_sq(pov);
         while curr < nnue.current {
             let (parents, currents) = nnue.stack.split_at_mut(curr + 1);
-            let parent = parents[curr].threat();
-            let child = currents[0].threat_mut();
+            let parent = &parents[curr].threat;
+            let child = &mut currents[0].threat;
             child.apply(parent, king_sq, pov);
             child.computed[pov] = true;
             curr += 1;

@@ -83,8 +83,8 @@ impl NNUE {
         threat::apply_lazy_updates(self, board);
 
         let acc = &self.stack[self.current];
-        let (psq_us, psq_them) = (&acc.psq().features(board.stm), &acc.psq().features(!board.stm));
-        let (threat_us, threat_them) = (&acc.threat().features(board.stm), &acc.threat().features(!board.stm));
+        let (psq_us, psq_them) = (&acc.psq.features(board.stm), &acc.psq.features(!board.stm));
+        let (threat_us, threat_them) = (&acc.threat.features(board.stm), &acc.threat.features(!board.stm));
 
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
@@ -113,8 +113,8 @@ impl NNUE {
 
         let mut acc = Accumulator::default();
         for side in [White, Black] {
-            acc.psq_mut().refresh(board, side, &mut self.cache);
-            acc.threat_mut().refresh(board, side);
+            acc.psq.refresh(board, side, &mut self.cache);
+            acc.threat.refresh(board, side);
         }
         self.stack[self.current] = acc;
     }
@@ -126,28 +126,27 @@ impl NNUE {
         let us = board.stm;
 
         self.current += 1;
-        self.stack[self.current].psq_mut().needs_refresh = self.stack[self.current - 1].psq().needs_refresh;
-        self.stack[self.current].psq_mut().mirrored = self.stack[self.current - 1].psq().mirrored;
-        self.stack[self.current].psq_mut().computed[White] = false;
-        self.stack[self.current].psq_mut().computed[Black] = false;
+        self.stack[self.current].psq.needs_refresh = self.stack[self.current - 1].psq.needs_refresh;
+        self.stack[self.current].psq.mirrored = self.stack[self.current - 1].psq.mirrored;
+        self.stack[self.current].psq.computed[White] = false;
+        self.stack[self.current].psq.computed[Black] = false;
 
         let new_pc = mv.promo_piece().unwrap_or(pc);
         let mirror_changed = mirror_changed(board, *mv, new_pc);
         let bucket_changed = bucket_changed(board, *mv, new_pc, us);
         let refresh_required = mirror_changed || bucket_changed;
 
-        let parent_refresh = self.stack[self.current - 1].threat().needs_refresh;
-        let threat = self.stack[self.current].threat_mut();
-        threat.deltas.clear();
-        threat.computed = [false; 2];
-        threat.needs_refresh = parent_refresh;
-        threat.needs_refresh[us] |= mirror_changed;
+        let parent_refresh = self.stack[self.current - 1].threat.needs_refresh;
+        self.stack[self.current].threat.deltas.clear();
+        self.stack[self.current].threat.computed = [false; 2];
+        self.stack[self.current].threat.needs_refresh = parent_refresh;
+        self.stack[self.current].threat.needs_refresh[us] |= mirror_changed;
 
         if refresh_required {
-            self.stack[self.current].psq_mut().needs_refresh[us] = true;
+            self.stack[self.current].psq.needs_refresh[us] = true;
         }
 
-        self.stack[self.current].psq_mut().update = if mv.is_castle() {
+        self.stack[self.current].psq.update = if mv.is_castle() {
             Self::handle_castle(board, mv, us)
         } else if let Some(captured) = captured {
             Self::handle_capture(mv, pc, new_pc, captured, us)

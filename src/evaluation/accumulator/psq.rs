@@ -175,7 +175,7 @@ impl PieceSquareAccumulator {
 pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
     for side in [White, Black] {
         // If already up-to-date for this perspective, then there is nothing to do.
-        if nnue.stack[nnue.current].psq().computed[side] {
+        if nnue.stack[nnue.current].psq.computed[side] {
             continue;
         }
 
@@ -184,8 +184,8 @@ pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
         let bucket = king_bucket(king_sq, side);
 
         // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
-        if nnue.stack[nnue.current].psq().needs_refresh[side] {
-            let acc = nnue.stack[nnue.current].psq_mut();
+        if nnue.stack[nnue.current].psq.needs_refresh[side] {
+            let acc = &mut nnue.stack[nnue.current].psq;
             acc.refresh(board, side, &mut nnue.cache);
             continue;
         }
@@ -193,16 +193,16 @@ pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
         // Scan backwards to find the nearest parent accumulator that is computed for this
         // perspective, or requires a refresh.
         let mut curr = nnue.current - 1;
-        while !nnue.stack[curr].psq().computed[side] && !nnue.stack[curr].psq().needs_refresh[side] {
+        while !nnue.stack[curr].psq.computed[side] && !nnue.stack[curr].psq.needs_refresh[side] {
             if curr == 0 {
                 break;
             }
             curr -= 1;
         }
 
-        if nnue.stack[curr].psq().needs_refresh[side] {
+        if nnue.stack[curr].psq.needs_refresh[side] {
             // If we found an accumulator that requires a full refresh, do that instead.
-            let acc = nnue.stack[nnue.current].psq_mut();
+            let acc = &mut nnue.stack[nnue.current].psq;
             acc.refresh(board, side, &mut nnue.cache);
         } else {
             // Otherwise, move forward through the stack applying all updates one by one.
@@ -211,11 +211,11 @@ pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
                 let (front, back) = nnue.stack.split_at_mut(curr + 1);
                 let prev_acc = front.last().unwrap();
                 let next_acc = back.first_mut().unwrap();
-                let update = next_acc.psq_mut().update;
-                let prev_fts = prev_acc.psq().features(side);
-                let next_fts = next_acc.psq_mut().features_mut(side);
+                let update = next_acc.psq.update;
+                let prev_fts = prev_acc.psq.features(side);
+                let next_fts = next_acc.psq.features_mut(side);
                 psq::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
-                next_acc.psq_mut().computed[side] = true;
+                next_acc.psq.computed[side] = true;
                 curr += 1;
             }
         }
