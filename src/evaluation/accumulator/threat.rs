@@ -1,15 +1,14 @@
-use hobbes_nnue_arch::L1_SIZE;
-use arrayvec::ArrayVec;
 use crate::board::bitboard::Bitboard;
-use crate::board::{attacks, ray, Board};
-use crate::board::observer::BoardObserver;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::evaluation::feature::threat::threat_index;
-use crate::evaluation::{simd, NETWORK};
+use crate::board::{attacks, ray, Board};
+use crate::evaluation::feature::threat::ThreatFeature;
+use crate::evaluation::{simd, NETWORK, NNUE};
+use arrayvec::ArrayVec;
+use hobbes_nnue_arch::L1_SIZE;
 
 const MAX_DELTA_INDICES: usize = 80;
 const MAX_ACTIVE_INDICES: usize = 4096;
@@ -20,12 +19,12 @@ const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
 const REGISTERS: usize = 8;
 
 const STEP: usize = REGISTERS * simd::I16_LANES;
-const _: () = assert!(L1_SIZE % STEP == 0, "step must divide by the accumulator evenly");
+const _: () = assert!(L1_SIZE.is_multiple_of(STEP), "step must divide by the accumulator evenly");
 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub deltas: ArrayVec<ThreatDelta, MAX_DELTA_INDICES>,
+    pub deltas: ArrayVec<ThreatFeature, MAX_DELTA_INDICES>,
     pub needs_refresh: [bool; 2],
     pub computed: [bool; 2],
 }
@@ -41,26 +40,7 @@ impl Default for ThreatAccumulator {
     }
 }
 
-impl BoardObserver for ThreatAccumulator {
-    fn on_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
-        self.push_piece_create(board, pc, side, sq);
-    }
-
-    fn on_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
-        self.push_piece_destroy(board, pc, side, sq);
-    }
-
-    fn on_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
-        self.push_piece_teleport(board, pc, side, from, to);
-    }
-
-    fn on_piece_transform(&mut self, board: &Board, old_pc: Piece, old_side: Side, new_pc: Piece, side: Side, sq: Square) {
-        self.push_piece_transform(board, old_pc, old_side, new_pc, side, sq);
-    }
-}
-
 impl ThreatAccumulator {
-
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         &self.features[perspective]
     }
@@ -69,10 +49,11 @@ impl ThreatAccumulator {
         &mut self.features[perspective]
     }
 
-    pub fn refresh_threats(&mut self, board: &Board, pov: Side) {
+    pub fn refresh(&mut self, board: &Board, pov: Side) {
         let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
         Self::collect_threat_indices(board, pov, &mut adds);
         unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
+        self.computed[pov] = true;
     }
 
     pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
@@ -80,11 +61,7 @@ impl ThreatAccumulator {
         let mut subs = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
 
         for delta in &self.deltas {
-            let (atk_pc, atk_side) = delta.attacker();
-            let (vic_pc, vic_side) = delta.victim();
-            let (valid, idx) = threat_index(
-                pov, king_sq, atk_pc, atk_side, vic_pc, vic_side, delta.from(), delta.to(),
-            );
+            let (valid, idx) = delta.index(pov, king_sq);
             if !valid {
                 continue;
             }
@@ -95,7 +72,14 @@ impl ThreatAccumulator {
             }
         }
 
-        unsafe { accumulate(&mut self.features[pov], Some(&parent.features[pov]), &adds, &subs) };
+        unsafe {
+            accumulate(
+                &mut self.features[pov],
+                Some(&parent.features[pov]),
+                &adds,
+                &subs,
+            )
+        };
     }
 
     /// Update accumulator threat deltas when a piece is added on a square
@@ -109,7 +93,14 @@ impl ThreatAccumulator {
     }
 
     /// Update accumulator threat deltas when a piece is moved from one square to another.
-    pub fn push_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
+    pub fn push_piece_teleport(
+        &mut self,
+        board: &Board,
+        pc: Piece,
+        side: Side,
+        from: Square,
+        to: Square,
+    ) {
         let occ = board.occ() ^ Bitboard::of_sq(to);
         self.push_piece_single(board, occ, pc, side, from, false);
         self.push_piece_single(board, occ, pc, side, to, true);
@@ -123,22 +114,25 @@ impl ThreatAccumulator {
         old_side: Side,
         new_pc: Piece,
         new_side: Side,
-        sq: Square
+        sq: Square,
     ) {
-
         let deltas = &mut self.deltas;
         let occ = board.occ();
         let attacked = attacks::attacks(sq, old_pc, old_side, occ) & occ;
         for to in attacked {
             let vic_pc = board.piece_at(to).unwrap();
             let vic_side = board.side_at(to).unwrap();
-            deltas.push(ThreatDelta::new(old_pc, old_side, sq, vic_pc, vic_side, to, false));
+            deltas.push(ThreatFeature::new(
+                old_pc, old_side, sq, vic_pc, vic_side, to, false,
+            ));
         }
         let attacked = attacks::attacks(sq, new_pc, new_side, occ) & occ;
         for to in attacked {
             let vic_pc = board.piece_at(to).unwrap();
             let vic_side = board.side_at(to).unwrap();
-            deltas.push(ThreatDelta::new(new_pc, new_side, sq, vic_pc, vic_side, to, true));
+            deltas.push(ThreatFeature::new(
+                new_pc, new_side, sq, vic_pc, vic_side, to, true,
+            ));
         }
 
         let rook_attacks = attacks::rook(sq, occ);
@@ -155,14 +149,24 @@ impl ThreatAccumulator {
         for from in (black_pawns | white_pawns | knights | diags | orthos | kings) & occ {
             let atk_pc = board.piece_at(from).unwrap();
             let atk_side = board.side_at(from).unwrap();
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, old_pc, old_side, sq, false));
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, new_pc, new_side, sq, true));
+            deltas.push(ThreatFeature::new(
+                atk_pc, atk_side, from, old_pc, old_side, sq, false,
+            ));
+            deltas.push(ThreatFeature::new(
+                atk_pc, atk_side, from, new_pc, new_side, sq, true,
+            ));
         }
-
     }
 
-    fn push_piece_single(&mut self, board: &Board, occ: Bitboard, pc: Piece, side: Side, sq: Square, add: bool) {
-
+    fn push_piece_single(
+        &mut self,
+        board: &Board,
+        occ: Bitboard,
+        pc: Piece,
+        side: Side,
+        sq: Square,
+        add: bool,
+    ) {
         let deltas = &mut self.deltas;
         let attacked = attacks::attacks(sq, pc, side, occ) & occ;
         for (vic_side, targets) in [
@@ -171,7 +175,7 @@ impl ThreatAccumulator {
         ] {
             for to in targets {
                 let vic_pc = board.piece_at(to).unwrap();
-                deltas.push(ThreatDelta::new(pc, side, sq, vic_pc, vic_side, to, add));
+                deltas.push(ThreatFeature::new(pc, side, sq, vic_pc, vic_side, to, add));
             }
         }
 
@@ -190,9 +194,25 @@ impl ThreatAccumulator {
             if let Some(to) = threatened.into_iter().next() {
                 let vic_pc = board.piece_at(to).unwrap();
                 let vic_side = board.side_at(to).unwrap();
-                deltas.push(ThreatDelta::new(slider_pc, slider_side, from, vic_pc, vic_side, to, !add));
+                deltas.push(ThreatFeature::new(
+                    slider_pc,
+                    slider_side,
+                    from,
+                    vic_pc,
+                    vic_side,
+                    to,
+                    !add,
+                ));
             }
-            deltas.push(ThreatDelta::new(slider_pc, slider_side, from, pc, side, sq, add));
+            deltas.push(ThreatFeature::new(
+                slider_pc,
+                slider_side,
+                from,
+                pc,
+                side,
+                sq,
+                add,
+            ));
         }
 
         let white_pawns = board.pawns(White) & attacks::pawn(sq, Black);
@@ -204,9 +224,10 @@ impl ThreatAccumulator {
         for from in leapers & occ {
             let atk_pc = board.piece_at(from).unwrap();
             let atk_side = board.side_at(from).unwrap();
-            deltas.push(ThreatDelta::new(atk_pc, atk_side, from, pc, side, sq, add));
+            deltas.push(ThreatFeature::new(
+                atk_pc, atk_side, from, pc, side, sq, add,
+            ));
         }
-
     }
 
     fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096>) {
@@ -217,14 +238,45 @@ impl ThreatAccumulator {
             let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
             for to in attacks {
                 let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
-                let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
+                let delta = ThreatFeature::new(atk, atk_side, from, vic, vic_side, to, true);
+                let (valid, idx) = delta.index(pov, king_sq);
                 if valid {
                     out.push(idx as u32);
                 }
             }
         }
     }
+}
 
+pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
+    for pov in [White, Black] {
+        if nnue.stack[nnue.current].threat.computed[pov] {
+            continue;
+        }
+
+        if nnue.stack[nnue.current].threat.needs_refresh[pov] {
+            let threat = &mut nnue.stack[nnue.current].threat;
+            threat.refresh(board, pov);
+            threat.needs_refresh[pov] = false;
+            threat.computed[pov] = true;
+            continue;
+        }
+
+        let mut curr = nnue.current;
+        while !nnue.stack[curr].threat.computed[pov] {
+            curr -= 1;
+        }
+
+        let king_sq = board.king_sq(pov);
+        while curr < nnue.current {
+            let (parents, currents) = nnue.stack.split_at_mut(curr + 1);
+            let parent = &parents[curr].threat;
+            let child = &mut currents[0].threat;
+            child.apply(parent, king_sq, pov);
+            child.computed[pov] = true;
+            curr += 1;
+        }
+    }
 }
 
 #[inline(always)]
@@ -238,7 +290,6 @@ unsafe fn accumulate(
     let out_ptr = out.as_mut_ptr();
 
     for offset in (0..L1_SIZE).step_by(STEP) {
-
         let mut regs = [simd::zero_i16(); REGISTERS];
         if let Some(p) = parent {
             let in_ptr = p.as_ptr();
@@ -293,84 +344,5 @@ unsafe fn accumulate(
         for (i, reg) in regs.iter().enumerate() {
             simd::store_i16(out_ptr.add(offset + i * simd::I16_LANES), *reg);
         }
-    }
-}
-
-/// An encoding of one threat input change: attacker on `from` threatens victim on `to`, either
-/// created (add = true) or destroyed (add = false).
-///
-/// Deltas are perspective-neutral, since the actual index into the threat inputs accumulator will
-/// depend on the perspective.
-///
-/// Bit layout:
-/// 0–7:    attacker (0..12)
-/// 8–15:   from square (0..64)
-/// 16–23:  victim (0..12)
-/// 24–30:  to square (0..64)
-/// 31:     add (1 = threat created, 0 = threat destroyed)
-///
-/// Implementation inspired by Reckless.
-#[derive(Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct ThreatDelta(u32);
-
-impl ThreatDelta {
-    const FROM_SHIFT: u32 = 8;
-    const VICTIM_SHIFT: u32 = 16;
-    const TO_SHIFT: u32 = 24;
-    const ADD_SHIFT: u32 = 31;
-    const TO_MASK: u32 = 0x7F;
-
-    #[inline(always)]
-    pub fn new(
-        attacker: Piece,
-        attacker_side: Side,
-        from: Square,
-        victim: Piece,
-        victim_side: Side,
-        to: Square,
-        add: bool,
-    ) -> Self {
-        let attacker_idx = attacker.coloured_index(attacker_side) as u32;
-        let victim_idx = victim.coloured_index(victim_side) as u32;
-        Self(
-            attacker_idx
-                | (from.0 as u32) << Self::FROM_SHIFT
-                | victim_idx << Self::VICTIM_SHIFT
-                | (to.0 as u32) << Self::TO_SHIFT
-                | (add as u32) << Self::ADD_SHIFT,
-        )
-    }
-
-    #[inline(always)]
-    pub const fn attacker(self) -> (Piece, Side) {
-        Self::decode_coloured(self.0 as u8)
-    }
-
-    #[inline(always)]
-    pub const fn from(self) -> Square {
-        Square((self.0 >> Self::FROM_SHIFT) as u8)
-    }
-
-    #[inline(always)]
-    pub const fn victim(self) -> (Piece, Side) {
-        Self::decode_coloured((self.0 >> Self::VICTIM_SHIFT) as u8)
-    }
-
-    #[inline(always)]
-    pub const fn to(self) -> Square {
-        Square(((self.0 >> Self::TO_SHIFT) as u8) & Self::TO_MASK as u8)
-    }
-
-    #[inline(always)]
-    pub const fn add(self) -> bool {
-        (self.0 >> Self::ADD_SHIFT) != 0
-    }
-
-    #[inline(always)]
-    const fn decode_coloured(idx: u8) -> (Piece, Side) {
-        let pc = idx % 6;
-        let side = idx / 6;
-        unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
     }
 }

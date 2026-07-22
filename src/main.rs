@@ -1,6 +1,6 @@
 use crate::board::cuckoo;
-use crate::tools::uci::UCI;
 use crate::evaluation::feature::threat;
+use crate::tools::uci::UCI;
 use board::ray;
 
 pub const AUTHOR: &str = "Dan Kelsey";

@@ -1,11 +1,11 @@
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
+use crate::board::file::File;
+use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::tools::utils;
 use utils::slide;
-use crate::board::file::File;
-use crate::board::rank::Rank;
 
 static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
 static mut EXTENDING: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
@@ -40,7 +40,6 @@ pub fn beyond(a: Square, b: Square) -> Bitboard {
 unsafe fn init_between() {
     for a in Square::iter() {
         for b in Square::iter() {
-
             if attacks::rook(a, Bitboard::empty()).contains(b) {
                 BETWEEN[a][b] =
                     attacks::rook(a, Bitboard::of_sq(b)) & attacks::rook(b, Bitboard::of_sq(a));
@@ -57,7 +56,6 @@ unsafe fn init_between() {
 unsafe fn init_extending() {
     for a in Square::iter() {
         for b in Square::iter() {
-
             if attacks::rook(a, Bitboard::empty()).contains(b) {
                 EXTENDING[a][b] =
                     attacks::rook(a, Bitboard::empty()) & attacks::rook(b, Bitboard::empty());

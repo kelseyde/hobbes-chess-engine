@@ -1,7 +1,7 @@
-use crate::board::Board;
 use crate::board::piece::Piece;
 use crate::board::side::Side;
 use crate::board::square::Square;
+use crate::board::Board;
 
 /// Observer trait that reacts to changes to the `Board` during makemove. Used to update the NNUE
 /// threat accumulator on the fly.

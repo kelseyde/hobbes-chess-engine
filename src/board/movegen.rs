@@ -284,7 +284,7 @@ impl Board {
                 | Bitboard::of_sq(king_to);
 
             if blocked_sqs.is_empty()
-                && !is_attacked(safe_sqs, side, occ ^ Bitboard::of_sq(rook_from), &self)
+                && !is_attacked(safe_sqs, side, occ ^ Bitboard::of_sq(rook_from), self)
             {
                 let flag = if kingside {
                     MoveFlag::CastleK
