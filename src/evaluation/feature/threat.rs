@@ -7,11 +7,10 @@ use crate::board::side::Side::*;
 use crate::board::square::Square;
 use crate::board::attacks;
 
-/// Below is a jumbled mess of code used to compute the index of a given threat in the threat inputs
-/// accumulator.
-/// N.B. Everything here is heavily inspired by other engines, specifically Viridithas, Reckless, &
-/// Stormphrax. My only contribution is a demented level of comments to aid my own understanding.
-
+/// This code computes the index of a given threat in the threat inputs accumulator. Everything here
+/// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
+/// real contribution is comments to aid my own understanding.
+///
 /// The total number of threat features encoded in the network is 60144.
 ///
 /// Why 60144? Naively, the total possible space of threat features is side * piece * square * side
@@ -24,11 +23,12 @@ use crate::board::attacks;
 /// We can therefore decrease the number of threat features by deduplicating these redundant inputs.
 ///
 /// All king-threats are fully excluded, in addition to the following list:
-///     - PAWN-attacking-BISHOP
-///     - PAWN-attacking-ROOK
-///     - PAWN-attacking-QUEEN
-///     - BISHOP-attacking-QUEEN
-///     - ROOK-attacking-QUEEN
+///
+/// - PAWN-attacking-BISHOP
+/// - PAWN-attacking-ROOK
+/// - PAWN-attacking-QUEEN
+/// - BISHOP-attacking-QUEEN
+/// - ROOK-attacking-QUEEN
 ///
 /// Same-type threats, e.g. knight-attacks-knight, are 'semi-excluded' later in the process, but
 /// included here.
@@ -60,7 +60,7 @@ static mut PIECE_TOTALS: [(i32, i32); 12] = [(0, 0); 12];
 /// (attacker, victim, direction); the second gives us the sub-chunk for a given (attacker, from-square);
 /// the third table gives us the number of squares the attacker pseudo-attacks from `from` that are
 /// below `to`.
-
+///
 /// Provides the base index into the threat inputs array for this combination of attacker, victim,
 /// and direction ('forwards' or 'backwards'). This is where exclusions are handled: a fully excluded
 /// threat returns `u32::MAX` for both directions; a semi-excluded threat returns `u32::MAX` for the
@@ -292,6 +292,6 @@ impl ThreatFeature {
     const fn decode_coloured(idx: u8) -> (Piece, Side) {
         let pc = idx % 6;
         let side = idx / 6;
-        unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
+        unsafe { (std::mem::transmute::<u8, Piece>(pc), std::mem::transmute::<u8, Side>(side)) }
     }
 }

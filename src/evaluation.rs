@@ -38,7 +38,6 @@ use crate::board::square::Square;
 use crate::board::{castling, Board};
 use crate::evaluation::accumulator::Accumulator;
 use crate::evaluation::cache::InputBucketCache;
-use crate::evaluation::feature::psq::PieceSquareFeature;
 use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
@@ -47,8 +46,6 @@ use crate::search::parameters::{
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
 use accumulator::{psq, threat};
-use accumulator::psq::PieceSquareAccumulatorUpdate;
-use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
     Network, BUCKETS, L1_SIZE, L2_SIZE, L3_SIZE, OUTPUT_BUCKET_COUNT, Q, SCALE,
 };
@@ -128,99 +125,25 @@ impl NNUE {
     /// Efficiently update the accumulators for the current move. Depending on the nature of
     /// the move (standard, capture, castle), only the relevant parts of the accumulator are
     /// updated. The update is then stored on the accumulator to later be applied lazily.
-    pub fn update(&mut self, mv: &Move, pc: Piece, captured: Option<Piece>, board: &Board) {
+    pub fn update(&mut self, mv: &Move, pc: Piece, board: &Board) {
         let us = board.stm;
-
         self.current += 1;
-        self.stack[self.current].psq.needs_refresh = self.stack[self.current - 1].psq.needs_refresh;
-        self.stack[self.current].psq.mirrored = self.stack[self.current - 1].psq.mirrored;
-        self.stack[self.current].psq.computed[White] = false;
-        self.stack[self.current].psq.computed[Black] = false;
 
-        let new_pc = mv.promo_piece().unwrap_or(pc);
-        let mirror_changed = mirror_changed(board, *mv, new_pc);
-        let bucket_changed = bucket_changed(board, *mv, new_pc, us);
-        let refresh_required = mirror_changed || bucket_changed;
+        let (prev_psq_refresh, prev_threat_refresh) = (
+            self.stack[self.current - 1].psq.needs_refresh,
+            self.stack[self.current - 1].threat.needs_refresh,
+        );
+        let acc = &mut self.stack[self.current];
+        acc.psq.adds.clear();
+        acc.psq.subs.clear();
+        acc.psq.computed = [false; 2];
+        acc.threat.deltas.clear();
+        acc.threat.computed = [false; 2];
 
-        let parent_refresh = self.stack[self.current - 1].threat.needs_refresh;
-        self.stack[self.current].threat.deltas.clear();
-        self.stack[self.current].threat.computed = [false; 2];
-        self.stack[self.current].threat.needs_refresh = parent_refresh;
-        self.stack[self.current].threat.needs_refresh[us] |= mirror_changed;
-
-        if refresh_required {
-            self.stack[self.current].psq.needs_refresh[us] = true;
-        }
-
-        self.stack[self.current].psq.update = if mv.is_castle() {
-            Self::handle_castle(board, mv, us)
-        } else if let Some(captured) = captured {
-            Self::handle_capture(mv, pc, new_pc, captured, us)
-        } else {
-            Self::handle_standard(mv, pc, new_pc, us)
-        };
-    }
-
-    /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
-    /// from the starting square and the new piece (potentially a promo piece) is added to the
-    /// destination square.
-    fn handle_standard(
-        mv: &Move,
-        pc: Piece,
-        new_pc: Piece,
-        side: Side,
-    ) -> PieceSquareAccumulatorUpdate {
-        PieceSquareAccumulatorUpdate::AddSub(
-            PieceSquareFeature::new(new_pc, mv.to(), side),
-            PieceSquareFeature::new(pc, mv.from(), side),
-        )
-    }
-
-    /// Update the accumulator for a capture move. The old piece is removed from the starting
-    /// square, the new piece (potentially a promo piece) is added to the destination square, and
-    /// the captured piece (potentially an en-passant pawn) is removed from the destination square.
-    fn handle_capture(
-        mv: &Move,
-        pc: Piece,
-        new_pc: Piece,
-        captured: Piece,
-        side: Side,
-    ) -> PieceSquareAccumulatorUpdate {
-        let capture_sq = if mv.is_ep() {
-            Square(mv.to().0 ^ 8)
-        } else {
-            mv.to()
-        };
-        PieceSquareAccumulatorUpdate::AddSubSub(
-            PieceSquareFeature::new(new_pc, mv.to(), side),
-            PieceSquareFeature::new(pc, mv.from(), side),
-            PieceSquareFeature::new(captured, capture_sq, !side),
-        )
-    }
-
-    /// Update the accumulator for a castling move. The king and rook are moved to their new
-    /// positions, and the old positions are cleared.
-    fn handle_castle(board: &Board, mv: &Move, us: Side) -> PieceSquareAccumulatorUpdate {
-        let kingside = mv.to().0 > mv.from().0;
-        let king_from = mv.from();
-        let king_to = if board.is_frc() {
-            castling::king_to(us, kingside)
-        } else {
-            mv.to()
-        };
-        let rook_from = if board.is_frc() {
-            mv.to()
-        } else {
-            castling::rook_from(us, kingside)
-        };
-        let rook_to = castling::rook_to(us, kingside);
-
-        PieceSquareAccumulatorUpdate::AddAddSubSub(
-            PieceSquareFeature::new(King, king_to, us),
-            PieceSquareFeature::new(Rook, rook_to, us),
-            PieceSquareFeature::new(King, king_from, us),
-            PieceSquareFeature::new(Rook, rook_from, us),
-        )
+        acc.psq.needs_refresh = prev_psq_refresh;
+        acc.psq.needs_refresh[us] |= mirror_changed(board, *mv, pc) || bucket_changed(board, *mv, pc, us);
+        acc.threat.needs_refresh = prev_threat_refresh;
+        acc.threat.needs_refresh[us] |= mirror_changed(board, *mv, pc);
     }
 
     /// Undo the last move by decrementing the current accumulator index.

@@ -234,7 +234,7 @@ impl ThreadData {
         }
 
         // Only check hard time/depth limits every 2048 nodes to reduce overhead.
-        if self.local_nodes % 2048 != 0 {
+        if !self.local_nodes.is_multiple_of(2048) {
             return false;
         }
 

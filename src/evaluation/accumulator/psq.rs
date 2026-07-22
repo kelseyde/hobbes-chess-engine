@@ -2,7 +2,6 @@ use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
-use crate::evaluation::accumulator::psq;
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::feature::psq::PieceSquareFeature;
 use crate::evaluation::{king_bucket, should_mirror, simd, NETWORK, NNUE};
@@ -24,24 +23,12 @@ pub struct PieceSquareAccumulator {
     pub mirrored: [bool; 2],
 }
 
-/// A single update to the `PieceSquareAccumulator` caused by a move. A standard move will add one
-/// feature (the piece moving to its new square) and remove one feature (the piece leaving its old
-/// square). Captures require one extra feature (removing the captured piece), and castling requires
-/// two extra features (moving the rook).
-#[derive(Clone, Copy, Default)]
-pub enum PieceSquareAccumulatorUpdate {
-    #[default]
-    None,
-    AddSub(PieceSquareFeature, PieceSquareFeature),
-    AddSubSub(PieceSquareFeature, PieceSquareFeature, PieceSquareFeature),
-    AddAddSubSub(PieceSquareFeature, PieceSquareFeature, PieceSquareFeature, PieceSquareFeature),
-}
-
 impl Default for PieceSquareAccumulator {
     fn default() -> Self {
         PieceSquareAccumulator {
             features: [NETWORK.l0_biases, NETWORK.l0_biases],
-            update: PieceSquareAccumulatorUpdate::default(),
+            adds: ArrayVec::new(),
+            subs: ArrayVec::new(),
             computed: [false, false],
             needs_refresh: [false, false],
             mirrored: [false, false],
@@ -85,6 +72,14 @@ impl PieceSquareAccumulator {
                 &mut *(p as *mut [i16; L1_SIZE]),
             )
         }
+    }
+
+    pub fn apply_update_inplace(
+        &mut self, prev: &[i16; L1_SIZE], weights: &PieceSquareWeights, side: Side, mirror: bool) {
+        let adds = self.adds.clone();
+        let subs = self.subs.clone();
+        let output = self.features_mut(side);
+        apply_update(prev, output, weights, &adds, &subs, side, mirror);
     }
 
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
@@ -210,13 +205,10 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
             let weights = &NETWORK.l0_psq_weights[bucket];
             while curr < nnue.current {
                 let (front, back) = nnue.stack.split_at_mut(curr + 1);
-                let prev_acc = front.last().unwrap();
-                let next_acc = back.first_mut().unwrap();
-                let (adds, subs) = (&next_acc.psq.adds, &next_acc.psq.subs);
-                let prev_fts = prev_acc.psq.features(side);
-                let next_fts = next_acc.psq.features_mut(side);
-                apply_update(prev_fts, next_fts, weights, adds, subs, side, mirror);
-                next_acc.psq.computed[side] = true;
+                let prev_fts = front.last().unwrap().psq.features(side);
+                let next_acc = &mut back.first_mut().unwrap().psq;
+                next_acc.apply_update_inplace(prev_fts, weights, side, mirror);
+                next_acc.computed[side] = true;
                 curr += 1;
             }
         }

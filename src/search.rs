@@ -1136,8 +1136,8 @@ fn make_move(
     captured: Option<Piece>,
     ply: usize,
 ) {
-    td.nnue.update(&mv, pc, captured, board);
-    board.make(&mv, &mut td.nnue.stack[td.nnue.current].threat);
+    td.nnue.update(&mv, pc, board);
+    board.make(&mv, &mut td.nnue.stack[td.nnue.current]);
     td.stack[ply].mv = Some(mv);
     td.stack[ply].pc = Some(pc);
     td.stack[ply].captured = captured;

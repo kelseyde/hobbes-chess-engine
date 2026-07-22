@@ -1,15 +1,14 @@
-use hobbes_nnue_arch::L1_SIZE;
-use arrayvec::ArrayVec;
 use crate::board::bitboard::Bitboard;
-use crate::board::{attacks, ray, Board};
-use crate::board::observer::BoardObserver;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
+use crate::board::{attacks, ray, Board};
 use crate::evaluation::feature::threat::ThreatFeature;
 use crate::evaluation::{simd, NETWORK, NNUE};
+use arrayvec::ArrayVec;
+use hobbes_nnue_arch::L1_SIZE;
 
 const MAX_DELTA_INDICES: usize = 80;
 const MAX_ACTIVE_INDICES: usize = 4096;
@@ -20,7 +19,7 @@ const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
 const REGISTERS: usize = 8;
 
 const STEP: usize = REGISTERS * simd::I16_LANES;
-const _: () = assert!(L1_SIZE % STEP == 0, "step must divide by the accumulator evenly");
+const _: () = assert!(L1_SIZE.is_multiple_of(STEP), "step must divide by the accumulator evenly");
 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
@@ -38,24 +37,6 @@ impl Default for ThreatAccumulator {
             needs_refresh: [false; 2],
             computed: [false; 2],
         }
-    }
-}
-
-impl BoardObserver for ThreatAccumulator {
-    fn on_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
-        self.push_piece_create(board, pc, side, sq);
-    }
-
-    fn on_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
-        self.push_piece_destroy(board, pc, side, sq);
-    }
-
-    fn on_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square) {
-        self.push_piece_teleport(board, pc, side, from, to);
-    }
-
-    fn on_piece_transform(&mut self, board: &Board, old_pc: Piece, old_side: Side, new_pc: Piece, side: Side, sq: Square) {
-        self.push_piece_transform(board, old_pc, old_side, new_pc, side, sq);
     }
 }
 
