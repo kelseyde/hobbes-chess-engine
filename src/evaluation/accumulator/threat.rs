@@ -8,7 +8,7 @@ use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::evaluation::feature::threat::threat_index;
+use crate::evaluation::feature::threat::{ThreatDelta};
 use crate::evaluation::{simd, NETWORK};
 
 const MAX_DELTA_INDICES: usize = 80;
@@ -69,10 +69,11 @@ impl ThreatAccumulator {
         &mut self.features[perspective]
     }
 
-    pub fn refresh_threats(&mut self, board: &Board, pov: Side) {
+    pub fn refresh(&mut self, board: &Board, pov: Side) {
         let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
         Self::collect_threat_indices(board, pov, &mut adds);
         unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
+        self.computed[pov] = true;
     }
 
     pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
@@ -80,11 +81,7 @@ impl ThreatAccumulator {
         let mut subs = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
 
         for delta in &self.deltas {
-            let (atk_pc, atk_side) = delta.attacker();
-            let (vic_pc, vic_side) = delta.victim();
-            let (valid, idx) = threat_index(
-                pov, king_sq, atk_pc, atk_side, vic_pc, vic_side, delta.from(), delta.to(),
-            );
+            let (valid, idx) = delta.index(pov, king_sq);
             if !valid {
                 continue;
             }
@@ -217,7 +214,8 @@ impl ThreatAccumulator {
             let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
             for to in attacks {
                 let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
-                let (valid, idx) = threat_index(pov, king_sq, atk, atk_side, vic, vic_side, from, to);
+                let delta = ThreatDelta::new(atk, atk_side, from, vic, vic_side, to, true);
+                let (valid, idx) = delta.index(pov, king_sq);
                 if valid {
                     out.push(idx as u32);
                 }
@@ -296,81 +294,3 @@ unsafe fn accumulate(
     }
 }
 
-/// An encoding of one threat input change: attacker on `from` threatens victim on `to`, either
-/// created (add = true) or destroyed (add = false).
-///
-/// Deltas are perspective-neutral, since the actual index into the threat inputs accumulator will
-/// depend on the perspective.
-///
-/// Bit layout:
-/// 0–7:    attacker (0..12)
-/// 8–15:   from square (0..64)
-/// 16–23:  victim (0..12)
-/// 24–30:  to square (0..64)
-/// 31:     add (1 = threat created, 0 = threat destroyed)
-///
-/// Implementation inspired by Reckless.
-#[derive(Copy, Clone, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct ThreatDelta(u32);
-
-impl ThreatDelta {
-    const FROM_SHIFT: u32 = 8;
-    const VICTIM_SHIFT: u32 = 16;
-    const TO_SHIFT: u32 = 24;
-    const ADD_SHIFT: u32 = 31;
-    const TO_MASK: u32 = 0x7F;
-
-    #[inline(always)]
-    pub fn new(
-        attacker: Piece,
-        attacker_side: Side,
-        from: Square,
-        victim: Piece,
-        victim_side: Side,
-        to: Square,
-        add: bool,
-    ) -> Self {
-        let attacker_idx = attacker.coloured_index(attacker_side) as u32;
-        let victim_idx = victim.coloured_index(victim_side) as u32;
-        Self(
-            attacker_idx
-                | (from.0 as u32) << Self::FROM_SHIFT
-                | victim_idx << Self::VICTIM_SHIFT
-                | (to.0 as u32) << Self::TO_SHIFT
-                | (add as u32) << Self::ADD_SHIFT,
-        )
-    }
-
-    #[inline(always)]
-    pub const fn attacker(self) -> (Piece, Side) {
-        Self::decode_coloured(self.0 as u8)
-    }
-
-    #[inline(always)]
-    pub const fn from(self) -> Square {
-        Square((self.0 >> Self::FROM_SHIFT) as u8)
-    }
-
-    #[inline(always)]
-    pub const fn victim(self) -> (Piece, Side) {
-        Self::decode_coloured((self.0 >> Self::VICTIM_SHIFT) as u8)
-    }
-
-    #[inline(always)]
-    pub const fn to(self) -> Square {
-        Square(((self.0 >> Self::TO_SHIFT) as u8) & Self::TO_MASK as u8)
-    }
-
-    #[inline(always)]
-    pub const fn add(self) -> bool {
-        (self.0 >> Self::ADD_SHIFT) != 0
-    }
-
-    #[inline(always)]
-    const fn decode_coloured(idx: u8) -> (Piece, Side) {
-        let pc = idx % 6;
-        let side = idx / 6;
-        unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
-    }
-}

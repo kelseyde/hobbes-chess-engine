@@ -1,7 +1,14 @@
+use arrayvec::ArrayVec;
 use crate::board::side::Side;
 use crate::evaluation::feature::psq::Feature;
-use crate::evaluation::{simd, NETWORK};
+use crate::evaluation::{king_bucket, should_mirror, simd, NETWORK};
 use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
+use crate::board::Board;
+use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
+use crate::board::side::Side::{Black, White};
+use crate::board::square::Square;
+use crate::evaluation::accumulator::psq;
+use crate::evaluation::cache::InputBucketCache;
 
 /// The `PieceSquareAccumulator` holds the pre-activations of the first layer of the neural network.
 /// The input layer just encodes the positions of pieces on the board, from the perspective of both
@@ -78,6 +85,87 @@ impl PieceSquareAccumulator {
                 &mut *(p as *mut [i16; L1_SIZE]),
             )
         }
+    }
+
+    /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
+    /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
+    /// features of the board that have changed since the last refresh.
+    pub fn refresh(
+        &mut self,
+        board: &Board,
+        side: Side,
+        cache: &mut InputBucketCache,
+    ) {
+        let king_sq = board.king_sq(side);
+        let mirror = should_mirror(king_sq);
+        let bucket = king_bucket(king_sq, side);
+
+        self.mirrored[side] = mirror;
+        let cache_entry = cache.get(side, mirror, bucket);
+        self.copy_from(side, &cache_entry.features);
+
+        let mut adds = ArrayVec::<_, 32>::new();
+        let mut subs = ArrayVec::<_, 32>::new();
+
+        for side in [White, Black] {
+            for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
+                let pieces = board.pieces(pc) & board.side(side);
+                let cached_pieces = cache_entry.pieces[pc] & cache_entry.colours[side];
+
+                let added = pieces & !cached_pieces;
+                for add in added {
+                    adds.push(Feature::new(pc, add, side));
+                }
+
+                let removed = cached_pieces & !pieces;
+                for sub in removed {
+                    subs.push(Feature::new(pc, sub, side));
+                }
+            }
+        }
+
+        let weights = &NETWORK.l0_psq_weights[bucket];
+        let mirror = self.mirrored[side as usize];
+
+        // Fuse together updates to the accumulator for efficiency using iterators.
+        for chunk in adds.as_slice().chunks_exact(4) {
+            let (input, output) = self.features_inplace(side);
+            psq::add4(
+                input,
+                output,
+                chunk.try_into().unwrap(),
+                weights,
+                side,
+                mirror,
+            );
+        }
+        for &add in adds.as_slice().chunks_exact(4).remainder() {
+            let (input, output) = self.features_inplace(side);
+            psq::add1(input, output, add, weights, side, mirror);
+        }
+
+        for chunk in subs.as_slice().chunks_exact(4) {
+            let (input, output) = self.features_inplace(side);
+            psq::sub4(
+                input,
+                output,
+                chunk.try_into().unwrap(),
+                weights,
+                side,
+                mirror,
+            );
+        }
+        for &sub in subs.as_slice().chunks_exact(4).remainder() {
+            let (input, output) = self.features_inplace(side);
+            psq::sub1(input, output, sub, weights, side, mirror);
+        }
+
+        self.computed[side] = true;
+        self.needs_refresh[side] = false;
+
+        cache_entry.pieces = board.pieces;
+        cache_entry.colours = board.colours;
+        cache_entry.features = *self.features(side);
     }
 }
 

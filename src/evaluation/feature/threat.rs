@@ -169,55 +169,129 @@ unsafe fn init_pair_base() {
     }
 }
 
-/// Compute the index of the given threat. We return a tuple containing the index itself, and a bool
-/// indicating whether the threat is included in the threat inputs. We could return an `Option<i32>`,
-/// but this way allows for branchless execution.
-pub fn threat_index(
-    side: Side,
-    king_sq: Square,
-    attacker: Piece,
-    mut attacker_side: Side,
-    victim: Piece,
-    mut victim_side: Side,
-    mut from: Square,
-    mut to: Square,
-) -> (bool, i32) {
-    // Threat indices are reversed for black.
-    if side == Black {
-        attacker_side = !attacker_side;
-        victim_side = !victim_side;
-        from = from.flip_rank();
-        to = to.flip_rank();
-    }
-    // Threat indices are horizontally mirrored if the king is on the right side of the board.
-    if king_sq.file() >= File::E {
-        from = from.flip_file();
-        to = to.flip_file();
-    }
-
-    // Whether this is a forward or backward threat, relevant for semi-exclusions.
-    let direction = (from.0 < to.0) as usize;
-
-    // Get the indices of the attacking and defending piece (white 0-5, black 6-11).
-    let attacker_idx = attacker.coloured_index(attacker_side);
-    let victim_idx = victim.coloured_index(victim_side);
-
-    // Get the block for the (attacker, victim, direction) combination
-    let base = unsafe { PAIR_BASE[attacker_idx][victim_idx][direction] };
-
-    // Get the sub-block for the (attacker, from) combination.
-    let offset = unsafe { FROM_OFFSET[attacker_idx][from] as i32 };
-
-    // Get the number of squares the attacker threatens from `from` that are below `to`.
-    let slot = unsafe { VICTIM_ORDINAL[attacker_idx][from][to] as i32 };
-
-    let index = (base as i32).wrapping_add(offset).wrapping_add(slot);
-
-    (base != u32::MAX, index)
-}
-
 /// Pawns on the first or eighth are excluded because they cannot exist
 fn is_valid_piece_placement(pc: Piece, sq: Square) -> bool {
     let rank = sq.rank();
     !(pc == Piece::Pawn && (rank == Rank::One || rank == Rank::Eight))
+}
+
+/// An encoding of one threat input change: attacker on `from` threatens victim on `to`, either
+/// created (add = true) or destroyed (add = false).
+///
+/// Deltas are perspective-neutral, since the actual index into the threat inputs accumulator will
+/// depend on the perspective.
+///
+/// Bit layout:
+/// 0–7:    attacker (0..12)
+/// 8–15:   from square (0..64)
+/// 16–23:  victim (0..12)
+/// 24–30:  to square (0..64)
+/// 31:     add (1 = threat created, 0 = threat destroyed)
+///
+/// Implementation inspired by Reckless.
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct ThreatDelta(u32);
+
+impl ThreatDelta {
+    const FROM_SHIFT: u32 = 8;
+    const VICTIM_SHIFT: u32 = 16;
+    const TO_SHIFT: u32 = 24;
+    const ADD_SHIFT: u32 = 31;
+    const TO_MASK: u32 = 0x7F;
+
+    #[inline(always)]
+    pub fn new(
+        attacker: Piece,
+        attacker_side: Side,
+        from: Square,
+        victim: Piece,
+        victim_side: Side,
+        to: Square,
+        add: bool,
+    ) -> Self {
+        let attacker_idx = attacker.coloured_index(attacker_side) as u32;
+        let victim_idx = victim.coloured_index(victim_side) as u32;
+        Self(
+            attacker_idx
+                | (from.0 as u32) << Self::FROM_SHIFT
+                | victim_idx << Self::VICTIM_SHIFT
+                | (to.0 as u32) << Self::TO_SHIFT
+                | (add as u32) << Self::ADD_SHIFT,
+        )
+    }
+
+    /// Compute the index of the given threat. We return a tuple containing the index itself, and a bool
+    /// indicating whether the threat is included in the threat inputs. We could return an `Option<i32>`,
+    /// but this way allows for branchless execution.
+    pub fn index(&self, perspective: Side, king_sq: Square) -> (bool, i32) {
+        let (mut from, mut to) = (self.from(), self.to());
+        let (atk_pc, mut atk_side) = self.attacker();
+        let (vic_pc, mut vic_side) = self.victim();
+        
+        // Threat indices are reversed for black.
+        if perspective == Black {
+            atk_side = !atk_side;
+            vic_side = !vic_side;
+            from = from.flip_rank();
+            to = to.flip_rank();
+        }
+        // Threat indices are horizontally mirrored if the king is on the right side of the board.
+        if king_sq.file() >= File::E {
+            from = from.flip_file();
+            to = to.flip_file();
+        }
+
+        // Whether this is a forward or backward threat, relevant for semi-exclusions.
+        let direction = (from.0 < to.0) as usize;
+
+        // Get the indices of the attacking and defending piece (white 0-5, black 6-11).
+        let attacker_idx = atk_pc.coloured_index(atk_side);
+        let victim_idx = vic_pc.coloured_index(vic_side);
+
+        // Get the block for the (attacker, victim, direction) combination
+        let base = unsafe { PAIR_BASE[attacker_idx][victim_idx][direction] };
+
+        // Get the sub-block for the (attacker, from) combination.
+        let offset = unsafe { FROM_OFFSET[attacker_idx][from] as i32 };
+
+        // Get the number of squares the attacker threatens from `from` that are below `to`.
+        let slot = unsafe { VICTIM_ORDINAL[attacker_idx][from][to] as i32 };
+
+        let index = (base as i32).wrapping_add(offset).wrapping_add(slot);
+
+        (base != u32::MAX, index)
+    }
+
+    #[inline(always)]
+    pub const fn attacker(self) -> (Piece, Side) {
+        Self::decode_coloured(self.0 as u8)
+    }
+
+    #[inline(always)]
+    pub const fn from(self) -> Square {
+        Square((self.0 >> Self::FROM_SHIFT) as u8)
+    }
+
+    #[inline(always)]
+    pub const fn victim(self) -> (Piece, Side) {
+        Self::decode_coloured((self.0 >> Self::VICTIM_SHIFT) as u8)
+    }
+
+    #[inline(always)]
+    pub const fn to(self) -> Square {
+        Square(((self.0 >> Self::TO_SHIFT) as u8) & Self::TO_MASK as u8)
+    }
+
+    #[inline(always)]
+    pub const fn add(self) -> bool {
+        (self.0 >> Self::ADD_SHIFT) != 0
+    }
+
+    #[inline(always)]
+    const fn decode_coloured(idx: u8) -> (Piece, Side) {
+        let pc = idx % 6;
+        let side = idx / 6;
+        unsafe { (std::mem::transmute(pc), std::mem::transmute(side)) }
+    }
 }

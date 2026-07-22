@@ -109,94 +109,14 @@ impl NNUE {
     /// at the top of search, and then efficiently updated with each move.
     pub fn activate(&mut self, board: &Board) {
         self.current = 0;
-        self.stack[self.current] = Accumulator::default();
         self.cache = InputBucketCache::default();
 
+        let mut acc = Accumulator::default();
         for side in [White, Black] {
-            let king_sq = board.king_sq(side);
-            let mirror = should_mirror(king_sq);
-            let bucket = king_bucket(king_sq, side);
-            self.full_refresh(board, self.current, side, mirror, bucket);
+            acc.psq_mut().refresh(board, side, &mut self.cache);
+            acc.threat_mut().refresh(board, side);
         }
-
-        let threat = self.stack[self.current].threat_mut();
-        threat.deltas.clear();
-        threat.refresh_threats(board, White);
-        threat.refresh_threats(board, Black);
-        threat.computed = [true; 2];
-    }
-
-    /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
-    /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
-    /// features of the board that have changed since the last refresh.
-    fn full_refresh(&mut self, board: &Board, idx: usize, side: Side, mirror: bool, bucket: usize) {
-        let acc = &mut self.stack[idx].psq_mut();
-        acc.mirrored[side] = mirror;
-        let cache_entry = self.cache.get(side, mirror, bucket);
-        acc.copy_from(side, &cache_entry.features);
-
-        let mut adds = ArrayVec::<_, 32>::new();
-        let mut subs = ArrayVec::<_, 32>::new();
-
-        for side in [White, Black] {
-            for pc in [Pawn, Knight, Bishop, Rook, Queen, King] {
-                let pieces = board.pieces(pc) & board.side(side);
-                let cached_pieces = cache_entry.pieces[pc] & cache_entry.colours[side];
-
-                let added = pieces & !cached_pieces;
-                for add in added {
-                    adds.push(Feature::new(pc, add, side));
-                }
-
-                let removed = cached_pieces & !pieces;
-                for sub in removed {
-                    subs.push(Feature::new(pc, sub, side));
-                }
-            }
-        }
-
-        let weights = &NETWORK.l0_psq_weights[bucket];
-        let mirror = acc.mirrored[side as usize];
-
-        // Fuse together updates to the accumulator for efficiency using iterators.
-        for chunk in adds.as_slice().chunks_exact(4) {
-            let (input, output) = acc.features_inplace(side);
-            psq::add4(
-                input,
-                output,
-                chunk.try_into().unwrap(),
-                weights,
-                side,
-                mirror,
-            );
-        }
-        for &add in adds.as_slice().chunks_exact(4).remainder() {
-            let (input, output) = acc.features_inplace(side);
-            psq::add1(input, output, add, weights, side, mirror);
-        }
-
-        for chunk in subs.as_slice().chunks_exact(4) {
-            let (input, output) = acc.features_inplace(side);
-            psq::sub4(
-                input,
-                output,
-                chunk.try_into().unwrap(),
-                weights,
-                side,
-                mirror,
-            );
-        }
-        for &sub in subs.as_slice().chunks_exact(4).remainder() {
-            let (input, output) = acc.features_inplace(side);
-            psq::sub1(input, output, sub, weights, side, mirror);
-        }
-
-        acc.computed[side] = true;
-        acc.needs_refresh[side] = false;
-
-        cache_entry.pieces = board.pieces;
-        cache_entry.colours = board.colours;
-        cache_entry.features = *acc.features(side);
+        self.stack[self.current] = acc;
     }
 
     /// Efficiently update the accumulators for the current move. Depending on the nature of
@@ -253,7 +173,8 @@ impl NNUE {
 
             // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
             if self.stack[self.current].psq().needs_refresh[side] {
-                self.full_refresh(board, self.current, side, mirror, bucket);
+                let acc = self.stack[self.current].psq_mut();
+                acc.refresh(board, side, &mut self.cache);
                 continue;
             }
 
@@ -269,7 +190,8 @@ impl NNUE {
 
             if self.stack[curr].psq().needs_refresh[side] {
                 // If we found an accumulator that requires a full refresh, do that instead.
-                self.full_refresh(board, self.current, side, mirror, bucket);
+                let acc = self.stack[self.current].psq_mut();
+                acc.refresh(board, side, &mut self.cache);
             } else {
                 // Otherwise, move forward through the stack applying all updates one by one.
                 let weights = &NETWORK.l0_psq_weights[bucket];
@@ -296,7 +218,7 @@ impl NNUE {
 
             if self.stack[self.current].threat().needs_refresh[pov] {
                 let threat = self.stack[self.current].threat_mut();
-                threat.refresh_threats(board, pov);
+                threat.refresh(board, pov);
                 threat.needs_refresh[pov] = false;
                 threat.computed[pov] = true;
                 continue;
