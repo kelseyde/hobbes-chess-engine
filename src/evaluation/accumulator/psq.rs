@@ -1,14 +1,13 @@
-use arrayvec::ArrayVec;
-use crate::board::side::Side;
-use crate::evaluation::feature::psq::Feature;
-use crate::evaluation::{king_bucket, should_mirror, simd, NETWORK};
-use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
-use crate::board::Board;
 use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
+use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
-use crate::board::square::Square;
+use crate::board::Board;
 use crate::evaluation::accumulator::psq;
 use crate::evaluation::cache::InputBucketCache;
+use crate::evaluation::feature::psq::Feature;
+use crate::evaluation::{king_bucket, should_mirror, simd, NETWORK, NNUE};
+use arrayvec::ArrayVec;
+use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 
 /// The `PieceSquareAccumulator` holds the pre-activations of the first layer of the neural network.
 /// The input layer just encodes the positions of pieces on the board, from the perspective of both
@@ -130,7 +129,7 @@ impl PieceSquareAccumulator {
         // Fuse together updates to the accumulator for efficiency using iterators.
         for chunk in adds.as_slice().chunks_exact(4) {
             let (input, output) = self.features_inplace(side);
-            psq::add4(
+            add4(
                 input,
                 output,
                 chunk.try_into().unwrap(),
@@ -141,12 +140,12 @@ impl PieceSquareAccumulator {
         }
         for &add in adds.as_slice().chunks_exact(4).remainder() {
             let (input, output) = self.features_inplace(side);
-            psq::add1(input, output, add, weights, side, mirror);
+            add1(input, output, add, weights, side, mirror);
         }
 
         for chunk in subs.as_slice().chunks_exact(4) {
             let (input, output) = self.features_inplace(side);
-            psq::sub4(
+            sub4(
                 input,
                 output,
                 chunk.try_into().unwrap(),
@@ -157,7 +156,7 @@ impl PieceSquareAccumulator {
         }
         for &sub in subs.as_slice().chunks_exact(4).remainder() {
             let (input, output) = self.features_inplace(side);
-            psq::sub1(input, output, sub, weights, side, mirror);
+            sub1(input, output, sub, weights, side, mirror);
         }
 
         self.computed[side] = true;
@@ -166,6 +165,60 @@ impl PieceSquareAccumulator {
         cache_entry.pieces = board.pieces;
         cache_entry.colours = board.colours;
         cache_entry.features = *self.features(side);
+    }
+}
+
+/// Apply any pending lazy updates to the current accumulator. For each perspective, scan
+/// backwards to find the nearest computed accumulator, and move forward applying all updates
+/// one by one. If at any point we encounter an accumulator that requires a refresh - due to
+/// bucket or mirror change - we bail out and perform a full refresh instead.
+pub fn apply_lazy_updates(nnue: &mut NNUE,board: &Board) {
+    for side in [White, Black] {
+        // If already up-to-date for this perspective, then there is nothing to do.
+        if nnue.stack[nnue.current].psq().computed[side] {
+            continue;
+        }
+
+        let king_sq = board.king_sq(side);
+        let mirror = should_mirror(king_sq);
+        let bucket = king_bucket(king_sq, side);
+
+        // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
+        if nnue.stack[nnue.current].psq().needs_refresh[side] {
+            let acc = nnue.stack[nnue.current].psq_mut();
+            acc.refresh(board, side, &mut nnue.cache);
+            continue;
+        }
+
+        // Scan backwards to find the nearest parent accumulator that is computed for this
+        // perspective, or requires a refresh.
+        let mut curr = nnue.current - 1;
+        while !nnue.stack[curr].psq().computed[side] && !nnue.stack[curr].psq().needs_refresh[side] {
+            if curr == 0 {
+                break;
+            }
+            curr -= 1;
+        }
+
+        if nnue.stack[curr].psq().needs_refresh[side] {
+            // If we found an accumulator that requires a full refresh, do that instead.
+            let acc = nnue.stack[nnue.current].psq_mut();
+            acc.refresh(board, side, &mut nnue.cache);
+        } else {
+            // Otherwise, move forward through the stack applying all updates one by one.
+            let weights = &NETWORK.l0_psq_weights[bucket];
+            while curr < nnue.current {
+                let (front, back) = nnue.stack.split_at_mut(curr + 1);
+                let prev_acc = front.last().unwrap();
+                let next_acc = back.first_mut().unwrap();
+                let update = next_acc.psq_mut().update;
+                let prev_fts = prev_acc.psq().features(side);
+                let next_fts = next_acc.psq_mut().features_mut(side);
+                psq::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
+                next_acc.psq_mut().computed[side] = true;
+                curr += 1;
+            }
+        }
     }
 }
 

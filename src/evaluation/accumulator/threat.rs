@@ -8,8 +8,8 @@ use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
-use crate::evaluation::feature::threat::{ThreatDelta};
-use crate::evaluation::{simd, NETWORK};
+use crate::evaluation::feature::threat::ThreatDelta;
+use crate::evaluation::{simd, NETWORK, NNUE};
 
 const MAX_DELTA_INDICES: usize = 80;
 const MAX_ACTIVE_INDICES: usize = 4096;
@@ -223,6 +223,37 @@ impl ThreatAccumulator {
         }
     }
 
+}
+
+pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
+    for pov in [White, Black] {
+        if nnue.stack[nnue.current].threat().computed[pov] {
+            continue;
+        }
+
+        if nnue.stack[nnue.current].threat().needs_refresh[pov] {
+            let threat = nnue.stack[nnue.current].threat_mut();
+            threat.refresh(board, pov);
+            threat.needs_refresh[pov] = false;
+            threat.computed[pov] = true;
+            continue;
+        }
+
+        let mut curr = nnue.current;
+        while !nnue.stack[curr].threat().computed[pov] {
+            curr -= 1;
+        }
+
+        let king_sq = board.king_sq(pov);
+        while curr < nnue.current {
+            let (parents, currents) = nnue.stack.split_at_mut(curr + 1);
+            let parent = parents[curr].threat();
+            let child = currents[0].threat_mut();
+            child.apply(parent, king_sq, pov);
+            child.computed[pov] = true;
+            curr += 1;
+        }
+    }
 }
 
 #[inline(always)]

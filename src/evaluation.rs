@@ -46,7 +46,7 @@ use crate::search::parameters::{
 };
 use crate::search::MAX_PLY;
 use crate::tools::utils::boxed_and_zeroed;
-use accumulator::psq;
+use accumulator::{psq, threat};
 use accumulator::psq::PieceSquareAccumulatorUpdate;
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::{
@@ -79,8 +79,8 @@ impl NNUE {
     /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
     /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
-        self.apply_lazy_psq_updates(board);
-        self.apply_lazy_threat_updates(board);
+        psq::apply_lazy_updates(self, board);
+        threat::apply_lazy_updates(self, board);
 
         let acc = &self.stack[self.current];
         let (psq_us, psq_them) = (&acc.psq().features(board.stm), &acc.psq().features(!board.stm));
@@ -154,91 +154,6 @@ impl NNUE {
         } else {
             Self::handle_standard(mv, pc, new_pc, us)
         };
-    }
-
-    /// Apply any pending lazy updates to the current accumulator. For each perspective, scan
-    /// backwards to find the nearest computed accumulator, and move forward applying all updates
-    /// one by one. If at any point we encounter an accumulator that requires a refresh - due to
-    /// bucket or mirror change - we bail out and perform a full refresh instead.
-    fn apply_lazy_psq_updates(&mut self, board: &Board) {
-        for side in [White, Black] {
-            // If already up-to-date for this perspective, then there is nothing to do.
-            if self.stack[self.current].psq().computed[side] {
-                continue;
-            }
-
-            let king_sq = board.king_sq(side);
-            let mirror = should_mirror(king_sq);
-            let bucket = king_bucket(king_sq, side);
-
-            // If the current accumulator requires a full refresh, skip lazy updates and do a refresh.
-            if self.stack[self.current].psq().needs_refresh[side] {
-                let acc = self.stack[self.current].psq_mut();
-                acc.refresh(board, side, &mut self.cache);
-                continue;
-            }
-
-            // Scan backwards to find the nearest parent accumulator that is computed for this
-            // perspective, or requires a refresh.
-            let mut curr = self.current - 1;
-            while !self.stack[curr].psq().computed[side] && !self.stack[curr].psq().needs_refresh[side] {
-                if curr == 0 {
-                    break;
-                }
-                curr -= 1;
-            }
-
-            if self.stack[curr].psq().needs_refresh[side] {
-                // If we found an accumulator that requires a full refresh, do that instead.
-                let acc = self.stack[self.current].psq_mut();
-                acc.refresh(board, side, &mut self.cache);
-            } else {
-                // Otherwise, move forward through the stack applying all updates one by one.
-                let weights = &NETWORK.l0_psq_weights[bucket];
-                while curr < self.current {
-                    let (front, back) = self.stack.split_at_mut(curr + 1);
-                    let prev_acc = front.last().unwrap();
-                    let next_acc = back.first_mut().unwrap();
-                    let update = next_acc.psq_mut().update;
-                    let prev_fts = prev_acc.psq().features(side);
-                    let next_fts = next_acc.psq_mut().features_mut(side);
-                    psq::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
-                    next_acc.psq_mut().computed[side] = true;
-                    curr += 1;
-                }
-            }
-        }
-    }
-
-    fn apply_lazy_threat_updates(&mut self, board: &Board) {
-        for pov in [White, Black] {
-            if self.stack[self.current].threat().computed[pov] {
-                continue;
-            }
-
-            if self.stack[self.current].threat().needs_refresh[pov] {
-                let threat = self.stack[self.current].threat_mut();
-                threat.refresh(board, pov);
-                threat.needs_refresh[pov] = false;
-                threat.computed[pov] = true;
-                continue;
-            }
-
-            let mut curr = self.current;
-            while !self.stack[curr].threat().computed[pov] {
-                curr -= 1;
-            }
-
-            let king_sq = board.king_sq(pov);
-            while curr < self.current {
-                let (parents, currents) = self.stack.split_at_mut(curr + 1);
-                let parent = parents[curr].threat();
-                let child = currents[0].threat_mut();
-                child.apply(parent, king_sq, pov);
-                child.computed[pov] = true;
-                curr += 1;
-            }
-        }
     }
 
     /// Update the accumulator for a standard move (no castle or capture). The old piece is removed
