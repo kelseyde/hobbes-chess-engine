@@ -13,11 +13,12 @@ use hobbes_nnue_arch::{PieceSquareWeights, L1_SIZE};
 /// The input layer just encodes the positions of pieces on the board, from the perspective of both
 /// sides. The accumulator is updated incrementally when a move is made or unmade during search, so
 /// that we can efficiently compute the evaluation without needing to recompute the board each time.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 #[repr(C, align(64))]
 pub struct PieceSquareAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub update: PieceSquareAccumulatorUpdate,
+    pub adds: ArrayVec<PieceSquareFeature, 2>,
+    pub subs: ArrayVec<PieceSquareFeature, 2>,
     pub computed: [bool; 2],
     pub needs_refresh: [bool; 2],
     pub mirrored: [bool; 2],
@@ -211,10 +212,10 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
                 let (front, back) = nnue.stack.split_at_mut(curr + 1);
                 let prev_acc = front.last().unwrap();
                 let next_acc = back.first_mut().unwrap();
-                let update = next_acc.psq.update;
+                let (adds, subs) = (&next_acc.psq.adds, &next_acc.psq.subs);
                 let prev_fts = prev_acc.psq.features(side);
                 let next_fts = next_acc.psq.features_mut(side);
-                psq::apply_update(prev_fts, next_fts, weights, &update, side, mirror);
+                apply_update(prev_fts, next_fts, weights, adds, subs, side, mirror);
                 next_acc.psq.computed[side] = true;
                 curr += 1;
             }
@@ -225,24 +226,19 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
 /// Apply the given update to the accumulator, modifying the output features in place.
 #[rustfmt::skip]
 pub fn apply_update(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     weights: &PieceSquareWeights,
-    update: &PieceSquareAccumulatorUpdate,
+    adds: &ArrayVec<PieceSquareFeature, 2>,
+    subs: &ArrayVec<PieceSquareFeature, 2>,
     perspective: Side,
     mirror: bool,
 ) {
-    match update {
-        PieceSquareAccumulatorUpdate::None => {}
-        PieceSquareAccumulatorUpdate::AddSub(add, sub) => {
-            add1_sub1(input_features, output_features, *add, *sub, weights, perspective, mirror);
-        }
-        PieceSquareAccumulatorUpdate::AddSubSub(add, sub1, sub2) => {
-            add1_sub2(input_features, output_features, *add, *sub1, *sub2, weights, perspective, mirror);
-        }
-        PieceSquareAccumulatorUpdate::AddAddSubSub(add1, add2, sub1, sub2) => {
-            add2_sub2(input_features, output_features, *add1, *add2, *sub1, *sub2, weights, perspective, mirror);
-        }
+    match (adds.len(), subs.len()) {
+        (1, 1) => add1_sub1(input, output, adds[0], subs[0], weights, perspective, mirror),
+        (1, 2) => add1_sub2(input, output, adds[0], subs[0], subs[1], weights, perspective, mirror),
+        (2, 2) => add2_sub2(input, output, adds[0], adds[1], subs[0], subs[1], weights, perspective, mirror),
+        _ => unreachable!("unexpected psq update shape"),
     }
 }
 
