@@ -1,11 +1,11 @@
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::MoveList;
+use crate::board::observer::NullBoardObserver;
 use crate::board::Board;
 use crate::search::thread::ThreadData;
 use crate::tools::fen;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use crate::board::observer::NullBoardObserver;
 
 pub fn generate_random_openings(
     td: &mut ThreadData,

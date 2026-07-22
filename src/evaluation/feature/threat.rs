@@ -1,3 +1,4 @@
+use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
 use crate::board::piece::Piece;
@@ -5,7 +6,6 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::*;
 use crate::board::square::Square;
-use crate::board::attacks;
 
 /// This code computes the index of a given threat in the threat inputs accumulator. Everything here
 /// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
@@ -228,7 +228,7 @@ impl ThreatFeature {
         let (mut from, mut to) = (self.from(), self.to());
         let (atk_pc, mut atk_side) = self.attacker();
         let (vic_pc, mut vic_side) = self.victim();
-        
+
         // Threat indices are reversed for black.
         if perspective == Black {
             atk_side = !atk_side;
@@ -292,6 +292,11 @@ impl ThreatFeature {
     const fn decode_coloured(idx: u8) -> (Piece, Side) {
         let pc = idx % 6;
         let side = idx / 6;
-        unsafe { (std::mem::transmute::<u8, Piece>(pc), std::mem::transmute::<u8, Side>(side)) }
+        unsafe {
+            (
+                std::mem::transmute::<u8, Piece>(pc),
+                std::mem::transmute::<u8, Side>(side),
+            )
+        }
     }
 }

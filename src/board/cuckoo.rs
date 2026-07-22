@@ -160,11 +160,11 @@ impl Board {
 mod tests {
     use crate::board::cuckoo;
     use crate::board::moves::Move;
+    use crate::board::observer::NullBoardObserver;
     use crate::board::ray;
     use crate::board::Board;
     use crate::search::thread::ThreadData;
     use std::sync::Once;
-    use crate::board::observer::NullBoardObserver;
 
     fn init() {
         static INIT: Once = Once::new();

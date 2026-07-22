@@ -289,9 +289,9 @@ mod tests {
     use crate::board::castling::Rights;
     use crate::board::file::File;
     use crate::board::moves::Move;
+    use crate::board::observer::NullBoardObserver;
     use crate::board::side::Side;
     use crate::board::Board;
-    use crate::board::observer::NullBoardObserver;
 
     #[test]
     fn test_kingside_basics() {

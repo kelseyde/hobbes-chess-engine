@@ -7,13 +7,13 @@ pub mod legal;
 pub mod magics;
 pub mod movegen;
 pub mod moves;
+pub mod observer;
 pub mod piece;
 pub mod rank;
 pub mod ray;
 pub mod side;
 pub mod square;
 pub mod zobrist;
-pub mod observer;
 
 pub mod setwise {
     #[cfg(target_feature = "avx512f")]
@@ -52,6 +52,7 @@ pub mod setwise {
 }
 
 use crate::board::castling::Rights;
+use crate::board::observer::BoardObserver;
 use crate::board::zobrist::{Hashes, Keys};
 use crate::tools::fen;
 use bitboard::Bitboard;
@@ -60,7 +61,6 @@ use piece::Piece;
 use side::Side;
 use side::Side::{Black, White};
 use square::Square;
-use crate::board::observer::BoardObserver;
 
 /// Represents the current state of the chess board, including the positions of the pieces, the side
 /// to move, en passant rights, fifty-move counter, and the move counter. Includes functions to 'make'
@@ -601,9 +601,9 @@ impl Board {
 mod tests {
     use crate::board::bitboard::Bitboard;
     use crate::board::moves::{Move, MoveFlag};
+    use crate::board::observer::NullBoardObserver;
     use crate::board::side::Side;
     use crate::board::{ray, Board};
-    use crate::board::observer::NullBoardObserver;
 
     #[test]
     fn computing_correct_pins() {

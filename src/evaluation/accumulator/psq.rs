@@ -75,7 +75,12 @@ impl PieceSquareAccumulator {
     }
 
     pub fn apply_update_inplace(
-        &mut self, prev: &[i16; L1_SIZE], weights: &PieceSquareWeights, side: Side, mirror: bool) {
+        &mut self,
+        prev: &[i16; L1_SIZE],
+        weights: &PieceSquareWeights,
+        side: Side,
+        mirror: bool,
+    ) {
         let adds = self.adds.clone();
         let subs = self.subs.clone();
         let output = self.features_mut(side);
@@ -85,12 +90,7 @@ impl PieceSquareAccumulator {
     /// Refresh the accumulator for the given perspective, mirror state, and bucket. Retrieves
     /// the cached state for this accumulator, bucket, and perspective, and refreshes only the
     /// features of the board that have changed since the last refresh.
-    pub fn refresh(
-        &mut self,
-        board: &Board,
-        side: Side,
-        cache: &mut InputBucketCache,
-    ) {
+    pub fn refresh(&mut self, board: &Board, side: Side, cache: &mut InputBucketCache) {
         let king_sq = board.king_sq(side);
         let mirror = should_mirror(king_sq);
         let bucket = king_bucket(king_sq, side);

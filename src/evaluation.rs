@@ -1,7 +1,7 @@
 mod accumulator;
 mod cache;
-mod forward;
 pub mod feature;
+mod forward;
 pub mod sparse;
 pub mod stats;
 
@@ -76,7 +76,6 @@ impl NNUE {
     /// with the pre-activations of L0 stored in the current accumulator. We activate L0 and propagate
     /// through L1, L2, and L3 to get the final output.
     pub fn evaluate(&mut self, board: &Board) -> i32 {
-
         // Apply any pending updates to the PSQ and threat accumulators.
         psq::apply_lazy_updates(self, board);
         threat::apply_lazy_updates(self, board);
@@ -84,7 +83,10 @@ impl NNUE {
         // Arrange the features of both accumulators in (stm, nstm) order.
         let acc = &self.stack[self.current];
         let (psq_us, psq_them) = (&acc.psq.features(board.stm), &acc.psq.features(!board.stm));
-        let (threat_us, threat_them) = (&acc.threat.features(board.stm), &acc.threat.features(!board.stm));
+        let (threat_us, threat_them) = (
+            &acc.threat.features(board.stm),
+            &acc.threat.features(!board.stm),
+        );
 
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
@@ -104,7 +106,6 @@ impl NNUE {
         // Scale the eval and return
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
         scale_evaluation(board, output as i32)
-
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the
@@ -141,7 +142,8 @@ impl NNUE {
         acc.threat.computed = [false; 2];
 
         acc.psq.needs_refresh = prev_psq_refresh;
-        acc.psq.needs_refresh[us] |= mirror_changed(board, *mv, pc) || bucket_changed(board, *mv, pc, us);
+        acc.psq.needs_refresh[us] |=
+            mirror_changed(board, *mv, pc) || bucket_changed(board, *mv, pc, us);
         acc.threat.needs_refresh = prev_threat_refresh;
         acc.threat.needs_refresh[us] |= mirror_changed(board, *mv, pc);
     }

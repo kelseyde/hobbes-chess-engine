@@ -1,5 +1,6 @@
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
+use crate::board::observer::NullBoardObserver;
 use crate::board::side::Side::{Black, White};
 use crate::board::Board;
 use crate::evaluation::stats;
@@ -16,7 +17,6 @@ use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
-use crate::board::observer::NullBoardObserver;
 
 pub struct UCI {
     pub board: Board,
