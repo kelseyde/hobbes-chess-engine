@@ -696,6 +696,8 @@ fn alpha_beta<NODE: NodeType>(
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+            let min_depth = if mv == tt_move && tt_depth > 1 { 1 } else { 0 };
+            let new_depth = new_depth.max(min_depth);
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
