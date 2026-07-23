@@ -277,7 +277,7 @@ fn alpha_beta<NODE: NodeType>(
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
     let improvement = calc_improvement(td, ply, static_eval, in_check);
-    let improving = improvement > 0;
+    let mut improving = improvement > 0;
 
     let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
@@ -391,6 +391,8 @@ fn alpha_beta<NODE: NodeType>(
         }
 
     }
+
+    improving |= static_eval >= beta;
 
     // Internal Iterative Reductions
     // If the position has not been searched yet, the search will be potentially expensive. So we
