@@ -468,6 +468,8 @@ fn alpha_beta<NODE: NodeType>(
                 extension += (is_quiet && singular_score < s_beta - triple_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
+            } else if singular_score >= beta {
+                return (singular_score * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
