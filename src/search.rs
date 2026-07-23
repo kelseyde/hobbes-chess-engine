@@ -498,7 +498,7 @@ fn alpha_beta<NODE: NodeType>(
     // We have decided that the current node should not be pruned and is worth examining further.
     // Now we begin iterating through the moves in the position and searching deeper in the tree.
 
-    let mut move_picker = MovePicker::new(tt_move, ply, threats);
+    let mut move_picker = MovePicker::new(tt_move, ply, threats, pv_node);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -1005,7 +1005,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     } else {
         MoveFilter::Captures
     };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats, pv_node);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;

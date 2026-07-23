@@ -27,6 +27,7 @@ pub struct MovePicker {
     filter: MoveFilter,     // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
     tt_move: Move,          // The move from the transposition table, which is tried first if it exists.
     ply: usize,             // The ply of the current search, used for history heuristics.
+    pv_node: bool,          // Whether this node is a PV node.
     threats: Bitboard,      // The squares threatened by the opponent, used for history heuristics.
     skip_quiets: bool,      // Whether we should skip the remaining quiet moves.
     split_noisies: bool,    // Whether to split noisy moves into good and bad based on a SEE threshold.
@@ -46,12 +47,12 @@ pub enum Stage {
 }
 
 impl MovePicker {
-    pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
+    pub fn new(tt_move: Move, ply: usize, threats: Bitboard, pv_node: bool) -> Self {
+        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true, pv_node)
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, filter, ply, threats, true, false)
+    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard, pv_node: bool) -> Self {
+        Self::init(tt_move, filter, ply, threats, true, false, pv_node)
     }
 
     #[rustfmt::skip]
@@ -61,7 +62,8 @@ impl MovePicker {
         ply: usize,
         threats: Bitboard,
         skip_quiets: bool,
-        split_noisies: bool
+        split_noisies: bool,
+        pv_node: bool
     ) -> Self {
         let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
@@ -74,6 +76,7 @@ impl MovePicker {
             threats,
             skip_quiets,
             split_noisies,
+            pv_node,
             bad_noisy_start: 0,
             quiet_start: 0,
         }
@@ -154,7 +157,7 @@ impl MovePicker {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
-            if is_good_noisy(entry, board, self.split_noisies) {
+            if is_good_noisy(entry, board, self.split_noisies, self.pv_node) {
                 self.moves.add(*entry);
             } else {
                 bad_temp.add(*entry);
@@ -241,7 +244,7 @@ fn score_move(
 /// Captures are sorted based on whether they pass a SEE threshold, which takes into account the
 /// move's history score.
 #[inline(always)]
-fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
+fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool, pv_node: bool) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry
@@ -253,7 +256,8 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies || entry.score >= KILLER_BONUS {
             true
         } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset()
+                - 75 * pv_node as i32;
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
