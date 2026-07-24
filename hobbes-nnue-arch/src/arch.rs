@@ -30,7 +30,7 @@ pub const L3_SIZE: usize = 32;
 
 pub const Q: i64 = 64;
 pub const Q_BITS: usize = 6;
-pub const SCALE: i64 = 400;
+pub const SCALE: i64 = 360;
 
 pub type PieceSquareWeights = [i16; L0_PSQ_FEATURES * L1_SIZE];
 pub type ThreatWeights = [i8; L0_THREAT_FEATURES * L1_SIZE];
