@@ -42,6 +42,11 @@ impl PieceSquareAccumulator {
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         &self.features[perspective]
     }
+    
+    #[inline(always)]
+    pub fn features_relative(&self, perspective: Side) -> (&[i16; L1_SIZE], &[i16; L1_SIZE]) {
+        (self.features(perspective), self.features(!perspective))
+    }
 
     /// Get a mutable reference to the features for the given perspective.
     #[inline(always)]

@@ -45,6 +45,11 @@ impl ThreatAccumulator {
         &self.features[perspective]
     }
 
+    #[inline(always)]
+    pub fn features_relative(&self, perspective: Side) -> (&[i16; L1_SIZE], &[i16; L1_SIZE]) {
+        (self.features(perspective), self.features(!perspective))
+    }
+
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
         &mut self.features[perspective]
     }

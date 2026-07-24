@@ -82,11 +82,8 @@ impl NNUE {
 
         // Arrange the features of both accumulators in (stm, nstm) order.
         let acc = &self.stack[self.current];
-        let (psq_us, psq_them) = (&acc.psq.features(board.stm), &acc.psq.features(!board.stm));
-        let (threat_us, threat_them) = (
-            &acc.threat.features(board.stm),
-            &acc.threat.features(!board.stm),
-        );
+        let (psq_us, psq_them) = acc.psq.features_relative(board.stm);
+        let (threat_us, threat_them) = acc.threat.features_relative(board.stm);
 
         let mut l0_outputs = [0u8; L1_SIZE];
         let mut l1_outputs = [0i32; L2_SIZE * 2];
