@@ -439,6 +439,7 @@ fn alpha_beta<NODE: NodeType>(
     // some margin doesn't beat the TT score, we assume the TT move is 'singular' (i.e. the
     // only good move), and extend the search depth.
     if !root_node
+        && ply < 2 * td.depth as usize
         && !singular_search
         && tt_hit
         && tt_move.exists() {
