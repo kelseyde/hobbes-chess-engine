@@ -468,12 +468,8 @@ fn alpha_beta<NODE: NodeType>(
                 extension += (is_quiet && singular_score < s_beta - triple_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
-            } else if tt_score >= beta {
+            } else if tt_score >= beta || cut_node || tt_score <= alpha {
                 extension = -3 + pv_node as i32;
-            } else if cut_node {
-                extension = -2;
-            } else if tt_score <= alpha {
-                extension = -1;
             }
         // Low-Depth Singular Extensions (LDSE)
         // At low depths, if the static eval is well below alpha but the TT move failed high, we
