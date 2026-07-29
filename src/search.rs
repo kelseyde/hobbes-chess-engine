@@ -376,7 +376,9 @@ fn alpha_beta<NODE: NodeType>(
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if is_mate(score) { beta } else {score };
+                    let score = if is_mate(score) { beta } else { score };
+                    td.tt().insert(board.hash_with_50mr_bucket(), tt_move, score, raw_eval, depth, ply, Lower, tt_pv);
+                    return score;
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
