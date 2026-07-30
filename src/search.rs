@@ -402,14 +402,6 @@ fn alpha_beta<NODE: NodeType>(
         depth -= 1;
     }
 
-    // Cutnode TT reduction.
-    if cut_node
-        && !singular_search
-        && depth >= cutnode_red_min_depth()
-        && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
-        depth -= 1;
-    }
-
     // Probcut TT pruning
     // Skip nodes where the TT score exceeds beta by some large margin, indicating a likely fail-high.
     let probcut_margin = (pc_base()
