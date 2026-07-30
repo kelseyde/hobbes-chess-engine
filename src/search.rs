@@ -270,6 +270,7 @@ fn alpha_beta<NODE: NodeType>(
 
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
+    td.stack[ply].correction = correction;
     td.stack[ply + 1].killer = None;
     td.stack[ply + 2].num_fail_highs = 0;
 
@@ -281,6 +282,8 @@ fn alpha_beta<NODE: NodeType>(
 
     let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
+
+    let correction_change = calc_correction_change(td, ply, correction, in_check);
 
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
@@ -327,6 +330,19 @@ fn alpha_beta<NODE: NodeType>(
         && is_defined(td.stack[ply - 1].static_eval)
         && opponent_worsening_rate > hindsight_red_eval_diff() {
         depth -= 1;
+    }
+
+    // Hindsight correction extension
+    // If we reduced depth in the parent node, but the resulting position is deemed to be much more
+    // complex than the parent position, we take caution by extending depth in the current node
+    if !root_node
+        && !in_check
+        && !singular_search
+        && depth >= hindsight_corr_min_depth()
+        && td.stack[ply - 1].reduction >= hindsight_corr_min_reduction()
+        && is_defined(td.stack[ply - 1].static_eval)
+        && correction_change > hindsight_corr_delta() {
+        depth += 1;
     }
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
@@ -1201,6 +1217,17 @@ fn calc_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_che
         static_eval + td.stack[ply - 1].static_eval
     } else if ply >= 3 && is_defined(td.stack[ply - 3].static_eval) && !in_check {
         static_eval + td.stack[ply - 3].static_eval
+    } else {
+        0
+    }
+}
+
+#[inline]
+fn calc_correction_change(td: &ThreadData, ply: usize, correction: i32, in_check: bool) -> i32 {
+    if ply >= 1 && is_defined(td.stack[ply - 1].static_eval) && !in_check {
+        correction.abs() - td.stack[ply - 1].correction.abs()
+    } else if ply >= 3 && is_defined(td.stack[ply - 3].static_eval) && !in_check {
+        correction.abs() - td.stack[ply - 3].correction.abs()
     } else {
         0
     }
