@@ -38,7 +38,7 @@ use crate::evaluation::accumulator::should_mirror;
 /// attacker's list of valid targets.
 #[rustfmt::skip]
 const PIECE_TARGET_MAP: [[i32; 6]; 6] = [
-    [ 0,  1, -1,  2, -1, -1], // pawn    -> P N R
+    [ -1,  0, -1,  1, -1, -1], // pawn    -> N R
     [ 0,  1,  2,  3,  4, -1], // knight  -> P N B R Q
     [ 0,  1,  2,  3, -1, -1], // bishop  -> P N B R
     [ 0,  1,  2,  3, -1, -1], // rook    -> P N B R

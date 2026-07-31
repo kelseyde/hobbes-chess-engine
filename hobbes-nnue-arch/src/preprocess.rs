@@ -77,7 +77,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
         repermute_l0_weights(dst_bucket, src_bucket, &repermute);
     }
 
-    repermute_l0_weights(&mut dst.l0_threat_weights, &src.l0_threat_weights, &repermute);
+    repermute_l0_weights(&mut dst.l0_threat_pp_weights, &src.l0_threat_pp_weights, &repermute);
 
     let config = permute_config();
     if config.needs_permuting {
@@ -92,7 +92,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
             permute(bucket, order, chunk_size, block_size);
         }
         // Permute L0 threat weights.
-        permute(&mut dst.l0_threat_weights, order, chunk_size, block_size);
+        permute(&mut dst.l0_threat_pp_weights, order, chunk_size, block_size);
 
         // Permute L0 biases.
         permute(&mut dst.l0_biases, order, chunk_size, block_size);

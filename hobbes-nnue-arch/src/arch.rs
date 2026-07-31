@@ -14,7 +14,9 @@ pub const BUCKETS: [usize; 64] = [
 ];
 
 pub const L0_PSQ_FEATURES: usize = 768;
-pub const L0_THREAT_FEATURES: usize = 60144;
+pub const L0_PAWN_PAIR_FEATURES: usize = 4560;
+pub const L0_THREAT_FEATURES: usize = 59808;
+pub const L0_THREAT_PP_COMBINED_FEATURES: usize = L0_THREAT_FEATURES + L0_PAWN_PAIR_FEATURES;
 pub const L0_QUANT: usize = 255;
 pub const L0_SHIFT: usize = 9;
 
@@ -33,14 +35,14 @@ pub const Q_BITS: usize = 6;
 pub const SCALE: i64 = 400;
 
 pub type PieceSquareWeights = [i16; L0_PSQ_FEATURES * L1_SIZE];
-pub type ThreatWeights = [i8; L0_THREAT_FEATURES * L1_SIZE];
+pub type ThreatAndPawnPairWeights = [i8; L0_THREAT_PP_COMBINED_FEATURES * L1_SIZE];
 
 /// The `UntransposedNetwork` represents the net outputted by Bullet, with weights and biases in the
 /// original [input][bucket][output] format.
 #[repr(C, align(64))]
 pub struct UntransposedNetwork {
     pub l0_psq_weights: [PieceSquareWeights; INPUT_BUCKET_COUNT],
-    pub l0_threat_weights: ThreatWeights,
+    pub l0_threat_pp_weights: ThreatAndPawnPairWeights,
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE]; OUTPUT_BUCKET_COUNT]; L1_SIZE],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],
@@ -55,7 +57,7 @@ pub struct UntransposedNetwork {
 #[repr(C, align(64))]
 pub struct Network {
     pub l0_psq_weights: [PieceSquareWeights; INPUT_BUCKET_COUNT],
-    pub l0_threat_weights: ThreatWeights,
+    pub l0_threat_pp_weights: ThreatAndPawnPairWeights,
     pub l0_biases: [i16; L1_SIZE],
     pub l1_weights: [[[i8; L2_SIZE * 4]; L1_SIZE / 4]; OUTPUT_BUCKET_COUNT],
     pub l1_biases: [[i32; L2_SIZE]; OUTPUT_BUCKET_COUNT],

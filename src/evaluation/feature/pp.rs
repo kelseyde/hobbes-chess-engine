@@ -57,11 +57,11 @@ const fn init_pp_band() -> [Bitboard; 64] {
 #[inline(always)]
 fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> u32 {
     let mut sq = sq;
-    // Threat indices are reversed for black.
+    // Pawn indices are reversed for black.
     if perspective == Black {
         sq = sq.flip_rank();
     }
-    // Threat indices are horizontally mirrored if the king is on the right side of the board.
+    // Pawn indices are horizontally mirrored if the king is on the right side of the board.
     if mirror {
         sq = sq.flip_file();
     }

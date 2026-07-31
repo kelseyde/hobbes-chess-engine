@@ -291,7 +291,7 @@ unsafe fn accumulate(
     adds: &[u32],
     subs: &[u32],
 ) {
-    let weights = NETWORK.l0_threat_weights.as_ptr();
+    let weights = NETWORK.l0_threat_pp_weights.as_ptr();
     let out_ptr = out.as_mut_ptr();
 
     for offset in (0..L1_SIZE).step_by(STEP) {
