@@ -1031,6 +1031,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
+        let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
 
         // Late Move Pruning
         if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
@@ -1052,10 +1053,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
+        let see_threshold = qs_see_threshold() - history_score / 48;
         if !in_check
             && !is_killer
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold(), Pruning)
+            && !see::see(board, &mv, see_threshold, Pruning)
         {
             continue;
         }
