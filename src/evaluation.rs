@@ -36,7 +36,7 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::{castling, Board};
-use crate::evaluation::accumulator::Accumulator;
+use crate::evaluation::accumulator::{should_mirror, Accumulator};
 use crate::evaluation::cache::InputBucketCache;
 use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
@@ -165,7 +165,7 @@ fn king_dest_sq(board: &Board, mv: Move) -> Square {
 
 #[inline]
 fn bucket_changed(board: &Board, mv: Move, pc: Piece, side: Side) -> bool {
-    if pc != Piece::King {
+    if pc != King {
         return false;
     }
     king_bucket(mv.from(), side) != king_bucket(king_dest_sq(board, mv), side)
@@ -188,11 +188,6 @@ fn king_bucket(sq: Square, side: Side) -> usize {
 fn get_output_bucket(board: &Board) -> usize {
     const DIVISOR: usize = usize::div_ceil(32, OUTPUT_BUCKET_COUNT);
     (board.occ().count() as usize - 2) / DIVISOR
-}
-
-#[inline(always)]
-fn should_mirror(king_sq: Square) -> bool {
-    File::of(king_sq) > File::D
 }
 
 #[inline]

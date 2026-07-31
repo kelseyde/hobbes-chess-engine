@@ -3,11 +3,11 @@ use crate::board::file::File;
 use crate::board::side::Side;
 use crate::board::side::Side::*;
 use crate::board::square::Square;
+use crate::evaluation::accumulator::should_mirror;
 
 /// Pawn pair inputs describe unordered pairs of pawns, of either colour, standing on the same or
-/// adjacent files (3-wide band). They are a strict superset of 'pawn-attacks-pawn' inputs, since
-/// pawn attacks are diagonal and therefore on adjacent files. Therefore those inputs are removed
-/// from the standard threat input accumulator and described here.
+/// adjacent files. They are a strict superset of 'pawn-attacks-pawn' inputs, since pawn attacks are
+/// diagonal and therefore on adjacent files.
 ///
 /// Each pawn is given a distinct identity based in its colour (perspective relative), and the
 /// square it occupies. Since pawns can only occupy ranks 2-7, there are 48 sqaures x 2 colours, so
@@ -70,10 +70,9 @@ fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> u32 
     enemy_offset + (sq.0 - FIRST_PAWN_SQ.0) as u32
 }
 
-/// Compute the index of the unordered pawn pair (a, b) among all pawn features. We compute the
-/// higher of the two ids, then skip over every pair formed by a lower high id (of which there are
-/// `hi * (hi - 1) / 2`), then offset by the lower id. Doing so results in a unique index for each
-/// unordered pawn pair.
+/// Compute the index of the unordered pawn pair. We take the higher of the two ids, then skip over
+/// every pair formed by a lower high id (of which there are `hi * (hi - 1) / 2`), then offset by
+/// the lower id. Doing so results in a unique index for each unordered pawn pair.
 #[inline(always)]
 fn pp_index(id_a: u32, id_b: u32) -> u32 {
     debug_assert!(id_a != id_b, "A pawn cannot pair with itself!");
@@ -82,8 +81,8 @@ fn pp_index(id_a: u32, id_b: u32) -> u32 {
     hi * (hi - 1) / 2 + lo
 }
 
-/// An encoding of one pawn-pair input change: the pair of pawns on `sq_a` and `sq_b`, either
-/// created (add = true) or destroyed (add = false). Relative to feature
+/// An encoding of one pawn-pair input change: the pair of pawns on square A and sqaure B, either
+/// created or destroyed.
 ///
 /// Bit layout:
 /// 0-7:  square a (0..64)
@@ -115,7 +114,7 @@ impl PawnPairFeature {
     /// Compute the index of this pawn pair from the given perspective.
     #[inline(always)]
     pub fn index(&self, perspective: Side, king_sq: Square) -> u32 {
-        let mirror = king_sq.file() >= File::E;
+        let mirror = should_mirror(king_sq);
         let id_a = pawn_id(self.sq_a(), self.side_a(), perspective, mirror);
         let id_b = pawn_id(self.sq_b(), self.side_b(), perspective, mirror);
         pp_index(id_a, id_b)

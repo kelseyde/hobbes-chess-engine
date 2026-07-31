@@ -6,6 +6,7 @@ use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::*;
 use crate::board::square::Square;
+use crate::evaluation::accumulator::should_mirror;
 
 /// This code computes the index of a given threat in the threat inputs accumulator. Everything here
 /// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
@@ -237,7 +238,7 @@ impl ThreatFeature {
             to = to.flip_rank();
         }
         // Threat indices are horizontally mirrored if the king is on the right side of the board.
-        if king_sq.file() >= File::E {
+        if should_mirror(king_sq) {
             from = from.flip_file();
             to = to.flip_file();
         }
