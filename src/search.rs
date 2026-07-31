@@ -630,11 +630,12 @@ fn alpha_beta<NODE: NodeType>(
         // Principal Variation Search
         // We assume that the first move will be best, and search all others with a null window and/or
         // reduced depth. If any of those moves beat alpha, we re-search with a full window and depth.
+        let mut r = 0;
         if depth >= lmr_min_depth() && searched_moves > lmr_min_moves() + root_node as i32 + 2 * pv_node as i32 {
 
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut r = base_reduction * 1024;
+            r = base_reduction * 1024;
             r -= lmr_ttpv_base() * tt_pv as i32;
             r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
             r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
@@ -696,6 +697,7 @@ fn alpha_beta<NODE: NodeType>(
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
+            let new_depth = new_depth - (r > 4096) as i32;
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
         }
 
