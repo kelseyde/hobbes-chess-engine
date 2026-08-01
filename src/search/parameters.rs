@@ -1,4 +1,5 @@
 use crate::tunable_params;
+use crate::tunable_arrays;
 
 #[rustfmt::skip]
 tunable_params! {
@@ -99,20 +100,11 @@ tunable_params! {
     lmr_quiet_div                = 303, 250..=400,         true;
     lmr_noisy_base               = 98, 50..=150,           true;
     lmr_noisy_div                = 292, 250..=400,         true;
-    lmr_ttpv_base                = 152, 0..=2048,          true;
-    lmr_ttpv_score               = 262, 0..=2048,          true;
-    lmr_ttpv_depth               = 1148, 0..=2048,         true;
-    lmr_cut_node                 = 1931, 0..=2048,         true;
-    lmr_capture                  = 919, 0..=2048,          true;
-    lmr_in_check                 = 124, 0..=2048,           true;
-    lmr_gives_check              = 36, 0..=2048,           true;
-    lmr_improving                = 714, 0..=2048,          true;
-    lmr_complexity_margin        = 101, 0..=300,            true;
+    lmr_complexity_margin        = 101, 0..=300,           true;
     lmr_complex                  = 186, 0..=2048,          true;
     lmr_good_noisy               = 853, 0..=2048,          true;
     lmr_bad_noisy                = 699, 0..=2048,          true;
-    lmr_fail_highs               = 111, 0..=2048,           true;
-    lmr_killer                   = 985, 0..=2048,         true;
+    lmr_fail_highs               = 111, 0..=2048,          true;
     lmr_quiet_see                = 1313, 0..=2048,         true;
     lmr_se_mult                  = 538, 256..=1024,        true;
     lmr_se_offset                = 228, 0..=1024,          true;
@@ -281,4 +273,27 @@ tunable_params! {
     tm_score_scale               = 43, 10..=100,           true;
     tm_score_min                 = 896, 500..=1000,        true;
     thread_weight_score_offset   = 12, 0..=20,             true;
+}
+
+#[rustfmt::skip]
+tunable_arrays! {
+    lmr_factor_1 = [
+        -152, -262, -1148, 1931, -919, -124, -36, 714, -985,
+    ], -2048..=2048;
+
+    lmr_factor_2 = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ], -1024..=1024;
+
+    lmr_factor_3 = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ], -1024..=1024;
 }
