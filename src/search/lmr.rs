@@ -16,19 +16,23 @@ pub struct LmrTable {
 impl LmrTable {
 
     pub fn init(&mut self) {
-        let quiet_base = lmr_quiet_base() as f32 / 100.0;
-        let quiet_divisor = lmr_quiet_div() as f32 / 100.0;
-        let noisy_base = lmr_noisy_base() as f32 / 100.0;
-        let noisy_divisor = lmr_noisy_div() as f32 / 100.0;
+        self.init_base();
+        self.init_factorised();
+    }
 
+    fn init_base(&mut self) {
         for depth in 1..256 {
             for move_count in 1..64 {
                 for is_quiet in [true, false] {
-                    let base = if is_quiet { quiet_base } else { noisy_base };
-                    let divisor = if is_quiet {
-                        quiet_divisor
+                    let base = if is_quiet {
+                        lmr_quiet_base() as f32 / 100.0
                     } else {
-                        noisy_divisor
+                        lmr_noisy_base() as f32 / 100.0
+                    };
+                    let divisor = if is_quiet {
+                        lmr_quiet_div() as f32 / 100.0
+                    } else {
+                        lmr_noisy_div() as f32 / 100.0
                     };
                     let ln_depth = (depth as f32).ln();
                     let ln_move_count = (move_count as f32).ln();
@@ -37,6 +41,9 @@ impl LmrTable {
                 }
             }
         }
+    }
+
+    fn init_factorised(&mut self) {
         for index in 0..LMR_COMBINATIONS {
             let mut features = [false; LMR_FEATURES];
             for (i, feature) in features.iter_mut().enumerate() {
@@ -58,6 +65,7 @@ impl LmrTable {
         self.factorised[index]
     }
 
+    #[inline(always)]
     fn factorised_index(&self, features: [bool; LMR_FEATURES]) -> usize {
         features
             .iter()
