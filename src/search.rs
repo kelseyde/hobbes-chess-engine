@@ -9,6 +9,7 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod lmr;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
@@ -526,7 +527,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
-        let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
+        let base_reduction = td.lmr.base(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
         let to_threatened = threats.contains(mv.to());
 
@@ -635,19 +636,21 @@ fn alpha_beta<NODE: NodeType>(
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
-            r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * cut_node as i32;
-            r -= lmr_capture() * captured.is_some() as i32;
-            r -= lmr_in_check() * in_check as i32;
-            r -= lmr_gives_check() * gives_check as i32;
-            r += lmr_improving() * !improving as i32;
+            r += td.lmr.factorised([
+                tt_pv,
+                tt_pv && has_tt_score && tt_score > alpha,
+                tt_pv && has_tt_score && tt_depth >= depth,
+                cut_node,
+                captured.is_some(),
+                in_check,
+                gives_check,
+                !improving,
+                is_killer,
+            ]);
             r -= lmr_good_noisy() * (move_picker.stage() == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage() == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
-            r -= lmr_killer() * is_killer as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();

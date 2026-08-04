@@ -72,6 +72,81 @@ macro_rules! tunable_params {
 
 }
 
+#[macro_export]
+macro_rules! tunable_arrays {
+    ($($name:ident = [$($val:expr),* $(,)?], $min:literal ..= $max:literal;)*) => {
+        pub mod arrays {
+            $(
+                pub mod $name {
+                    pub const DEFAULTS: &[i32] = &[$($val),*];
+                    pub const LEN: usize = DEFAULTS.len();
+
+                    #[cfg(feature = "tuning")]
+                    pub static VALS: [std::sync::atomic::AtomicI32; LEN] =
+                        [$(std::sync::atomic::AtomicI32::new($val)),*];
+                }
+            )*
+        }
+
+        $(
+            #[cfg(feature = "tuning")]
+            #[inline]
+            pub fn $name(i: usize) -> i32 {
+                arrays::$name::VALS[i].load(std::sync::atomic::Ordering::Relaxed)
+            }
+
+            #[cfg(not(feature = "tuning"))]
+            #[inline]
+            pub const fn $name(i: usize) -> i32 {
+                arrays::$name::DEFAULTS[i]
+            }
+        )*
+
+        #[cfg(feature = "tuning")]
+        pub fn list_array_params() {
+            $(
+                for i in 0..arrays::$name::LEN {
+                    println!(
+                        "option name {}_{} type spin default {} min {} max {}",
+                        stringify!($name), i, $name(i), $min, $max
+                    );
+                }
+            )*
+        }
+
+        #[cfg(feature = "tuning")]
+        pub fn set_array_param(name: &str, val: i32) -> bool {
+            $(
+                if let Some(rest) = name.strip_prefix(stringify!($name)) {
+                    if let Some(rest) = rest.strip_prefix('_') {
+                        if let Ok(i) = rest.parse::<usize>() {
+                            if i < arrays::$name::LEN {
+                                arrays::$name::VALS[i]
+                                    .store(val, std::sync::atomic::Ordering::Relaxed);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            )*
+            false
+        }
+
+        #[cfg(feature = "tuning")]
+        pub fn print_array_params_ob() {
+            $(
+                let step = ($max - $min) / 20;
+                for i in 0..arrays::$name::LEN {
+                    println!(
+                        "{}_{}, int, {}.0, {}.0, {}.0, {}, 0.002",
+                        stringify!($name), i, $name(i), $min, $max, step
+                    );
+                }
+            )*
+        }
+    };
+}
+
 /// Gravity formula for history updates, using the current value of the entry as the base for the update.
 pub fn gravity(current: i32, update: i32, max: i32) -> i32 {
     gravity_with_base(current, update, current, max)
@@ -117,4 +192,28 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
         std::alloc::handle_alloc_error(layout);
     }
     Box::from_raw(ptr.cast())
+}
+
+/// Sum every 1, 2, and 3-way interaction between `N` active boolean features.
+pub fn convolve<const N: usize>(
+    features: [bool; N],
+    factor_1: impl Fn(usize) -> i32,
+    factor_2: impl Fn(usize) -> i32,
+    factor_3: impl Fn(usize) -> i32,
+) -> i32 {
+    let mut total = 0;
+    let mut index_2 = 0;
+    let mut index_3 = 0;
+    for i in 0..N {
+        total += factor_1(i) * features[i] as i32;
+        for j in (i + 1)..N {
+            total += factor_2(index_2) * (features[i] && features[j]) as i32;
+            for k in (j + 1)..N {
+                total += factor_3(index_3) * (features[i] && features[j] && features[k]) as i32;
+                index_3 += 1;
+            }
+            index_2 += 1;
+        }
+    }
+    total
 }

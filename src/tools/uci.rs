@@ -6,7 +6,7 @@ use crate::board::Board;
 use crate::evaluation::stats;
 use crate::search::engine::{Engine, MAX_THREADS};
 #[cfg(feature = "tuning")]
-use crate::search::parameters::{list_params, print_params_ob, set_param};
+use crate::search::parameters::{list_params, print_params_ob, set_param, list_array_params, print_array_params_ob, set_array_param};
 use crate::search::time::SearchLimits;
 use crate::search::tt;
 use crate::tools::bench::bench;
@@ -84,7 +84,7 @@ impl UCI {
                         "genfens" => self.handle_genfens(tokens),
                         "help" => self.handle_help(),
                         #[cfg(feature = "tuning")]
-                        "params" => print_params_ob(),
+                        "params" => { print_params_ob(); print_array_params_ob(); }
                         _ => println!("info error: unknown command"),
                     },
                 }
@@ -112,7 +112,10 @@ impl UCI {
         println!("option name Minimal type check default false");
         println!("option name UseSoftNodes type check default false");
         #[cfg(feature = "tuning")]
-        list_params();
+        {
+            list_params();
+            list_array_params();
+        }
         println!("uciok");
     }
 
@@ -211,7 +214,9 @@ impl UCI {
                 return;
             }
         };
-        set_param(name, value);
+        if !set_array_param(name, value) {
+            set_param(name, value);
+        }
     }
 
     fn handle_ucinewgame(&mut self) {
