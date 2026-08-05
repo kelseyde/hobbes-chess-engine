@@ -468,7 +468,8 @@ fn alpha_beta<NODE: NodeType>(
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 extension = 1;
 
-                let double_margin = se_dext_margin(is_quiet) + se_dext_pv_margin() * pv_node as i32;
+                let double_margin = se_dext_margin(is_quiet) + se_dext_pv_margin() * pv_node as i32
+                    - se_dext_corr_mult() * correction.abs() / 128;
                 extension += (singular_score < s_beta - double_margin) as i32;
 
                 let triple_margin = se_text_margin(is_quiet) + se_text_pv_margin() * pv_node as i32;
