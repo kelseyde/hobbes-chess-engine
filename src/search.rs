@@ -455,7 +455,7 @@ fn alpha_beta<NODE: NodeType>(
             let is_quiet = board.captured(&tt_move).is_some();
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
             let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div
-                + (history_score / 1024).clamp(-depth / 4, depth / 4);
+                + (history_score / se_beta_history_div()).clamp(-depth / 4, depth / 4);
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
