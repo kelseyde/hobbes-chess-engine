@@ -27,6 +27,7 @@ pub struct MovePicker {
     filter: MoveFilter,     // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
     tt_move: Move,          // The move from the transposition table, which is tried first if it exists.
     ply: usize,             // The ply of the current search, used for history heuristics.
+    static_eval: i32,       // Static evaluation of the position
     threats: Bitboard,      // The squares threatened by the opponent, used for history heuristics.
     skip_quiets: bool,      // Whether we should skip the remaining quiet moves.
     split_noisies: bool,    // Whether to split noisy moves into good and bad based on a SEE threshold.
@@ -46,12 +47,12 @@ pub enum Stage {
 }
 
 impl MovePicker {
-    pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
+    pub fn new(tt_move: Move, ply: usize, static_eval: i32, threats: Bitboard) -> Self {
+        Self::init(tt_move, MoveFilter::Noisies, ply, static_eval, threats, false, true)
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, filter, ply, threats, true, false)
+    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, static_eval: i32, threats: Bitboard) -> Self {
+        Self::init(tt_move, filter, ply, static_eval, threats, true, false)
     }
 
     #[rustfmt::skip]
@@ -59,6 +60,7 @@ impl MovePicker {
         tt_move: Move,
         filter: MoveFilter,
         ply: usize,
+        static_eval: i32,
         threats: Bitboard,
         skip_quiets: bool,
         split_noisies: bool
@@ -71,6 +73,7 @@ impl MovePicker {
             filter,
             tt_move,
             ply,
+            static_eval,
             threats,
             skip_quiets,
             split_noisies,
@@ -139,7 +142,7 @@ impl MovePicker {
             if entry.mv == self.tt_move {
                 continue;
             }
-            score_move(entry, board, td, self.ply, self.threats);
+            score_move(entry, board, td, self.ply, self.static_eval, self.threats);
             self.moves.add(*entry);
         }
     }
@@ -153,7 +156,7 @@ impl MovePicker {
             if entry.mv == self.tt_move {
                 continue;
             }
-            score_move(entry, board, td, self.ply, self.threats);
+            score_move(entry, board, td, self.ply, self.static_eval, self.threats);
             if is_good_noisy(entry, board, self.split_noisies) {
                 self.moves.add(*entry);
             } else {
@@ -214,6 +217,7 @@ fn score_move(
     board: &Board,
     td: &ThreadData,
     ply: usize,
+    static_eval: i32,
     threats: Bitboard,
 ) {
     let mv = &entry.mv;
@@ -223,7 +227,8 @@ fn score_move(
         let history_score = td
             .history
             .capture_history_score(board, mv, attacker, victim);
-        entry.score = 16 * victim_value + history_score;
+        let mop_up_bonus = 10_000 * (static_eval > 400 && see::see(board, mv, 0, SeeType::Ordering)) as i32;
+        entry.score = 16 * victim_value + history_score + mop_up_bonus;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);
