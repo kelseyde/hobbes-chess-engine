@@ -447,9 +447,15 @@ fn alpha_beta<NODE: NodeType>(
             && tt_flag != Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
+            let pc = board.piece_at(tt_move.from()).unwrap();
+            let captured = board.captured(&tt_move);
+            let history_score = td.history
+                .history_score(board, &td.stack, &tt_move, ply, threats, pc, captured);
+
             let is_quiet = board.captured(&tt_move).is_some();
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
-            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
+            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div
+                + (history_score / se_beta_history_div()).clamp(-depth / 4, depth / 4);
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
