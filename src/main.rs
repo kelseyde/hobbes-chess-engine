@@ -1,4 +1,4 @@
-use crate::board::cuckoo;
+use crate::board::{cuckoo, magics};
 use crate::evaluation::feature::threat;
 use crate::tools::uci::UCI;
 use board::ray;
@@ -25,6 +25,7 @@ pub mod tools;
 
 fn main() {
     // Initialise static data
+    magics::init();
     ray::init();
     cuckoo::init();
     threat::init();
