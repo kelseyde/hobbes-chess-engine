@@ -1,4 +1,13 @@
 use crate::board::bitboard::Bitboard;
+use crate::tools::utils;
+use utils::slide;
+
+pub fn init() {
+    unsafe {
+        BISHOP_ATTACKS = gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks, 5248);
+        ROOK_ATTACKS = gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks, 102400);
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct MagicLookup {
@@ -30,10 +39,6 @@ pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
     | slide(square, blockers, -1, |s| s % 8 == 0) // west
 }
 
-use crate::tools::utils;
-use std::sync::LazyLock;
-use utils::slide;
-
 fn gen_attacks_table(
     magics: &[MagicLookup; 64],
     gen: fn(usize, u64) -> u64,
@@ -56,10 +61,8 @@ fn gen_attacks_table(
     table
 }
 
-pub static BISHOP_ATTACKS: LazyLock<Vec<Bitboard>> =
-    LazyLock::new(|| gen_attacks_table(&BISHOP_MAGICS, gen_bishop_attacks, 5248));
-pub static ROOK_ATTACKS: LazyLock<Vec<Bitboard>> =
-    LazyLock::new(|| gen_attacks_table(&ROOK_MAGICS, gen_rook_attacks, 102400));
+pub static mut BISHOP_ATTACKS: Vec<Bitboard> = Vec::new();
+pub static mut ROOK_ATTACKS: Vec<Bitboard> = Vec::new();
 
 #[rustfmt::skip]
 pub const BISHOP_MAGICS: [MagicLookup; 64] = [
