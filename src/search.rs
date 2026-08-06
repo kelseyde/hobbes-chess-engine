@@ -689,8 +689,9 @@ fn alpha_beta<NODE: NodeType>(
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
-                        let bonus_1 = if good { lmr_conthist_1_bonus(depth) } else { lmr_conthist_1_malus(depth) };
-                        let bonus_2 = if good { lmr_conthist_2_bonus(depth) } else { lmr_conthist_2_malus(depth) };
+                        let bonus_depth = depth + 3 * (good as i32);
+                        let bonus_1 = if good { lmr_conthist_1_bonus(bonus_depth) } else { lmr_conthist_1_malus(bonus_depth) };
+                        let bonus_2 = if good { lmr_conthist_2_bonus(bonus_depth) } else { lmr_conthist_2_malus(bonus_depth) };
                         td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
                     }
                 }
