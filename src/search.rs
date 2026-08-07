@@ -573,6 +573,8 @@ fn alpha_beta<NODE: NodeType>(
             move_picker.skip_quiets();
         }
 
+        let cont_history_score = td.history.cont_history_score(board, &td.stack, &mv, ply);
+
         // History Pruning
         // Skip quiet moves that have a bad history score.
         if !root_node
@@ -580,7 +582,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth {
+            && cont_history_score < hp_scale() * depth * depth {
             move_picker.skip_quiets();
             continue
         }
