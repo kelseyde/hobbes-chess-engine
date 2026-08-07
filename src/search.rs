@@ -342,7 +342,7 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
         if depth <= rfp_max_depth() + 2 * improving as i32
-            && (!tt_hit || tt_move_noisy)
+            && (!tt_move.exists() || tt_move_noisy)
             && static_eval - futility_margin >= beta {
             return lerp(beta, static_eval, rfp_lerp_factor());
         }
