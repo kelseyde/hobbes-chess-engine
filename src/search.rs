@@ -101,6 +101,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
                     reduction = 0;
                 }
                 s if s >= beta => {
+                    alpha = (beta - delta).max(alpha);
                     beta = score::clamp(score + delta);
                     delta += (delta * 100) / asp_beta_widening_factor();
                     reduction = (reduction + 1).min(3);
