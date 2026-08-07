@@ -95,7 +95,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             // Adjust the aspiration window in case the score fell outside the current window.
             match score {
                 s if s <= alpha => {
-                    beta = (alpha + beta) / 2;
+                    beta = (3 * alpha + 5 * beta) / 8;
                     alpha = score::clamp(score - delta);
                     delta += (delta * 100) / asp_alpha_widening_factor();
                     reduction = 0;
