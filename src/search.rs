@@ -1022,9 +1022,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if static_eval > alpha {
             alpha = static_eval;
         }
-        if tt_adj_eval > alpha {
-            alpha = tt_adj_eval;
-        }
         if alpha >= beta {
             return lerp(alpha, beta, qs_stand_pat_lerp_factor());
         }
@@ -1040,7 +1037,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut legal_moves = 0;
     let mut searched_moves = 0;
 
-    let futility_margin = static_eval + qs_futility_threshold();
+    let futility_margin = tt_adj_eval + qs_futility_threshold();
 
     let mut best_score = static_eval;
     let mut best_move = Move::NONE;
