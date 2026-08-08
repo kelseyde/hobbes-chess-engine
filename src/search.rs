@@ -274,6 +274,19 @@ fn alpha_beta<NODE: NodeType>(
     td.stack[ply + 1].killer = None;
     td.stack[ply + 2].num_fail_highs = 0;
 
+    let tt_adj_eval = if !in_check
+        && is_defined(tt_score)
+        && match tt_flag {
+        Upper => tt_score < static_eval,
+        Lower => tt_score > static_eval,
+        Exact => true,
+        _ => false,
+    } {
+        tt_score
+    } else {
+        static_eval
+    };
+
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
@@ -341,7 +354,7 @@ fn alpha_beta<NODE: NodeType>(
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if depth <= rfp_max_depth() + 2 * improving as i32 && static_eval - futility_margin >= beta {
+        if depth <= rfp_max_depth() + 2 * improving as i32 && tt_adj_eval - futility_margin >= beta {
             return lerp(beta, static_eval, rfp_lerp_factor());
         }
 
