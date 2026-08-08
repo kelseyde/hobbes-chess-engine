@@ -959,11 +959,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     let mut tt_hit = false;
     let mut tt_pv = pv_node;
     let mut tt_move = Move::NONE;
+    let mut tt_flag = TTFlag::None;
     let mut tt_eval = score::MIN;
+    let mut tt_score = score::MIN;
     if let Some(entry) = td.tt().probe(board.hash_with_50mr_bucket()) {
         tt_hit = true;
         tt_pv = tt_pv || entry.pv();
+        tt_flag = entry.flag();
         tt_eval = entry.static_eval() as i32;
+        tt_score = entry.score(ply) as i32;
         if can_use_tt_move(board, &entry.best_move()) {
             tt_move = entry.best_move();
         }
@@ -999,11 +1003,27 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         static_eval = raw_eval + correction;
     }
 
+    let tt_adj_eval = if !in_check
+        && is_defined(tt_score)
+        && match tt_flag {
+        Upper => tt_score < static_eval,
+        Lower => tt_score > static_eval,
+        Exact => true,
+        _ => false,
+    } {
+        tt_score
+    } else {
+        static_eval
+    };
+
     if !in_check {
         // If we are not in check, then we have the option to 'stand pat', i.e. decline to continue
         // the capture chain, if the static evaluation of the position is good enough.
         if static_eval > alpha {
-            alpha = static_eval
+            alpha = static_eval;
+        }
+        if tt_adj_eval > alpha {
+            alpha = tt_adj_eval;
         }
         if alpha >= beta {
             return lerp(alpha, beta, qs_stand_pat_lerp_factor());
