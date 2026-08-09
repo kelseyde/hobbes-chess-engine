@@ -9,7 +9,7 @@ tunable_params! {
     asp_beta_widening_factor     = 270, 50..=400,          true;
     asp_prev_score_div           = 10301, 8000..=12000,    true;
     rfp_max_depth                = 8, 6..=12,              false;
-    rfp_base                     = 14, -50..=50,           true;
+    rfp_base                     = 0, -50..=50,           true;
     rfp_scale                    = 61, 40..=100,           true;
     rfp_improving_scale          = 57, 40..=100,           true;
     rfp_opp_worsening_scale      = 12, 0..=50,             true;
