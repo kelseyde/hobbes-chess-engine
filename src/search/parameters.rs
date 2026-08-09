@@ -197,9 +197,12 @@ tunable_params! {
     to_hist_malus_scale          = 199, 80..=280,          true;
     to_hist_malus_offset         = 71, 0..=200,            true;
     to_hist_malus_max            = 1017, 800..=1600,       true;
-    pcm_bonus_scale              = 220, 80..=300,          true;
-    pcm_bonus_offset             = 74, 0..=200,            true;
-    pcm_bonus_max                = 1392, 1000..=1600,      true;
+    pcm_quiet_bonus_scale        = 220, 80..=300,          true;
+    pcm_quiet_bonus_offset       = 74, 0..=200,            true;
+    pcm_quiet_bonus_max          = 1392, 1000..=1600,      true;
+    pcm_noisy_bonus_scale        = 100, 80..=280,          true;
+    pcm_noisy_bonus_offset       = 75, 0..=200,            true;
+    pcm_noisy_bonus_max          = 1200, 800..=1600,       true;
     qs_capt_hist_bonus_scale     = 246, 80..=360,          true;
     qs_capt_hist_bonus_offset    = 6, 0..=200,             true;
     qs_capt_hist_bonus_max       = 1425, 1000..=1600,      true;

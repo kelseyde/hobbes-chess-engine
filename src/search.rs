@@ -868,13 +868,19 @@ fn alpha_beta<NODE: NodeType>(
     // quiet it will receive a quiet history bonus - but we give it one here too, which ensures the
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node
-        && flag == Upper
-        && td.stack[ply - 1].captured.is_none() {
+        && flag == Upper {
         if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
-            let prev_threats = td.stack[ply - 1].threats;
-            let quiet_bonus = prior_countermove_bonus(depth);
-            td.history.quiet_history
-                .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
+            let captured = td.stack[ply - 1].captured;
+            if captured.is_none() {
+                let prev_threats = td.stack[ply - 1].threats;
+                let quiet_bonus = pcm_quiet_bonus(depth);
+                td.history.quiet_history
+                    .update(!board.stm, &prev_mv, prev_pc, prev_threats, quiet_bonus, quiet_bonus);
+            } else {
+                let noisy_bonus = pcm_noisy_bonus(depth);
+                td.history.capture_history
+                    .update(!board.stm, prev_pc, &prev_mv, captured.unwrap(), noisy_bonus);
+            }
         }
     }
 
