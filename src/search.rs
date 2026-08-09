@@ -327,7 +327,7 @@ fn alpha_beta<NODE: NodeType>(
         && td.stack[ply - 1].reduction >= hindsight_red_min_reduction()
         && is_defined(td.stack[ply - 1].static_eval)
         && opponent_worsening_rate > hindsight_red_eval_diff() {
-        depth -= 1;
+        depth -= 1 + (static_eval >= beta) as i32;
     }
 
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
