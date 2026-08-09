@@ -313,7 +313,7 @@ fn alpha_beta<NODE: NodeType>(
         && td.stack[ply - 1].reduction >= hindsight_ext_min_reduction()
         && is_defined(td.stack[ply - 1].static_eval)
         && opponent_worsening_rate < hindsight_ext_eval_diff() {
-        depth += 1;
+        depth += 1 + (static_eval <= alpha) as i32;
     }
 
     // Hindsight reduction
