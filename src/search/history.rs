@@ -28,6 +28,8 @@ use crate::search::parameters::{
 use crate::tools::utils::lerp;
 use crate::tools::utils::{boxed_and_zeroed, gravity, gravity_with_base};
 
+const MATERIAL_BUCKET_COUNT: usize = 16;
+
 /// History table storing values of type `T`, indexed by the 'from' and 'to' squares of a move.
 /// Also known as 'butterfly' history.
 type FromToHistory<T> = [[T; 64]; 64];
@@ -74,6 +76,7 @@ pub struct SquareHistory {
 struct QuietHistoryEntry {
     factoriser: i16,
     bucket: ThreatBucket<i16>,
+    material: [i16; MATERIAL_BUCKET_COUNT],
 }
 
 #[derive(Default)]
@@ -115,7 +118,7 @@ impl Histories {
         pc: Piece,
         threats: Bitboard,
     ) -> i32 {
-        self.quiet_history.get(board.stm, *mv, pc, threats) as i32
+        self.quiet_history.get(board, *mv, pc, threats) as i32
     }
 
     pub fn cont_history_score(&self, board: &Board, ss: &NodeStack, mv: &Move, ply: usize) -> i32 {
@@ -211,12 +214,20 @@ impl Default for SquareHistory {
 
 impl QuietHistoryEntry {
     #[inline]
-    fn score(&self, threat_index: &ThreatIndex) -> i16 {
-        self.factoriser + self.bucket[threat_index.from()][threat_index.to()]
+    fn score(&self, threat_index: &ThreatIndex, material_bucket: usize) -> i16 {
+        self.factoriser
+            + self.bucket[threat_index.from()][threat_index.to()]
+            + self.material[material_bucket]
     }
 
     #[inline]
-    fn update(&mut self, threat_index: &ThreatIndex, bonus: i16, factoriser_bonus: i16) {
+    fn update(
+        &mut self,
+        threat_index: &ThreatIndex,
+        material_bucket: usize,
+        bonus: i16,
+        factoriser_bonus: i16,
+    ) {
         self.factoriser = gravity(
             self.factoriser as i32,
             factoriser_bonus as i32,
@@ -224,8 +235,11 @@ impl QuietHistoryEntry {
         ) as i16;
 
         let bucket_entry = &mut self.bucket[threat_index.from()][threat_index.to()];
-        *bucket_entry =
-            gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
+        *bucket_entry = gravity(*bucket_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
+
+        let material_entry = &mut self.material[material_bucket];
+        *material_entry =
+            gravity(*material_entry as i32, bonus as i32, QuietHistory::BUCKET_MAX) as i16;
     }
 }
 
@@ -234,16 +248,21 @@ impl QuietHistory {
     const BUCKET_MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::BUCKET_MAX as i16 / 4;
 
-    pub fn get(&self, stm: Side, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
+    pub fn get(&self, board: &Board, mv: Move, pc: Piece, threats: Bitboard) -> i16 {
+        let stm = board.stm;
         let threat_idx = ThreatIndex::new(mv, threats);
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx) as i32;
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx) as i32;
+        let material_bucket = material_bucket(board);
+        let from_to_score =
+            self.from_to_entries[stm][mv.from()][mv.to()].score(&threat_idx, material_bucket) as i32;
+        let piece_to_score =
+            self.piece_to_entries[stm][pc][mv.to()].score(&threat_idx, material_bucket) as i32;
         lerp(from_to_score, piece_to_score, quiet_hist_lerp_factor()) as i16
     }
 
     pub fn update(
         &mut self,
-        stm: Side,
+        board: &Board,
+        side: Side,
         mv: &Move,
         pc: Piece,
         threats: Bitboard,
@@ -252,14 +271,12 @@ impl QuietHistory {
     ) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
         let threat_index = ThreatIndex::new(*mv, threats);
+        let material = material_bucket(board);
 
-        self.from_to_entries[stm][mv.from()][mv.to()].update(
-            &threat_index,
-            bonus,
-            factoriser_bonus,
-        );
-
-        self.piece_to_entries[stm][pc][mv.to()].update(&threat_index, bonus, factoriser_bonus);
+        self.from_to_entries[side][mv.from()][mv.to()]
+            .update(&threat_index, material, bonus, factoriser_bonus);
+        self.piece_to_entries[side][pc][mv.to()]
+            .update(&threat_index, material, bonus, factoriser_bonus);
     }
 
     pub fn clear(&mut self) {
@@ -379,6 +396,11 @@ fn history_malus(depth: i32, scale: i16, offset: i16, max: i16) -> i16 {
 #[inline]
 fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
     *entry = gravity(*entry as i32, bonus as i32, max) as i16;
+}
+
+fn material_bucket(board: &Board) -> usize {
+    const DIVISOR: usize = usize::div_ceil(32, MATERIAL_BUCKET_COUNT);
+    (board.occ().count() as usize - 2) / DIVISOR
 }
 
 #[rustfmt::skip]
