@@ -126,6 +126,9 @@ impl Histories {
             .filter_map(|&prev_ply| {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                if prev.captured.is_some() {
+                    return None;
+                }
                 Some(self.cont_history.get(prev_mv, prev_pc, mv, pc, prev_ply) as i32)
             })
             .sum()
@@ -158,6 +161,9 @@ impl Histories {
             .filter_map(|(&prev_ply, &bonus)| {
                 let prev = ss[ply - prev_ply];
                 let (prev_mv, prev_pc) = (prev.mv?, prev.pc?);
+                if prev.captured.is_some() {
+                    return None;
+                }
                 Some((prev_mv, prev_pc, bonus, prev_ply))
             })
             .for_each(|(prev_mv, prev_pc, bonus, prev_ply)| {
