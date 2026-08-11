@@ -215,9 +215,9 @@ impl Default for SquareHistory {
 impl QuietHistoryEntry {
     #[inline]
     fn score(&self, threat_index: &ThreatIndex, material_bucket: usize) -> i16 {
-        self.factoriser
-            + self.bucket[threat_index.from()][threat_index.to()]
-            + self.material[material_bucket]
+        let threat_bucket_score = self.bucket[threat_index.from()][threat_index.to()];
+        let material_bucket_score = self.material[material_bucket];
+        self.factoriser + lerp(threat_bucket_score as i32, material_bucket_score as i32, 50) as i16
     }
 
     #[inline]
