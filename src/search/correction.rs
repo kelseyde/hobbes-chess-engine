@@ -7,7 +7,7 @@ use Side::{Black, White};
 
 const CORRECTION_SCALE: i32 = 280;
 
-const CONT_CORR_PLIES: [usize; 2] = [1, 2];
+const CONT_CORR_PLIES: [usize; 3] = [1, 2, 4];
 const CONT_CORR_COUNT: usize = CONT_CORR_PLIES.len();
 
 /// Correction history tracks how much the static evaluation of a position matched the actual search
@@ -170,6 +170,7 @@ fn cont_corr_bonus(idx: usize, diff: i32, depth: i32) -> i32 {
     match idx {
         0 => cont1_corr_bonus(diff, depth),
         1 => cont2_corr_bonus(diff, depth),
+        2 => cont4_corr_bonus(diff, depth),
         _ => unreachable!("no bonus params for continuation corrhist {idx}"),
     }
 }
@@ -179,6 +180,7 @@ fn cont_corr_weight(idx: usize) -> i32 {
     match idx {
         0 => corr_cont1_weight(),
         1 => corr_cont2_weight(),
+        2 => corr_cont4_weight(),
         _ => unreachable!("no weight param for continuation corrhist {idx}"),
     }
 }
@@ -201,5 +203,6 @@ mod bonuses {
     corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
     corr_bonus!(cont1_corr_bonus,     corr_cont1_bonus_mult,     corr_cont1_bonus_div,     corr_cont1_bonus_min,     corr_cont1_bonus_max);
     corr_bonus!(cont2_corr_bonus,     corr_cont2_bonus_mult,     corr_cont2_bonus_div,     corr_cont2_bonus_min,     corr_cont2_bonus_max);
+    corr_bonus!(cont4_corr_bonus,     corr_cont4_bonus_mult,     corr_cont4_bonus_div,     corr_cont4_bonus_min,     corr_cont4_bonus_max);
 }
 use bonuses::*;
