@@ -6,7 +6,7 @@ use crate::board::square::Square;
 use crate::board::Board;
 use crate::search::node::NodeStack;
 use crate::search::parameters::{
-    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale, capt_hist_lerp_factor,
+    capt_hist_bonus_max, capt_hist_bonus_offset, capt_hist_bonus_scale,
     capt_hist_malus_max, capt_hist_malus_offset, capt_hist_malus_scale, cont_hist_1_bonus_max,
     cont_hist_1_bonus_offset, cont_hist_1_bonus_scale, cont_hist_1_malus_max,
     cont_hist_1_malus_offset, cont_hist_1_malus_scale, cont_hist_2_bonus_max,
@@ -53,8 +53,7 @@ pub struct QuietHistory {
 /// tables, with the piece/to table additionally indexed by the captured piece type. The from/to
 /// and piece/to entries are linearly interpolated to get the final score for the move.
 pub struct CaptureHistory {
-    piece_to_entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
-    from_to_entries: Box<[FromToHistory<i16>; 2]>,
+    entries: Box<[PieceToHistory<[i16; 6]>; 2]>,
 }
 
 /// Continuation history table for quiet moves, indexed by the previous move and the current move.
@@ -187,8 +186,7 @@ impl Default for QuietHistory {
 impl Default for CaptureHistory {
     fn default() -> Self {
         Self {
-            piece_to_entries: unsafe { boxed_and_zeroed() },
-            from_to_entries: unsafe { boxed_and_zeroed() },
+            entries: unsafe { boxed_and_zeroed() },
         }
     }
 }
@@ -273,22 +271,17 @@ impl CaptureHistory {
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
     pub fn get(&self, stm: Side, pc: Piece, mv: Move, captured: Piece) -> i16 {
-        let piece_to_score = self.piece_to_entries[stm][pc][mv.to()][captured] as i32;
-        let from_to_score = self.from_to_entries[stm][mv.from()][mv.to()] as i32;
-        lerp(from_to_score, piece_to_score, capt_hist_lerp_factor()) as i16
+        self.entries[stm][pc][mv.to()][captured]
     }
 
     pub fn update(&mut self, stm: Side, pc: Piece, mv: &Move, captured: Piece, bonus: i16) {
         let bonus = bonus.clamp(-Self::BONUS_MAX, Self::BONUS_MAX);
-        let pt_entry = &mut self.piece_to_entries[stm][pc][mv.to()][captured];
-        let ft_entry = &mut self.from_to_entries[stm][mv.from()][mv.to()];
-        update_entry(pt_entry, bonus, Self::MAX);
-        update_entry(ft_entry, bonus, Self::MAX);
+        let entry = &mut self.entries[stm][pc][mv.to()][captured];
+        update_entry(entry, bonus, Self::MAX);
     }
 
     pub fn clear(&mut self) {
-        self.piece_to_entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
-        self.from_to_entries = Box::new([[[0; 64]; 64]; 2]);
+        self.entries = Box::new([[[[0; 6]; 64]; 6], [[[0; 6]; 64]; 6]]);
     }
 }
 
