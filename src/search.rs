@@ -569,7 +569,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_mated
             && is_quiet
             && depth <= lmp_max_depth()
-            && searched_moves > late_move_threshold(depth, improvement) {
+            && searched_moves > late_move_threshold(depth, improvement) - (base_reduction >= 2) as i32 {
             move_picker.skip_quiets();
         }
 
