@@ -593,6 +593,9 @@ fn alpha_beta<NODE: NodeType>(
             && lmr_depth < bnp_max_depth()
             && move_picker.stage() == BadNoisies
             && futility_margin <= alpha {
+            if best_score < futility_margin {
+                best_score = futility_margin;
+            }
             break;
         }
 
