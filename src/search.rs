@@ -476,7 +476,7 @@ fn alpha_beta<NODE: NodeType>(
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if !pv_node && !is_mate(singular_score) && singular_score >= beta {
-            return singular_score;
+                return singular_score;
             } else if tt_score >= beta {
                 extension = -3 + pv_node as i32;
             } else if cut_node {
