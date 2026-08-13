@@ -5,13 +5,9 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::{attacks, ray};
-use crate::search::parameters::{
-    see_value_bishop_ordering, see_value_bishop_pruning, see_value_knight_ordering,
-    see_value_knight_pruning, see_value_pawn_ordering, see_value_pawn_pruning,
-    see_value_queen_ordering, see_value_queen_pruning, see_value_rook_ordering,
-    see_value_rook_pruning,
-};
+use crate::search::parameters::*;
 use SeeType::{Ordering, Pruning};
+use crate::search::history::CaptureHistory;
 
 #[derive(Clone, Copy)]
 pub enum SeeType {
@@ -30,7 +26,13 @@ pub fn value(pc: Piece, see_type: SeeType) -> i32 {
     }
 }
 
-pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool {
+pub fn see(
+    board: &Board,
+    mv: &Move,
+    threshold: i32,
+    see_type: SeeType,
+    history: &CaptureHistory
+) -> bool {
     let from = mv.from();
     let to = mv.to();
 
@@ -38,7 +40,7 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
         .promo_piece()
         .map_or_else(|| board.piece_at(from).unwrap(), |promo| promo);
 
-    let mut balance = move_value(board, mv, see_type) - threshold;
+    let mut balance = move_value(board, mv, see_type, history) - threshold;
 
     if balance < 0 {
         return false;
@@ -106,17 +108,31 @@ pub fn see(board: &Board, mv: &Move, threshold: i32, see_type: SeeType) -> bool 
 }
 
 #[allow(clippy::redundant_closure)]
-fn move_value(board: &Board, mv: &Move, see_type: SeeType) -> i32 {
-    let mut see_value = board
-        .piece_at(mv.to())
-        .map_or(0, |captured| value(captured, see_type));
+fn move_value(board: &Board, mv: &Move, see_type: SeeType, history: &CaptureHistory) -> i32 {
+    let captured = board.captured(mv);
+    let piece_value = captured.map_or(0, |captured| value(captured, see_type));
+    let history_modifier = move_history_modifier(board, mv, captured, history);
+    let promo_bonus = mv.promo_piece().map_or(0, |promo_pc| value(promo_pc, see_type));
+    piece_value + history_modifier + promo_bonus
+}
 
-    if let Some(promo) = mv.promo_piece() {
-        see_value += value(promo, see_type);
-    } else if mv.is_ep() {
-        see_value = value(Piece::Pawn, see_type);
-    }
-    see_value
+#[inline(always)]
+fn move_history_modifier(
+    board: &Board,
+    mv: &Move,
+    captured: Option<Piece>,
+    history: &CaptureHistory) -> i32 {
+
+    let pc = board.piece_at(mv.from()).unwrap();
+    let history_score = captured.map_or(0, |captured| history.get(board.stm, pc, *mv, captured));
+    let (div, offset, min, max) = (
+        see_move_hist_divisor(),
+        see_move_hist_offset(),
+        see_move_hist_min(),
+        see_move_hist_max()
+    );
+    (history_score as i32 / div + offset).clamp(min, max)
+
 }
 
 fn least_valuable_attacker(board: &Board, our_attackers: Bitboard) -> Piece {

@@ -246,6 +246,10 @@ tunable_params! {
     see_value_bishop_ordering    = 365, 200..=500,         true;
     see_value_rook_ordering      = 540, 400..=700,         true;
     see_value_queen_ordering     = 1001, 800..=1200,       true;
+    see_move_hist_divisor        = 100, 50..=200,          true;
+    see_move_hist_offset         = 38, 0..=60,             true;
+    see_move_hist_min            = -100, -300..=0,         true;
+    see_move_hist_max            = 100, 0..=300,           true;
     scale_value_pawn             = 18, 0..=250,            true;
     scale_value_knight           = 479, 300..=500,         true;
     scale_value_bishop           = 426, 300..=500,         true;

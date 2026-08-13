@@ -154,7 +154,7 @@ impl MovePicker {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
-            if is_good_noisy(entry, board, self.split_noisies) {
+            if is_good_noisy(entry, board, td, self.split_noisies) {
                 self.moves.add(*entry);
             } else {
                 bad_temp.add(*entry);
@@ -241,7 +241,7 @@ fn score_move(
 /// Captures are sorted based on whether they pass a SEE threshold, which takes into account the
 /// move's history score.
 #[inline(always)]
-fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
+fn is_good_noisy(entry: &ScoredMove, board: &Board, td: &ThreadData, split_noisies: bool) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry
@@ -257,7 +257,7 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
-                _ => see(board, &entry.mv, threshold, SeeType::Ordering),
+                _ => see(board, &entry.mv, threshold, SeeType::Ordering, &td.history.capture_history),
             }
         }
     }

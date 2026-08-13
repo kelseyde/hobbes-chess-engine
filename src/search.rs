@@ -616,7 +616,7 @@ fn alpha_beta<NODE: NodeType>(
             && to_threatened
             && searched_moves >= 1
             && !is_mate(best_score)
-            && !see(board, &mv, see_threshold, Pruning) {
+            && !see(board, &mv, see_threshold, Pruning, &td.history.capture_history) {
             continue;
         }
 
@@ -659,7 +659,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering, &td.history.capture_history)) as i32 * lmr_quiet_see();
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
@@ -893,7 +893,7 @@ fn alpha_beta<NODE: NodeType>(
     if !in_check
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
-        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
+        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning, &td.history.capture_history)) {
         td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
@@ -1052,7 +1052,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !is_mate_score
             && !is_killer
             && futility_margin <= alpha
-            && !see::see(board, &mv, 1, Pruning)
+            && !see::see(board, &mv, 1, Pruning, &td.history.capture_history)
         {
             if best_score < futility_margin {
                 best_score = futility_margin;
@@ -1065,7 +1065,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check
             && !is_killer
             && threats.contains(mv.to())
-            && !see::see(board, &mv, qs_see_threshold(), Pruning)
+            && !see::see(board, &mv, qs_see_threshold(), Pruning, &td.history.capture_history)
         {
             continue;
         }
