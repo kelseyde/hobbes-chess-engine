@@ -233,7 +233,8 @@ fn alpha_beta<NODE: NodeType>(
             tt_pv = tt_pv || entry.pv();
             if can_use_tt_move(board, &entry.best_move()) {
                 tt_move = entry.best_move();
-                tt_move_noisy = board.is_noisy(&tt_move)
+                tt_move_noisy = board.is_noisy(&tt_move);
+                td.stack[ply].tt_move = Some(tt_move);
             }
 
             if !root_node
@@ -296,11 +297,18 @@ fn alpha_beta<NODE: NodeType>(
         let prev_eval = td.stack[ply - 1].static_eval;
         let prev_mv = td.stack[ply - 1].mv.unwrap();
         let prev_pc = td.stack[ply - 1].pc.unwrap();
+        let prev_tt_mv = td.stack[ply - 1].tt_move;
+        let prev_legal_moves = td.stack[ply - 1].legal_moves;
         let prev_threats = td.stack[ply - 1].threats;
 
         let value = hindsight_hist_mult() * -(static_eval + prev_eval);
         let bonus = value.clamp(hindsight_hist_min(), hindsight_hist_max()) as i16;
-        td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
+        
+        if depth < 6
+            || !tt_hit
+            || bonus as i32 > hindsight_hist_min_bonus() && prev_legal_moves >= 2 && !(prev_tt_mv.is_some_and(|tt_mv| prev_mv == tt_mv)) {
+            td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
+        }
     }
 
     // Hindsight extension
@@ -522,6 +530,7 @@ fn alpha_beta<NODE: NodeType>(
     while let Some(mv) = move_picker.next(board, td) {
 
         legal_moves += 1;
+        td.stack[ply].legal_moves = legal_moves;
 
         if singular.is_some_and(|s| s == mv) {
             continue;

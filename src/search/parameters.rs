@@ -44,6 +44,7 @@ tunable_params! {
     hindsight_hist_mult          = 9, 0..=20,              true;
     hindsight_hist_min           = -64, -100..=0,          true;
     hindsight_hist_max           = 212, 75..=300,          true;
+    hindsight_hist_min_bonus     = 144, 0..=300,           true;
     fp_max_depth                 = 8, 4..=10,              false;
     fp_base                      = 164, 50..=250,          true;
     fp_scale                     = 96, 50..=200,           true;

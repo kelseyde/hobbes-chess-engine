@@ -39,6 +39,7 @@ pub struct NodeStack {
 #[derive(Copy, Clone)]
 pub struct Node {
     pub mv: Option<Move>,
+    pub tt_move: Option<Move>,
     pub pc: Option<Piece>,
     pub captured: Option<Piece>,
     pub killer: Option<Move>,
@@ -48,6 +49,7 @@ pub struct Node {
     pub static_eval: i32,
     pub reduction: i32,
     pub num_fail_highs: i32,
+    pub legal_moves: i32,
 }
 
 impl Default for NodeStack {
@@ -55,6 +57,7 @@ impl Default for NodeStack {
         NodeStack {
             data: [Node {
                 mv: None,
+                tt_move: None,
                 pc: None,
                 captured: None,
                 killer: None,
@@ -64,6 +67,7 @@ impl Default for NodeStack {
                 static_eval: score::MIN,
                 reduction: 0,
                 num_fail_highs: 0,
+                legal_moves: 0,
             }; MAX_PLY + 8],
         }
     }
