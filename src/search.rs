@@ -303,10 +303,12 @@ fn alpha_beta<NODE: NodeType>(
 
         let value = hindsight_hist_mult() * -(static_eval + prev_eval);
         let bonus = value.clamp(hindsight_hist_min(), hindsight_hist_max()) as i16;
-        
+
         if depth < 6
             || !tt_hit
-            || bonus as i32 > hindsight_hist_min_bonus() && prev_legal_moves >= 2 && !(prev_tt_mv.is_some_and(|tt_mv| prev_mv == tt_mv)) {
+            || (bonus as i32 > hindsight_hist_min_bonus()
+                && prev_legal_moves >= 2
+                && !prev_tt_mv.is_some_and(|tt_mv| prev_mv == tt_mv)) {
             td.history.quiet_history.update(!board.stm, &prev_mv, prev_pc, prev_threats, bonus, bonus);
         }
     }
