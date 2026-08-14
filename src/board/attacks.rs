@@ -46,7 +46,9 @@ pub fn knight(sq: Square) -> Bitboard {
 pub fn bishop(sq: Square, blockers: Bitboard) -> Bitboard {
     let magic = BISHOP_MAGICS[sq];
     let idx = magic.index(blockers.0);
-    BISHOP_ATTACKS[idx]
+    unsafe {
+        BISHOP_ATTACKS[idx]
+    }
 }
 
 /// Compute the bitboard representing the squares attacked by a rook on square `sq`.
@@ -54,7 +56,9 @@ pub fn bishop(sq: Square, blockers: Bitboard) -> Bitboard {
 pub fn rook(sq: Square, blockers: Bitboard) -> Bitboard {
     let magic = ROOK_MAGICS[sq];
     let idx = magic.index(blockers.0);
-    ROOK_ATTACKS[idx]
+    unsafe {
+        ROOK_ATTACKS[idx]
+    }
 }
 
 /// Compute the bitboard representing the squares attacked by a queen on square `sq`.

@@ -9,6 +9,7 @@ pub mod see;
 pub mod thread;
 pub mod time;
 pub mod tt;
+pub mod lmr;
 
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
@@ -446,9 +447,15 @@ fn alpha_beta<NODE: NodeType>(
             && tt_flag != Upper
             && tt_depth >= depth - se_tt_depth_offset() {
 
+            let pc = board.piece_at(tt_move.from()).unwrap();
+            let captured = board.captured(&tt_move);
+            let history_score = td.history
+                .history_score(board, &td.stack, &tt_move, ply, threats, pc, captured);
+
             let is_quiet = board.captured(&tt_move).is_some();
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
-            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div;
+            let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div
+                + (history_score / se_beta_history_div()).clamp(-depth / 4, depth / 4);
             let s_beta = (tt_score - s_beta_margin).max(-score::MATE + 1);
             let s_depth = (depth - se_depth_offset()) / se_depth_divisor();
 
@@ -526,7 +533,7 @@ fn alpha_beta<NODE: NodeType>(
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
-        let base_reduction = td.lmr.reduction(depth, legal_moves, is_quiet);
+        let base_reduction = td.lmr.base(depth, legal_moves, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction).saturating_sub(cut_node as i32);
         let to_threatened = threats.contains(mv.to());
 
@@ -635,19 +642,21 @@ fn alpha_beta<NODE: NodeType>(
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
             let mut r = base_reduction * 1024;
-            r -= lmr_ttpv_base() * tt_pv as i32;
-            r -= lmr_ttpv_score() * (tt_pv && has_tt_score && tt_score > alpha) as i32;
-            r -= lmr_ttpv_depth() * (tt_pv && has_tt_score && tt_depth >= depth) as i32;
-            r += lmr_cut_node() * cut_node as i32;
-            r -= lmr_capture() * captured.is_some() as i32;
-            r -= lmr_in_check() * in_check as i32;
-            r -= lmr_gives_check() * gives_check as i32;
-            r += lmr_improving() * !improving as i32;
+            r += td.lmr.factorised([
+                tt_pv,
+                tt_pv && has_tt_score && tt_score > alpha,
+                tt_pv && has_tt_score && tt_depth >= depth,
+                cut_node,
+                captured.is_some(),
+                in_check,
+                gives_check,
+                !improving,
+                is_killer,
+            ]);
             r -= lmr_good_noisy() * (move_picker.stage() == GoodNoisies) as i32;
             r += lmr_bad_noisy() * (move_picker.stage() == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
-            r -= lmr_killer() * is_killer as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
@@ -680,8 +689,9 @@ fn alpha_beta<NODE: NodeType>(
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
-                        let bonus_1 = if good { lmr_conthist_1_bonus(depth) } else { lmr_conthist_1_malus(depth) };
-                        let bonus_2 = if good { lmr_conthist_2_bonus(depth) } else { lmr_conthist_2_malus(depth) };
+                        let bonus_depth = depth + 3 * (good as i32);
+                        let bonus_1 = if good { lmr_conthist_1_bonus(bonus_depth) } else { lmr_conthist_1_malus(bonus_depth) };
+                        let bonus_2 = if good { lmr_conthist_2_bonus(bonus_depth) } else { lmr_conthist_2_malus(bonus_depth) };
                         td.history.update_continuation_history(original_board, &td.stack, ply, &mv, pc, &[bonus_1, bonus_2]);
                     }
                 }
@@ -768,7 +778,7 @@ fn alpha_beta<NODE: NodeType>(
     // Update history tables
     // When the best move causes a beta cut-off, we update the history tables to reward the best move
     // and punish the other searched moves. Doing so will improve move ordering in subsequent searches.
-    if best_move.exists() {
+    if flag == Lower {
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
 
