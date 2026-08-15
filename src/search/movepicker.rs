@@ -32,6 +32,7 @@ pub struct MovePicker {
     split_noisies: bool,    // Whether to split noisy moves into good and bad based on a SEE threshold.
     bad_noisy_start: usize, // Index where bad noisies begin in the list.
     quiet_start: usize,     // Index where quiets begin in the list.
+    pv_node: bool,          // Whether this node is a PV node
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -46,12 +47,18 @@ pub enum Stage {
 }
 
 impl MovePicker {
-    pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
+    pub fn new(tt_move: Move, ply: usize, threats: Bitboard, pv_node: bool) -> Self {
+        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true, pv_node)
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, filter, ply, threats, true, false)
+    pub fn new_qsearch(
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        pv_node: bool
+    ) -> Self {
+        Self::init(tt_move, filter, ply, threats, true, false, pv_node)
     }
 
     #[rustfmt::skip]
@@ -61,7 +68,8 @@ impl MovePicker {
         ply: usize,
         threats: Bitboard,
         skip_quiets: bool,
-        split_noisies: bool
+        split_noisies: bool,
+        pv_node: bool
     ) -> Self {
         let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
         Self {
@@ -76,6 +84,7 @@ impl MovePicker {
             split_noisies,
             bad_noisy_start: 0,
             quiet_start: 0,
+            pv_node,
         }
     }
 
@@ -154,7 +163,7 @@ impl MovePicker {
                 continue;
             }
             score_move(entry, board, td, self.ply, self.threats);
-            if is_good_noisy(entry, board, self.split_noisies) {
+            if is_good_noisy(entry, board, self.pv_node, self.split_noisies) {
                 self.moves.add(*entry);
             } else {
                 bad_temp.add(*entry);
@@ -241,7 +250,7 @@ fn score_move(
 /// Captures are sorted based on whether they pass a SEE threshold, which takes into account the
 /// move's history score.
 #[inline(always)]
-fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
+fn is_good_noisy(entry: &ScoredMove, board: &Board, pv_node: bool, split_noisies: bool) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry
@@ -253,7 +262,8 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies || entry.score >= KILLER_BONUS {
             true
         } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset()
+                - 100 * pv_node as i32;
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
