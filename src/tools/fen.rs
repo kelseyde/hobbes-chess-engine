@@ -26,7 +26,7 @@ impl Board {
         }
         if parts.len() < 4 || parts.len() > 6 {
             return Err(format!(
-                "FEN string must have 4 to 6 space-separated fields, found {}",
+                "FEN string must have 4 to 6 fields, found {}",
                 parts.len()
             ));
         }
@@ -225,7 +225,7 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Result<Rights, String> {
                 rights.set_queenside(Black, file);
             }
 
-            // Shredder-FEN notation
+            // Shredder FEN notation
             'A'..='H' => {
                 let rook_file = File::from_char(c.to_ascii_lowercase()).unwrap();
                 set_shredder_right(board, &mut rights, White, w_king_file, rook_file, c)?;
@@ -247,8 +247,6 @@ fn parse_castle_rights(board: &Board, castle: &str) -> Result<Rights, String> {
     Ok(rights)
 }
 
-/// Validates and records a Shredder-FEN castling right, ensuring `rook_file` actually holds a
-/// rook of `side` on that side's back rank.
 fn set_shredder_right(
     board: &Board,
     rights: &mut Rights,
