@@ -50,8 +50,14 @@ impl MovePicker {
         Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, filter, ply, threats, true, false)
+    pub fn new_qsearch(
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        skip_quiets: bool
+    ) -> Self {
+        Self::init(tt_move, filter, ply, threats, skip_quiets, false)
     }
 
     #[rustfmt::skip]
