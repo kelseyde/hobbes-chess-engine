@@ -1011,6 +1011,11 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
     }
 
+    let futility_margin = rfp_base() + rfp_scale();
+    if !pv_node && !in_check && static_eval - futility_margin >= beta {
+        return lerp(beta, static_eval, rfp_lerp_factor());
+    }
+
     let skip_quiets = !in_check && (pv_node || !tt_move.exists() || tt_move_noisy);
     let filter = if skip_quiets {
         MoveFilter::Noisies
