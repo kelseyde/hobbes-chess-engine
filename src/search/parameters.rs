@@ -273,6 +273,10 @@ tunable_params! {
     tm_score_base                = 1123, 800..=1800,       true;
     tm_score_scale               = 44, 10..=100,           true;
     tm_score_min                 = 913, 500..=1000,        true;
+    tm_complexity_diff_base      = 800, 500..=1000,        true;
+    tm_complexity_scale_base     = 500, 500..=1000,        true;
+    tm_complexity_scale_max      = 200, 100..=300,         true;
+    tm_complexity_scale_div      = 400, 300..=500,         true;
     thread_weight_score_offset   = 12, 0..=20,             true;
 }
 

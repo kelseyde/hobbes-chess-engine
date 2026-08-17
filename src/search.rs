@@ -67,6 +67,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     // Search the position to a fixed depth, increasing the depth each iteration until the maximum
     // depth is reached or the search is aborted.
     while td.depth < MAX_PLY as i32 && !td.should_stop(Soft) {
+        td.root_eval = td.nnue.evaluate(board) + td.correction_history.correction(board, &td.stack, 0);
+        
         // Aspiration Windows
         // Use the score from the previous iteration to guess the score from the current iteration.
         // Based on this guess, we narrow the alpha-beta window around the previous score, causing
