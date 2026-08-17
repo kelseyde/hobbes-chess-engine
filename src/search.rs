@@ -1042,17 +1042,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
+        if !in_check && !is_recapture && !is_mate_score && searched_moves >= 2 {
             break;
         }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
         if !is_mate_score
-            && !is_killer
             && futility_margin <= alpha
             && !see::see(board, &mv, 1, Pruning)
         {
@@ -1065,7 +1063,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
         if !in_check
-            && !is_killer
             && threats.contains(mv.to())
             && !see::see(board, &mv, qs_see_threshold(), Pruning)
         {
