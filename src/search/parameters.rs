@@ -12,6 +12,7 @@ tunable_params! {
     rfp_base                     = 14, -50..=50,           true;
     rfp_scale                    = 61, 40..=100,           true;
     rfp_improving_scale          = 57, 40..=100,           true;
+    rfp_improving_depth_scale    = 128, 0..=256,           true;
     rfp_opp_worsening_scale      = 12, 0..=50,             true;
     rfp_tt_move_noisy_scale      = 5, 0..=70,              true;
     rfp_lerp_factor              = 39, 0..=100,            true;
