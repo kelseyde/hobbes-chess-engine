@@ -176,13 +176,13 @@ fn alpha_beta<NODE: NodeType>(
 
     if !root_node && alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
-        if !in_check {
-            let static_eval = td.nnue.evaluate(board)
-                + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
-        }
         if alpha >= beta {
+            if !in_check {
+                let static_eval = td.nnue.evaluate(board)
+                    + td.correction_history.correction(board, &td.stack, ply);
+                td.correction_history
+                    .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+             }
             return alpha;
         }
     }
@@ -930,13 +930,13 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
     if alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
-        if !in_check {
-            let static_eval = td.nnue.evaluate(board)
-                + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
-        }
         if alpha >= beta {
+            if !in_check {
+                let static_eval = td.nnue.evaluate(board)
+                    + td.correction_history.correction(board, &td.stack, ply);
+                td.correction_history
+                    .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
+            }
             return alpha;
         }
     }
