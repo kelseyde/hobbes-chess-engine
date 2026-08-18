@@ -299,3 +299,47 @@ tunable_arrays! {
           4, -13,  46,  55,  20, -23,  28,  12,  28,  21,  44,  -3,
     ], -1024..=1024;
 }
+
+#[inline]
+pub fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
+    let adjust = improvement.clamp(lmp_improvement_min(), lmp_improvement_max());
+    let factor0 = lmp_factor0_base() + lmp_factor0_scale() * adjust / 16;
+    let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
+
+    (factor0 + factor1 * depth * depth) / 1024
+}
+
+#[inline]
+pub fn se_config(is_quiet: bool) -> (i32, i32, i32) {
+    if is_quiet {
+        (
+            se_beta_quiet_base(),
+            se_beta_quiet_scale(),
+            se_beta_quiet_div(),
+        )
+    } else {
+        (
+            se_beta_noisy_base(),
+            se_beta_noisy_scale(),
+            se_beta_noisy_div(),
+        )
+    }
+}
+
+#[inline]
+pub fn se_dext_margin(is_quiet: bool) -> i32 {
+    if is_quiet {
+        se_dext_quiet_margin()
+    } else {
+        se_dext_noisy_margin()
+    }
+}
+
+#[inline]
+pub fn se_text_margin(is_quiet: bool) -> i32 {
+    if is_quiet {
+        se_text_quiet_margin()
+    } else {
+        se_text_noisy_margin()
+    }
+}
