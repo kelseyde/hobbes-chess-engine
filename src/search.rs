@@ -183,7 +183,7 @@ fn alpha_beta<NODE: NodeType>(
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
             td.correction_history
-                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+                .update(board, &td.stack, depth, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
@@ -902,7 +902,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
@@ -936,8 +936,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check {
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
+            td.correction_history.update(board, &td.stack, 0, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
