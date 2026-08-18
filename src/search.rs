@@ -375,6 +375,7 @@ fn alpha_beta<NODE: NodeType>(
                 + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
                 / 1024;
 
+            let original_board = board;
             let mut board = *board;
             board.make_null_move();
             td.inc_nodes();
@@ -386,7 +387,10 @@ fn alpha_beta<NODE: NodeType>(
             if score >= beta {
                 // At low depths, we can directly return the result of the null move search.
                 if td.nmp_min_ply > 0 || depth <= 14 {
-                    return if is_mate(score) { beta } else {score };
+                    let score = if is_mate(score) { beta } else { score };
+                    td.correction_history
+                        .update_correction_history(original_board, &td.stack, depth, ply, static_eval, score);
+                    return score;
                 }
 
                 // At high depths, we do a normal search to verify the null move result.
@@ -395,6 +399,8 @@ fn alpha_beta<NODE: NodeType>(
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
+                    td.correction_history
+                        .update_correction_history(original_board, &td.stack, depth, ply, static_eval, score);
                     return score;
                 }
             }
