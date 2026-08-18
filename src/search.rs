@@ -31,6 +31,9 @@ use parameters::*;
 use score::is_mate;
 use std::sync::atomic::Ordering::Relaxed;
 use SeeType::{Ordering, Pruning};
+use uci::print_search_info;
+use crate::tools::uci;
+use crate::tools::uci::{handle_no_legal_moves, handle_one_legal_move};
 
 pub const MAX_PLY: usize = 256;
 
@@ -82,8 +85,8 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
             bound = TTFlag::from_score(score, alpha, beta);
 
-            print_search_info(board, td, score.clamp(alpha, beta), bound, false);
-            update_tm_heuristics(td, prev_mv, prev_score, score);
+            print_search_info(td, score.clamp(alpha, beta), bound, false);
+            td.update_tm_heuristics(prev_mv, prev_score, score);
 
             prev_mv = td.best_move;
             prev_score = score;
@@ -124,7 +127,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     }
 
     // Print the final search stats
-    print_search_info(board, td, score.clamp(alpha, beta), bound, true);
+    print_search_info(td, score.clamp(alpha, beta), bound, true);
 
     (td.best_move, td.best_score)
 }
@@ -180,7 +183,7 @@ fn alpha_beta<NODE: NodeType>(
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
             td.correction_history
-                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+                .update(board, &td.stack, depth, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
@@ -899,7 +902,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
@@ -933,8 +936,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check {
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
+            td.correction_history.update(board, &td.stack, 1, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
@@ -1225,119 +1227,4 @@ fn calc_opponent_worsening(td: &ThreadData, ply: usize, static_eval: i32, in_che
     } else {
         0
     }
-}
-
-#[inline]
-fn late_move_threshold(depth: i32, improvement: i32) -> i32 {
-    let adjust = improvement.clamp(lmp_improvement_min(), lmp_improvement_max());
-    let factor0 = lmp_factor0_base() + lmp_factor0_scale() * adjust / 16;
-    let factor1 = lmp_factor1_base() + lmp_factor1_scale() * adjust / 16;
-
-    (factor0 + factor1 * depth * depth) / 1024
-}
-
-#[inline]
-fn se_config(is_quiet: bool) -> (i32, i32, i32) {
-    if is_quiet {
-        (
-            se_beta_quiet_base(),
-            se_beta_quiet_scale(),
-            se_beta_quiet_div(),
-        )
-    } else {
-        (
-            se_beta_noisy_base(),
-            se_beta_noisy_scale(),
-            se_beta_noisy_div(),
-        )
-    }
-}
-
-#[inline]
-fn se_dext_margin(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_dext_quiet_margin()
-    } else {
-        se_dext_noisy_margin()
-    }
-}
-
-#[inline]
-fn se_text_margin(is_quiet: bool) -> i32 {
-    if is_quiet {
-        se_text_quiet_margin()
-    } else {
-        se_text_noisy_margin()
-    }
-}
-
-fn update_tm_heuristics(td: &mut ThreadData, prev_mv: Move, prev_score: i32, score: i32) {
-    if prev_mv == td.best_move {
-        td.best_move_stability += 1;
-    } else {
-        td.best_move_stability = 0;
-    }
-
-    if score - prev_score.abs() < score_stability_threshold() {
-        td.score_stability += 1;
-    } else {
-        td.score_stability = 0;
-    }
-}
-
-fn print_search_info(_board: &Board, td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
-    // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, and
-    // we're not printing the final line of the search.
-    if !td.main || (td.minimal_output && !force) {
-        return;
-    }
-    let depth = td.depth;
-    let seldepth = td.seldepth;
-    let nodes = td.nodes();
-    let time = td.start_time.elapsed().as_millis();
-    let nps = if time > 0 && nodes > 0 {
-        (nodes as u128 / time) * 1000
-    } else {
-        0
-    };
-    let hashfull = td.tt().fill();
-    let bound = match bound {
-        Lower => " lowerbound",
-        Upper => " upperbound",
-        _ => "",
-    };
-    print!(
-        "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
-        depth,
-        seldepth,
-        score::format_score(score),
-        bound,
-        nodes,
-        time,
-        nps,
-        hashfull
-    );
-    for mv in td.pv.line().iter().take(24) {
-        print!(" {}", mv.to_uci());
-    }
-    println!();
-}
-
-fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
-    let mv = root_moves.get(0).unwrap().mv;
-    let static_eval = td.nnue.evaluate(board);
-    td.depth = 1;
-    td.best_move = mv;
-    td.best_score = static_eval;
-    print_search_info(board, td, static_eval, Exact, true);
-    (td.best_move, td.best_score)
-}
-
-fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
-    println!("info error no legal moves");
-    let in_check = board.threats.contains(board.our_king_sq());
-    let score = if in_check { -score::MATE } else { score::DRAW };
-    td.best_move = Move::NONE;
-    td.best_score = score;
-    (td.best_move, td.best_score)
 }

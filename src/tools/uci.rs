@@ -8,7 +8,7 @@ use crate::search::engine::{Engine, MAX_THREADS};
 #[cfg(feature = "tuning")]
 use crate::search::parameters::{list_params, print_params_ob, set_param, list_array_params, print_array_params_ob, set_array_param};
 use crate::search::time::SearchLimits;
-use crate::search::tt;
+use crate::search::{score, tt};
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
@@ -17,6 +17,9 @@ use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
+use crate::search::thread::ThreadData;
+use crate::search::tt::TTFlag;
+use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 
 pub struct UCI {
     pub board: Board,
@@ -536,4 +539,61 @@ impl UCI {
             .map(|v| v.trim().to_string())
             .collect()
     }
+}
+
+pub fn print_search_info(td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
+    // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, and
+    // we're not printing the final line of the search.
+    if !td.main || (td.minimal_output && !force) {
+        return;
+    }
+    let depth = td.depth;
+    let seldepth = td.seldepth;
+    let nodes = td.nodes();
+    let time = td.start_time.elapsed().as_millis();
+    let nps = if time > 0 && nodes > 0 {
+        (nodes as u128 / time) * 1000
+    } else {
+        0
+    };
+    let hashfull = td.tt().fill();
+    let bound = match bound {
+        Lower => " lowerbound",
+        Upper => " upperbound",
+        _ => "",
+    };
+    print!(
+        "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
+        depth,
+        seldepth,
+        score::format_score(score),
+        bound,
+        nodes,
+        time,
+        nps,
+        hashfull
+    );
+    for mv in td.pv.line().iter().take(24) {
+        print!(" {}", mv.to_uci());
+    }
+    println!();
+}
+
+pub fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
+    let mv = root_moves.get(0).unwrap().mv;
+    let static_eval = td.nnue.evaluate(board);
+    td.depth = 1;
+    td.best_move = mv;
+    td.best_score = static_eval;
+    print_search_info(td, static_eval, Exact, true);
+    (td.best_move, td.best_score)
+}
+
+pub fn handle_no_legal_moves(board: &Board, td: &mut ThreadData) -> (Move, i32) {
+    println!("info error no legal moves");
+    let in_check = board.threats.contains(board.our_king_sq());
+    let score = if in_check { -score::MATE } else { score::DRAW };
+    td.best_move = Move::NONE;
+    td.best_score = score;
+    (td.best_move, td.best_score)
 }
