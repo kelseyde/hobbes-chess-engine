@@ -176,6 +176,12 @@ fn alpha_beta<NODE: NodeType>(
 
     if !root_node && alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
+        if !in_check {
+            let static_eval = td.nnue.evaluate(board)
+                + td.correction_history.correction(board, &td.stack, ply);
+            td.correction_history
+                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+        }
         if alpha >= beta {
             return alpha;
         }
@@ -917,8 +923,19 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     debug_assert!(score::MIN < alpha && alpha < beta && beta < score::MAX);
     debug_assert!(pv_node || alpha == beta - 1);
 
+    // Determine if we are currently in check.
+    let threats = board.threats;
+    let in_check = threats.contains(board.our_king_sq());
+    td.stack[ply].threats = threats;
+
     if alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
+        if !in_check {
+            let static_eval = td.nnue.evaluate(board)
+                + td.correction_history.correction(board, &td.stack, ply);
+            td.correction_history
+                .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
+        }
         if alpha >= beta {
             return alpha;
         }
@@ -948,11 +965,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     if ply >= MAX_PLY {
         return td.nnue.evaluate(board);
     }
-
-    // Determine if we are currently in check.
-    let threats = board.threats;
-    let in_check = threats.contains(board.our_king_sq());
-    td.stack[ply].threats = threats;
 
     // Transposition Table Lookup
     let mut tt_hit = false;
