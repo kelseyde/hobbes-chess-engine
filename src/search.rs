@@ -183,7 +183,7 @@ fn alpha_beta<NODE: NodeType>(
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
             td.correction_history
-                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+                .update(board, &td.stack, depth, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
@@ -908,7 +908,7 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update_correction_history(board, &td.stack, depth, ply, static_eval, best_score);
+        td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
     }
 
     // Store the best move and score in the transposition table
@@ -942,8 +942,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         if !in_check {
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update_correction_history(board, &td.stack, 0, ply, static_eval, 0);
+            td.correction_history.update(board, &td.stack, 1, ply, static_eval, 0);
         }
         if alpha >= beta {
             return alpha;
@@ -1069,17 +1068,15 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         let is_quiet = captured.is_none();
         let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
-        let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
 
         // Late Move Pruning
-        if !in_check && !is_recapture && !is_killer && !is_mate_score && searched_moves >= 2 {
+        if !in_check && !is_recapture && !is_mate_score && searched_moves >= 2 {
             break;
         }
 
         // Futility Pruning
         // Skip captures that don't win material when the static eval is far below alpha.
         if !is_mate_score
-            && !is_killer
             && futility_margin <= alpha
             && !see::see(board, &mv, 1, Pruning)
         {
@@ -1092,7 +1089,6 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         // SEE Pruning
         // Skip moves which lose material once all the pieces are swapped off.
         if !in_check
-            && !is_killer
             && threats.contains(mv.to())
             && !see::see(board, &mv, qs_see_threshold(), Pruning)
         {
