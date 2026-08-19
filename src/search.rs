@@ -179,13 +179,19 @@ fn alpha_beta<NODE: NodeType>(
 
     if !root_node && alpha < 0 && board.has_upcoming_repetition(td, ply) {
         alpha = 0;
+        let (raw_eval, static_eval) = if in_check {
+            (score::MIN, score::MIN)
+        } else {
+            let raw_eval = td.nnue.evaluate(board);
+            let correction = td.correction_history.correction(board, &td.stack, ply);
+            (raw_eval, raw_eval + correction)
+        };
         if !in_check {
-            let static_eval = td.nnue.evaluate(board)
-                + td.correction_history.correction(board, &td.stack, ply);
-            td.correction_history
-                .update(board, &td.stack, depth, ply, static_eval, 0);
+            td.correction_history.update(board, &td.stack, depth, ply, static_eval, 0);
         }
         if alpha >= beta {
+            let tt_pv = td.tt().probe(board.hash_with_50mr_bucket()).map_or(false, |tte| tte.pv());
+            td.tt().insert(board.hash_with_50mr_bucket(), Move::NONE, 0, raw_eval, depth, ply, Lower, tt_pv);
             return alpha;
         }
     }
