@@ -72,23 +72,25 @@ impl UCI {
                     "stop" => self.handle_stop(),
                     "quit" => self.handle_quit(),
                     "isready" => self.handle_isready(),
-                    _ if self.engine.searching() => continue,
-                    _ => match command {
-                        "uci" => self.handle_uci(),
-                        "setoption" => self.handle_setoption(tokens),
-                        "ucinewgame" => self.handle_ucinewgame(),
-                        "bench" => self.handle_bench(),
-                        "position" => self.handle_position(tokens),
-                        "go" => self.handle_go(tokens),
-                        "fen" => self.handle_fen(),
-                        "eval" => self.handle_eval(),
-                        "eval_stats" => self.handle_eval_stats(tokens),
-                        "perft" => self.handle_perft(tokens),
-                        "genfens" => self.handle_genfens(tokens),
-                        "help" => self.handle_help(),
-                        #[cfg(feature = "tuning")]
-                        "params" => { print_params_ob(); print_array_params_ob(); }
-                        _ => println!("info error: unknown command"),
+                    _ => {
+                        self.sync();
+                        match command {
+                            "uci" => self.handle_uci(),
+                            "setoption" => self.handle_setoption(tokens),
+                            "ucinewgame" => self.handle_ucinewgame(),
+                            "bench" => self.handle_bench(),
+                            "position" => self.handle_position(tokens),
+                            "go" => self.handle_go(tokens),
+                            "fen" => self.handle_fen(),
+                            "eval" => self.handle_eval(),
+                            "eval_stats" => self.handle_eval_stats(tokens),
+                            "perft" => self.handle_perft(tokens),
+                            "genfens" => self.handle_genfens(tokens),
+                            "help" => self.handle_help(),
+                            #[cfg(feature = "tuning")]
+                            "params" => { print_params_ob(); print_array_params_ob(); }
+                            _ => println!("info error: unknown command"),
+                        }
                     },
                 }
             } else {
@@ -399,6 +401,13 @@ impl UCI {
             self.board.fm as usize,
         );
         self.engine.go(self.board, limits);
+    }
+
+    fn sync(&mut self) {
+        if self.engine.searching() {
+            self.engine.stop();
+            self.engine.join();
+        }
     }
 
     fn handle_stop(&mut self) {
