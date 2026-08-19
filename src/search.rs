@@ -406,6 +406,8 @@ fn alpha_beta<NODE: NodeType>(
     // If the position has not been searched yet, the search will be potentially expensive. So we
     // search with a reduced depth expecting to record a move that we can later re-use.
     if !root_node
+        && pv_node
+        && !singular_search
         && depth >= iir_min_depth()
         && (pv_node || cut_node)
         && (!tt_hit || tt_move.is_null() || tt_depth < depth - iir_tt_depth_offset()) {
@@ -413,10 +415,11 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Cutnode TT reduction.
-    if cut_node
+    if !root_node
+        && cut_node
         && !singular_search
         && depth >= cutnode_red_min_depth()
-        && (tt_move.is_null() || (!tt_hit || tt_depth + cutnode_red_tt_offset() <= depth)) {
+        && (!tt_hit || tt_move.is_null() || tt_depth < depth - cutnode_red_tt_offset()) {
         depth -= 1;
     }
 
