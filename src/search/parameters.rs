@@ -10,7 +10,7 @@ tunable_params! {
     asp_prev_score_div           = 10301, 8000..=12000,    true;
     rfp_max_depth                = 8, 6..=12,              false;
     rfp_base                     = 14, -50..=50,           true;
-    rfp_scale                    = 20, 10..=50,            true;
+    rfp_scale                    = 42, 20..=60,            true;
     rfp_quad_scale               = 3, 1..=12,              true;
     rfp_improving_scale          = 57, 40..=100,           true;
     rfp_opp_worsening_scale      = 12, 0..=50,             true;
