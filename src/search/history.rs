@@ -383,7 +383,8 @@ fn update_entry(entry: &mut i16, bonus: i16, max: i32) {
 
 #[rustfmt::skip]
 mod bonuses {
-    use super::*;
+use crate::search::parameters::{tt_quiet_fact_bonus_max, tt_quiet_fact_bonus_offset, tt_quiet_fact_bonus_scale, tt_quiet_hist_bonus_max, tt_quiet_hist_bonus_offset, tt_quiet_hist_bonus_scale};
+use super::*;
 
     // Defines a history bonus and malus function pair, using the provided tunable parameters.
     macro_rules! history_bonuses {
@@ -422,5 +423,9 @@ mod bonuses {
                      lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
     history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
+    history_bonuses!(tt_quiet_history_bonus    (tt_quiet_hist_bonus_scale, tt_quiet_hist_bonus_offset, tt_quiet_hist_bonus_max),
+                     tt_quiet_history_malus    (tt_quiet_hist_bonus_scale, tt_quiet_hist_bonus_scale,  tt_quiet_hist_bonus_scale));
+    history_bonuses!(tt_quiet_factoriser_bonus (tt_quiet_fact_bonus_scale, tt_quiet_fact_bonus_offset, tt_quiet_fact_bonus_max),
+                     tt_quiet_factoriser_malus (tt_quiet_fact_bonus_scale, tt_quiet_fact_bonus_offset, tt_quiet_fact_bonus_max));
 }
 pub use bonuses::*;

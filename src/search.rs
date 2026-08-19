@@ -240,7 +240,8 @@ fn alpha_beta<NODE: NodeType>(
             tt_depth = entry.depth() as i32;
             tt_flag = entry.flag();
             tt_pv = tt_pv || entry.pv();
-            if can_use_tt_move(board, &entry.best_move()) {
+            let can_use_tt_move = can_use_tt_move(board, &entry.best_move());
+            if can_use_tt_move {
                 tt_move = entry.best_move();
                 tt_move_noisy = board.is_noisy(&tt_move)
             }
@@ -250,6 +251,15 @@ fn alpha_beta<NODE: NodeType>(
                 && tt_depth >= depth
                 && (tt_score <= alpha || cut_node)
                 && entry.flag().bounds_match(tt_score, alpha, beta) {
+
+                if tt_score >= beta && can_use_tt_move && !tt_move_noisy {
+                    let pc = board.piece_at(tt_move.from()).unwrap();
+                    let bonus = tt_quiet_history_bonus(depth);
+                    let factoriser_bonus = tt_quiet_factoriser_bonus(depth);
+                    td.history.quiet_history
+                        .update(board.stm, &tt_move, pc, threats, bonus, factoriser_bonus);
+                }
+
                 return tt_score;
             }
         }
