@@ -201,7 +201,7 @@ fn alpha_beta<NODE: NodeType>(
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
             td.correction_history
-                .update_correction_history(board, &td.stack, depth, ply, static_eval, 0);
+                .update(board, &td.stack, depth, ply, static_eval, 0);
         }
         return score::DRAW;
     }
@@ -970,7 +970,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
             let static_eval = td.nnue.evaluate(board)
                 + td.correction_history.correction(board, &td.stack, ply);
             td.correction_history
-                .update_correction_history(board, &td.stack, 1, ply, static_eval, 0);
+                .update(board, &td.stack, 1, ply, static_eval, 0);
         }
         return score::DRAW;
     }
