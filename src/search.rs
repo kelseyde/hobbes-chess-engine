@@ -524,6 +524,7 @@ fn alpha_beta<NODE: NodeType>(
     let mut best_move = Move::NONE;
     let mut tt_mv_score = score::MIN;
     let mut flag = Upper;
+    let mut num_searches = 0;
 
     let mut quiets = ArrayVec::<Move, 32>::new();
     let mut captures = ArrayVec::<Move, 32>::new();
@@ -681,6 +682,7 @@ fn alpha_beta<NODE: NodeType>(
             td.stack[ply].reduction = r;
             score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
             td.stack[ply].reduction = 0;
+            num_searches += 1;
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
             if score > alpha && new_depth > reduced_depth {
@@ -694,6 +696,7 @@ fn alpha_beta<NODE: NodeType>(
 
                 if new_depth > reduced_depth {
                     score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                    num_searches += 1;
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
@@ -709,12 +712,14 @@ fn alpha_beta<NODE: NodeType>(
         // some other reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
             score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            num_searches += 1;
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
             score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
+            num_searches += 1;
         }
 
         // Register the current move, to update its history score later
@@ -897,12 +902,14 @@ fn alpha_beta<NODE: NodeType>(
         };
     }
 
-    // Update static eval correction history.
-    if !in_check
-        && !singular_search
-        && flag.bounds_match(best_score, static_eval, static_eval)
-        && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-        td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
+    for _ in 0..num_searches {
+        // Update static eval correction history.
+        if !in_check
+            && !singular_search
+            && flag.bounds_match(best_score, static_eval, static_eval)
+            && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
+            td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
+        }
     }
 
     // Store the best move and score in the transposition table
