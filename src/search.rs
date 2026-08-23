@@ -14,7 +14,7 @@ pub mod lmr;
 use crate::board::movegen::MoveFilter;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
-use crate::board::Board;
+use crate::board::{attacks, Board};
 use crate::search::history::*;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
@@ -166,6 +166,9 @@ fn alpha_beta<NODE: NodeType>(
     let threats = board.threats;
     let in_check = threats.contains(board.our_king_sq());
     td.stack[ply].threats = threats;
+
+    let king_zone = attacks::king(board.our_king_sq());
+    let king_zone_threats = (threats & king_zone).count();
 
     // Update the selective search depth
     if ply + 1 > td.seldepth {
@@ -671,6 +674,10 @@ fn alpha_beta<NODE: NodeType>(
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
+            }
+            if !in_check {
+                let king_zone_base = (king_zone_threats * king_zone_threats) as i32;
+                r -= ((king_zone_base * lmr_king_zone_mult()) / 64) - lmr_king_zone_offset();
             }
 
             let min_reduced_depth = 1;
