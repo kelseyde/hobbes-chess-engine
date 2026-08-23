@@ -82,7 +82,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
         loop {
             let search_depth = td.depth - reduction;
-            score = alpha_beta::<Root>(board, td, search_depth, 0, alpha, beta, false);
+            score = alpha_beta::<Root>(board, td, search_depth, 0, 0, alpha, beta, false);
             bound = TTFlag::from_score(score, alpha, beta);
 
             print_search_info(td, score.clamp(alpha, beta), bound, false);
@@ -138,6 +138,7 @@ fn alpha_beta<NODE: NodeType>(
     td: &mut ThreadData,
     mut depth: i32,
     ply: usize,
+    last_critical_ply: usize,
     mut alpha: i32,
     mut beta: i32,
     cut_node: bool) -> i32 {
@@ -380,7 +381,16 @@ fn alpha_beta<NODE: NodeType>(
             td.inc_nodes();
             td.keys.push(board.hash());
             td.tt().prefetch(board.hash_with_50mr_bucket());
-            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            let score = -alpha_beta::<NonPV>(
+                &board,
+                td,
+                depth - r,
+                ply + 1,
+                ply + 1,
+                -beta,
+                -beta + 1,
+                !cut_node
+            );
             td.keys.pop();
 
             if score >= beta {
@@ -391,7 +401,16 @@ fn alpha_beta<NODE: NodeType>(
 
                 // At high depths, we do a normal search to verify the null move result.
                 td.nmp_min_ply = (3 * (depth - r) / 4) + ply as i32;
-                let verif_score = alpha_beta::<NonPV>(&board, td, depth - r, ply, beta - 1, beta, true);
+                let verif_score = alpha_beta::<NonPV>(
+                    &board,
+                    td,
+                    depth - r,
+                    ply,
+                    last_critical_ply,
+                    beta - 1,
+                    beta,
+                    true
+                );
                 td.nmp_min_ply = 0;
 
                 if verif_score >= beta {
@@ -470,7 +489,16 @@ fn alpha_beta<NODE: NodeType>(
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
-            singular_score = alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
+            singular_score = alpha_beta::<NonPV>(
+                board,
+                td,
+                s_depth,
+                ply,
+                ply,
+                s_beta - 1,
+                s_beta,
+                cut_node
+            );
             td.stack[ply].singular = None;
 
             if singular_score < s_beta {
@@ -668,6 +696,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
             r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            r -= 128 * (ply - last_critical_ply).min(8) as i32;
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
@@ -679,7 +708,16 @@ fn alpha_beta<NODE: NodeType>(
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.stack[ply].reduction = r;
-            score = -alpha_beta::<NonPV>(&board, td, reduced_depth, ply + 1, -alpha - 1, -alpha, true);
+            score = -alpha_beta::<NonPV>(
+                &board,
+                td,
+                reduced_depth,
+                ply + 1,
+                ply + 1,
+                -alpha - 1,
+                -alpha,
+                true
+            );
             td.stack[ply].reduction = 0;
 
             // If the reduced search beat alpha, re-search at full depth, with a null window.
@@ -693,7 +731,16 @@ fn alpha_beta<NODE: NodeType>(
                 new_depth -= (score < do_shallower_margin) as i32;
 
                 if new_depth > reduced_depth {
-                    score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+                    score = -alpha_beta::<NonPV>(
+                        &board,
+                        td,
+                        new_depth,
+                        ply + 1,
+                        last_critical_ply,
+                        -alpha - 1,
+                        -alpha,
+                        !cut_node
+                    );
 
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
@@ -708,13 +755,32 @@ fn alpha_beta<NODE: NodeType>(
         // If we're skipping late move reductions - due to being the first move in a non-PV node, or
         // some other reason - then we search at full depth with a null-window.
         else if !pv_node || searched_moves > 1 {
-            score = -alpha_beta::<NonPV>(&board, td, new_depth, ply + 1, -alpha - 1, -alpha, !cut_node);
+            let last_critical_ply = if legal_moves == 1 { last_critical_ply } else { ply + 1 };
+            score = -alpha_beta::<NonPV>(
+                &board,
+                td,
+                new_depth,
+                ply + 1,
+                last_critical_ply,
+                -alpha - 1,
+                -alpha,
+                !cut_node
+            );
         }
 
         // If we're in a PV node and searching the first move, or the score from reduced search beat
         // alpha, then we search with full depth and alpha-beta window.
         if pv_node && (searched_moves == 1 || score > alpha) {
-            score = -alpha_beta::<PV>(&board, td, new_depth, ply + 1, -beta, -alpha, false);
+            score = -alpha_beta::<PV>(
+                &board,
+                td,
+                new_depth,
+                ply + 1,
+                last_critical_ply,
+                -beta,
+                -alpha,
+                false
+            );
         }
 
         // Register the current move, to update its history score later
