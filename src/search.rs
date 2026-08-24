@@ -674,7 +674,7 @@ fn alpha_beta<NODE: NodeType>(
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
             }
             if !pv_node {
-                r -= lmr_laterality_base() - lmr_laterality_mult() * td.stack[ply].laterality
+                r -= lmr_laterality_base() - lmr_laterality_mult() * td.stack[ply - 1].laterality
             }
 
             let min_reduced_depth = 1;
