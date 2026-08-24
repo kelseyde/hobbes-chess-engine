@@ -147,11 +147,16 @@ fn alpha_beta<NODE: NodeType>(
         return alpha;
     }
 
-    // A PV (principal variation) node is one that falls within the alpha-beta window.
-    let pv_node = NODE::PV;
-
     // The root node is the first node in the search tree, and is thus also always a PV node.
     let root_node = NODE::ROOT;
+
+    // A PV (principal variation) node is one that falls within the alpha-beta window.
+    let pv_node = NODE::PV;
+    td.stack[ply].distance_to_pv = if root_node || pv_node {
+        0
+    } else {
+        td.stack[ply - 1].distance_to_pv + 1
+    };
 
     debug_assert!(ply <= MAX_PLY);
     debug_assert!(score::MIN <= alpha && alpha < beta && beta <= score::MAX);
@@ -672,6 +677,7 @@ fn alpha_beta<NODE: NodeType>(
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
             }
+            r += 60 * td.stack[ply].distance_to_pv;
 
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
