@@ -380,6 +380,7 @@ fn alpha_beta<NODE: NodeType>(
             td.inc_nodes();
             td.keys.push(board.hash());
             td.tt().prefetch(board.hash_with_50mr_bucket());
+            td.stack[ply].laterality = 0;
             let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
@@ -632,7 +633,7 @@ fn alpha_beta<NODE: NodeType>(
         // Therefore, we make the move on the board and search the resulting position.
         let original_board = board;
         let mut board = *board;
-        make_move(td, &mut board, mv, pc, captured, ply);
+        make_move(td, &mut board, mv, pc, captured, ply, legal_moves);
         searched_moves += 1;
 
         let gives_check = board.threats.contains(board.king_sq(board.stm));
@@ -671,6 +672,9 @@ fn alpha_beta<NODE: NodeType>(
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
+            }
+            if !pv_node {
+                r -= lmr_laterality_base() - lmr_laterality_mult() * td.stack[ply].laterality
             }
 
             let min_reduced_depth = 1;
@@ -1090,7 +1094,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
         }
 
         let mut board = *board;
-        make_move(td, &mut board, mv, pc, captured, ply);
+        make_move(td, &mut board, mv, pc, captured, ply, legal_moves);
         let score = -qs(&board, td, -beta, -alpha, ply + 1);
         unmake_move(td, ply);
         searched_moves += 1;
@@ -1158,6 +1162,7 @@ fn make_move(
     pc: Piece,
     captured: Option<Piece>,
     ply: usize,
+    legal_moves: i32,
 ) {
     td.nnue.update(&mv, pc, board);
     board.make(&mv, &mut td.nnue.stack[td.nnue.current]);
@@ -1167,6 +1172,10 @@ fn make_move(
     td.keys.push(board.hash());
     td.tt().prefetch(board.hash_with_50mr_bucket());
     td.inc_nodes();
+    td.stack[ply].legal_moves = legal_moves;
+    // Credit to Lily for the idea + formula (tested in Reckless)
+    td.stack[ply].laterality = if ply > 0 { td.stack[ply - 1].laterality } else { 0 }
+        + if legal_moves > 0 { (legal_moves.ilog2() as i32 - 1).max(0) } else { 0 };
 }
 
 fn unmake_move(td: &mut ThreadData, ply: usize) {
