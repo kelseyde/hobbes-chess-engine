@@ -116,12 +116,12 @@ tunable_params! {
     lmr_mvv_divisor              = 3, 1..=5,               true;
     hrh_min_confidence           = 3, 2..=16,              true;
     hrh_protection_threshold     = 64, 48..=112,           true;
-    hrh_protection               = 768, 0..=1024,          true;
-    hrh_history_band             = 8192, 4096..=16384,     false;
+    hrh_protection               = 780, 0..=1024,          true;
+    hrh_history_band             = 8091, 4096..=16384,     false;
     hrh_decay_divisor            = 8, 4..=32,              false;
-    hrh_warmup_nodes             = 2048, 512..=8192,       false;
-    hrh_budget_divisor           = 256, 128..=512,         true;
-    hrh_sample_divisor           = 32, 1..=128,            false;
+    hrh_warmup_nodes             = 2050, 512..=8192,       false;
+    hrh_budget_divisor           = 260, 128..=512,         true;
+    hrh_sample_divisor           = 33, 1..=128,            false;
     hrh_max_depth                = 8, 4..=12,              false;
     hrh_miss_bonus               = 72, 32..=112,           false;
     hrh_safe_malus               = 2, 1..=8,               false;
