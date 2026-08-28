@@ -286,6 +286,7 @@ fn alpha_beta<NODE: NodeType>(
     if !in_check
         && !singular_search
         && tt_hit
+        && !is_mate(tt_score)
         && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
         static_eval = lerp(static_eval, tt_score, 20);
     }
