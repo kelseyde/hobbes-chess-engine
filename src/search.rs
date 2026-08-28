@@ -283,6 +283,13 @@ fn alpha_beta<NODE: NodeType>(
     td.stack[ply + 1].killer = None;
     td.stack[ply + 2].num_fail_highs = 0;
 
+    if !in_check
+        && !singular_search
+        && tt_hit
+        && tt_flag.bounds_match(tt_score, static_eval, static_eval) {
+        static_eval = lerp(static_eval, tt_score, 20);
+    }
+
     // We are 'improving' if the static eval of the current position is greater than it was on our
     // previous turn. If improving, we can be more aggressive in our beta pruning - where the eval
     // is too high - but should be more cautious in our alpha pruning - where the eval is too low.
