@@ -359,6 +359,8 @@ fn alpha_beta<NODE: NodeType>(
                 if score >= beta {
                     return score;
                 }
+            } else if depth <= rfp_depth + 16 {
+                depth -= 1;
             }
         }
 
