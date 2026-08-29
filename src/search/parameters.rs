@@ -18,7 +18,9 @@ tunable_params! {
     razor_base                   = 282, 200..=500,         true;
     razor_scale                  = 248, 100..=400,         true;
     nmp_min_depth                = 3, 0..=8,               false;
-    nmp_margin                   = 37, 0..=80,             true;
+    nmp_margin_base              = 365, 200..=500,         true;
+    nmp_margin_depth             = 13, 1..=20,             true;
+    nmp_margin_improving         = 47, 0..=100,            true;
     nmp_red_base                 = 5132, 3072..=8192,      true;
     nmp_red_depth_mult           = 328, 128..=512,         true;
     nmp_red_eval_mult            = 606, 256..=1024,        true;
