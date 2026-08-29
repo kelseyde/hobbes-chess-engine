@@ -27,6 +27,7 @@ pub struct CorrectionHistories {
     cont_corrhist: [FromToCorrectionHistory; CONT_CORR_COUNT],
     major_corrhist: HashCorrectionHistory,
     minor_corrhist: HashCorrectionHistory,
+    curr_move_corrhist: FromToCorrectionHistory,
 }
 
 impl CorrectionHistories {
@@ -40,6 +41,7 @@ impl CorrectionHistories {
         ply: usize,
         static_eval: i32,
         best_score: i32,
+        best_move: &Move,
     ) {
         let us = board.stm;
         let diff = best_score - static_eval;
@@ -56,6 +58,9 @@ impl CorrectionHistories {
         self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
         self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
         self.update_continuation_correction(us, ss, ply, diff, depth);
+        if best_move.exists() {
+            self.curr_move_corrhist.update(us, best_move.encoded() as u64, curr_corr_bonus(diff, depth))
+        }
     }
 
     #[rustfmt::skip]
@@ -76,6 +81,12 @@ impl CorrectionHistories {
             + (minor * 100 / corr_minor_weight())
             + cont)
             / CORRECTION_SCALE
+    }
+
+    pub fn curr_move_corr(&self, board: &Board, mv: Move) -> i32 {
+        let us = board.stm;
+        let correction = self.curr_move_corrhist.get(us, mv.encoded() as u64);
+        (correction * 100 / corr_curr_weight()) / CORRECTION_SCALE
     }
 
     #[inline(always)]
@@ -116,6 +127,7 @@ impl CorrectionHistories {
         self.cont_corrhist.iter_mut().for_each(|h| h.clear());
         self.major_corrhist.clear();
         self.minor_corrhist.clear();
+        self.curr_move_corrhist.clear();
     }
 }
 
@@ -201,5 +213,7 @@ mod bonuses {
     corr_bonus!(minor_corr_bonus,     corr_minor_bonus_mult,     corr_minor_bonus_div,     corr_minor_bonus_min,     corr_minor_bonus_max);
     corr_bonus!(cont1_corr_bonus,     corr_cont1_bonus_mult,     corr_cont1_bonus_div,     corr_cont1_bonus_min,     corr_cont1_bonus_max);
     corr_bonus!(cont2_corr_bonus,     corr_cont2_bonus_mult,     corr_cont2_bonus_div,     corr_cont2_bonus_min,     corr_cont2_bonus_max);
+    corr_bonus!(curr_corr_bonus,      corr_curr_bonus_mult,      corr_curr_bonus_div,      corr_curr_bonus_min,      corr_curr_bonus_max);
 }
 use bonuses::*;
+use crate::board::moves::Move;
