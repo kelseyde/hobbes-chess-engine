@@ -5,7 +5,7 @@ use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
 use crate::board::Board;
 use crate::search::movepicker::Stage::{BadNoisies, Done, GoodNoisies};
-use crate::search::parameters::{movepick_see_divisor, movepick_see_offset};
+use crate::search::parameters::{movepick_mvv_scale, movepick_see_divisor, movepick_see_offset};
 use crate::search::see;
 use crate::search::see::SeeType;
 use crate::search::thread::ThreadData;
@@ -50,8 +50,14 @@ impl MovePicker {
         Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
     }
 
-    pub fn new_qsearch(tt_move: Move, filter: MoveFilter, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, filter, ply, threats, true, false)
+    pub fn new_qsearch(
+        tt_move: Move,
+        filter: MoveFilter,
+        ply: usize,
+        threats: Bitboard,
+        skip_quiets: bool
+    ) -> Self {
+        Self::init(tt_move, filter, ply, threats, skip_quiets, false)
     }
 
     #[rustfmt::skip]
@@ -223,7 +229,7 @@ fn score_move(
         let history_score = td
             .history
             .capture_history_score(board, mv, attacker, victim);
-        entry.score = 16 * victim_value + history_score;
+        entry.score = (movepick_mvv_scale() * victim_value) / 128 + history_score;
     } else if let Some(pc) = board.piece_at(mv.from()) {
         // Score quiet
         let quiet_score = td.history.quiet_history_score(board, mv, pc, threats);

@@ -11,6 +11,7 @@ use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{score, MAX_PLY};
 use crate::search::lmr::LmrTable;
+use crate::search::parameters::score_stability_threshold;
 use crate::tools::utils::boxed_and_zeroed;
 
 /// State shared between all search threads.
@@ -251,6 +252,20 @@ impl ThreadData {
         }
 
         false
+    }
+
+    pub fn update_tm_heuristics(&mut self, prev_mv: Move, prev_score: i32, score: i32) {
+        if prev_mv == self.best_move {
+            self.best_move_stability += 1;
+        } else {
+            self.best_move_stability = 0;
+        }
+
+        if score - prev_score.abs() < score_stability_threshold() {
+            self.score_stability += 1;
+        } else {
+            self.score_stability = 0;
+        }
     }
 }
 
