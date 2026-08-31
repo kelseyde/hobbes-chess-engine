@@ -1,13 +1,12 @@
-use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
-use crate::board::file::File;
 use crate::board::piece::Piece;
 use crate::board::rank::Rank;
 use crate::board::side::Side;
 use crate::board::side::Side::*;
 use crate::board::square::Square;
 use crate::evaluation::accumulator::should_mirror;
+use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
 
 /// This code computes the index of a given threat in the threat inputs accumulator. Everything here
 /// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
@@ -80,6 +79,8 @@ static mut FROM_OFFSET: [[u32; 64]; 12] = [[0; 64]; 12];
 /// pseudo-attackable, ordered low-to-high. We use this number as the compressed victim square index
 /// within the from-square's attack set.
 static mut VICTIM_ORDINAL: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
+
+// TODO update doku
 
 /// Initialise the threat-feature lookup tables.
 pub fn init() {

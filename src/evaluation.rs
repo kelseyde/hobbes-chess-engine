@@ -28,7 +28,6 @@ mod simd {
     pub use neon::*;
 }
 
-use crate::board::file::File;
 use crate::board::moves::Move;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, King, Knight, Pawn, Queen, Rook};
@@ -102,8 +101,7 @@ impl NNUE {
 
         // Scale the eval and return
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
-        output as i32
-        // scale_evaluation(board, output as i32)
+        scale_evaluation(board, output as i32)
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the

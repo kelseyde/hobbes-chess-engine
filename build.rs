@@ -1,4 +1,4 @@
-use hobbes_nnue_arch::{preprocess, Network, UntransposedNetwork, L0_THREAT_PP_COMBINED_FEATURES, L1_SIZE};
+use hobbes_nnue_arch::{preprocess, Network, UntransposedNetwork};
 use std::env;
 use std::fs;
 use std::mem::size_of;
@@ -10,14 +10,7 @@ const OUTPUT_NET_FILE: &str = "hobbes_converted.nnue";
 fn main() {
     // Load the raw network
     let raw_net: Vec<u8> = read_network_bytes(INPUT_NET_FILE);
-    let mut src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
-    unsafe {
-        std::ptr::write_bytes(
-            src.l0_threat_pp_weights.as_mut_ptr(),
-            0,
-            L0_THREAT_PP_COMBINED_FEATURES * L1_SIZE,
-        );
-    }
+    let src: Box<UntransposedNetwork> = load_network_from_bytes(&raw_net);
     let mut dst: Box<Network> = unsafe { boxed_and_zeroed() };
 
     // Transpose and permute the net

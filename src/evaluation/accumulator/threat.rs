@@ -1,4 +1,3 @@
-use std::process::id;
 use crate::board::bitboard::Bitboard;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, Knight, Pawn, Queen, Rook};
@@ -6,13 +5,13 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::{attacks, ray, Board};
+use crate::evaluation::accumulator::should_mirror;
+use crate::evaluation::feature::pp;
+use crate::evaluation::feature::pp::{PawnPairFeature, PP_BANDS};
 use crate::evaluation::feature::threat::ThreatFeature;
 use crate::evaluation::{simd, NETWORK, NNUE};
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::L1_SIZE;
-use crate::evaluation::accumulator::should_mirror;
-use crate::evaluation::feature::pp;
-use crate::evaluation::feature::pp::{PawnPairFeature, PP_BANDS};
 
 const MAX_THREAT_FEATURES: usize = 80;
 const MAX_PAWN_PAIR_FEATURES: usize = 64;
