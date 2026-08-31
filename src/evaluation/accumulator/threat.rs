@@ -9,8 +9,12 @@ use crate::evaluation::feature::threat::ThreatFeature;
 use crate::evaluation::{simd, NETWORK, NNUE};
 use arrayvec::ArrayVec;
 use hobbes_nnue_arch::L1_SIZE;
+use crate::evaluation::accumulator::should_mirror;
+use crate::evaluation::feature::pp;
+use crate::evaluation::feature::pp::{PawnPairFeature, PP_BANDS};
 
-const MAX_DELTA_INDICES: usize = 80;
+const MAX_THREAT_INDICES: usize = 80;
+const MAX_PAIR_INDICES: usize = 64;
 const MAX_ACTIVE_INDICES: usize = 4096;
 
 #[cfg(target_feature = "avx512f")]
@@ -24,7 +28,8 @@ const _: () = assert!(L1_SIZE.is_multiple_of(STEP), "step must divide by the acc
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub deltas: ArrayVec<ThreatFeature, MAX_DELTA_INDICES>,
+    pub threat_fts: ArrayVec<ThreatFeature, MAX_THREAT_INDICES>,
+    pub pawn_pair_fts: ArrayVec<PawnPairFeature, MAX_PAIR_INDICES>,
     pub needs_refresh: [bool; 2],
     pub computed: [bool; 2],
 }
@@ -33,7 +38,8 @@ impl Default for ThreatAccumulator {
     fn default() -> Self {
         Self {
             features: [[0; L1_SIZE]; 2],
-            deltas: ArrayVec::new(),
+            threat_fts: ArrayVec::new(),
+            pawn_pair_fts: ArrayVec::new(),
             needs_refresh: [false; 2],
             computed: [false; 2],
         }
@@ -62,10 +68,10 @@ impl ThreatAccumulator {
     }
 
     pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
-        let mut adds = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
-        let mut subs = ArrayVec::<u32, MAX_DELTA_INDICES>::new();
+        let mut adds = ArrayVec::<u32, MAX_THREAT_INDICES>::new();
+        let mut subs = ArrayVec::<u32, MAX_THREAT_INDICES>::new();
 
-        for delta in &self.deltas {
+        for delta in &self.threat_fts {
             let (valid, idx) = delta.index(pov, king_sq);
             if !valid {
                 continue;
@@ -121,7 +127,7 @@ impl ThreatAccumulator {
         new_side: Side,
         sq: Square,
     ) {
-        let deltas = &mut self.deltas;
+        let deltas = &mut self.threat_fts;
         let occ = board.occ();
         let attacked = attacks::attacks(sq, old_pc, old_side, occ) & occ;
         for to in attacked {
@@ -172,7 +178,7 @@ impl ThreatAccumulator {
         sq: Square,
         add: bool,
     ) {
-        let deltas = &mut self.deltas;
+        let deltas = &mut self.threat_fts;
         let attacked = attacks::attacks(sq, pc, side, occ) & occ;
         for (vic_side, targets) in [
             (White, attacked & board.side(White)),
@@ -247,6 +253,34 @@ impl ThreatAccumulator {
                 let (valid, idx) = delta.index(pov, king_sq);
                 if valid {
                     out.push(idx as u32);
+                }
+            }
+        }
+    }
+
+    fn collect_pp_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, MAX_ACTIVE_INDICES>) {
+        let king_sq = board.king_sq(pov);
+        let mirror = should_mirror(king_sq);
+        let (wp, bp) = (board.pawns(White), board.pawns(Black));
+
+        for (side_a, side_b, outer, inner) in [
+            (White, White, wp, wp),
+            (Black, Black, bp, bp),
+            (White, Black, wp, bp),
+        ] {
+            let same = side_a == side_b;
+            for a in outer {
+                let mut partners = inner & PP_BANDS[a];
+                if same {
+                    partners &= Bitboard::below(a);
+                }
+                if partners.is_empty() {
+                    continue;
+                }
+                let id_a = pp::pawn_id(a, side_a, pov, mirror);
+                for b in partners {
+                    let id_b = pp::pawn_id(b, side_b, pov, mirror);
+                    out.push(pp::pp_index(id_a, id_b));
                 }
             }
         }

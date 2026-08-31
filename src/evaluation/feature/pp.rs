@@ -55,7 +55,7 @@ const fn init_pp_band() -> [Bitboard; 64] {
 
 /// Compute the identity of a pawn for a given side on a given square, from a given perspective.
 #[inline(always)]
-fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> u32 {
+pub fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> u32 {
     let mut sq = sq;
     // Pawn indices are reversed for black.
     if perspective == Black {
@@ -74,7 +74,7 @@ fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> u32 
 /// every pair formed by a lower high id (of which there are `hi * (hi - 1) / 2`), then offset by
 /// the lower id. Doing so results in a unique index for each unordered pawn pair.
 #[inline(always)]
-fn pp_index(id_a: u32, id_b: u32) -> u32 {
+pub fn pp_index(id_a: u32, id_b: u32) -> u32 {
     debug_assert!(id_a != id_b, "A pawn cannot pair with itself!");
     let hi = id_a.max(id_b);
     let lo = id_a.min(id_b);
@@ -148,5 +148,23 @@ impl PawnPairFeature {
     #[inline(always)]
     const fn decode_side(bits: u32) -> Side {
         if bits & 1 == 0 { White } else { Black }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::evaluation::feature::pp::{pp_index, PAWN_IDS, PAWN_PAIR_FEATURES};
+
+    #[test]
+    fn pawn_pair_indices_pack_without_collisions() {
+        let mut seen = std::collections::HashSet::new();
+        for id_a in 0..PAWN_IDS {
+            for id_b in (id_a + 1)..PAWN_IDS {
+                let idx = pp_index(id_a, id_b);
+                assert!((idx as usize) < PAWN_PAIR_FEATURES, "index {idx} out of range");
+                assert!(seen.insert(idx), "collision at index {idx}");
+            }
+        }
+        assert_eq!(seen.len(), PAWN_PAIR_FEATURES);
     }
 }

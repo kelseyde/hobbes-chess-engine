@@ -4,6 +4,7 @@ use crate::board::side::Side;
 use crate::board::square::Square;
 use crate::board::Board;
 use crate::board::file::File;
+use crate::board::piece::Piece::Pawn;
 use crate::evaluation::accumulator::psq::PieceSquareAccumulator;
 use crate::evaluation::accumulator::threat::ThreatAccumulator;
 use crate::evaluation::feature::psq::PieceSquareFeature;

@@ -135,7 +135,7 @@ impl NNUE {
         acc.psq.adds.clear();
         acc.psq.subs.clear();
         acc.psq.computed = [false; 2];
-        acc.threat.deltas.clear();
+        acc.threat.threat_fts.clear();
         acc.threat.computed = [false; 2];
 
         acc.psq.needs_refresh = prev_psq_refresh;

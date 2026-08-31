@@ -1,3 +1,4 @@
+use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
 use crate::board::attacks;
 use crate::board::bitboard::Bitboard;
 use crate::board::file::File;
@@ -39,17 +40,17 @@ use crate::evaluation::accumulator::should_mirror;
 #[rustfmt::skip]
 const PIECE_TARGET_MAP: [[i32; 6]; 6] = [
     [ -1,  0, -1,  1, -1, -1], // pawn    -> N R
-    [ 0,  1,  2,  3,  4, -1], // knight  -> P N B R Q
-    [ 0,  1,  2,  3, -1, -1], // bishop  -> P N B R
-    [ 0,  1,  2,  3, -1, -1], // rook    -> P N B R
-    [ 0,  1,  2,  3,  4, -1], // queen   -> P N B R Q
-    [-1, -1, -1, -1, -1, -1], // king    -> nothing
+    [ 0,  1,  2,  3,  4, -1],  // knight  -> P N B R Q
+    [ 0,  1,  2,  3, -1, -1],  // bishop  -> P N B R
+    [ 0,  1,  2,  3, -1, -1],  // rook    -> P N B R
+    [ 0,  1,  2,  3,  4, -1],  // queen   -> P N B R Q
+    [-1, -1, -1, -1, -1, -1],  // king    -> nothing
 ];
 
 /// For each attacker piece type, tell me how many valid victim types it has, counting each colour
 /// separately. This is essentially a pre-computed summary of the `PIECE_TARGET_MAP` table, with each
 /// entry multiplied by 2 to account for the two sides.
-const PIECE_TARGET_COUNT: [i32; 6] = [6, 10, 8, 8, 10, 0];
+const PIECE_TARGET_COUNT: [i32; 6] = [4, 10, 8, 8, 10, 0];
 
 /// Lookup table containing a tuple for each piece/side combination, containing (total pseudo-attacks,
 /// global pseudo-attack offset). The first value is simply how many squares that piece pseudo-attacks;
@@ -259,7 +260,10 @@ impl ThreatFeature {
         // Get the number of squares the attacker threatens from `from` that are below `to`.
         let slot = unsafe { VICTIM_ORDINAL[attacker_idx][from][to] as i32 };
 
-        let index = (base as i32).wrapping_add(offset).wrapping_add(slot);
+        let index = (base as i32)
+            .wrapping_add(offset)
+            .wrapping_add(slot)
+            .wrapping_add(L0_PAWN_PAIR_FEATURES as i32);
 
         (base != u32::MAX, index)
     }
