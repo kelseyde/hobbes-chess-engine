@@ -1,6 +1,6 @@
 use crate::board::bitboard::Bitboard;
 use crate::board::piece::Piece;
-use crate::board::piece::Piece::{Bishop, Knight, Queen, Rook};
+use crate::board::piece::Piece::{Bishop, Knight, Pawn, Queen, Rook};
 use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
@@ -96,11 +96,17 @@ impl ThreatAccumulator {
     /// Update accumulator threat deltas when a piece is added on a square
     pub fn push_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
         self.push_piece_single(board, board.occ(), pc, side, sq, true);
+        if pc == Pawn {
+            self.push_pawn_pairs(board, side, sq, true);
+        }
     }
 
     /// Update accumulator threat deltas when a piece is removed from a square.
     pub fn push_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square) {
         self.push_piece_single(board, board.occ(), pc, side, sq, false);
+        if pc == Pawn {
+            self.push_pawn_pairs(board, side, sq, false);
+        }
     }
 
     /// Update accumulator threat deltas when a piece is moved from one square to another.
@@ -115,6 +121,8 @@ impl ThreatAccumulator {
         let occ = board.occ() ^ Bitboard::of_sq(to);
         self.push_piece_single(board, occ, pc, side, from, false);
         self.push_piece_single(board, occ, pc, side, to, true);
+        self.push_pawn_pairs(board, side, from, false);
+        self.push_pawn_pairs(board, side, to, true);
     }
 
     /// Update accumulator threat deltas when a piece type is changed on a single square.
@@ -166,6 +174,13 @@ impl ThreatAccumulator {
             deltas.push(ThreatFeature::new(
                 atk_pc, atk_side, from, new_pc, new_side, sq, true,
             ));
+        }
+
+        if old_pc == Pawn {
+            self.push_pawn_pairs(board, old_side, sq, false);
+        }
+        if new_pc == Pawn {
+            self.push_pawn_pairs(board, new_side, sq, true);
         }
     }
 
@@ -238,6 +253,14 @@ impl ThreatAccumulator {
             deltas.push(ThreatFeature::new(
                 atk_pc, atk_side, from, pc, side, sq, add,
             ));
+        }
+    }
+
+    fn push_pawn_pairs(&mut self, board: &Board, side: Side, sq: Square, add: bool) {
+        let partners = board.all_pawns() & PP_BANDS[sq] & !Bitboard::of_sq(sq);
+        for b in partners {
+            let side_b = if board.pawns(White).contains(b) { White } else { Black };
+            self.pawn_pair_fts.push(PawnPairFeature::new(sq, side, b, side_b, add));
         }
     }
 

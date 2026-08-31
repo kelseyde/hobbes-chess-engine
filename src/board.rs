@@ -401,6 +401,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn all_pawns(&self) -> Bitboard {
+        self.pieces(Piece::Pawn)
+    }
+
+    #[inline]
     pub fn pawns(&self, side: Side) -> Bitboard {
         self.pieces[Piece::Pawn] & self.colours[side]
     }
