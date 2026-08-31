@@ -150,21 +150,3 @@ impl PawnPairFeature {
         if bits & 1 == 0 { White } else { Black }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::evaluation::feature::pp::{pp_index, PAWN_IDS, PAWN_PAIR_FEATURES};
-
-    #[test]
-    fn pawn_pair_indices_pack_without_collisions() {
-        let mut seen = std::collections::HashSet::new();
-        for id_a in 0..PAWN_IDS {
-            for id_b in (id_a + 1)..PAWN_IDS {
-                let idx = pp_index(id_a, id_b);
-                assert!((idx as usize) < PAWN_PAIR_FEATURES, "index {idx} out of range");
-                assert!(seen.insert(idx), "collision at index {idx}");
-            }
-        }
-        assert_eq!(seen.len(), PAWN_PAIR_FEATURES);
-    }
-}

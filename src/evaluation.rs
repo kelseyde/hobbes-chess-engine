@@ -102,7 +102,8 @@ impl NNUE {
 
         // Scale the eval and return
         let output = raw as i64 * SCALE / (Q * Q * Q * Q);
-        scale_evaluation(board, output as i32)
+        output as i32
+        // scale_evaluation(board, output as i32)
     }
 
     /// Activate the entire board from scratch. This initializes the accumulators based on the

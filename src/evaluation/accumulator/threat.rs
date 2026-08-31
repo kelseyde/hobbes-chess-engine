@@ -1,3 +1,4 @@
+use std::process::id;
 use crate::board::bitboard::Bitboard;
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::{Bishop, Knight, Pawn, Queen, Rook};
@@ -321,10 +322,14 @@ impl ThreatAccumulator {
                 if same {
                     partners &= Bitboard::below(a);
                 }
-                if partners.is_empty() { continue; }
+                if partners.is_empty() {
+                    continue;
+                }
                 let id_a = pp::pawn_id(a, side_a, pov, mirror);
                 for b in partners {
-                    out.push(pp::pp_index(id_a, pp::pawn_id(b, side_b, pov, mirror)));
+                    let id_b = pp::pawn_id(b, side_b, pov, mirror);
+                    let idx = pp::pp_index(id_a, id_b);
+                    out.push(idx);
                 }
             }
         }
