@@ -13,8 +13,9 @@ use crate::evaluation::accumulator::should_mirror;
 use crate::evaluation::feature::pp;
 use crate::evaluation::feature::pp::{PawnPairFeature, PP_BANDS};
 
-const MAX_THREAT_INDICES: usize = 80;
-const MAX_PAIR_INDICES: usize = 64;
+const MAX_THREAT_FEATURES: usize = 80;
+const MAX_PAWN_PAIR_FEATURES: usize = 64;
+const MAX_FEATURES: usize = MAX_THREAT_FEATURES + MAX_PAWN_PAIR_FEATURES;
 const MAX_ACTIVE_INDICES: usize = 4096;
 
 #[cfg(target_feature = "avx512f")]
@@ -28,8 +29,8 @@ const _: () = assert!(L1_SIZE.is_multiple_of(STEP), "step must divide by the acc
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
     features: [[i16; L1_SIZE]; 2],
-    pub threat_fts: ArrayVec<ThreatFeature, MAX_THREAT_INDICES>,
-    pub pawn_pair_fts: ArrayVec<PawnPairFeature, MAX_PAIR_INDICES>,
+    pub threat_fts: ArrayVec<ThreatFeature, MAX_THREAT_FEATURES>,
+    pub pawn_pair_fts: ArrayVec<PawnPairFeature, MAX_PAWN_PAIR_FEATURES>,
     pub needs_refresh: [bool; 2],
     pub computed: [bool; 2],
 }
@@ -63,13 +64,14 @@ impl ThreatAccumulator {
     pub fn refresh(&mut self, board: &Board, pov: Side) {
         let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
         Self::collect_threat_indices(board, pov, &mut adds);
+        Self::collect_pp_indices(board, pov, &mut adds);
         unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
         self.computed[pov] = true;
     }
 
     pub fn apply(&mut self, parent: &ThreatAccumulator, king_sq: Square, pov: Side) {
-        let mut adds = ArrayVec::<u32, MAX_THREAT_INDICES>::new();
-        let mut subs = ArrayVec::<u32, MAX_THREAT_INDICES>::new();
+        let mut adds = ArrayVec::<u32, MAX_FEATURES>::new();
+        let mut subs = ArrayVec::<u32, MAX_FEATURES>::new();
 
         for delta in &self.threat_fts {
             let (valid, idx) = delta.index(pov, king_sq);
@@ -80,6 +82,15 @@ impl ThreatAccumulator {
                 adds.push(idx as u32);
             } else {
                 subs.push(idx as u32);
+            }
+        }
+
+        for pair in &self.pawn_pair_fts {
+            let idx = pair.index(pov, king_sq);
+            if pair.add() {
+                adds.push(idx)
+            } else {
+                subs.push(idx)
             }
         }
 
@@ -121,8 +132,13 @@ impl ThreatAccumulator {
         let occ = board.occ() ^ Bitboard::of_sq(to);
         self.push_piece_single(board, occ, pc, side, from, false);
         self.push_piece_single(board, occ, pc, side, to, true);
-        self.push_pawn_pairs(board, side, from, false);
-        self.push_pawn_pairs(board, side, to, true);
+        if pc == Pawn {
+            // board is already updated with the teleporter on the 'to' square,
+            // so we need to mask it out here
+            let others = board.all_pawns() ^ Bitboard::of_sq(to);
+            self.push_pawn_pairs_with(board, side, from, others, false);
+            self.push_pawn_pairs_with(board, side, to, others, true);
+        }
     }
 
     /// Update accumulator threat deltas when a piece type is changed on a single square.
@@ -257,8 +273,19 @@ impl ThreatAccumulator {
     }
 
     fn push_pawn_pairs(&mut self, board: &Board, side: Side, sq: Square, add: bool) {
-        let partners = board.all_pawns() & PP_BANDS[sq] & !Bitboard::of_sq(sq);
-        for b in partners {
+        let others = board.all_pawns() & !Bitboard::of_sq(sq);
+        self.push_pawn_pairs_with(board, side, sq, others, add);
+    }
+
+    fn push_pawn_pairs_with(
+        &mut self,
+        board: &Board,
+        side: Side,
+        sq: Square,
+        others: Bitboard,
+        add: bool,
+    ) {
+        for b in others & PP_BANDS[sq] {
             let side_b = if board.pawns(White).contains(b) { White } else { Black };
             self.pawn_pair_fts.push(PawnPairFeature::new(sq, side, b, side_b, add));
         }
@@ -282,28 +309,22 @@ impl ThreatAccumulator {
     }
 
     fn collect_pp_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, MAX_ACTIVE_INDICES>) {
-        let king_sq = board.king_sq(pov);
-        let mirror = should_mirror(king_sq);
+        let mirror = should_mirror(board.king_sq(pov));
         let (wp, bp) = (board.pawns(White), board.pawns(Black));
 
-        for (side_a, side_b, outer, inner) in [
-            (White, White, wp, wp),
-            (Black, Black, bp, bp),
-            (White, Black, wp, bp),
-        ] {
+        for (side_a, side_b, outer, inner) in
+            [(White, White, wp, wp), (Black, Black, bp, bp), (White, Black, wp, bp)]
+        {
             let same = side_a == side_b;
             for a in outer {
                 let mut partners = inner & PP_BANDS[a];
                 if same {
                     partners &= Bitboard::below(a);
                 }
-                if partners.is_empty() {
-                    continue;
-                }
+                if partners.is_empty() { continue; }
                 let id_a = pp::pawn_id(a, side_a, pov, mirror);
                 for b in partners {
-                    let id_b = pp::pawn_id(b, side_b, pov, mirror);
-                    out.push(pp::pp_index(id_a, id_b));
+                    out.push(pp::pp_index(id_a, pp::pawn_id(b, side_b, pov, mirror)));
                 }
             }
         }
