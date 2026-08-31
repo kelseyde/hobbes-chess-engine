@@ -12,12 +12,12 @@ use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
 /// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
 /// real contribution is comments to aid my own understanding.
 ///
-/// The total number of threat features encoded in the network is 60144.
+/// The total number of threat features encoded in the network is 59808.
 ///
-/// Why 60144? Naively, the total possible space of threat features is side * piece * square * side
+/// Why 59808? Naively, the total possible space of threat features is side * piece * square * side
 /// * piece * square = 2 * 6 * 64 * 2 * 6 * 64 = 589824 inputs. However, encoding the entire space
 /// would be prohibitively slow. Fortunately for us, many of these encodings are redundant, for
-/// reasons explained below. After deduplicating the redundant inputs, we arrive at a total of 60144.
+/// reasons explained below. After deduplicating the redundant inputs, we arrive at a total of 59808.
 
 /// This table tells us whether a given attacker/victim combination is included in the threat inputs.
 /// Some combinations are redundant: e.g., pawn-attacking-bishop is implied by pawn-attacking-pawn.
@@ -25,6 +25,7 @@ use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
 ///
 /// All king-threats are fully excluded, in addition to the following list:
 ///
+/// - PAWN-attacking-PAWN (these are encoded separately, as part of the 'pawn pair' NNUE inputs)
 /// - PAWN-attacking-BISHOP
 /// - PAWN-attacking-ROOK
 /// - PAWN-attacking-QUEEN
@@ -79,8 +80,6 @@ static mut FROM_OFFSET: [[u32; 64]; 12] = [[0; 64]; 12];
 /// pseudo-attackable, ordered low-to-high. We use this number as the compressed victim square index
 /// within the from-square's attack set.
 static mut VICTIM_ORDINAL: [[[u8; 64]; 64]; 12] = [[[0; 64]; 64]; 12];
-
-// TODO update doku
 
 /// Initialise the threat-feature lookup tables.
 pub fn init() {
