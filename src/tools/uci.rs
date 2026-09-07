@@ -20,6 +20,7 @@ use std::time::Instant;
 use crate::search::thread::ThreadData;
 use crate::search::tt::TTFlag;
 use crate::search::tt::TTFlag::{Exact, Lower, Upper};
+use crate::tools::scale::compute_net_scale;
 
 pub struct UCI {
     pub board: Board,
@@ -86,6 +87,7 @@ impl UCI {
                             "eval_stats" => self.handle_eval_stats(tokens),
                             "perft" => self.handle_perft(tokens),
                             "genfens" => self.handle_genfens(tokens),
+                            "scale" => self.handle_scale(tokens),
                             "help" => self.handle_help(),
                             #[cfg(feature = "tuning")]
                             "params" => { print_params_ob(); print_array_params_ob(); }
@@ -493,6 +495,18 @@ impl UCI {
         {
             println!("info string genfens {}", opening);
         }
+    }
+
+    /// Handle scale command, a utility that computes statistics for the evaluation of the current net
+    /// and compares it to a benchmark net that search has been tuned against.
+    fn handle_scale(&self, tokens: Vec<String>) {
+        if tokens.len() != 2 {
+            println!("info error: missing dataset argument");
+            return;
+        }
+
+        let dataset = tokens[1].as_str();
+        compute_net_scale(dataset);
     }
 
     fn handle_help(&self) {

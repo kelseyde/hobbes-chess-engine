@@ -4,6 +4,7 @@ pub mod debug;
 pub mod fen;
 pub mod perft;
 pub mod pretty;
+pub mod scale;
 pub mod scharnagl;
 pub mod uci;
 pub mod utils;
