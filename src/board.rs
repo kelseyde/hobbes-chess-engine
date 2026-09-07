@@ -74,7 +74,7 @@ pub struct Board {
     pub mailbox: [Option<Piece>; 64], // piece type on each square
     pub stm: Side,                    // side to move (White or Black)
     pub hm: u8,                       // number of half moves since last capture or pawn move
-    pub fm: u8,                       // number of full moves
+    pub fm: u16,                      // number of full moves
     pub ep_sq: Option<Square>,        // en passant square (0-63)
     pub recapture_sq: Option<Square>, // square where a recapture can occur
     pub rights: Rights,               // encoded castle rights
@@ -188,7 +188,7 @@ impl Board {
         self.ep_sq = self.calc_ep(flag, to);
         self.recapture_sq = captured.map(|_| m.to());
         self.rights = self.calc_castle_rights(from, to, pc);
-        self.fm += (side == Black) as u8;
+        self.fm = self.fm.saturating_add((side == Black) as u16);
         self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
         self.hashes.flip_stm();
         self.stm = !self.stm;
@@ -632,7 +632,7 @@ mod tests {
         assert_make_move(
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
-            Move::parse_uci("g1f3"),
+            Move::parse_uci("g1f3").unwrap(),
         );
     }
 
@@ -641,7 +641,7 @@ mod tests {
         assert_make_move(
             "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
             "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2",
-            Move::parse_uci("e4d5"),
+            Move::parse_uci("e4d5").unwrap(),
         );
     }
 
@@ -704,7 +704,7 @@ mod tests {
         assert_make_move(
             "rn1q1bnr/pppbkPpp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQ - 1 5",
             "rn1q1bQr/pppbk1pp/8/8/8/8/PPPP1PPP/RNBQKBNR b KQ - 0 5",
-            Move::parse_uci("f7g8q"),
+            Move::parse_uci("f7g8q").unwrap(),
         );
     }
 
@@ -712,7 +712,7 @@ mod tests {
     fn pseudo_legal_pawn_capture() {
         let board =
             Board::from_fen("1R6/2p2ppk/4q2p/r1p1Pb2/5P2/2PrNQ2/P5PP/4R1K1 w - - 2 26").unwrap();
-        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5")));
+        assert!(!board.is_pseudo_legal(&Move::parse_uci("e5f5").unwrap()));
     }
 
     #[test]

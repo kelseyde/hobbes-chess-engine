@@ -36,8 +36,8 @@ impl Board {
         board.stm = parse_stm(parts[1])?;
         board.rights = parse_castle_rights(&board, parts[2])?;
         board.ep_sq = parse_ep_sq(&board, parts[3])?;
-        board.hm = parse_counter(parts.get(4).copied().unwrap_or("0"), "half-move clock")?;
-        board.fm = parse_counter(parts.get(5).copied().unwrap_or("0"), "full-move clock")?;
+        board.hm = parse_counter::<u8>(parts.get(4).copied().unwrap_or("0"), "half-move clock")?;
+        board.fm = parse_counter::<u16>(parts.get(5).copied().unwrap_or("0"), "full-move clock")?;
 
         board.hashes = Hashes::new(&board);
         board.threats = board.calc_threats(board.stm);
@@ -353,8 +353,8 @@ fn parse_ep_sq(board: &Board, ep: &str) -> Result<Option<Square>, String> {
 }
 
 /// Parses the half-move clock / full-move clock fields.
-fn parse_counter(part: &str, name: &str) -> Result<u8, String> {
-    part.parse::<u8>().map_err(|_| {
+fn parse_counter<T: std::str::FromStr>(part: &str, name: &str) -> Result<T, String> {
+    part.parse::<T>().map_err(|_| {
         format!("{} is invalid, found '{}'", name, part)
     })
 }
@@ -389,6 +389,7 @@ fn piece_to_char(piece: Piece, side: Side) -> char {
 
 fn find_rook_file(board: &Board, side: Side, kingside: bool) -> Option<File> {
     let king_sq = board.king_sq(side);
+    let king_file = king_sq.file();
     let rooks = board.rooks(side);
     let candidate_files = if kingside {
         [File::H, File::G, File::F, File::E, File::D, File::C]
@@ -397,7 +398,11 @@ fn find_rook_file(board: &Board, side: Side, kingside: bool) -> Option<File> {
     };
     for &file in &candidate_files {
         let sq = Square::from(file, king_sq.rank());
-        if rooks.contains(sq) {
+        if !rooks.contains(sq) {
+            continue;
+        }
+        let correct_side = if kingside { file > king_file } else { file < king_file };
+        if correct_side {
             return Some(file);
         }
     }

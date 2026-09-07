@@ -123,22 +123,31 @@ impl Engine {
         self.abort.store(false, Relaxed);
 
         self.handle = Some(std::thread::spawn(move || {
-            std::thread::scope(|s| {
-                let (main_td, helpers) = threads.split_first_mut().unwrap();
-                let abort = Arc::clone(&main_td.abort);
-                for helper in helpers.iter_mut() {
-                    let guard = AbortOnPanic(Arc::clone(&abort));
-                    s.spawn(move || {
-                        let _guard = guard;
-                        search(&board, helper);
-                    });
-                }
-                let _guard = AbortOnPanic(Arc::clone(&abort));
-                search(&board, main_td);
-            });
+            let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                std::thread::scope(|s| {
+                    let (main_td, helpers) = threads.split_first_mut().unwrap();
+                    let abort = Arc::clone(&main_td.abort);
+                    for helper in helpers.iter_mut() {
+                        let guard = AbortOnPanic(Arc::clone(&abort));
+                        s.spawn(move || {
+                            let _guard = guard;
+                            search(&board, helper);
+                        });
+                    }
+                    let _guard = AbortOnPanic(Arc::clone(&abort));
+                    search(&board, main_td);
+                });
+            }))
+            .is_err();
+
+            if panicked {
+                eprintln!("info string error: search thread panicked, reporting best move found so far");
+            }
 
             let best_idx = select_best_thread(&threads);
-            println!("bestmove {}", threads[best_idx].best_move.to_uci());
+            let best_move = threads[best_idx].best_move;
+            let uci_move = if best_move.exists() { best_move.to_uci() } else { "0000".to_string() };
+            println!("bestmove {}", uci_move);
             threads
         }));
     }

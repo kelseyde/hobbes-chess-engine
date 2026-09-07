@@ -49,7 +49,7 @@ impl UCI {
             return;
         }
         if args.len() > 1 && args[1].contains("genfens") {
-            let tokens = self.split_args(args[1].clone());
+            let tokens = self.split_args(&args[1]);
             self.handle_genfens(tokens);
             return;
         }
@@ -58,10 +58,22 @@ impl UCI {
 
         loop {
             let mut line = String::new();
-            io::stdin()
-                .read_line(&mut line)
-                .expect("info error failed to parse command");
-            let tokens = self.split_args(line.clone());
+            match io::stdin().read_line(&mut line) {
+                Ok(0) => {
+                    // EOF: stdin closed without an explicit 'quit' (e.g. the parent GUI process
+                    // died). Shut down cleanly instead of spinning on Ok(0) forever.
+                    self.handle_quit();
+                    return;
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    // Non-UTF-8 or otherwise malformed bytes on stdin: skip this line rather than
+                    // crashing the whole engine.
+                    println!("info error: failed to read command, skipping");
+                    continue;
+                }
+            }
+            let tokens = self.split_args(&line);
 
             self.engine.try_reclaim();
 
@@ -262,12 +274,8 @@ impl UCI {
         };
         self.board.set_frc(self.frc);
 
-        let moves: Vec<Move> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
-            tokens
-                .iter()
-                .skip(index + 1)
-                .map(|m| Move::parse_uci(m))
-                .collect()
+        let move_tokens: Vec<&String> = if let Some(index) = tokens.iter().position(|x| x == "moves") {
+            tokens.iter().skip(index + 1).collect()
         } else {
             Vec::new()
         };
@@ -278,10 +286,16 @@ impl UCI {
         td.root_ply = 0;
         td.keys.push(start_hash);
 
-        for m in &moves {
-            let mut legal_moves = MoveList::new();
-            self.board.gen_moves(MoveFilter::All, &mut legal_moves);
-            let legal = legal_moves.iter().map(|e| e.mv).find(|lm| lm.matches(m));
+        for token in move_tokens {
+            // Move::parse_uci returns None for a malformed token (e.g. a truncated or garbled
+            // move) rather than panicking; treat that the same as a legal-move mismatch below.
+            let parsed = Move::parse_uci(token);
+            let legal = parsed.and_then(|m| {
+                let mut legal_moves = MoveList::new();
+                self.board.gen_moves(MoveFilter::All, &mut legal_moves);
+                let found = legal_moves.iter().map(|e| e.mv).find(|lm| lm.matches(&m));
+                found
+            });
             match legal {
                 Some(m) => {
                     self.board.make(&m, &mut NullBoardObserver);
@@ -290,7 +304,13 @@ impl UCI {
                     td.keys.push(hash);
                     td.root_ply += 1;
                 }
-                None => println!("info error: illegal move {}", m.to_uci()),
+                None => {
+                    // Stop applying moves as soon as one doesn't match: the board is otherwise
+                    // left one ply "behind" where the rest of the move list assumes it is, so
+                    // continuing would just cascade into further, more confusing errors.
+                    println!("info error: illegal move {}", token);
+                    break;
+                }
             }
         }
     }
@@ -303,7 +323,7 @@ impl UCI {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
-                    return;
+                    None
                 }
             }
         } else {
@@ -358,7 +378,7 @@ impl UCI {
                 Ok(softnodes) => Some(softnodes),
                 Err(_) => {
                     println!("info error: softnodes is not a valid number");
-                    return;
+                    None
                 }
             }
         } else if tokens.contains(&String::from("nodes")) && use_soft_nodes {
@@ -366,7 +386,7 @@ impl UCI {
                 Ok(nodes) => Some(nodes),
                 Err(_) => {
                     println!("info error: nodes is not a valid number");
-                    return;
+                    None
                 }
             }
         } else {
@@ -378,7 +398,7 @@ impl UCI {
                 Ok(depth) => Some(depth),
                 Err(_) => {
                     println!("info error: depth is not a valid number");
-                    return;
+                    None
                 }
             }
         } else {
@@ -472,12 +492,12 @@ impl UCI {
     /// Handle genfens command, an OpenBench utility that generates random openings from a seed to
     /// be used in an OB datagen workload.
     fn handle_genfens(&mut self, tokens: Vec<String>) {
-        let count = self.parse_uint(&tokens, "genfens").unwrap_or({
+        let count = self.parse_uint(&tokens, "genfens").unwrap_or_else(|_| {
             println!("info error: count is not a valid number");
             0
         }) as usize;
 
-        let seed = self.parse_uint(&tokens, "seed").unwrap_or({
+        let seed = self.parse_uint(&tokens, "seed").unwrap_or_else(|_| {
             println!("info error: seed is not a valid number");
             0
         });
@@ -542,11 +562,8 @@ impl UCI {
         }
     }
 
-    fn split_args(&self, args_str: String) -> Vec<String> {
-        args_str
-            .split_whitespace()
-            .map(|v| v.trim().to_string())
-            .collect()
+    fn split_args(&self, args_str: &str) -> Vec<String> {
+        args_str.split_whitespace().map(|v| v.to_string()).collect()
     }
 }
 

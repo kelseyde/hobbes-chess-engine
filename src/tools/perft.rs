@@ -4,6 +4,10 @@ use crate::board::observer::NullBoardObserver;
 use crate::board::Board;
 
 pub fn perft<const BULK: bool>(board: &Board, depth: u8) -> u64 {
+    if depth == 0 {
+        return 1;
+    }
+
     let mut moves = MoveList::new();
     board.gen_moves(MoveFilter::All, &mut moves);
     let mut total = 0;

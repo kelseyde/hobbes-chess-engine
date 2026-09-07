@@ -89,7 +89,7 @@ pub fn bench(td: &mut ThreadData) {
     let seconds = end.duration_since(start).as_secs_f64();
     println!("{:.4} seconds\n", seconds);
 
-    let nps = (nodes / time) * 1000;
+    let nps = nodes.checked_div(time).map_or(0, |n| n * 1000);
     println!("{} nodes {} nps", nodes, nps);
 
     #[cfg(feature = "track_l0_activations")]

@@ -182,7 +182,7 @@ mod tests {
         td.root_ply = 0;
 
         for mv_str in moves {
-            let mv = Move::parse_uci(mv_str);
+            let mv = Move::parse_uci(mv_str).unwrap();
             board.make(&mv, &mut NullBoardObserver);
             td.keys.push(board.hash());
         }

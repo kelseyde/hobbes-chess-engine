@@ -99,40 +99,48 @@ impl Move {
             _ => None,
         }
     }
-
-    pub fn parse_uci(notation: &str) -> Move {
-        let from = Self::parse_uci_sq(&notation[0..2]);
-        let to = Self::parse_uci_sq(&notation[2..4]);
+    
+    pub fn parse_uci(notation: &str) -> Option<Move> {
+        if notation.len() != 4 && notation.len() != 5 {
+            return None;
+        }
+        let from = Self::parse_uci_sq(&notation[0..2])?;
+        let to = Self::parse_uci_sq(&notation[2..4])?;
 
         let flag = if notation.len() == 5 {
-            let piece_code = &notation[4..5];
-            Self::get_promotion_flag(piece_code.chars().nth(0).unwrap())
+            Self::get_promotion_flag(notation[4..5].chars().next()?)?
         } else {
             MoveFlag::Standard
         };
 
-        Move::new(from, to, flag)
+        Some(Move::new(from, to, flag))
     }
 
     pub fn parse_uci_with_flag(notation: &str, flag: MoveFlag) -> Move {
-        let from = Self::parse_uci_sq(&notation[0..2]);
-        let to = Self::parse_uci_sq(&notation[2..4]);
+        let from = Self::parse_uci_sq(&notation[0..2]).expect("invalid square in notation");
+        let to = Self::parse_uci_sq(&notation[2..4]).expect("invalid square in notation");
         Move::new(from, to, flag)
     }
 
-    fn parse_uci_sq(notation: &str) -> Square {
-        let file = notation.chars().nth(0).unwrap() as u8 - b'a';
-        let rank = notation.chars().nth(1).unwrap() as u8 - b'1';
-        Square(rank * 8 + file)
+    fn parse_uci_sq(notation: &str) -> Option<Square> {
+        let mut chars = notation.chars();
+        let file_char = chars.next()?;
+        let rank_char = chars.next()?;
+        if !('a'..='h').contains(&file_char) || !('1'..='8').contains(&rank_char) {
+            return None;
+        }
+        let file = file_char as u8 - b'a';
+        let rank = rank_char as u8 - b'1';
+        Some(Square(rank * 8 + file))
     }
 
-    fn get_promotion_flag(c: char) -> MoveFlag {
+    fn get_promotion_flag(c: char) -> Option<MoveFlag> {
         match c {
-            'q' => MoveFlag::PromoQ,
-            'r' => MoveFlag::PromoR,
-            'b' => MoveFlag::PromoB,
-            'n' => MoveFlag::PromoN,
-            _ => panic!("Invalid promotion flag"),
+            'q' => Some(MoveFlag::PromoQ),
+            'r' => Some(MoveFlag::PromoR),
+            'b' => Some(MoveFlag::PromoB),
+            'n' => Some(MoveFlag::PromoN),
+            _ => None,
         }
     }
 
