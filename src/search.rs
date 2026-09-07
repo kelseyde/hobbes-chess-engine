@@ -469,7 +469,7 @@ fn alpha_beta<NODE: NodeType>(
             let history_score = td.history
                 .history_score(board, &td.stack, &tt_move, ply, threats, pc, captured);
 
-            let is_quiet = board.captured(&tt_move).is_some();
+            let is_quiet = !board.is_noisy(&tt_move);
             let (s_beta_base, s_beta_scale, s_beta_div) = se_config(is_quiet);
             let s_beta_margin = (s_beta_base + s_beta_scale * (tt_pv && !pv_node) as i32) * depth / s_beta_div
                 + (history_score / se_beta_history_div()).clamp(-depth / 4, depth / 4);
