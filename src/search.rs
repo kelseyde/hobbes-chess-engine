@@ -546,7 +546,7 @@ fn alpha_beta<NODE: NodeType>(
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
-        let is_quiet = captured.is_none();
+        let is_quiet = !board.is_noisy(&mv);
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
