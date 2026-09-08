@@ -36,10 +36,10 @@ tunable_params! {
     pc_max                       = 513, 300..=700,         true;
     pc_tt_depth_offset           = 2, 0..=4,               false;
     hindsight_ext_min_depth      = 1, 1..=5,               false;
-    hindsight_ext_min_reduction  = 3, 1..=5,               false;
+    hindsight_ext_min_reduction  = 1024, 0..=5120,         true;
     hindsight_ext_eval_diff      = -17, -50..=50,          true;
     hindsight_red_min_depth      = 2, 1..=5,               false;
-    hindsight_red_min_reduction  = 1, 1..=5,               false;
+    hindsight_red_min_reduction  = 1024, 0..=5120,         true;
     hindsight_red_eval_diff      = 51, 0..=120,            true;
     hindsight_hist_mult          = 9, 0..=20,              true;
     hindsight_hist_min           = -64, -100..=0,          true;
