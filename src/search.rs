@@ -1061,7 +1061,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
 
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
-        let is_quiet = captured.is_none();
+        let is_quiet = !board.is_noisy(&mv);
         let is_recapture = board.is_recapture(&mv);
         let is_mate_score = is_mate(best_score);
 
