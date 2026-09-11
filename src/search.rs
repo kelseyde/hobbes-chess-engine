@@ -798,11 +798,13 @@ fn alpha_beta<NODE: NodeType>(
     if flag == Lower {
         let pc = board.piece_at(best_move.from()).unwrap();
         let new_tt_move = tt_move.exists() && best_move != tt_move;
+        let big_cutoff = alpha > beta + 45;
 
         let quiet_bonus = quiet_history_bonus(depth)
             - cut_node as i16 * quiet_hist_cutnode_offset() as i16
             + new_tt_move as i16 * quiet_hist_ttmove_bonus() as i16
-            + capture_count as i16 * quiet_hist_capture_mult() as i16;
+            + capture_count as i16 * quiet_hist_capture_mult() as i16
+            + big_cutoff as i16 * 75;
 
         let quiet_malus = quiet_history_malus(depth)
             + new_tt_move as i16 * quiet_hist_ttmove_malus() as i16;
