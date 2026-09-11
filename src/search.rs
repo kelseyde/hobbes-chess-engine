@@ -438,7 +438,6 @@ fn alpha_beta<NODE: NodeType>(
     ).min(pc_max());
     if !pv_node
         && !singular_search
-        && !in_check
         && is_defined(tt_score)
         && !is_mate(tt_score)
         && !is_mate(beta)
