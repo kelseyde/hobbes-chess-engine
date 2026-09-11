@@ -261,7 +261,7 @@ impl ThreadData {
             self.best_move_stability = 0;
         }
 
-        if score - prev_score.abs() < score_stability_threshold() {
+        if (score - prev_score).abs() < score_stability_threshold() {
             self.score_stability += 1;
         } else {
             self.score_stability = 0;
