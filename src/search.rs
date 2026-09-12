@@ -349,7 +349,8 @@ fn alpha_beta<NODE: NodeType>(
             + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
-            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
+            - rfp_tt_move_noisy_scale() * tt_move_noisy as i32
+            - 10 * (correction.abs() < 12) as i32;
         if static_eval - futility_margin >= beta {
             let rfp_depth = rfp_max_depth() + 2 * improving as i32;
             if depth <= rfp_depth {
