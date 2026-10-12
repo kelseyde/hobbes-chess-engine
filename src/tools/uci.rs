@@ -1,4 +1,4 @@
-use crate::board::movegen::MoveFilter;
+use crate::board::movegen::All;
 use crate::board::moves::{Move, MoveList};
 use crate::board::observer::NullBoardObserver;
 use crate::board::side::Side::{Black, White};
@@ -282,7 +282,7 @@ impl UCI {
 
         for m in &moves {
             let mut legal_moves = MoveList::new();
-            self.board.gen_moves(MoveFilter::All, &mut legal_moves);
+            self.board.gen_moves::<All>(&mut legal_moves);
             let legal = legal_moves.iter().map(|e| e.mv).find(|lm| lm.matches(m));
             match legal {
                 Some(m) => {

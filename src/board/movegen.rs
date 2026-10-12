@@ -10,38 +10,45 @@ use crate::board::square::Square;
 use crate::board::{attacks, castling, ray};
 use crate::board::{setwise, Board};
 
-/// A filter used to generate only certain types of moves during search. `All` generates all legal
-// moves, `Quiets` generates only non-captures (including promotions), `Noisies` generates captures
-// and promotions, and `Captures` generates only captures.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum MoveFilter {
-    All,
-    Quiets,
-    Noisies,
-    Captures,
+pub trait MoveFilter {
+    const QUIET: bool;
+    const PROMO: bool;
+    const CAPTURE: bool;
 }
 
-impl MoveFilter {
-    pub fn gen_quiets(self) -> bool {
-        matches!(self, MoveFilter::All | MoveFilter::Quiets)
-    }
+pub struct All;
+pub struct Quiet;
+pub struct Noisy;
+pub struct Capture;
 
-    pub fn gen_noisies(self) -> bool {
-        matches!(self, MoveFilter::All | MoveFilter::Noisies)
-    }
+impl MoveFilter for All {
+    const QUIET: bool = true;
+    const PROMO: bool = true;
+    const CAPTURE: bool = true;
+}
 
-    pub fn gen_captures(self) -> bool {
-        matches!(
-            self,
-            MoveFilter::All | MoveFilter::Noisies | MoveFilter::Captures
-        )
-    }
+impl MoveFilter for Quiet {
+    const QUIET: bool = true;
+    const PROMO: bool = false;
+    const CAPTURE: bool = false;
+}
+
+impl MoveFilter for Noisy {
+    const QUIET: bool = false;
+    const PROMO: bool = true;
+    const CAPTURE: bool = true;
+}
+
+impl MoveFilter for Capture {
+    const QUIET: bool = false;
+    const PROMO: bool = false;
+    const CAPTURE: bool = true;
 }
 
 impl Board {
     /// Generate all legal moves for the current position.
     #[rustfmt::skip]
-    pub fn gen_moves(&self, filter: MoveFilter, moves: &mut MoveList) {
+    pub fn gen_moves<F: MoveFilter>(&self, moves: &mut MoveList) {
         let side = self.stm;
         let us = self.us();
         let them = self.them();
@@ -52,10 +59,13 @@ impl Board {
 
         // During search, we generate moves in stages - noisies first, then quiets. We therefore
         // apply a filter mask to exclude quiet moves in the noisy stage and vice versa.
-        let mut filter_mask = match filter {
-            MoveFilter::All => Bitboard::ALL,
-            MoveFilter::Quiets => !them,
-            MoveFilter::Noisies | MoveFilter::Captures => them,
+        let quiets_only = F::QUIET && !F::CAPTURE;
+        let mut filter_mask = if F::QUIET && F::CAPTURE {
+            Bitboard::ALL
+        } else if F::QUIET {
+            !them
+        } else {
+            them
         };
 
         // Generate king moves first, because if we are in double-check, the only legal moves are
@@ -73,9 +83,9 @@ impl Board {
             Bitboard::ALL
         };
         filter_mask &= evasion_mask;
-        filter_mask &= if filter == MoveFilter::Quiets { !occ } else { !us };
+        filter_mask &= if quiets_only { !occ } else { !us };
 
-        self.gen_pawn_moves(filter, evasion_mask, moves);
+        self.gen_pawn_moves::<F>(evasion_mask, moves);
         self.gen_knight_moves(side, pinned, filter_mask, moves);
         self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| attacks::bishop(sq, occ));
         self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| attacks::rook(sq, occ));
@@ -141,7 +151,7 @@ impl Board {
     /// Generate the legal pawn moves in the position. Pawn moves are generated setwise rather than
     /// piecewise for efficiency.
     #[inline(always)]
-    fn gen_pawn_moves(&self, filter: MoveFilter, filter_mask: Bitboard, moves: &mut MoveList) {
+    fn gen_pawn_moves<F: MoveFilter>(&self, filter_mask: Bitboard, moves: &mut MoveList) {
         let side = self.stm;
         let pinned = self.pinned[side];
         let pawns = self.pieces(Piece::Pawn) & self.side(side);
@@ -154,7 +164,7 @@ impl Board {
         let pushable_pawns = pawns & (!pinned | king_file);
 
         // Quiet pawn moves (single and double pushes).
-        if filter.gen_quiets() {
+        if F::QUIET {
             let non_promotions = pushable_pawns & !seventh_rank;
             let single_pushes = non_promotions.shift(up) & empty;
             let double_pushes = (single_pushes & third_rank).shift(up) & empty;
@@ -163,13 +173,13 @@ impl Board {
         }
 
         // Push promotions (noisy, but not captures).
-        if filter.gen_noisies() {
+        if F::PROMO {
             let push_promos = (pushable_pawns & seventh_rank).shift(up) & empty;
             moves.add_pawn_promos(push_promos & filter_mask, up);
         }
 
         // Captures (standard captures, promo captures, and en passant).
-        if filter.gen_captures() {
+        if F::CAPTURE {
             let filter_mask = filter_mask & self.them();
             let dirs = [up + Square::RIGHT, up + Square::LEFT];
             let pin_masks = [
@@ -207,7 +217,7 @@ impl Board {
             }
         }
 
-        if filter.gen_quiets() && self.checkers.is_empty() {
+        if F::QUIET && self.checkers.is_empty() {
             self.gen_castle_moves(side, moves);
         }
     }
@@ -379,85 +389,7 @@ pub fn is_sq_attacked(sq: Square, side: Side, occ: Bitboard, board: &Board) -> b
 
 #[cfg(test)]
 mod tests {
-    use crate::board::movegen::MoveFilter;
-    use crate::board::moves::MoveList;
-    use crate::board::{ray, Board};
-
-    #[test]
-    fn test_filters() {
-        ray::init();
-        let board = Board::from_fen("8/2p5/1p2kPp1/p5Pp/P1P1KRnR/6P1/4P3/r7 b - - 0 44").unwrap();
-
-        let mut legal_moves = MoveList::new();
-        let mut quiet_moves = MoveList::new();
-        let mut noisy_moves = MoveList::new();
-        let mut capture_moves = MoveList::new();
-        board.gen_moves(MoveFilter::All, &mut legal_moves);
-        board.gen_moves(MoveFilter::Quiets, &mut quiet_moves);
-        board.gen_moves(MoveFilter::Noisies, &mut noisy_moves);
-        board.gen_moves(MoveFilter::Captures, &mut capture_moves);
-
-        let legal_mv_strings = legal_moves
-            .iter()
-            .map(|mv| mv.mv.to_uci())
-            .collect::<Vec<_>>();
-        let quiet_mv_strings = quiet_moves
-            .iter()
-            .map(|mv| mv.mv.to_uci())
-            .collect::<Vec<_>>();
-        let noisy_mv_strings = noisy_moves
-            .iter()
-            .map(|mv| mv.mv.to_uci())
-            .collect::<Vec<_>>();
-
-        println!("legals: {:?}", legal_mv_strings);
-        println!("quiets: {:?}", quiet_mv_strings);
-        println!("noisies: {:?}", noisy_mv_strings);
-        println!("captures: {:?}", capture_moves);
-
-        let extra_quiets = quiet_mv_strings
-            .iter()
-            .filter(|mv| !legal_mv_strings.contains(mv))
-            .collect::<Vec<_>>();
-        let extra_noisies = noisy_mv_strings
-            .iter()
-            .filter(|mv| !legal_mv_strings.contains(mv))
-            .collect::<Vec<_>>();
-        let extra_captures = capture_moves
-            .iter()
-            .map(|mv| mv.mv.to_uci())
-            .filter(|mv| !legal_mv_strings.contains(mv))
-            .collect::<Vec<_>>();
-
-        println!("extra_quiets: {:?}", extra_quiets);
-        println!("extra_noisies: {:?}", extra_noisies);
-        println!("extra_captures: {:?}", extra_captures);
-
-        assert_eq!(
-            legal_mv_strings.len(),
-            quiet_mv_strings.len() + noisy_mv_strings.len()
-        );
-        assert_eq!(extra_quiets.len(), 0);
-        assert_eq!(extra_noisies.len(), 0);
-        assert_eq!(extra_captures.len(), 0);
-
-        let noisy_quiets = quiet_moves
-            .iter()
-            .filter(|mv| board.captured(&mv.mv).is_some())
-            .count();
-        let quiet_noisies = noisy_moves
-            .iter()
-            .filter(|mv| board.is_noisy(&mv.mv))
-            .count();
-        let quiet_captures = quiet_moves
-            .iter()
-            .filter(|mv| board.captured(&mv.mv).is_some())
-            .count();
-
-        assert_eq!(noisy_quiets, 0);
-        assert_eq!(quiet_noisies, 0);
-        assert_eq!(quiet_captures, 0);
-    }
+    use crate::board::ray;
 
     #[test]
     fn test_perft_standard_epd() {

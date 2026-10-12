@@ -1,5 +1,5 @@
 use crate::board::bitboard::Bitboard;
-use crate::board::movegen::MoveFilter;
+use crate::board::movegen::{Capture, Noisy, Quiet};
 use crate::board::moves::{Move, MoveList, ScoredMove};
 use crate::board::piece::Piece;
 use crate::board::piece::Piece::Queen;
@@ -24,7 +24,7 @@ pub struct MovePicker {
     moves: MoveList,        // List of moves to pick from in the current stage
     stage: Stage,           // The current stage of move picking, e.g. generating quiets, trying captures.
     idx: usize,             // The index of the current move being searched.
-    filter: MoveFilter,     // The filter to use when generating moves, e.g., by filtering out quiet moves in q-search.
+    captures_only: bool,    // Whether the noisy stage generates only captures, rather than all noisies (i.e. captures and promotions).
     tt_move: Move,          // The move from the transposition table, which is tried first if it exists.
     ply: usize,             // The ply of the current search, used for history heuristics.
     threats: Bitboard,      // The squares threatened by the opponent, used for history heuristics.
@@ -47,23 +47,22 @@ pub enum Stage {
 
 impl MovePicker {
     pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, MoveFilter::Noisies, ply, threats, false, true)
+        Self::init(tt_move, false, ply, threats, false, true)
     }
 
     pub fn new_qsearch(
         tt_move: Move,
-        filter: MoveFilter,
         ply: usize,
         threats: Bitboard,
         skip_quiets: bool
     ) -> Self {
-        Self::init(tt_move, filter, ply, threats, skip_quiets, false)
+        Self::init(tt_move, !skip_quiets, ply, threats, skip_quiets, false)
     }
 
     #[rustfmt::skip]
     pub fn init(
         tt_move: Move,
-        filter: MoveFilter,
+        captures_only: bool,
         ply: usize,
         threats: Bitboard,
         skip_quiets: bool,
@@ -74,7 +73,7 @@ impl MovePicker {
             moves: MoveList::new(),
             stage,
             idx: 0,
-            filter,
+            captures_only,
             tt_move,
             ply,
             threats,
@@ -140,7 +139,7 @@ impl MovePicker {
     #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
         let mut temp = MoveList::new();
-        board.gen_moves(MoveFilter::Quiets, &mut temp);
+        board.gen_moves::<Quiet>(&mut temp);
         for entry in temp.iter_mut() {
             if entry.mv == self.tt_move {
                 continue;
@@ -154,7 +153,11 @@ impl MovePicker {
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
         let mut temp = MoveList::new();
         let mut bad_temp = MoveList::new();
-        board.gen_moves(self.filter, &mut temp);
+        if self.captures_only {
+            board.gen_moves::<Capture>(&mut temp);
+        } else {
+            board.gen_moves::<Noisy>(&mut temp);
+        }
         for entry in temp.iter_mut() {
             if entry.mv == self.tt_move {
                 continue;
