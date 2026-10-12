@@ -11,7 +11,7 @@ pub mod time;
 pub mod tt;
 pub mod lmr;
 
-use crate::board::movegen::MoveFilter;
+use crate::board::movegen::All;
 use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
 use crate::board::Board;
@@ -49,7 +49,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
     td.limits.init();
 
     let mut root_moves = MoveList::new();
-    board.gen_moves(MoveFilter::All, &mut root_moves);
+    board.gen_moves::<All>(&mut root_moves);
 
     match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
@@ -1037,12 +1037,7 @@ fn qs(board: &Board, td: &mut ThreadData, mut alpha: i32, beta: i32, ply: usize)
     }
 
     let skip_quiets = !in_check && (pv_node || !tt_move.exists() || tt_move_noisy);
-    let filter = if skip_quiets {
-        MoveFilter::Noisies
-    } else {
-        MoveFilter::Captures
-    };
-    let mut move_picker = MovePicker::new_qsearch(tt_move, filter, ply, threats, skip_quiets);
+    let mut move_picker = MovePicker::new_qsearch(tt_move, ply, threats, skip_quiets);
 
     let mut legal_moves = 0;
     let mut searched_moves = 0;
