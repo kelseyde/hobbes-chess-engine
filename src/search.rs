@@ -53,7 +53,7 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
 
     match root_moves.len() {
         0 => return handle_no_legal_moves(board, td),
-        1 => return handle_one_legal_move(board, td, &root_moves),
+        1 if td.limits.search_moves.is_none() => return handle_one_legal_move(board, td, &root_moves),
         _ => {}
     }
 
@@ -536,6 +536,9 @@ fn alpha_beta<NODE: NodeType>(
     let mut captures = ArrayVec::<Move, 32>::new();
 
     while let Some(mv) = move_picker.next(board, td) {
+        if root_node && td.limits.search_moves.as_ref().is_some_and(|moves| !moves.contains(&mv)) {
+            continue;
+        }
 
         legal_moves += 1;
 
@@ -917,7 +920,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Store the best move and score in the transposition table
-    if !singular_search && !td.should_stop(Hard) {
+    if !singular_search && !td.should_stop(Hard) && !(root_node && td.limits.search_moves.is_some()) {
         td.tt().insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 

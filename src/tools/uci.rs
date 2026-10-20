@@ -394,7 +394,7 @@ impl UCI {
             }
         }
 
-        let limits = SearchLimits::new(
+        let mut limits = SearchLimits::new(
             fischer,
             movetime,
             softnodes,
@@ -402,6 +402,25 @@ impl UCI {
             depth,
             self.board.fm as usize,
         );
+        if let Some(index) = tokens.iter().position(|token| token == "searchmoves") {
+            let mut legal_moves = MoveList::new();
+            self.board.gen_moves::<All>(&mut legal_moves);
+            let mut moves = Vec::new();
+            for token in tokens.iter().skip(index + 1).take_while(|token| !matches!(token.as_str(),
+                "searchmoves" | "ponder" | "wtime" | "btime" | "winc" | "binc" | "movestogo"
+                | "depth" | "nodes" | "mate" | "movetime" | "infinite" | "softnodes")) {
+                let Some(mv) = legal_moves.iter().map(|entry| entry.mv).find(|mv| mv.to_uci() == *token) else {
+                    println!("info error: illegal searchmove {}", token);
+                    return;
+                };
+                moves.push(mv);
+            }
+            if moves.is_empty() {
+                println!("bestmove 0000");
+                return;
+            }
+            limits.search_moves = Some(moves);
+        }
         self.engine.go(self.board, limits);
     }
 
