@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::board::moves::Move;
 use crate::search::parameters::*;
 
 pub const UCI_OVERHEAD_MS: u64 = 50;
@@ -68,6 +69,7 @@ pub struct SearchLimits {
     pub soft_nodes: Option<u64>,
     pub hard_nodes: Option<u64>,
     pub depth: Option<u64>,
+    pub search_moves: Option<Vec<Move>>,
     pub time_params: TimeParams,
 }
 
@@ -99,6 +101,7 @@ impl SearchLimits {
             soft_nodes,
             hard_nodes,
             depth,
+            search_moves: None,
             time_params,
         }
     }
