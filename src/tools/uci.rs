@@ -402,26 +402,36 @@ impl UCI {
             depth,
             self.board.fm as usize,
         );
-        if let Some(index) = tokens.iter().position(|token| token == "searchmoves") {
-            let mut legal_moves = MoveList::new();
-            self.board.gen_moves::<All>(&mut legal_moves);
-            let mut moves = Vec::new();
-            for token in tokens.iter().skip(index + 1).take_while(|token| !matches!(token.as_str(),
-                "searchmoves" | "ponder" | "wtime" | "btime" | "winc" | "binc" | "movestogo"
-                | "depth" | "nodes" | "mate" | "movetime" | "infinite" | "softnodes")) {
-                let Some(mv) = legal_moves.iter().map(|entry| entry.mv).find(|mv| mv.to_uci() == *token) else {
-                    println!("info error: illegal searchmove {}", token);
-                    return;
-                };
-                moves.push(mv);
-            }
-            if moves.is_empty() {
-                println!("bestmove 0000");
+        limits.search_moves = match self.parse_search_moves(&tokens) {
+            Ok(moves) => moves,
+            Err(error) => {
+                println!("{}", error);
                 return;
             }
-            limits.search_moves = Some(moves);
+        };
+        if limits.search_moves.as_ref().is_some_and(Vec::is_empty) {
+            println!("bestmove 0000");
+            return;
         }
         self.engine.go(self.board, limits);
+    }
+
+    fn parse_search_moves(&self, tokens: &[String]) -> Result<Option<Vec<Move>>, String> {
+        let Some(index) = tokens.iter().position(|token| token == "searchmoves") else {
+            return Ok(None);
+        };
+        let mut legal_moves = MoveList::new();
+        self.board.gen_moves::<All>(&mut legal_moves);
+        let mut moves = Vec::new();
+        for token in tokens.iter().skip(index + 1).take_while(|token| !matches!(token.as_str(),
+            "searchmoves" | "ponder" | "wtime" | "btime" | "winc" | "binc" | "movestogo"
+            | "depth" | "nodes" | "mate" | "movetime" | "infinite" | "softnodes")) {
+            let Some(mv) = legal_moves.iter().map(|entry| entry.mv).find(|mv| mv.to_uci() == *token) else {
+                return Err(format!("info error: illegal searchmove {}", token));
+            };
+            moves.push(mv);
+        }
+        Ok(Some(moves))
     }
 
     fn sync(&mut self) {

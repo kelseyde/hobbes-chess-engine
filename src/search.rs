@@ -920,7 +920,7 @@ fn alpha_beta<NODE: NodeType>(
     }
 
     // Store the best move and score in the transposition table
-    if !singular_search && !td.should_stop(Hard) && !(root_node && td.limits.search_moves.is_some()) {
+    if !singular_search && !td.should_stop(Hard) {
         td.tt().insert(board.hash_with_50mr_bucket(), best_move, best_score, raw_eval, depth, ply, flag, tt_pv);
     }
 
