@@ -129,9 +129,11 @@ impl Histories {
         ply: usize,
         mv: &Move,
         pc: Piece,
+        threats: Bitboard,
         bonuses: &[i16; ContinuationHistory::PLY_COUNT],
     ) {
-        let total_score = self.cont_history_score(board, ss, mv, ply);
+        let quiet_score = self.quiet_history_score(board, mv, pc, threats);
+        let cont_update_base = self.cont_history_score(board, ss, mv, ply) + quiet_score / 2;
         ContinuationHistory::PLIES
             .iter()
             .zip(bonuses)
@@ -143,7 +145,7 @@ impl Histories {
             })
             .for_each(|(prev_mv, prev_pc, bonus, prev_ply)| {
                 self.cont_history
-                    .update(&prev_mv, prev_pc, mv, pc, total_score, bonus, prev_ply)
+                    .update(&prev_mv, prev_pc, mv, pc, cont_update_base, bonus, prev_ply)
             });
     }
 
