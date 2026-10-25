@@ -911,15 +911,17 @@ fn alpha_beta<NODE: NodeType>(
         };
     }
 
+    if !in_check {
+        // Re-correct static eval using the updated correction histories.
+        correction = td.correction_history.correction(board, &td.stack, ply);
+        static_eval = raw_eval + correction;
+    }
+
     // Update static eval correction history.
     if !in_check
         && !singular_search
         && flag.bounds_match(best_score, static_eval, static_eval)
         && (!best_move.exists() || !board.is_noisy(&best_move) || !see::see(board, &best_move, 0, Pruning)) {
-
-        // Re-correct static eval using the updated correction histories.
-        correction = td.correction_history.correction(board, &td.stack, ply);
-        static_eval = raw_eval + correction;
 
         td.correction_history.update(board, &td.stack, depth, ply, static_eval, best_score);
     }
