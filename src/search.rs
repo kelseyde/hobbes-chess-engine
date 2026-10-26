@@ -383,12 +383,12 @@ fn alpha_beta<NODE: NodeType>(
                 + nmp_red_eval_mult() * (static_eval - beta).clamp(0, nmp_red_eval_max()) / nmp_red_div())
                 / 1024;
 
-            let mut board = *board;
-            board.make_null_move();
+            let mut new_board = *board;
+            new_board.make_null_move();
             td.inc_nodes();
-            td.keys.push(board.hash());
-            td.tt().prefetch(board.hash_with_50mr_bucket());
-            let score = -alpha_beta::<NonPV>(&board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
+            td.keys.push(new_board.hash());
+            td.tt().prefetch(new_board.hash_with_50mr_bucket());
+            let score = -alpha_beta::<NonPV>(&new_board, td, depth - r, ply + 1, -beta, -beta + 1, !cut_node);
             td.keys.pop();
 
             if score >= beta {
