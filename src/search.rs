@@ -549,6 +549,7 @@ fn alpha_beta<NODE: NodeType>(
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = !board.is_noisy(&mv);
+        let is_important_capture = captured.is_some() && !cut_node;
         let is_mated = is_mated(best_score);
         let is_killer = td.stack[ply].killer.is_some_and(|k| k == mv);
         let history_score = td.history.history_score(board, &td.stack, &mv, ply, threats, pc, captured);
@@ -677,6 +678,7 @@ fn alpha_beta<NODE: NodeType>(
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
             r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
+            r += (!is_quiet && !is_important_capture) as i32 * 256;
             r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
