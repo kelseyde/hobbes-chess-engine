@@ -271,7 +271,7 @@ fn alpha_beta<NODE: NodeType>(
         } else {
             td.nnue.evaluate(board)
         };
-        if !tt_hit {
+        if !tt_hit && !singular_search {
             td.tt().insert(board.hash_with_50mr_bucket(), Move::NONE, score::MIN, raw_eval, depth, ply, TTFlag::None, tt_pv);
         }
         correction = td.correction_history.correction(board, &td.stack, ply);
