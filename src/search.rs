@@ -675,9 +675,13 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_bad_noisy() * (move_picker.stage() == BadNoisies) as i32;
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
-            r -= is_quiet as i32 * ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
-            r -= !is_quiet as i32 * captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
-            r += (is_quiet && to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            if is_quiet {
+                r -= ((history_score - lmr_quiet_hist_offset()) / lmr_quiet_hist_divisor()) * 1024;
+                r += (to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32 * lmr_quiet_see();
+            } else {
+                r += ((history_score - lmr_noisy_hist_offset()) / lmr_noisy_hist_divisor()) * 1024;
+                r -= captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
+            }
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
                 r += (lmr_se_mult() * (margin - lmr_se_offset()) / lmr_se_div()).clamp(0, lmr_se_max());
