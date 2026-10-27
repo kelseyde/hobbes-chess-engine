@@ -1,5 +1,5 @@
-use crate::tunable_params;
 use crate::tunable_arrays;
+use crate::tunable_params;
 
 #[rustfmt::skip]
 tunable_params! {
@@ -71,7 +71,7 @@ tunable_params! {
     see_noisy_mult2              = 37, 16..=48,            true;
     see_noisy_offset             = 10, 0..=30,             true;
     see_quiet_history_div        = 184, 164..=388,         true;
-    see_noisy_history_div        = 232, 164..=388,         true;
+    see_noisy_history_div        = 184, 164..=388,         true;
     see_quiet_ttpv_scale         = 26, 0..=36,             true;
     see_noisy_ttpv_scale         = 22, 0..=36,             true;
     se_min_depth                 = 6, 6..=10,              false;

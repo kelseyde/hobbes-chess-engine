@@ -66,7 +66,11 @@ pub fn pawn_id(sq: Square, pawn_side: Side, perspective: Side, mirror: bool) -> 
         sq = sq.flip_file();
     }
     // Friendly pawns occupy 0..48, enemy pawns occupy 48..96
-    let enemy_offset = if pawn_side == perspective { 0 } else { PAWN_SQUARES };
+    let enemy_offset = if pawn_side == perspective {
+        0
+    } else {
+        PAWN_SQUARES
+    };
     enemy_offset + (sq.0 - FIRST_PAWN_SQ.0) as u32
 }
 
@@ -147,6 +151,10 @@ impl PawnPairFeature {
 
     #[inline(always)]
     const fn decode_side(bits: u32) -> Side {
-        if bits & 1 == 0 { White } else { Black }
+        if bits & 1 == 0 {
+            White
+        } else {
+            Black
+        }
     }
 }

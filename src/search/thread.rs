@@ -6,12 +6,12 @@ use crate::board::moves::Move;
 use crate::evaluation::NNUE;
 use crate::search::correction::CorrectionHistories;
 use crate::search::history::Histories;
+use crate::search::lmr::LmrTable;
 use crate::search::node::NodeStack;
+use crate::search::parameters::score_stability_threshold;
 use crate::search::time::{LimitType, SearchLimits};
 use crate::search::tt::TranspositionTable;
 use crate::search::{score, MAX_PLY};
-use crate::search::lmr::LmrTable;
-use crate::search::parameters::score_stability_threshold;
 use crate::tools::utils::boxed_and_zeroed;
 
 /// State shared between all search threads.

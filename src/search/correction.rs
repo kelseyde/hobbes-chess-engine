@@ -30,8 +30,6 @@ pub struct CorrectionHistories {
 }
 
 impl CorrectionHistories {
-
-    #[rustfmt::skip]
     pub fn update(
         &mut self,
         board: &Board,
@@ -50,24 +48,26 @@ impl CorrectionHistories {
         let major_key = board.hashes.major_hash();
         let minor_key = board.hashes.minor_hash();
 
-        self.pawn_corrhist.update(us, pawn_key, pawn_corr_bonus(diff, depth));
+        self.pawn_corrhist
+            .update(us, pawn_key, pawn_corr_bonus(diff, depth));
         self.nonpawn_corrhist[White].update(us, white_key, nonpawn_corr_bonus(diff, depth));
         self.nonpawn_corrhist[Black].update(us, black_key, nonpawn_corr_bonus(diff, depth));
-        self.major_corrhist.update(us, major_key, major_corr_bonus(diff, depth));
-        self.minor_corrhist.update(us, minor_key, minor_corr_bonus(diff, depth));
+        self.major_corrhist
+            .update(us, major_key, major_corr_bonus(diff, depth));
+        self.minor_corrhist
+            .update(us, minor_key, minor_corr_bonus(diff, depth));
         self.update_continuation_correction(us, ss, ply, diff, depth);
     }
 
-    #[rustfmt::skip]
     pub fn correction(&self, board: &Board, ss: &NodeStack, ply: usize) -> i32 {
         let us = board.stm;
 
-        let pawn      = self.pawn_corrhist.get(us, board.hashes.pawn_hash());
-        let white     = self.nonpawn_corrhist[White].get(us, board.hashes.non_pawn_hash(White));
-        let black     = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hash(Black));
-        let major     = self.major_corrhist.get(us, board.hashes.major_hash());
-        let minor     = self.minor_corrhist.get(us, board.hashes.minor_hash());
-        let cont      = self.get_continuation_correction(us, ss, ply);
+        let pawn = self.pawn_corrhist.get(us, board.hashes.pawn_hash());
+        let white = self.nonpawn_corrhist[White].get(us, board.hashes.non_pawn_hash(White));
+        let black = self.nonpawn_corrhist[Black].get(us, board.hashes.non_pawn_hash(Black));
+        let major = self.major_corrhist.get(us, board.hashes.major_hash());
+        let minor = self.minor_corrhist.get(us, board.hashes.minor_hash());
+        let cont = self.get_continuation_correction(us, ss, ply);
 
         ((pawn * 100 / corr_pawn_weight())
             + (white * 100 / corr_non_pawn_weight())
@@ -85,7 +85,7 @@ impl CorrectionHistories {
         ss: &NodeStack,
         ply: usize,
         diff: i32,
-        depth: i32
+        depth: i32,
     ) {
         self.cont_corrhist
             .iter_mut()

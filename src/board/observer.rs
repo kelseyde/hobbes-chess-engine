@@ -9,7 +9,15 @@ pub trait BoardObserver {
     fn on_piece_create(&mut self, board: &Board, pc: Piece, side: Side, sq: Square);
     fn on_piece_destroy(&mut self, board: &Board, pc: Piece, side: Side, sq: Square);
     fn on_piece_teleport(&mut self, board: &Board, pc: Piece, side: Side, from: Square, to: Square);
-    fn on_piece_transform(&mut self, board: &Board, old_pc: Piece, old_side: Side, new_pc: Piece, side: Side, sq: Square);
+    fn on_piece_transform(
+        &mut self,
+        board: &Board,
+        old_pc: Piece,
+        old_side: Side,
+        new_pc: Piece,
+        side: Side,
+        sq: Square,
+    );
 }
 
 pub struct NullBoardObserver;

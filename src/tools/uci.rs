@@ -6,21 +6,24 @@ use crate::board::Board;
 use crate::evaluation::stats;
 use crate::search::engine::{Engine, MAX_THREADS};
 #[cfg(feature = "tuning")]
-use crate::search::parameters::{list_params, print_params_ob, set_param, list_array_params, print_array_params_ob, set_array_param};
+use crate::search::parameters::{
+    list_array_params, list_params, print_array_params_ob, print_params_ob, set_array_param,
+    set_param,
+};
+use crate::search::thread::ThreadData;
 use crate::search::time::SearchLimits;
+use crate::search::tt::TTFlag;
+use crate::search::tt::TTFlag::{Exact, Lower, Upper};
 use crate::search::{score, tt};
 use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
+use crate::tools::scale::compute_net_scale;
 use crate::tools::{fen, pretty};
 use crate::VERSION;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
-use crate::search::thread::ThreadData;
-use crate::search::tt::TTFlag;
-use crate::search::tt::TTFlag::{Exact, Lower, Upper};
-use crate::tools::scale::compute_net_scale;
 
 pub struct UCI {
     pub board: Board,
@@ -90,10 +93,13 @@ impl UCI {
                             "scale" => self.handle_scale(tokens),
                             "help" => self.handle_help(),
                             #[cfg(feature = "tuning")]
-                            "params" => { print_params_ob(); print_array_params_ob(); }
+                            "params" => {
+                                print_params_ob();
+                                print_array_params_ob();
+                            }
                             _ => println!("info error: unknown command"),
                         }
-                    },
+                    }
                 }
             } else {
                 continue;
@@ -423,10 +429,29 @@ impl UCI {
         let mut legal_moves = MoveList::new();
         self.board.gen_moves::<All>(&mut legal_moves);
         let mut moves = Vec::new();
-        for token in tokens.iter().skip(index + 1).take_while(|token| !matches!(token.as_str(),
-            "searchmoves" | "ponder" | "wtime" | "btime" | "winc" | "binc" | "movestogo"
-            | "depth" | "nodes" | "mate" | "movetime" | "infinite" | "softnodes")) {
-            let Some(mv) = legal_moves.iter().map(|entry| entry.mv).find(|mv| mv.to_uci() == *token) else {
+        for token in tokens.iter().skip(index + 1).take_while(|token| {
+            !matches!(
+                token.as_str(),
+                "searchmoves"
+                    | "ponder"
+                    | "wtime"
+                    | "btime"
+                    | "winc"
+                    | "binc"
+                    | "movestogo"
+                    | "depth"
+                    | "nodes"
+                    | "mate"
+                    | "movetime"
+                    | "infinite"
+                    | "softnodes"
+            )
+        }) {
+            let Some(mv) = legal_moves
+                .iter()
+                .map(|entry| entry.mv)
+                .find(|mv| mv.to_uci() == *token)
+            else {
                 return Err(format!("info error: illegal searchmove {}", token));
             };
             moves.push(mv);
@@ -631,7 +656,11 @@ pub fn print_search_info(td: &mut ThreadData, score: i32, bound: TTFlag, force: 
     println!();
 }
 
-pub fn handle_one_legal_move(board: &Board, td: &mut ThreadData, root_moves: &MoveList) -> (Move, i32) {
+pub fn handle_one_legal_move(
+    board: &Board,
+    td: &mut ThreadData,
+    root_moves: &MoveList,
+) -> (Move, i32) {
     let mv = root_moves.get(0).unwrap().mv;
     let static_eval = td.nnue.evaluate(board);
     td.depth = 1;

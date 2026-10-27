@@ -50,25 +50,23 @@ impl MovePicker {
         Self::init(tt_move, false, ply, threats, false, true)
     }
 
-    pub fn new_qsearch(
-        tt_move: Move,
-        ply: usize,
-        threats: Bitboard,
-        skip_quiets: bool
-    ) -> Self {
+    pub fn new_qsearch(tt_move: Move, ply: usize, threats: Bitboard, skip_quiets: bool) -> Self {
         Self::init(tt_move, !skip_quiets, ply, threats, skip_quiets, false)
     }
 
-    #[rustfmt::skip]
     pub fn init(
         tt_move: Move,
         captures_only: bool,
         ply: usize,
         threats: Bitboard,
         skip_quiets: bool,
-        split_noisies: bool
+        split_noisies: bool,
     ) -> Self {
-        let stage = if tt_move.exists() { TTMove } else { GenerateNoisies };
+        let stage = if tt_move.exists() {
+            TTMove
+        } else {
+            GenerateNoisies
+        };
         Self {
             moves: MoveList::new(),
             stage,

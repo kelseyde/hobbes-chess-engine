@@ -1,4 +1,7 @@
-use crate::search::parameters::{lmr_factor_1, lmr_factor_2, lmr_factor_3, lmr_noisy_base, lmr_noisy_div, lmr_quiet_base, lmr_quiet_div};
+use crate::search::parameters::{
+    lmr_factor_1, lmr_factor_2, lmr_factor_3, lmr_noisy_base, lmr_noisy_div, lmr_quiet_base,
+    lmr_quiet_div,
+};
 use crate::tools::utils::{boxed_and_zeroed, convolve};
 
 // Number of (unordered) factorised LMR features per order (singular, pairs, triplets)
@@ -10,11 +13,10 @@ pub const LMR_COMBINATIONS: usize = 1 << LMR_FEATURES;
 
 pub struct LmrTable {
     base: Box<[[[i32; 2]; 64]; 256]>,
-    factorised: [i32; LMR_COMBINATIONS]
+    factorised: [i32; LMR_COMBINATIONS],
 }
 
 impl LmrTable {
-
     pub fn init(&mut self) {
         self.init_base();
         self.init_factorised();
@@ -49,7 +51,8 @@ impl LmrTable {
             for (i, feature) in features.iter_mut().enumerate() {
                 *feature = index & (1 << i) != 0;
             }
-            self.factorised[index] = convolve::<LMR_FEATURES>(features, lmr_factor_1, lmr_factor_2, lmr_factor_3);
+            self.factorised[index] =
+                convolve::<LMR_FEATURES>(features, lmr_factor_1, lmr_factor_2, lmr_factor_3);
         }
     }
 
@@ -79,7 +82,7 @@ impl Default for LmrTable {
         unsafe {
             Self {
                 base: boxed_and_zeroed(),
-                factorised: [0; LMR_COMBINATIONS]
+                factorised: [0; LMR_COMBINATIONS],
             }
         }
     }

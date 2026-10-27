@@ -11,7 +11,6 @@ use crate::board::Board;
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 impl Board {
-
     /// Parses a FEN into a `Board`. Accepts both standard castling notation (`KQkq`) and Shredder
     /// notation (e.g. `HAha`) for DFRC positions. The half-move and full-move counters are optional
     /// and default to 0 if omitted.
@@ -354,9 +353,8 @@ fn parse_ep_sq(board: &Board, ep: &str) -> Result<Option<Square>, String> {
 
 /// Parses the half-move clock / full-move clock fields.
 fn parse_counter(part: &str, name: &str) -> Result<u8, String> {
-    part.parse::<u8>().map_err(|_| {
-        format!("{} is invalid, found '{}'", name, part)
-    })
+    part.parse::<u8>()
+        .map_err(|_| format!("{} is invalid, found '{}'", name, part))
 }
 
 fn parse_piece(c: char) -> Option<Piece> {

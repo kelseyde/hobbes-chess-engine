@@ -42,7 +42,7 @@ impl PieceSquareAccumulator {
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         &self.features[perspective]
     }
-    
+
     #[inline(always)]
     pub fn features_relative(&self, perspective: Side) -> (&[i16; L1_SIZE], &[i16; L1_SIZE]) {
         (self.features(perspective), self.features(!perspective))
@@ -221,7 +221,6 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
 }
 
 /// Apply the given update to the accumulator, modifying the output features in place.
-#[rustfmt::skip]
 pub fn apply_update(
     input: &[i16; L1_SIZE],
     output: &mut [i16; L1_SIZE],
@@ -232,9 +231,36 @@ pub fn apply_update(
     mirror: bool,
 ) {
     match (adds.len(), subs.len()) {
-        (1, 1) => add1_sub1(input, output, adds[0], subs[0], weights, perspective, mirror),
-        (1, 2) => add1_sub2(input, output, adds[0], subs[0], subs[1], weights, perspective, mirror),
-        (2, 2) => add2_sub2(input, output, adds[0], adds[1], subs[0], subs[1], weights, perspective, mirror),
+        (1, 1) => add1_sub1(
+            input,
+            output,
+            adds[0],
+            subs[0],
+            weights,
+            perspective,
+            mirror,
+        ),
+        (1, 2) => add1_sub2(
+            input,
+            output,
+            adds[0],
+            subs[0],
+            subs[1],
+            weights,
+            perspective,
+            mirror,
+        ),
+        (2, 2) => add2_sub2(
+            input,
+            output,
+            adds[0],
+            adds[1],
+            subs[0],
+            subs[1],
+            weights,
+            perspective,
+            mirror,
+        ),
         _ => unreachable!("unexpected psq update shape"),
     }
 }

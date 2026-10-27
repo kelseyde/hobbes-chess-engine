@@ -24,7 +24,10 @@ const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
 const REGISTERS: usize = 8;
 
 const STEP: usize = REGISTERS * simd::I16_LANES;
-const _: () = assert!(L1_SIZE.is_multiple_of(STEP), "step must divide by the accumulator evenly");
+const _: () = assert!(
+    L1_SIZE.is_multiple_of(STEP),
+    "step must divide by the accumulator evenly"
+);
 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
@@ -288,7 +291,8 @@ impl ThreatAccumulator {
         let partners = others & PP_BANDS[sq];
         for (side_b, pawns) in [(White, board.pawns(White)), (Black, board.pawns(Black))] {
             for b in partners & pawns {
-                self.pawn_pair_fts.push(PawnPairFeature::new(sq, side, b, side_b, add));
+                self.pawn_pair_fts
+                    .push(PawnPairFeature::new(sq, side, b, side_b, add));
             }
         }
     }
@@ -314,9 +318,11 @@ impl ThreatAccumulator {
         let mirror = should_mirror(board.king_sq(pov));
         let (wp, bp) = (board.pawns(White), board.pawns(Black));
 
-        for (side_a, side_b, outer, inner) in
-            [(White, White, wp, wp), (Black, Black, bp, bp), (White, Black, wp, bp)]
-        {
+        for (side_a, side_b, outer, inner) in [
+            (White, White, wp, wp),
+            (Black, Black, bp, bp),
+            (White, Black, wp, bp),
+        ] {
             let same = side_a == side_b;
             for a in outer {
                 let mut partners = inner & PP_BANDS[a];

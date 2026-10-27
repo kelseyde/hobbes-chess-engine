@@ -120,7 +120,6 @@ impl Board {
     /// Applies a move to the board, updating all state: piece positions, side to move, castling
     /// rights, en passant square, half-move clock, Zobrist hashes, threats, checkers, and pinned
     /// pieces. Handles promotions, en passant, and both standard and Fischer Random castling.
-    #[rustfmt::skip]
     pub fn make<T: BoardObserver>(&mut self, m: &Move, observer: &mut T) {
         let side = self.stm;
         let (from, to, flag) = (m.from(), m.to(), m.flag());
@@ -189,7 +188,11 @@ impl Board {
         self.recapture_sq = captured.map(|_| m.to());
         self.rights = self.calc_castle_rights(from, to, pc);
         self.fm += (side == Black) as u8;
-        self.hm = if captured.is_some() || pc == Piece::Pawn { 0 } else { self.hm + 1 };
+        self.hm = if captured.is_some() || pc == Piece::Pawn {
+            0
+        } else {
+            self.hm + 1
+        };
         self.hashes.flip_stm();
         self.stm = !self.stm;
         self.threats = self.calc_threats(self.stm);

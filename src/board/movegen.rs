@@ -47,7 +47,6 @@ impl MoveFilter for Capture {
 
 impl Board {
     /// Generate all legal moves for the current position.
-    #[rustfmt::skip]
     pub fn gen_moves<F: MoveFilter>(&self, moves: &mut MoveList) {
         let side = self.stm;
         let us = self.us();
@@ -87,8 +86,12 @@ impl Board {
 
         self.gen_pawn_moves::<F>(evasion_mask, moves);
         self.gen_knight_moves(side, pinned, filter_mask, moves);
-        self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| attacks::bishop(sq, occ));
-        self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| attacks::rook(sq, occ));
+        self.gen_sliding_moves(self.diags(side), pinned, filter_mask, moves, |sq| {
+            attacks::bishop(sq, occ)
+        });
+        self.gen_sliding_moves(self.orthos(side), pinned, filter_mask, moves, |sq| {
+            attacks::rook(sq, occ)
+        });
     }
 
     /// Generate the legal king moves in the position. We re-use the pre-computed opponent threat

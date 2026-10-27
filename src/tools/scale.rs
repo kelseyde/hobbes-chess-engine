@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use hobbes_nnue_arch::arch;
 use crate::board::Board;
 use crate::evaluation::NNUE;
+use hobbes_nnue_arch::arch;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Default)]
 struct Stats {
@@ -64,12 +64,10 @@ pub fn compute_net_scale(dataset: &str) {
 
     let fens = BufReader::new(file)
         .lines()
-        .collect::<Result<Vec<_>, _>>().unwrap();
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
 
-    let stats = fens
-        .chunks(100_000)
-        .map(chunk_stats)
-        .collect::<Vec<_>>();
+    let stats = fens.chunks(100_000).map(chunk_stats).collect::<Vec<_>>();
 
     let stats = aggregate_stats(&stats);
 

@@ -5,43 +5,41 @@ use crate::search::parameters::*;
 
 pub const UCI_OVERHEAD_MS: u64 = 50;
 
-#[rustfmt::skip]
 #[derive(Clone)]
 pub struct TimeParams {
-    pub soft_tm_base:        f64,
-    pub soft_tm_scale:       f64,
-    pub soft_tm_inc_scale:   f64,
-    pub soft_tm_fm_scale:    f64,
-    pub hard_tm_scale:       f64,
-    pub hard_tm_inc_scale:   f64,
-    pub node_tm_base:        f32,
-    pub node_tm_scale:       f32,
-    pub best_move_tm_base:   f32,
-    pub best_move_tm_scale:  f32,
-    pub best_move_tm_min:    f32,
-    pub score_tm_base:       f32,
-    pub score_tm_scale:      f32,
-    pub score_tm_min:        f32,
+    pub soft_tm_base: f64,
+    pub soft_tm_scale: f64,
+    pub soft_tm_inc_scale: f64,
+    pub soft_tm_fm_scale: f64,
+    pub hard_tm_scale: f64,
+    pub hard_tm_inc_scale: f64,
+    pub node_tm_base: f32,
+    pub node_tm_scale: f32,
+    pub best_move_tm_base: f32,
+    pub best_move_tm_scale: f32,
+    pub best_move_tm_min: f32,
+    pub score_tm_base: f32,
+    pub score_tm_scale: f32,
+    pub score_tm_min: f32,
 }
 
 impl TimeParams {
-    #[rustfmt::skip]
     pub fn init() -> Self {
         Self {
-            soft_tm_base:       tm_soft_base() as f64 / 1000.0,
-            soft_tm_scale:      tm_soft_scale() as f64 / 1000.0,
-            soft_tm_inc_scale:  tm_soft_inc_scale() as f64 / 1000.0,
-            soft_tm_fm_scale:   tm_soft_fm_scale() as f64 / 1000.0,
-            hard_tm_scale:      tm_hard_scale() as f64 / 1000.0,
-            hard_tm_inc_scale:  tm_hard_inc_scale() as f64 / 1000.0,
-            node_tm_base:       tm_node_base() as f32 / 1000.0,
-            node_tm_scale:      tm_node_scale() as f32 / 1000.0,
-            best_move_tm_base:  tm_best_move_base() as f32 / 1000.0,
+            soft_tm_base: tm_soft_base() as f64 / 1000.0,
+            soft_tm_scale: tm_soft_scale() as f64 / 1000.0,
+            soft_tm_inc_scale: tm_soft_inc_scale() as f64 / 1000.0,
+            soft_tm_fm_scale: tm_soft_fm_scale() as f64 / 1000.0,
+            hard_tm_scale: tm_hard_scale() as f64 / 1000.0,
+            hard_tm_inc_scale: tm_hard_inc_scale() as f64 / 1000.0,
+            node_tm_base: tm_node_base() as f32 / 1000.0,
+            node_tm_scale: tm_node_scale() as f32 / 1000.0,
+            best_move_tm_base: tm_best_move_base() as f32 / 1000.0,
             best_move_tm_scale: tm_best_move_scale() as f32 / 1000.0,
-            best_move_tm_min:   tm_best_move_min() as f32 / 1000.0,
-            score_tm_base:      tm_score_base() as f32 / 1000.0,
-            score_tm_scale:     tm_score_scale() as f32 / 1000.0,
-            score_tm_min:       tm_score_min() as f32 / 1000.0,
+            best_move_tm_min: tm_best_move_min() as f32 / 1000.0,
+            score_tm_base: tm_score_base() as f32 / 1000.0,
+            score_tm_scale: tm_score_scale() as f32 / 1000.0,
+            score_tm_min: tm_score_min() as f32 / 1000.0,
         }
     }
 }
