@@ -651,9 +651,11 @@ fn alpha_beta<NODE: NodeType>(
             break;
         }
 
+        let gives_check = board.gives_direct_check(mv);
+
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
-        let see_threshold = if is_quiet {
+        let see_threshold = if is_quiet && !gives_check {
             (see_quiet_mult1() * depth * depth + see_quiet_mult2() * depth
                 - history_score / see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * see_quiet_ttpv_scale()
@@ -682,8 +684,6 @@ fn alpha_beta<NODE: NodeType>(
         let mut board = *board;
         make_move(td, &mut board, mv, pc, captured, ply);
         searched_moves += 1;
-
-        let gives_check = board.threats.contains(board.king_sq(board.stm));
 
         let initial_nodes = td.local_nodes();
         let mut new_depth = depth - 1 + if legal_moves == 1 { extension } else { 0 };
