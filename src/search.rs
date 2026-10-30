@@ -250,6 +250,7 @@ fn alpha_beta<NODE: NodeType>(
                 && !pv_node
                 && tt_depth >= depth
                 && (tt_score <= alpha || cut_node)
+                && (cut_node == (tt_score >= beta || depth > 4))
                 && entry.flag().bounds_match(tt_score, alpha, beta)
             {
                 return tt_score;
