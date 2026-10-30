@@ -576,6 +576,12 @@ fn alpha_beta<NODE: NodeType>(
             continue;
         }
 
+        if !in_check {
+            // Re-correct static eval using the updated correction histories.
+            correction = td.correction_history.correction(board, &td.stack, ply);
+            static_eval = raw_eval + correction;
+        }
+
         let pc = board.piece_at(mv.from()).unwrap();
         let captured = board.captured(&mv);
         let is_quiet = !board.is_noisy(&mv);
