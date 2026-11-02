@@ -252,6 +252,20 @@ fn alpha_beta<NODE: NodeType>(
                 && (tt_score <= alpha || cut_node)
                 && entry.flag().bounds_match(tt_score, alpha, beta)
             {
+                // Update static eval correction history using the TT score.
+                if !in_check
+                    && !singular_search {
+                    let static_eval =
+                        td.nnue.evaluate(board) + td.correction_history.correction(board, &td.stack, ply);
+                    if tt_flag.bounds_match(tt_score, static_eval, static_eval)
+                        && (!tt_move.exists()
+                        || !board.is_noisy(&tt_move)
+                        || !see::see(board, &tt_move, 0, Pruning))
+                    {
+                        td.correction_history
+                            .update(board, &td.stack, depth, ply, static_eval, tt_score);
+                    }
+                }
                 return tt_score;
             }
         }
