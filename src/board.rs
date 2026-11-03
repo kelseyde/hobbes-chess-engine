@@ -320,7 +320,16 @@ impl Board {
             self.hashes.update_hash(Keys::ep(old_ep));
         }
         let ep_sq = if flag == MoveFlag::DoublePush {
-            Some(self.ep_capture_sq(sq))
+            // Only set the ep square if the opponent can actually capture en passant.
+            let capture_sq = self.ep_capture_sq(sq);
+            let capture_sq_bb = Bitboard::of_sq(capture_sq);
+            let their_pawns = self.pawns(!self.stm);
+            let their_ep_candidates = attacks::pawn_attacks(capture_sq_bb, self.stm) & their_pawns;
+            if !their_ep_candidates.is_empty() {
+                Some(capture_sq)
+            } else {
+                None
+            }
         } else {
             None
         };
