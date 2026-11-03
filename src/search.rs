@@ -780,13 +780,18 @@ fn alpha_beta<NODE: NodeType>(
                         } else {
                             lmr_conthist_4_malus(bonus_depth)
                         };
+                        let bonus_6 = if good {
+                            lmr_conthist_6_bonus(bonus_depth)
+                        } else {
+                            lmr_conthist_6_malus(bonus_depth)
+                        };
                         td.history.update_continuation_history(
                             original_board,
                             &td.stack,
                             ply,
                             &mv,
                             pc,
-                            &[bonus_1, bonus_2, bonus_4],
+                            &[bonus_1, bonus_2, bonus_4, bonus_6],
                         );
                     }
                 }
@@ -922,9 +927,12 @@ fn alpha_beta<NODE: NodeType>(
 
         let cont_4_bonus = cont_history_4_bonus(depth);
         let cont_4_malus = cont_history_4_malus(depth);
+        
+        let cont_6_bonus = cont_history_6_bonus(depth);
+        let cont_6_malus = cont_history_6_malus(depth);
 
-        let cont_bonuses = [cont_1_bonus, cont_2_bonus, cont_4_bonus];
-        let cont_maluses = [cont_1_malus, cont_2_malus, cont_4_malus];
+        let cont_bonuses = [cont_1_bonus, cont_2_bonus, cont_4_bonus, cont_6_bonus];
+        let cont_maluses = [cont_1_malus, cont_2_malus, cont_4_malus, cont_6_malus];
 
         let from_bonus = from_history_bonus(depth);
         let from_malus = from_history_malus(depth);

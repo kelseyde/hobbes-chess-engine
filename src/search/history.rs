@@ -274,7 +274,7 @@ impl CaptureHistory {
 }
 
 impl ContinuationHistory {
-    const PLIES: [usize; 3] = [1, 2, 4];
+    const PLIES: [usize; 4] = [1, 2, 4, 6];
     const PLY_COUNT: usize = Self::PLIES.len();
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
@@ -393,6 +393,8 @@ use super::*;
                      cont_history_2_malus      (cont_hist_2_malus_scale,   cont_hist_2_malus_offset,   cont_hist_2_malus_max));
     history_bonuses!(cont_history_4_bonus      (cont_hist_4_bonus_scale,   cont_hist_4_bonus_offset,   cont_hist_4_bonus_max),
                      cont_history_4_malus      (cont_hist_4_malus_scale,   cont_hist_4_malus_offset,   cont_hist_4_malus_max));
+    history_bonuses!(cont_history_6_bonus      (cont_hist_6_bonus_scale,   cont_hist_6_bonus_offset,   cont_hist_6_bonus_max),
+                     cont_history_6_malus      (cont_hist_6_malus_scale,   cont_hist_6_malus_offset,   cont_hist_6_malus_max));
     history_bonuses!(from_history_bonus        (from_hist_bonus_scale,     from_hist_bonus_offset,     from_hist_bonus_max),
                      from_history_malus        (from_hist_malus_scale,     from_hist_malus_offset,     from_hist_malus_max));
     history_bonuses!(to_history_bonus          (to_hist_bonus_scale,       to_hist_bonus_offset,       to_hist_bonus_max),
@@ -405,6 +407,8 @@ use super::*;
                      lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
     history_bonuses!(lmr_conthist_4_bonus      (lmr_cont_4_bonus_scale,    lmr_cont_4_bonus_offset,    lmr_cont_4_bonus_max),
                      lmr_conthist_4_malus      (lmr_cont_4_malus_scale,    lmr_cont_4_malus_offset,    lmr_cont_4_malus_max));
+    history_bonuses!(lmr_conthist_6_bonus      (lmr_cont_6_bonus_scale,    lmr_cont_6_bonus_offset,    lmr_cont_6_bonus_max),
+                     lmr_conthist_6_malus      (lmr_cont_6_malus_scale,    lmr_cont_6_malus_offset,    lmr_cont_6_malus_max));
     history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }
