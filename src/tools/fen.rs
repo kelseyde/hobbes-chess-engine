@@ -6,7 +6,8 @@ use crate::board::side::Side;
 use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::zobrist::Hashes;
-use crate::board::Board;
+use crate::board::{attacks, Board};
+use crate::board::bitboard::Bitboard;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -346,6 +347,13 @@ fn parse_ep_sq(board: &Board, ep: &str) -> Result<Option<Square>, String> {
             "en passant square '{}' is inconsistent with the board position",
             ep
         ));
+    }
+
+    let ep_sq_bb = Bitboard::of_sq(sq);
+    let our_pawns = board.pawns(board.stm);
+    let our_ep_candidates = attacks::pawn_attacks(ep_sq_bb, mover) & our_pawns;
+    if our_ep_candidates.is_empty() {
+        return Ok(None);
     }
 
     Ok(Some(sq))
