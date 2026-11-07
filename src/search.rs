@@ -279,7 +279,7 @@ fn alpha_beta<NODE: NodeType>(
                 Move::NONE,
                 score::MIN,
                 raw_eval,
-                depth,
+                0,
                 ply,
                 TTFlag::None,
                 tt_pv,
