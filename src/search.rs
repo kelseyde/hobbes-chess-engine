@@ -88,10 +88,6 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
             bound = TTFlag::from_score(score, alpha, beta);
 
             print_search_info(td, score.clamp(alpha, beta), bound, false);
-            td.update_tm_heuristics(prev_mv, prev_score, score);
-
-            prev_mv = td.best_move;
-            prev_score = score;
 
             if td.should_stop(Hard) || is_mate(score) {
                 break;
@@ -122,6 +118,9 @@ pub fn search(board: &Board, td: &mut ThreadData) -> (Move, i32) {
         if !td.abort.load(Relaxed) {
             td.completed_depth = td.depth;
         }
+        td.update_tm_heuristics(prev_mv, prev_score, score);
+        prev_mv = td.best_move;
+        prev_score = score;
 
         delta = asp_delta() + score * score / asp_prev_score_div();
         reduction = 0;
