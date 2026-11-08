@@ -225,7 +225,11 @@ fn alpha_beta<NODE: NodeType>(
     let mut has_tt_score = false;
     let mut tt_flag = Lower;
     let mut tt_depth = 0;
-    let mut tt_pv = pv_node;
+    let mut tt_pv = if singular_search {
+        pv_node || td.stack[ply].tt_pv
+    } else {
+        pv_node
+    };
 
     // Transposition table
     // Check if this node has already been searched before. If it has, and the depth + bounds match
@@ -256,6 +260,7 @@ fn alpha_beta<NODE: NodeType>(
             }
         }
     }
+    td.stack[ply].tt_pv = tt_pv;
 
     // Static Evaluation
     // Obtain a static evaluation of the current board state. In leaf nodes, this is the final score
