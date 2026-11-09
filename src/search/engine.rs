@@ -68,6 +68,14 @@ impl Engine {
     pub fn set_use_soft_nodes(&mut self, value: bool) {
         self.threads.as_mut().unwrap()[0].use_soft_nodes = value;
     }
+    
+    pub fn set_normalize_eval(&mut self, value: bool) {
+        self.threads.as_mut().unwrap()[0].normalize_eval = value;
+    }
+    
+    pub fn set_show_wdl(&mut self, value: bool) {
+        self.threads.as_mut().unwrap()[0].show_wdl = value;
+    }
 
     pub fn use_soft_nodes(&self) -> bool {
         self.threads.as_ref().unwrap()[0].use_soft_nodes

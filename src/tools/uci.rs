@@ -19,7 +19,7 @@ use crate::tools::bench::bench;
 use crate::tools::datagen::generate_random_openings;
 use crate::tools::perft::perft;
 use crate::tools::scale::compute_net_scale;
-use crate::tools::{fen, pretty};
+use crate::tools::{fen, pretty, wdl};
 use crate::VERSION;
 use std::io;
 use std::path::Path;
@@ -124,6 +124,8 @@ impl UCI {
         );
         println!("option name Minimal type check default false");
         println!("option name UseSoftNodes type check default false");
+        println!("option name NormalizeEval type check default true");
+        println!("option name ShowWDL type check default true");
         #[cfg(feature = "tuning")]
         {
             list_params();
@@ -150,10 +152,29 @@ impl UCI {
             ["setoption", "name", "usesoftnodes", "value", bool_str] => {
                 self.set_use_soft_nodes(bool_str)
             }
+            ["setoption", "name", "normalizeeval", "value", bool_str] => {
+                self.set_normalize_eval(bool_str)
+            }
+            ["setoption", "name", "showwdl", "value", bool_str] => {
+                self.set_show_wdl(bool_str)
+            }
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => println!("info error unknown option"),
         }
+    }
+
+    fn set_normalize_eval(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.engine.set_normalize_eval(value);
+        println!("info string NormalizeEval {}", value);
     }
 
     fn set_hash_size(&mut self, value_str: &str) {
@@ -216,6 +237,19 @@ impl UCI {
         };
         self.engine.set_use_soft_nodes(value);
         println!("info string UseSoftNodes {}", value);
+    }
+
+    fn set_show_wdl(&mut self, bool_str: &str) {
+        let value = match bool_str {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("info error: invalid value '{}'", bool_str);
+                return;
+            }
+        };
+        self.engine.set_show_wdl(value);
+        println!("info string ShowWDL {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -618,7 +652,7 @@ impl UCI {
     }
 }
 
-pub fn print_search_info(td: &mut ThreadData, score: i32, bound: TTFlag, force: bool) {
+pub fn print_search_info(td: &mut ThreadData, board: &Board, score: i32, bound: TTFlag, force: bool) {
     // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, and
     // we're not printing the final line of the search.
     if !td.main || (td.minimal_output && !force) {
@@ -633,6 +667,19 @@ pub fn print_search_info(td: &mut ThreadData, score: i32, bound: TTFlag, force: 
     } else {
         0
     };
+    let material = board.classical_material();
+    let score = if td.normalize_eval {
+        wdl::normalize(score, material)
+    } else {
+        score
+    };
+    let wdl = if td.show_wdl {
+        let (w, l) = wdl::model(score, material);
+        let d = 1000 - w - l;
+        format!("wdl {} {} {} ", w, d, l)
+    } else {
+        String::new()
+    };
     let hashfull = td.tt().fill();
     let bound = match bound {
         Lower => " lowerbound",
@@ -640,11 +687,12 @@ pub fn print_search_info(td: &mut ThreadData, score: i32, bound: TTFlag, force: 
         _ => "",
     };
     print!(
-        "info depth {} seldepth {} score {}{} nodes {} time {} nps {} hashfull {} pv",
+        "info depth {} seldepth {} score {}{} {}nodes {} time {} nps {} hashfull {} pv",
         depth,
         seldepth,
         score::format_score(score),
         bound,
+        wdl,
         nodes,
         time,
         nps,
@@ -666,7 +714,7 @@ pub fn handle_one_legal_move(
     td.depth = 1;
     td.best_move = mv;
     td.best_score = static_eval;
-    print_search_info(td, static_eval, Exact, true);
+    print_search_info(td, board, static_eval, Exact, true);
     (td.best_move, td.best_score)
 }
 
