@@ -8,4 +8,4 @@ pub mod scale;
 pub mod scharnagl;
 pub mod uci;
 pub mod utils;
-mod wdl;
+pub mod wdl;
