@@ -52,6 +52,7 @@ tunable_params! {
     fp_history_divisor           = 64, 64..=256,           true;
     fp_killer                    = 19, 0..=100,            true;
     fp_tt_upper                  = 25, 0..=100,            true;
+    fp_eval_beta                 = 75, 0..=150,            true;
     lmp_max_depth                = 8, 6..=10,              false;
     lmp_factor0_base             = 2497, 2000..=3000,      true;
     lmp_factor0_scale            = 132, 50..=200,          true;

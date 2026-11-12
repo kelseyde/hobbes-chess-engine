@@ -602,6 +602,7 @@ fn alpha_beta<NODE: NodeType>(
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
+            + (static_eval >= beta) as i32 * fp_eval_beta()
             - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper();
         if !root_node
             && !in_check
