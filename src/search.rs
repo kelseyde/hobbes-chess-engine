@@ -601,6 +601,7 @@ fn alpha_beta<NODE: NodeType>(
         let futility_margin = fp_base() + fp_scale() * lmr_depth + pv_node as i32 * fp_pv_node()
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
+            + fp_corr_mult() * correction.abs() / 1024
             + is_killer as i32 * fp_killer()
             - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper();
         if !root_node
