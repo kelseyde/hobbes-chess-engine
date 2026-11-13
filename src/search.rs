@@ -384,7 +384,9 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval >= beta + nmp_margin_base()
+                + nmp_margin_scale() * depth / 128
+                - nmp_margin_improving() * (improving as i32) / 128
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper
@@ -633,7 +635,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth
+            && history_score < hp_base() + hp_scale() * depth * depth
         {
             move_picker.skip_quiets();
             continue;
@@ -641,7 +643,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // Bad Noisy Pruning
         // Skip bad noisies when the static evaluation + some margin is still below alpha.
-        let futility_margin = static_eval + bnp_scale() * lmr_depth;
+        let futility_margin = static_eval + bnp_base() + bnp_scale() * lmr_depth;
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
@@ -654,13 +656,14 @@ fn alpha_beta<NODE: NodeType>(
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            (see_quiet_mult1() * depth * depth + see_quiet_mult2() * depth
+            ((see_quiet_mult1() * depth * depth) / 128
+                + see_quiet_mult2() * depth
                 - history_score / see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * see_quiet_ttpv_scale()
                 + see_quiet_offset())
             .min(0)
         } else {
-            (see_noisy_mult1() * depth * depth
+            ((see_noisy_mult1() * depth * depth) / 128
                 - see_noisy_mult2() * depth
                 - history_score / see_noisy_history_div()
                 - tt_pv as i32 * lmr_depth * see_noisy_ttpv_scale()
@@ -719,7 +722,7 @@ fn alpha_beta<NODE: NodeType>(
                 r += (to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32
                     * lmr_quiet_see();
             } else {
-                r -= captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
+                r -= captured.map_or(0, |c| see::value(c, Ordering) * 128 / lmr_mvv_divisor());
             }
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
