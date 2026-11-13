@@ -1,3 +1,4 @@
+use crate::board::bitboard::Bitboard;
 use crate::board::castling::Rights;
 use crate::board::file::File;
 use crate::board::piece::Piece;
@@ -7,7 +8,6 @@ use crate::board::side::Side::{Black, White};
 use crate::board::square::Square;
 use crate::board::zobrist::Hashes;
 use crate::board::{attacks, Board};
-use crate::board::bitboard::Bitboard;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 

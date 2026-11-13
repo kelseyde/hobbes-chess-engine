@@ -605,6 +605,15 @@ impl Board {
         minor_count <= 3
     }
 
+    /// Returns the classical material score of the board (pawn 1, knight 3, bishop 3, rook 5, queen 9).
+    pub fn classical_material(&self) -> i16 {
+        (self.pieces(Piece::Pawn).count()
+            + 3 * self.pieces(Piece::Knight).count()
+            + 3 * self.pieces(Piece::Bishop).count()
+            + 5 * self.pieces(Piece::Rook).count()
+            + 9 * self.pieces(Piece::Queen).count()) as i16
+    }
+
     pub const fn is_frc(&self) -> bool {
         self.frc
     }
