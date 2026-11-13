@@ -212,12 +212,6 @@ tunable_params! {
     pcm_bonus_scale              = 219, 80..=300,          true;
     pcm_bonus_offset             = 77, 0..=200,            true;
     pcm_bonus_max                = 1383, 1000..=1600,      true;
-    qs_capt_hist_bonus_scale     = 249, 80..=360,          true;
-    qs_capt_hist_bonus_offset    = 3, 0..=200,             true;
-    qs_capt_hist_bonus_max       = 1435, 1000..=1600,      true;
-    qs_capt_hist_malus_scale     = 150, 80..=280,          true;
-    qs_capt_hist_malus_offset    = 93, 0..=200,            true;
-    qs_capt_hist_malus_max       = 1185, 1000..=1600,      true;
     corr_pawn_bonus_mult         = 219, 100..=300,         true;
     corr_pawn_bonus_div          = 87, 64..=256,           true;
     corr_pawn_bonus_min          = -4127, -6000..=-2000,   true;
