@@ -124,8 +124,8 @@ impl UCI {
         );
         println!("option name Minimal type check default false");
         println!("option name UseSoftNodes type check default false");
-        println!("option name NormalizeEval type check default true");
-        println!("option name ShowWDL type check default true");
+        println!("option name NormaliseEval type check default true");
+        println!("option name UCI_ShowWDL type check default true");
         #[cfg(feature = "tuning")]
         {
             list_params();
@@ -152,19 +152,17 @@ impl UCI {
             ["setoption", "name", "usesoftnodes", "value", bool_str] => {
                 self.set_use_soft_nodes(bool_str)
             }
-            ["setoption", "name", "normalizeeval", "value", bool_str] => {
-                self.set_normalize_eval(bool_str)
+            ["setoption", "name", "normaliseeval", "value", bool_str] => {
+                self.set_normalise_eval(bool_str)
             }
-            ["setoption", "name", "showwdl", "value", bool_str] => {
-                self.set_show_wdl(bool_str)
-            }
+            ["setoption", "name", "uci_showwdl", "value", bool_str] => self.set_show_wdl(bool_str),
             #[cfg(feature = "tuning")]
             ["setoption", "name", name, "value", value_str] => self.set_tunable(name, *value_str),
             _ => println!("info error unknown option"),
         }
     }
 
-    fn set_normalize_eval(&mut self, bool_str: &str) {
+    fn set_normalise_eval(&mut self, bool_str: &str) {
         let value = match bool_str {
             "true" => true,
             "false" => false,
@@ -173,8 +171,8 @@ impl UCI {
                 return;
             }
         };
-        self.engine.set_normalize_eval(value);
-        println!("info string NormalizeEval {}", value);
+        self.engine.set_normalise_eval(value);
+        println!("info string NormaliseEval {}", value);
     }
 
     fn set_hash_size(&mut self, value_str: &str) {
@@ -249,7 +247,7 @@ impl UCI {
             }
         };
         self.engine.set_show_wdl(value);
-        println!("info string ShowWDL {}", value);
+        println!("info string UCI_ShowWDL {}", value);
     }
 
     #[cfg(feature = "tuning")]
@@ -652,7 +650,13 @@ impl UCI {
     }
 }
 
-pub fn print_search_info(td: &mut ThreadData, board: &Board, score: i32, bound: TTFlag, force: bool) {
+pub fn print_search_info(
+    td: &mut ThreadData,
+    board: &Board,
+    score: i32,
+    bound: TTFlag,
+    force: bool,
+) {
     // Don't print info if we're not in the main thread, or the UCI option Minimal is enabled, and
     // we're not printing the final line of the search.
     if !td.main || (td.minimal_output && !force) {
@@ -668,17 +672,17 @@ pub fn print_search_info(td: &mut ThreadData, board: &Board, score: i32, bound: 
         0
     };
     let material = board.classical_material();
-    let score = if td.normalize_eval {
-        wdl::normalize(score, material)
-    } else {
-        score
-    };
     let wdl = if td.show_wdl {
         let (w, l) = wdl::model(score, material);
         let d = 1000 - w - l;
         format!("wdl {} {} {} ", w, d, l)
     } else {
         String::new()
+    };
+    let normalised_score = if td.normalise_eval {
+        wdl::normalise(score, material)
+    } else {
+        score
     };
     let hashfull = td.tt().fill();
     let bound = match bound {
@@ -690,7 +694,7 @@ pub fn print_search_info(td: &mut ThreadData, board: &Board, score: i32, bound: 
         "info depth {} seldepth {} score {}{} {}nodes {} time {} nps {} hashfull {} pv",
         depth,
         seldepth,
-        score::format_score(score),
+        score::format_score(normalised_score),
         bound,
         wdl,
         nodes,

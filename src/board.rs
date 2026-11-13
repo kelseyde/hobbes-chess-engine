@@ -611,8 +611,7 @@ impl Board {
             + 3 * self.pieces(Piece::Knight).count()
             + 3 * self.pieces(Piece::Bishop).count()
             + 5 * self.pieces(Piece::Rook).count()
-            + 9 * self.pieces(Piece::Queen).count()
-        ) as i16
+            + 9 * self.pieces(Piece::Queen).count()) as i16
     }
 
     pub const fn is_frc(&self) -> bool {

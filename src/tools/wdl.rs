@@ -1,14 +1,24 @@
 use crate::search::score;
 
-pub fn params(mat: i16) -> (f64, f64) {
-    let a = [-477.69022982, 1218.76802082, -1040.94178352, 955.44284406];
-    let b = [46.64976052, -29.08902812, 11.46635756, 126.45064726];
+/// The WDL model is used to display the expected outcome of a position in terms of probability of
+/// winning, losing or drawing, as well as to normalise the displayed score so that 100cp is fitted
+/// to a 50% win probability. The model is based on Stockfish's formula and was generated from 20k
+/// LTC self-play games.
+/// See more: https://github.com/official-stockfish/WDL_model
 
-    let m = mat.clamp(17, 78) as f64 / 58.0;
+const A: [f64; 4] = [-477.69022982, 1218.76802082, -1040.94178352, 955.44284406];
+const B: [f64; 4] = [46.64976052, -29.08902812, 11.46635756, 126.45064726];
+
+const MIN_MATERIAL: i16 = 17;
+const MAX_MATERIAL: i16 = 78;
+const MATERIAL_REFERENCE: i16 = 58;
+
+pub fn params(mat: i16) -> (f64, f64) {
+    let m = mat.clamp(MIN_MATERIAL, MAX_MATERIAL) as f64 / MATERIAL_REFERENCE as f64;
 
     (
-        ((a[0] * m + a[1]) * m + a[2]) * m + a[3],
-        ((b[0] * m + b[1]) * m + b[2]) * m + b[3],
+        ((A[0] * m + A[1]) * m + A[2]) * m + A[3],
+        ((B[0] * m + B[1]) * m + B[2]) * m + B[3],
     )
 }
 
@@ -22,12 +32,12 @@ pub fn model(score: i32, mat: i16) -> (i16, i16) {
     )
 }
 
-pub fn normalize(score: i32, mat: i16) -> i32 {
-    if score == 0 || score::is_mate(score){
+pub fn normalise(score: i32, mat: i16) -> i32 {
+    if score == 0 || score::is_mate(score) {
         return score;
     }
 
     let a = params(mat).0;
-    let normalized = (score as f64) / a;
-    score::clamp(f64::round(normalized * 100.0) as i32)
+    let normalised = (score as f64) / a;
+    score::clamp(f64::round(normalised * 100.0) as i32)
 }
