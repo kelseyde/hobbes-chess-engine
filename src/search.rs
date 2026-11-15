@@ -16,6 +16,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::history::*;
+use crate::search::lmr::LMR_QUANTISATION;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
 use crate::search::node::{NodeType, NonPV, Root, PV};
@@ -34,7 +35,6 @@ use score::is_mate;
 use std::sync::atomic::Ordering::Relaxed;
 use uci::print_search_info;
 use SeeType::{Ordering, Pruning};
-use crate::search::lmr::LMR_QUANTISATION;
 
 pub const MAX_PLY: usize = 256;
 
@@ -385,9 +385,9 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin_base()
-                + nmp_margin_scale() * depth / 128
-                - nmp_margin_improving() * (improving as i32) / 128
+            && static_eval
+                >= beta + nmp_margin_base() + nmp_margin_scale() * depth / 128
+                    - nmp_margin_improving() * improving as i32
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper
@@ -658,8 +658,7 @@ fn alpha_beta<NODE: NodeType>(
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            ((see_quiet_mult1() * depth * depth) / 128
-                + see_quiet_mult2() * depth
+            ((see_quiet_mult1() * depth * depth) / 128 + see_quiet_mult2() * depth
                 - history_score / see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * see_quiet_ttpv_scale()
                 + see_quiet_offset())
@@ -720,7 +719,8 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             if is_quiet {
-                r -= (history_score - lmr_hist_offset()) * 1024 / lmr_hist_divisor();
+                r -= ((history_score - lmr_hist_offset()) * 1024 / lmr_hist_divisor())
+                    .clamp(lmr_hist_min(), lmr_hist_max());
                 r += (to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32
                     * lmr_quiet_see();
             } else {

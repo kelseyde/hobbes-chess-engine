@@ -20,7 +20,7 @@ tunable_params! {
     nmp_min_depth                = 3, 0..=8,               false;
     nmp_margin_base              = 37, -128..=128,         true;
     nmp_margin_scale             = 0, 0..=1536,            true;
-    nmp_margin_improving         = 0, 0..=1536,            true;
+    nmp_margin_improving         = 0, -60..=60,            true;
     nmp_red_base                 = 5112, 3072..=8192,      true;
     nmp_red_depth_mult           = 338, 128..=512,         true;
     nmp_red_eval_mult            = 596, 256..=1024,        true;
@@ -102,9 +102,9 @@ tunable_params! {
     ldse_dext_margin             = 37, 20..=80,            true;
     lmr_min_depth                = 2, 1..=5,               false;
     lmr_min_moves                = 2, 1..=4,               false;
-    lmr_quiet_base               = 89, 50..=150,           true;
+    lmr_quiet_base               = 64, 25..=125,           true;
     lmr_quiet_div                = 300, 250..=400,         true;
-    lmr_noisy_base               = 96, 50..=150,           true;
+    lmr_noisy_base               = 71, 25..=125,           true;
     lmr_noisy_div                = 295, 250..=400,         true;
     lmr_complexity_margin        = 94, 0..=300,            true;
     lmr_complex                  = 217, 0..=2048,          true;
@@ -118,7 +118,8 @@ tunable_params! {
     lmr_se_max                   = 2547, 0..=3072,         true;
     lmr_hist_offset              = 1222, -2048..=2048,     true;
     lmr_hist_divisor             = 15798, 8192..=32768,    true;
-    // lmr_hist_min                 = -2048, -2048..=0,       true;
+    lmr_hist_min                 = -3072, -4096..=0,       true;
+    lmr_hist_max                 = 3072, 0..=4096,         true;
     lmr_mvv_divisor              = 384, 128..=640,         true;
     lmr_deeper_base              = 20, 0..=100,            true;
     lmr_deeper_scale             = 540, 350..=768,         true;

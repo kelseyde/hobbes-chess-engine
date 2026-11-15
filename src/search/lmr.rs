@@ -39,7 +39,8 @@ impl LmrTable {
                     };
                     let ln_depth = (depth as f32).ln();
                     let ln_move_count = (move_count as f32).ln();
-                    let reduction = ((base + ln_depth * ln_move_count / divisor) * LMR_QUANTISATION as f32) as i32;
+                    let reduction = ((base + ln_depth * ln_move_count / divisor)
+                        * LMR_QUANTISATION as f32) as i32;
                     self.base[depth as usize][move_count as usize][is_quiet as usize] = reduction;
                 }
             }
