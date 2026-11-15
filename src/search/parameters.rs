@@ -102,9 +102,9 @@ tunable_params! {
     ldse_dext_margin             = 37, 20..=80,            true;
     lmr_min_depth                = 2, 1..=5,               false;
     lmr_min_moves                = 2, 1..=4,               false;
-    lmr_quiet_base               = 64, 25..=125,           true;
+    lmr_quiet_base               = 89, 50..=150,           true;
     lmr_quiet_div                = 300, 250..=400,         true;
-    lmr_noisy_base               = 71, 25..=125,           true;
+    lmr_noisy_base               = 96, 50..=150,           true;
     lmr_noisy_div                = 295, 250..=400,         true;
     lmr_complexity_margin        = 94, 0..=300,            true;
     lmr_complex                  = 217, 0..=2048,          true;
