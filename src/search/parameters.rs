@@ -118,6 +118,7 @@ tunable_params! {
     lmr_se_max                   = 2547, 0..=3072,         true;
     lmr_hist_offset              = 1222, -2048..=2048,     true;
     lmr_hist_divisor             = 15798, 8192..=32768,    true;
+    // lmr_hist_min                 = -2048, -2048..=0,       true;
     lmr_mvv_divisor              = 384, 128..=640,         true;
     lmr_deeper_base              = 20, 0..=100,            true;
     lmr_deeper_scale             = 540, 350..=768,         true;
