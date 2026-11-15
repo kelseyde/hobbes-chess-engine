@@ -34,6 +34,7 @@ use score::is_mate;
 use std::sync::atomic::Ordering::Relaxed;
 use uci::print_search_info;
 use SeeType::{Ordering, Pruning};
+use crate::search::lmr::LMR_QUANTISATION;
 
 pub const MAX_PLY: usize = 256;
 
@@ -588,7 +589,7 @@ fn alpha_beta<NODE: NodeType>(
             .history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.base(depth, legal_moves, is_quiet);
         let lmr_depth = depth
-            .saturating_sub(base_reduction)
+            .saturating_sub(base_reduction / LMR_QUANTISATION)
             .saturating_sub(cut_node as i32);
         let to_threatened = threats.contains(mv.to());
 
@@ -604,6 +605,7 @@ fn alpha_beta<NODE: NodeType>(
             - legal_moves * fp_movecount_mult()
             + history_score / fp_history_divisor()
             + is_killer as i32 * fp_killer()
+            + (static_eval >= beta) as i32 * fp_eval_beta()
             - (tt_hit && tt_flag == Upper) as i32 * fp_tt_upper();
         if !root_node
             && !in_check
@@ -701,7 +703,7 @@ fn alpha_beta<NODE: NodeType>(
         {
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut r = base_reduction * 1024;
+            let mut r = base_reduction;
             r += td.lmr.factorised([
                 tt_pv,
                 tt_pv && has_tt_score && tt_score > alpha,
