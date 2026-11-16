@@ -194,7 +194,8 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
     Box::from_raw(ptr.cast())
 }
 
-/// Sum every 1, 2, and 3-way interaction between `N` active boolean features.
+/// Sum every 1, 2, and 3-way interaction between `N` boolean features.
+/// Used to get the 'factorised' LMR reduction for a given set of base features.
 pub fn convolve<const N: usize>(
     features: [bool; N],
     factor_1: impl Fn(usize) -> i32,
@@ -205,10 +206,13 @@ pub fn convolve<const N: usize>(
     let mut index_2 = 0;
     let mut index_3 = 0;
     for i in 0..N {
+        // The first value is just a single boolean, is feature X active or not?
         total += factor_1(i) * features[i] as i32;
         for j in (i + 1)..N {
+            // The second value is a combination of two booleans, are features X and Y active or not?
             total += factor_2(index_2) * (features[i] && features[j]) as i32;
             for k in (j + 1)..N {
+                // The third value combines three booleans, are features X, Y and Z active or not?
                 total += factor_3(index_3) * (features[i] && features[j] && features[k]) as i32;
                 index_3 += 1;
             }
