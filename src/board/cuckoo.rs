@@ -54,7 +54,7 @@ pub fn init() {
         for &side in &SIDES {
             for from in 0..64u8 {
                 let from_sq = Square(from);
-                let attacks = attacks::attacks(from_sq, piece, side, Bitboard::empty());
+                let attacks = attacks::attacks(from_sq, piece, side, Bitboard::NONE);
 
                 for to in (from + 1)..64 {
                     let to_sq = Square(to);

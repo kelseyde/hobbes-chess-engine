@@ -59,7 +59,7 @@ impl Default for NodeStack {
                 captured: None,
                 killer: None,
                 singular: None,
-                threats: Bitboard::empty(),
+                threats: Bitboard::NONE,
                 raw_eval: score::MIN,
                 static_eval: score::MIN,
                 reduction: 0,

@@ -16,10 +16,6 @@ impl Bitboard {
 
     pub const NONE: Self = Self(0);
 
-    pub fn empty() -> Self {
-        Self::NONE
-    }
-
     /// Is the square `sq` set in this bitboard?
     #[inline(always)]
     pub fn contains(self, sq: Square) -> bool {

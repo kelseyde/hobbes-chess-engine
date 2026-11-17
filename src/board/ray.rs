@@ -7,9 +7,16 @@ use crate::board::square::Square;
 use crate::tools::utils;
 use utils::slide;
 
-static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
-static mut EXTENDING: [[Bitboard; 64]; 64] = [[Bitboard(0); 64]; 64];
-static mut DIAGONALS: [[Bitboard; 64]; 2] = [[Bitboard(0); 64]; 2];
+/// Precomputed table of the squares between two squares on the same ray, excluding those two squares.
+static mut BETWEEN: [[Bitboard; 64]; 64] = [[Bitboard::NONE; 64]; 64];
+
+// Pre-computed table of the squares on the ray belonging to two squares, excluding any blockers.
+static mut EXTENDING: [[Bitboard; 64]; 64] = [[Bitboard::NONE; 64]; 64];
+
+// Pre-computed table of diagonals on the board (both NE/SW diagonals and NW/SE anti-diagonals)
+static mut DIAGONALS: [[Bitboard; 64]; 2] = [[Bitboard::NONE; 64]; 2];
+
+// Pre-computed table of the squares beyond a blocker on the same ray, excluding the blocker.
 static mut BEYOND: [[Bitboard; 64]; 64] = [[Bitboard::NONE; 64]; 64];
 
 pub fn init() {
@@ -40,14 +47,16 @@ pub fn beyond(a: Square, b: Square) -> Bitboard {
 unsafe fn init_between() {
     for a in Square::iter() {
         for b in Square::iter() {
-            if attacks::rook(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
-                    attacks::rook(a, Bitboard::of_sq(b)) & attacks::rook(b, Bitboard::of_sq(a));
+            if attacks::rook(a, Bitboard::NONE).contains(b) {
+                let a_attacks = attacks::rook(a, Bitboard::of_sq(b));
+                let b_attacks = attacks::rook(b, Bitboard::of_sq(a));
+                BETWEEN[a][b] = a_attacks & b_attacks;
             }
 
-            if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                BETWEEN[a][b] =
-                    attacks::bishop(a, Bitboard::of_sq(b)) & attacks::bishop(b, Bitboard::of_sq(a));
+            if attacks::bishop(a, Bitboard::NONE).contains(b) {
+                let a_attacks = attacks::bishop(a, Bitboard::of_sq(b));
+                let b_attacks = attacks::bishop(b, Bitboard::of_sq(a));
+                BETWEEN[a][b] = a_attacks & b_attacks;
             }
         }
     }
@@ -56,14 +65,16 @@ unsafe fn init_between() {
 unsafe fn init_extending() {
     for a in Square::iter() {
         for b in Square::iter() {
-            if attacks::rook(a, Bitboard::empty()).contains(b) {
-                EXTENDING[a][b] =
-                    attacks::rook(a, Bitboard::empty()) & attacks::rook(b, Bitboard::empty());
+            if attacks::rook(a, Bitboard::NONE).contains(b) {
+                let a_attacks = attacks::rook(a, Bitboard::NONE);
+                let b_attacks = attacks::rook(b, Bitboard::NONE);
+                EXTENDING[a][b] = a_attacks & b_attacks;
             }
 
-            if attacks::bishop(a, Bitboard::empty()).contains(b) {
-                EXTENDING[a][b] =
-                    attacks::bishop(a, Bitboard::empty()) & attacks::bishop(b, Bitboard::empty());
+            if attacks::bishop(a, Bitboard::NONE).contains(b) {
+                let a_attacks = attacks::bishop(a, Bitboard::NONE);
+                let b_attacks = attacks::bishop(b, Bitboard::NONE);
+                EXTENDING[a][b] = a_attacks & b_attacks;
             }
         }
     }
@@ -71,26 +82,25 @@ unsafe fn init_extending() {
 
 unsafe fn init_diagonals() {
     for sq in Square::iter() {
-        // Diagonal (NE/SW): +9 stops at rank 8 or file H; -9 stops at rank 1 or file A
-        DIAGONALS[0][sq] = Bitboard(
-            slide(sq.0 as usize, 0, 9, |s| s % 8 == 7 || s / 8 == 7)
-                | slide(sq.0 as usize, 0, -9, |s| s % 8 == 0 || s / 8 == 0),
-        );
-        // Anti-diagonal (NW/SE): +7 stops at rank 8 or file A; -7 stops at rank 1 or file H
-        DIAGONALS[1][sq] = Bitboard(
-            slide(sq.0 as usize, 0, 7, |s| s % 8 == 0 || s / 8 == 7)
-                | slide(sq.0 as usize, 0, -7, |s| s % 8 == 7 || s / 8 == 0),
-        );
+        // NE/SW diagonal
+        let ne = slide(sq, Bitboard::NONE, 9, |s| s.0 % 8 == 7 || s.0 / 8 == 7);
+        let sw = slide(sq, Bitboard::NONE, -9, |s| s.0 % 8 == 0 || s.0 / 8 == 0);
+        DIAGONALS[0][sq] = ne | sw;
+
+        // NW/SE anti-diagonal
+        let nw = slide(sq, Bitboard::NONE, 7, |s| s.0 % 8 == 0 || s.0 / 8 == 7);
+        let se = slide(sq, Bitboard::NONE, -7, |s| s.0 % 8 == 7 || s.0 / 8 == 0);
+        DIAGONALS[1][sq] = nw | se;
     }
 }
 
 unsafe fn init_beyond() {
-    for origin in Square::iter() {
-        let origin_file = File::of(origin) as i8;
-        let origin_rank = Rank::of(origin) as i8;
+    for sq in Square::iter() {
+        let origin_file = File::of(sq) as i8;
+        let origin_rank = Rank::of(sq) as i8;
 
         for blocker in Square::iter() {
-            if origin == blocker {
+            if sq == blocker {
                 continue;
             }
 
@@ -116,12 +126,13 @@ unsafe fn init_beyond() {
             let mut file = blocker_file + file_step;
             let mut rank = blocker_rank + rank_step;
             while (0..8).contains(&file) && (0..8).contains(&rank) {
-                beyond |= Bitboard::of_sq(Square((rank * 8 + file) as u8));
+                let sq = Square((rank * 8 + file) as u8);
+                beyond |= Bitboard::of_sq(sq);
                 file += file_step;
                 rank += rank_step;
             }
 
-            BEYOND[origin][blocker] = beyond;
+            BEYOND[sq][blocker] = beyond;
         }
     }
 }
