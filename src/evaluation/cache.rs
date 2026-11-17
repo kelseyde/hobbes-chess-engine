@@ -27,8 +27,8 @@ impl Default for CacheEntry {
     fn default() -> Self {
         CacheEntry {
             features: NETWORK.l0_biases,
-            pieces: [Bitboard::empty(); 6],
-            colours: [Bitboard::empty(); 2],
+            pieces: [Bitboard::NONE; 6],
+            colours: [Bitboard::NONE; 2],
         }
     }
 }

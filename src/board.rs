@@ -100,8 +100,8 @@ impl Board {
     /// Creates a completely empty board with no pieces, no castling rights, and no en passant.
     pub fn empty() -> Board {
         Board {
-            pieces: [Bitboard::empty(); 6],
-            colours: [Bitboard::empty(); 2],
+            pieces: [Bitboard::NONE; 6],
+            colours: [Bitboard::NONE; 2],
             mailbox: [None; 64],
             stm: White,
             hm: 0,
@@ -111,9 +111,9 @@ impl Board {
             rights: Rights::default(),
             hashes: Hashes::default(),
             frc: false,
-            threats: Bitboard::empty(),
-            checkers: Bitboard::empty(),
-            pinned: [Bitboard::empty(); 2],
+            threats: Bitboard::NONE,
+            checkers: Bitboard::NONE,
+            pinned: [Bitboard::NONE; 2],
         }
     }
 
@@ -357,13 +357,13 @@ impl Board {
         let their_orthos = self.orthos(!side);
 
         if their_diags.is_empty() && their_orthos.is_empty() {
-            return Bitboard::empty();
+            return Bitboard::NONE;
         }
 
         let potential_attackers =
             attacks::bishop(king, them) & their_diags | attacks::rook(king, them) & their_orthos;
 
-        let mut pinned = Bitboard::empty();
+        let mut pinned = Bitboard::NONE;
         for attacker in potential_attackers {
             let between = ray::between(king, attacker);
             let maybe_pinned = us & between;

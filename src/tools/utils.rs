@@ -1,3 +1,6 @@
+use crate::board::bitboard::Bitboard;
+use crate::board::square::Square;
+
 // Credit to Akimbo author for the implementation
 #[macro_export]
 macro_rules! tunable_params {
@@ -148,30 +151,33 @@ macro_rules! tunable_arrays {
 }
 
 /// Gravity formula for history updates, using the current value of the entry as the base for the update.
+#[inline(always)]
 pub fn gravity(current: i32, update: i32, max: i32) -> i32 {
     gravity_with_base(current, update, current, max)
 }
 
 /// Gravity formula for history updates, weighting the update by the current value of the entry.
+#[inline(always)]
 pub fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
 }
 
 /// Linearly interpolate between two scores, using the provided factor (0-100).
-#[inline]
+#[inline(always)]
 pub const fn lerp(a: i32, b: i32, factor: i32) -> i32 {
     (a * (100 - factor) + b * factor) / 100
 }
 
-// Slide in one direction, accumulating set bits until a blocker is hit.
-// `delta` is the square-index step; `stop` returns true when the edge is reached.
-pub fn slide(square: usize, blockers: u64, delta: i32, stop: fn(usize) -> bool) -> u64 {
-    let mut bb: u64 = 0;
-    let mut tgt = square;
-    while !stop(tgt) {
-        tgt = (tgt as i32 + delta) as usize;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) != 0 {
+/// Returns a bitboard composed of the squares in the direction of 'delta' from 'square', with a
+/// custom 'stop' function to determine when the edge of the board is reached.
+pub fn slide(square: Square, blockers: Bitboard, delta: i32, stop: fn(Square) -> bool) -> Bitboard {
+    let mut bb: Bitboard = Bitboard::NONE;
+    let mut target = square;
+    while !stop(target) {
+        target = Square((target.0 as i32 + delta) as u8);
+        let sq_bb = Bitboard::of_sq(target);
+        bb |= sq_bb;
+        if !(blockers & sq_bb).is_empty() {
             break;
         }
     }
