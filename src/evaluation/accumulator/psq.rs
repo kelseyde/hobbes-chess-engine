@@ -267,46 +267,46 @@ pub fn apply_update(
 
 #[inline]
 pub fn add1(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     add: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let wa = weight_ptr(weights, add, perspective, mirror);
     unsafe { update_features::<1, 0>(in_ptr, out_ptr, [wa], []) };
 }
 
 #[inline]
 pub fn sub1(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     sub: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let ws = weight_ptr(weights, sub, perspective, mirror);
     unsafe { update_features::<0, 1>(in_ptr, out_ptr, [], [ws]) };
 }
 
 #[inline]
 pub fn add1_sub1(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     add: PieceSquareFeature,
     sub: PieceSquareFeature,
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let wa = weight_ptr(weights, add, perspective, mirror);
     let ws = weight_ptr(weights, sub, perspective, mirror);
     unsafe { update_features::<1, 1>(in_ptr, out_ptr, [wa], [ws]) };
@@ -315,8 +315,8 @@ pub fn add1_sub1(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add1_sub2(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     add: PieceSquareFeature,
     sub1: PieceSquareFeature,
     sub2: PieceSquareFeature,
@@ -324,8 +324,8 @@ pub fn add1_sub2(
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let wa = weight_ptr(weights, add, perspective, mirror);
     let ws1 = weight_ptr(weights, sub1, perspective, mirror);
     let ws2 = weight_ptr(weights, sub2, perspective, mirror);
@@ -335,8 +335,8 @@ pub fn add1_sub2(
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub fn add2_sub2(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     add1: PieceSquareFeature,
     add2: PieceSquareFeature,
     sub1: PieceSquareFeature,
@@ -345,8 +345,8 @@ pub fn add2_sub2(
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let wa1 = weight_ptr(weights, add1, perspective, mirror);
     let wa2 = weight_ptr(weights, add2, perspective, mirror);
     let ws1 = weight_ptr(weights, sub1, perspective, mirror);
@@ -356,15 +356,15 @@ pub fn add2_sub2(
 
 #[inline]
 pub fn add4(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     adds: &[PieceSquareFeature; 4],
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let wa1 = weight_ptr(weights, adds[0], perspective, mirror);
     let wa2 = weight_ptr(weights, adds[1], perspective, mirror);
     let wa3 = weight_ptr(weights, adds[2], perspective, mirror);
@@ -374,15 +374,15 @@ pub fn add4(
 
 #[inline]
 pub fn sub4(
-    input_features: &[i16; L1_SIZE],
-    output_features: &mut [i16; L1_SIZE],
+    input: &[i16; L1_SIZE],
+    output: &mut [i16; L1_SIZE],
     subs: &[PieceSquareFeature; 4],
     weights: &PieceSquareWeights,
     perspective: Side,
     mirror: bool,
 ) {
-    let in_ptr = input_features.as_ptr();
-    let out_ptr = output_features.as_mut_ptr();
+    let in_ptr = input.as_ptr();
+    let out_ptr = output.as_mut_ptr();
     let ws1 = weight_ptr(weights, subs[0], perspective, mirror);
     let ws2 = weight_ptr(weights, subs[1], perspective, mirror);
     let ws3 = weight_ptr(weights, subs[2], perspective, mirror);
@@ -398,19 +398,19 @@ pub unsafe fn update_features<const ADDS: usize, const SUBS: usize>(
     subs: [*const i16; SUBS],
 ) {
     let mut i = 0;
-    while i + 4 * simd::I16_LANES <= L1_SIZE {
+    while i + 4 * simd::i16::LANES <= L1_SIZE {
         for k in 0..4 {
-            let off = i + k * simd::I16_LANES;
-            let mut val = simd::load_i16(input.add(off));
+            let offset = i + k * simd::i16::LANES;
+            let mut val = simd::i16::load(input.add(offset));
             for &a in adds.iter() {
-                val = simd::add_i16(val, simd::load_i16(a.add(off)));
+                val = simd::i16::add(val, simd::i16::load(a.add(offset)));
             }
             for &s in subs.iter() {
-                val = simd::sub_i16(val, simd::load_i16(s.add(off)));
+                val = simd::i16::sub(val, simd::i16::load(s.add(offset)));
             }
-            simd::store_i16(output.add(off), val);
+            simd::i16::store(output.add(offset), val);
         }
-        i += 4 * simd::I16_LANES;
+        i += 4 * simd::i16::LANES;
     }
 }
 

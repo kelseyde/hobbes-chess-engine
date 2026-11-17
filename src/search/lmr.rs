@@ -1,8 +1,8 @@
-use crate::search::MAX_PLY;
 use crate::search::parameters::{
     lmr_factor_1, lmr_factor_2, lmr_factor_3, lmr_noisy_base, lmr_noisy_div, lmr_quiet_base,
     lmr_quiet_div,
 };
+use crate::search::MAX_PLY;
 use crate::tools::utils::{boxed_and_zeroed, convolve};
 
 // The number of LMR features included in the factorised LMR table.

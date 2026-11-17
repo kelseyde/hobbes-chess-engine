@@ -7,6 +7,7 @@ use crate::board::side::Side::*;
 use crate::board::square::Square;
 use crate::evaluation::accumulator::should_mirror;
 use hobbes_nnue_arch::L0_PAWN_PAIR_FEATURES;
+use std::mem::transmute;
 
 /// This code computes the index of a given threat in the threat inputs accumulator. Everything here
 /// is heavily inspired by other engines, specifically Viridithas, Reckless, & Stormphrax. My only
@@ -228,13 +229,13 @@ impl ThreatFeature {
     /// but this way allows for branchless execution.
     pub fn index(&self, perspective: Side, king_sq: Square) -> (bool, i32) {
         let (mut from, mut to) = (self.from(), self.to());
-        let (atk_pc, mut atk_side) = self.attacker();
-        let (vic_pc, mut vic_side) = self.victim();
+        let (attacker_pc, mut attacker_side) = self.attacker();
+        let (victim_pc, mut victim_side) = self.victim();
 
         // Threat indices are reversed for black.
         if perspective == Black {
-            atk_side = !atk_side;
-            vic_side = !vic_side;
+            attacker_side = !attacker_side;
+            victim_side = !victim_side;
             from = from.flip_rank();
             to = to.flip_rank();
         }
@@ -248,8 +249,8 @@ impl ThreatFeature {
         let direction = (from.0 < to.0) as usize;
 
         // Get the indices of the attacking and defending piece (white 0-5, black 6-11).
-        let attacker_idx = atk_pc.coloured_index(atk_side);
-        let victim_idx = vic_pc.coloured_index(vic_side);
+        let attacker_idx = attacker_pc.coloured_index(attacker_side);
+        let victim_idx = victim_pc.coloured_index(victim_side);
 
         // Get the block for the (attacker, victim, direction) combination
         let base = unsafe { PAIR_BASE[attacker_idx][victim_idx][direction] };
@@ -297,11 +298,6 @@ impl ThreatFeature {
     const fn decode_coloured(idx: u8) -> (Piece, Side) {
         let pc = idx % 6;
         let side = idx / 6;
-        unsafe {
-            (
-                std::mem::transmute::<u8, Piece>(pc),
-                std::mem::transmute::<u8, Side>(side),
-            )
-        }
+        unsafe { (transmute::<u8, Piece>(pc), transmute::<u8, Side>(side)) }
     }
 }
