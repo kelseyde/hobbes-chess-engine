@@ -42,25 +42,25 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
     let mut indices = [0u16; L1_SIZE / 4];
     let indices_ptr = indices.as_mut_ptr();
     let mut count = 0usize;
-    let mut base = simd::splat_u16(0);
-    let step = simd::splat_u16(8);
+    let mut base = simd::u16::splat(0);
+    let step = simd::u16::splat(8);
 
     let mut i = 0;
     while i < L1_SIZE {
         let mut mask: u64 = 0;
         for j in 0..UNROLL {
-            let nonzero_mask = simd::nonzero_mask_u8(input.as_ptr().add(i)) as u64;
+            let nonzero_mask = simd::u8::nonzero_mask(input.as_ptr().add(i)) as u64;
             mask |= nonzero_mask << (j * simd::I32_LANES);
-            i += simd::U8_LANES;
+            i += simd::u8::LANES;
         }
 
         for chunk in 0..NUM_CHUNKS {
             let byte = (mask >> (chunk * 8)) as u8;
             let entry = &NNZ_TABLE.table[byte as usize];
-            let actual_indices = simd::add_u16(simd::load_u16(entry.indices.as_ptr()), base);
-            simd::store_u16(indices_ptr.add(count), actual_indices);
+            let actual_indices = simd::u16::add(simd::u16::load(entry.indices.as_ptr()), base);
+            simd::u16::store(indices_ptr.add(count), actual_indices);
             count += byte.count_ones() as usize;
-            base = simd::add_u16(base, step);
+            base = simd::u16::add(base, step);
         }
     }
 
