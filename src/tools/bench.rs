@@ -92,6 +92,6 @@ pub fn bench(td: &mut ThreadData) {
     let nps = (nodes / time) * 1000;
     println!("{} nodes {} nps", nodes, nps);
 
-    #[cfg(feature = "track_l0_activations")]
+    #[cfg(feature = "track_activations")]
     crate::evaluation::sparse::dump_activation_counts();
 }
