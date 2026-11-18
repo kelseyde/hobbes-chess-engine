@@ -19,7 +19,7 @@ static ORDER: &[u8] = &[0, 2, 1, 3];
 static ORDER: &[u8] = &[];
 
 pub const fn permute_config() -> PermuteConfig {
-    let needs_permuting = cfg!(target_feature = "avx512f") || cfg!(target_feature = "avx2");
+    let needs_permuting = ORDER.len() > 0;
     PermuteConfig {
         needs_permuting,
         order: ORDER,
@@ -33,18 +33,18 @@ pub const fn permute_config() -> PermuteConfig {
 /// 1. Repermutes L0 weights and biases so the most-activated neurons come first
 /// 2. Permutes the L0 weights and biases to cancel out the cross-lane behaviour of packus.
 /// 3. Transposes L1 weights: src[input][bucket][output] -> dst[bucket][output][input]
-/// 4. Reorders L2 weights: src[input][bucket][output] -> dst[bucket][input][output]
+/// 4. Reorders L2 weights: src[input][bucket][output] -> dst[bucket][output][input]
 /// 5. Reorders L3 weights: src[input][bucket] -> dst[bucket][input]
 pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
-    let repermute = compute_repermute_indices();
+    let repermute_indices = compute_repermute_indices();
 
-    repermute_l0_biases(&mut dst.l0_biases, &src.l0_biases, &repermute);
+    repermute_l0_biases(&mut dst.l0_biases, &src.l0_biases, &repermute_indices);
 
     for (dst_bucket, src_bucket) in dst.l0_psq_weights.iter_mut().zip(src.l0_psq_weights.iter()) {
-        repermute_l0_weights(dst_bucket, src_bucket, &repermute);
+        repermute_l0_weights(dst_bucket, src_bucket, &repermute_indices);
     }
 
-    repermute_l0_weights(&mut dst.l0_threat_pp_weights, &src.l0_threat_pp_weights, &repermute);
+    repermute_l0_weights(&mut dst.l0_threat_pp_weights, &src.l0_threat_pp_weights, &repermute_indices);
 
     let config = permute_config();
     if config.needs_permuting {
@@ -66,7 +66,7 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
     }
 
     for bucket in 0..OUTPUT_BUCKET_COUNT {
-        for (tgt_input_idx, &src_input_idx) in repermute.iter().enumerate() {
+        for (tgt_input_idx, &src_input_idx) in repermute_indices.iter().enumerate() {
             for half in 0..2 {
                 let tgt_idx = tgt_input_idx + half * (L1_SIZE / 2);
                 let src_idx = src_input_idx + half * (L1_SIZE / 2);
@@ -102,14 +102,16 @@ pub fn process_network(src: &UntransposedNetwork, dst: &mut Network) {
     }
 }
 
-/// Compute the repermutation indices for sparsity optimisation.
+/// Compute the re-permute indices for sparsity optimisation. The permute order is defined by the
+/// tracked activations of each neuron recorded in `L0_ACTIVATIONS`, which is re-calculated with
+/// each new net by running a bench with the "track_activations" feature enabled.
 fn compute_repermute_indices() -> [usize; L1_SIZE / 2] {
     let mut indices: [usize; L1_SIZE / 2] = std::array::from_fn(|i| i);
     indices.sort_by(|&a, &b| L0_ACTIVATIONS[b].cmp(&L0_ACTIVATIONS[a]));
     indices
 }
 
-/// Re-permute the L0 biases so that the most-activated neurons come first.
+/// Re-permute the L0 biases for sparsity, so that the most-activated neurons come first.
 fn repermute_l0_biases(
     dst: &mut [i16; L1_SIZE],
     src: &[i16; L1_SIZE],
@@ -121,21 +123,21 @@ fn repermute_l0_biases(
     }
 }
 
-/// Re-permute a single L0 weight bucket for sparsity.
+/// Re-permute a single L0 weight bucket for sparsity, so that the most activated neurons come first.
 fn repermute_l0_weights<T: Copy>(dst: &mut [T], src: &[T], indices: &[usize; L1_SIZE / 2]) {
     debug_assert_eq!(dst.len(), src.len());
     debug_assert_eq!(src.len() % L1_SIZE, 0);
     let input_features = src.len() / L1_SIZE;
     for feature in 0..input_features {
         let base = feature * L1_SIZE;
-        for (tgt, &src_idx) in indices.iter().enumerate() {
-            dst[base + tgt] = src[base + src_idx];
-            dst[base + tgt + L1_SIZE / 2] = src[base + src_idx + L1_SIZE / 2];
+        for (target, &src_idx) in indices.iter().enumerate() {
+            dst[base + target] = src[base + src_idx];
+            dst[base + target + L1_SIZE / 2] = src[base + src_idx + L1_SIZE / 2];
         }
     }
 }
 
-// Permute a flat slice of values in-place
+// Permute a flat slice of values in-place.
 fn permute<T: Copy + Default>(
     data: &mut [T],
     order: &[u8],
