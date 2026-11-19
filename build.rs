@@ -22,7 +22,7 @@ fn main() {
     write_network_bytes(&network_path, &dst);
 
     println!("cargo:rustc-env=NETWORK_PATH={}", network_path.display());
-    println!("cargo:rerun-if-changed=hobbes.nnue");
+    println!("cargo:rerun-if-changed={}", INPUT_NET_FILE);
 }
 
 fn read_network_bytes(path: &str) -> Vec<u8> {
@@ -33,13 +33,17 @@ fn write_network_bytes(path: &PathBuf, dst: &Network) {
     fs::write(path, unsafe { as_bytes(dst) }).unwrap();
 }
 
+/// Load the `UntransposedNetwork` from the raw bytes, verifying the size matches the expected size
+/// of the unprocessed net.
 fn load_network_from_bytes(bytes: &[u8]) -> Box<UntransposedNetwork> {
+    let target_size = size_of::<UntransposedNetwork>();
+    let actual_size = bytes.len();
     assert_eq!(
-        bytes.len(),
-        size_of::<UntransposedNetwork>(),
-        "Byte slice is {} bytes but UntransposedNetwork is {} bytes — wrong network file?",
-        bytes.len(),
-        size_of::<UntransposedNetwork>()
+        actual_size,
+        target_size,
+        "Network size {} does not match the desired {}",
+        actual_size,
+        target_size
     );
     unsafe {
         let mut b: Box<UntransposedNetwork> = boxed_and_zeroed();

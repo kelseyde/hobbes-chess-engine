@@ -1,3 +1,6 @@
+use crate::board::bitboard::Bitboard;
+use crate::board::square::Square;
+
 // Credit to Akimbo author for the implementation
 #[macro_export]
 macro_rules! tunable_params {
@@ -148,30 +151,33 @@ macro_rules! tunable_arrays {
 }
 
 /// Gravity formula for history updates, using the current value of the entry as the base for the update.
+#[inline(always)]
 pub fn gravity(current: i32, update: i32, max: i32) -> i32 {
     gravity_with_base(current, update, current, max)
 }
 
 /// Gravity formula for history updates, weighting the update by the current value of the entry.
+#[inline(always)]
 pub fn gravity_with_base(current: i32, update: i32, base: i32, max: i32) -> i32 {
     current + update - base * update.abs() / max
 }
 
 /// Linearly interpolate between two scores, using the provided factor (0-100).
-#[inline]
+#[inline(always)]
 pub const fn lerp(a: i32, b: i32, factor: i32) -> i32 {
     (a * (100 - factor) + b * factor) / 100
 }
 
-// Slide in one direction, accumulating set bits until a blocker is hit.
-// `delta` is the square-index step; `stop` returns true when the edge is reached.
-pub fn slide(square: usize, blockers: u64, delta: i32, stop: fn(usize) -> bool) -> u64 {
-    let mut bb: u64 = 0;
-    let mut tgt = square;
-    while !stop(tgt) {
-        tgt = (tgt as i32 + delta) as usize;
-        bb |= 1 << tgt;
-        if blockers & (1 << tgt) != 0 {
+/// Returns a bitboard composed of the squares in the direction of 'delta' from 'square', with a
+/// custom 'stop' function to determine when the edge of the board is reached.
+pub fn slide(square: Square, blockers: Bitboard, delta: i32, stop: fn(Square) -> bool) -> Bitboard {
+    let mut bb: Bitboard = Bitboard::NONE;
+    let mut target = square;
+    while !stop(target) {
+        target = Square((target.0 as i32 + delta) as u8);
+        let sq_bb = Bitboard::of_sq(target);
+        bb |= sq_bb;
+        if !(blockers & sq_bb).is_empty() {
             break;
         }
     }
@@ -194,7 +200,8 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
     Box::from_raw(ptr.cast())
 }
 
-/// Sum every 1, 2, and 3-way interaction between `N` active boolean features.
+/// Sum every 1, 2, and 3-way interaction between `N` boolean features.
+/// Used to get the 'factorised' LMR reduction for a given set of base features.
 pub fn convolve<const N: usize>(
     features: [bool; N],
     factor_1: impl Fn(usize) -> i32,
@@ -205,10 +212,13 @@ pub fn convolve<const N: usize>(
     let mut index_2 = 0;
     let mut index_3 = 0;
     for i in 0..N {
+        // The first value is just a single boolean, is feature X active or not?
         total += factor_1(i) * features[i] as i32;
         for j in (i + 1)..N {
+            // The second value is a combination of two booleans, are features X and Y active or not?
             total += factor_2(index_2) * (features[i] && features[j]) as i32;
             for k in (j + 1)..N {
+                // The third value combines three booleans, are features X, Y and Z active or not?
                 total += factor_3(index_3) * (features[i] && features[j] && features[k]) as i32;
                 index_3 += 1;
             }

@@ -42,39 +42,45 @@ pub unsafe fn find_nonzero_indices(input: &[u8; L1_SIZE]) -> ([u16; L1_SIZE / 4]
     let mut indices = [0u16; L1_SIZE / 4];
     let indices_ptr = indices.as_mut_ptr();
     let mut count = 0usize;
-    let mut base = simd::splat_u16(0);
-    let step = simd::splat_u16(8);
+    let mut base = simd::u16::splat(0);
+    let step = simd::u16::splat(8);
 
     let mut i = 0;
     while i < L1_SIZE {
         let mut mask: u64 = 0;
         for j in 0..UNROLL {
-            let nonzero_mask = simd::nonzero_mask_u8(input.as_ptr().add(i)) as u64;
+            let nonzero_mask = simd::u8::nonzero_mask(input.as_ptr().add(i)) as u64;
             mask |= nonzero_mask << (j * simd::I32_LANES);
-            i += simd::U8_LANES;
+            i += simd::u8::LANES;
         }
 
         for chunk in 0..NUM_CHUNKS {
             let byte = (mask >> (chunk * 8)) as u8;
             let entry = &NNZ_TABLE.table[byte as usize];
-            let actual_indices = simd::add_u16(simd::load_u16(entry.indices.as_ptr()), base);
-            simd::store_u16(indices_ptr.add(count), actual_indices);
+            let actual_indices = simd::u16::add(simd::u16::load(entry.indices.as_ptr()), base);
+            simd::u16::store(indices_ptr.add(count), actual_indices);
             count += byte.count_ones() as usize;
-            base = simd::add_u16(base, step);
+            base = simd::u16::add(base, step);
         }
     }
 
     (indices, count)
 }
 
-#[cfg(feature = "track_l0_activations")]
+#[cfg(feature = "track_activations")]
 mod bench {
     use super::L1_SIZE;
+    use std::fs::File;
+    use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     pub static ACTIVATION_COUNTS: [AtomicU64; L1_SIZE / 2] =
         [const { AtomicU64::new(0) }; L1_SIZE / 2];
 
+    pub const FILE_NAME: &str = "activations.txt";
+
+    /// Tracks the activations of the neurons in the input layer of the NNUE neural network. Used
+    /// to permute the network for sparsity.
     #[inline(always)]
     pub fn track_activations(l0_outputs: &[u8; L1_SIZE]) {
         for (i, &val) in l0_outputs.iter().enumerate() {
@@ -84,22 +90,23 @@ mod bench {
         }
     }
 
+    /// Writes the tracked activations to a file, to be injected into preprocess.rs.
     pub fn dump_activation_counts() {
-        use std::io::Write;
         let mut file =
-            std::fs::File::create("activations.txt").expect("Failed to create activations.txt");
+            File::create(FILE_NAME).expect(format!("Failed to create {FILE_NAME}").as_str());
         let counts: Vec<String> = ACTIVATION_COUNTS
             .iter()
             .map(|c| c.load(Ordering::Relaxed).to_string())
             .collect();
-        writeln!(file, "{}", counts.join(", ")).expect("Failed to write activations.txt");
-        println!("Wrote l0 activation counts to activations.txt");
+        writeln!(file, "{}", counts.join(", "))
+            .expect(format!("Failed to write {FILE_NAME}").as_str());
+        println!("Wrote l0 activation counts to {FILE_NAME}");
     }
 }
 
-#[cfg(feature = "track_l0_activations")]
+#[cfg(feature = "track_activations")]
 pub use bench::{dump_activation_counts, track_activations};
 
-#[cfg(not(feature = "track_l0_activations"))]
+#[cfg(not(feature = "track_activations"))]
 #[inline(always)]
 pub fn track_activations(_l0_outputs: &[u8; L1_SIZE]) {}

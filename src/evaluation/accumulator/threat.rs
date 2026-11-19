@@ -19,15 +19,9 @@ const MAX_FEATURES: usize = MAX_THREAT_FEATURES + MAX_PAWN_PAIR_FEATURES;
 const MAX_ACTIVE_INDICES: usize = 4096;
 
 #[cfg(target_feature = "avx512f")]
-const REGISTERS: usize = L1_SIZE / simd::I16_LANES;
+const REGISTERS: usize = L1_SIZE / simd::i16::LANES;
 #[cfg(not(target_feature = "avx512f"))]
 const REGISTERS: usize = 8;
-
-const STEP: usize = REGISTERS * simd::I16_LANES;
-const _: () = assert!(
-    L1_SIZE.is_multiple_of(STEP),
-    "step must divide by the accumulator evenly"
-);
 
 #[repr(C, align(64))]
 pub struct ThreatAccumulator {
@@ -51,6 +45,7 @@ impl Default for ThreatAccumulator {
 }
 
 impl ThreatAccumulator {
+    #[inline(always)]
     pub fn features(&self, perspective: Side) -> &[i16; L1_SIZE] {
         &self.features[perspective]
     }
@@ -60,6 +55,7 @@ impl ThreatAccumulator {
         (self.features(perspective), self.features(!perspective))
     }
 
+    #[inline(always)]
     pub fn features_mut(&mut self, perspective: Side) -> &mut [i16; L1_SIZE] {
         &mut self.features[perspective]
     }
@@ -68,7 +64,7 @@ impl ThreatAccumulator {
         let mut adds = ArrayVec::<u32, MAX_ACTIVE_INDICES>::new();
         Self::collect_threat_indices(board, pov, &mut adds);
         Self::collect_pp_indices(board, pov, &mut adds);
-        unsafe { accumulate(&mut self.features[pov], None, &adds, &[]) };
+        unsafe { accumulate(None, &mut self.features[pov], &adds, &[]) };
         self.computed[pov] = true;
     }
 
@@ -99,8 +95,8 @@ impl ThreatAccumulator {
 
         unsafe {
             accumulate(
-                &mut self.features[pov],
                 Some(&parent.features[pov]),
+                &mut self.features[pov],
                 &adds,
                 &subs,
             )
@@ -158,18 +154,30 @@ impl ThreatAccumulator {
         let occ = board.occ();
         let attacked = attacks::attacks(sq, old_pc, old_side, occ) & occ;
         for to in attacked {
-            let vic_pc = board.piece_at(to).unwrap();
-            let vic_side = board.side_at(to).unwrap();
+            let victim_pc = board.piece_at(to).unwrap();
+            let victim_side = board.side_at(to).unwrap();
             deltas.push(ThreatFeature::new(
-                old_pc, old_side, sq, vic_pc, vic_side, to, false,
+                old_pc,
+                old_side,
+                sq,
+                victim_pc,
+                victim_side,
+                to,
+                false,
             ));
         }
         let attacked = attacks::attacks(sq, new_pc, new_side, occ) & occ;
         for to in attacked {
-            let vic_pc = board.piece_at(to).unwrap();
-            let vic_side = board.side_at(to).unwrap();
+            let victim_pc = board.piece_at(to).unwrap();
+            let victim_side = board.side_at(to).unwrap();
             deltas.push(ThreatFeature::new(
-                new_pc, new_side, sq, vic_pc, vic_side, to, true,
+                new_pc,
+                new_side,
+                sq,
+                victim_pc,
+                victim_side,
+                to,
+                true,
             ));
         }
 
@@ -185,13 +193,25 @@ impl ThreatAccumulator {
         let kings = board.pieces(Piece::King) & attacks::king(sq);
 
         for from in (black_pawns | white_pawns | knights | diags | orthos | kings) & occ {
-            let atk_pc = board.piece_at(from).unwrap();
-            let atk_side = board.side_at(from).unwrap();
+            let attacker_pc = board.piece_at(from).unwrap();
+            let attacker_side = board.side_at(from).unwrap();
             deltas.push(ThreatFeature::new(
-                atk_pc, atk_side, from, old_pc, old_side, sq, false,
+                attacker_pc,
+                attacker_side,
+                from,
+                old_pc,
+                old_side,
+                sq,
+                false,
             ));
             deltas.push(ThreatFeature::new(
-                atk_pc, atk_side, from, new_pc, new_side, sq, true,
+                attacker_pc,
+                attacker_side,
+                from,
+                new_pc,
+                new_side,
+                sq,
+                true,
             ));
         }
 
@@ -214,13 +234,21 @@ impl ThreatAccumulator {
     ) {
         let deltas = &mut self.threat_fts;
         let attacked = attacks::attacks(sq, pc, side, occ) & occ;
-        for (vic_side, targets) in [
+        for (victim_side, targets) in [
             (White, attacked & board.side(White)),
             (Black, attacked & board.side(Black)),
         ] {
             for to in targets {
-                let vic_pc = board.piece_at(to).unwrap();
-                deltas.push(ThreatFeature::new(pc, side, sq, vic_pc, vic_side, to, add));
+                let victim_pc = board.piece_at(to).unwrap();
+                deltas.push(ThreatFeature::new(
+                    pc,
+                    side,
+                    sq,
+                    victim_pc,
+                    victim_side,
+                    to,
+                    add,
+                ));
             }
         }
 
@@ -237,14 +265,14 @@ impl ThreatAccumulator {
             let slider_side = board.side_at(from).unwrap();
             let threatened = ray::beyond(from, sq) & occ & queen_attacks;
             if let Some(to) = threatened.into_iter().next() {
-                let vic_pc = board.piece_at(to).unwrap();
-                let vic_side = board.side_at(to).unwrap();
+                let victim_pc = board.piece_at(to).unwrap();
+                let victim_side = board.side_at(to).unwrap();
                 deltas.push(ThreatFeature::new(
                     slider_pc,
                     slider_side,
                     from,
-                    vic_pc,
-                    vic_side,
+                    victim_pc,
+                    victim_side,
                     to,
                     !add,
                 ));
@@ -267,10 +295,16 @@ impl ThreatAccumulator {
         let leapers = black_pawns | white_pawns | knights | kings;
 
         for from in leapers & occ {
-            let atk_pc = board.piece_at(from).unwrap();
-            let atk_side = board.side_at(from).unwrap();
+            let attacker_pc = board.piece_at(from).unwrap();
+            let attacker_side = board.side_at(from).unwrap();
             deltas.push(ThreatFeature::new(
-                atk_pc, atk_side, from, pc, side, sq, add,
+                attacker_pc,
+                attacker_side,
+                from,
+                pc,
+                side,
+                sq,
+                add,
             ));
         }
     }
@@ -297,31 +331,47 @@ impl ThreatAccumulator {
         }
     }
 
-    fn collect_threat_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, 4096>) {
+    /// Collect the indices of the active threat features on the board.
+    fn collect_threat_indices(board: &Board, pov: Side, output: &mut ArrayVec<u32, 4096>) {
         let occ = board.occ();
         let king_sq = board.king_sq(pov);
         for from in occ {
-            let (atk, atk_side) = (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
-            let attacks = attacks::attacks(from, atk, atk_side, occ) & occ;
+            let (attacker_pc, attacker_side) =
+                (board.piece_at(from).unwrap(), board.side_at(from).unwrap());
+            let attacks = attacks::attacks(from, attacker_pc, attacker_side, occ) & occ;
             for to in attacks {
-                let (vic, vic_side) = (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
-                let delta = ThreatFeature::new(atk, atk_side, from, vic, vic_side, to, true);
+                let (victim_pc, victim_side) =
+                    (board.piece_at(to).unwrap(), board.side_at(to).unwrap());
+                let delta = ThreatFeature::new(
+                    attacker_pc,
+                    attacker_side,
+                    from,
+                    victim_pc,
+                    victim_side,
+                    to,
+                    true,
+                );
                 let (valid, idx) = delta.index(pov, king_sq);
                 if valid {
-                    out.push(idx as u32);
+                    output.push(idx as u32);
                 }
             }
         }
     }
 
-    fn collect_pp_indices(board: &Board, pov: Side, out: &mut ArrayVec<u32, MAX_ACTIVE_INDICES>) {
+    /// Collect the indices of the active pawn pair features on the board.
+    fn collect_pp_indices(
+        board: &Board,
+        pov: Side,
+        output: &mut ArrayVec<u32, MAX_ACTIVE_INDICES>,
+    ) {
         let mirror = should_mirror(board.king_sq(pov));
-        let (wp, bp) = (board.pawns(White), board.pawns(Black));
+        let (w_pawns, b_pawns) = (board.pawns(White), board.pawns(Black));
 
         for (side_a, side_b, outer, inner) in [
-            (White, White, wp, wp),
-            (Black, Black, bp, bp),
-            (White, Black, wp, bp),
+            (White, White, w_pawns, w_pawns),
+            (Black, Black, b_pawns, b_pawns),
+            (White, Black, w_pawns, b_pawns),
         ] {
             let same = side_a == side_b;
             for a in outer {
@@ -336,13 +386,16 @@ impl ThreatAccumulator {
                 for b in partners {
                     let id_b = pp::pawn_id(b, side_b, pov, mirror);
                     let idx = pp::pp_index(id_a, id_b);
-                    out.push(idx);
+                    output.push(idx);
                 }
             }
         }
     }
 }
 
+/// Apply any pending updates lazily to the threat accumulator before evaluation. We scan forward
+/// from the last computed accumulator, applying the updates one by one. If at any point we detect
+/// a change which requires a refresh, we cancel all updates and immediately refresh.
 pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
     for pov in [White, Black] {
         if nnue.stack[nnue.current].threat.computed[pov] {
@@ -376,20 +429,22 @@ pub fn apply_lazy_updates(nnue: &mut NNUE, board: &Board) {
 
 #[inline(always)]
 unsafe fn accumulate(
-    out: &mut [i16; L1_SIZE],
-    parent: Option<&[i16; L1_SIZE]>,
+    input: Option<&[i16; L1_SIZE]>,
+    output: &mut [i16; L1_SIZE],
     adds: &[u32],
     subs: &[u32],
 ) {
+    const STEP: usize = REGISTERS * simd::i16::LANES;
+
     let weights = NETWORK.l0_threat_pp_weights.as_ptr();
-    let out_ptr = out.as_mut_ptr();
+    let out_ptr = output.as_mut_ptr();
 
     for offset in (0..L1_SIZE).step_by(STEP) {
-        let mut regs = [simd::zero_i16(); REGISTERS];
-        if let Some(p) = parent {
+        let mut regs = [simd::i16::zero(); REGISTERS];
+        if let Some(p) = input {
             let in_ptr = p.as_ptr();
             for (i, reg) in regs.iter_mut().enumerate() {
-                *reg = simd::load_i16(in_ptr.add(offset + i * simd::I16_LANES));
+                *reg = simd::i16::load(in_ptr.add(offset + i * simd::i16::LANES));
             }
         }
 
@@ -399,10 +454,10 @@ unsafe fn accumulate(
             let add_row = weights.add(adds[added] as usize * L1_SIZE + offset);
             let sub_row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
-                let lane = i * simd::I16_LANES;
-                let add_w = simd::load_i8_as_i16(add_row.add(lane));
-                let sub_w = simd::load_i8_as_i16(sub_row.add(lane));
-                *reg = simd::add_i16(*reg, simd::sub_i16(add_w, sub_w));
+                let lane = i * simd::i16::LANES;
+                let add_weight = simd::i16::load_i8(add_row.add(lane));
+                let sub_weight = simd::i16::load_i8(sub_row.add(lane));
+                *reg = simd::i16::add(*reg, simd::i16::sub(add_weight, sub_weight));
             }
             added += 1;
             subtracted += 1;
@@ -412,10 +467,10 @@ unsafe fn accumulate(
             let row1 = weights.add(adds[added] as usize * L1_SIZE + offset);
             let row2 = weights.add(adds[added + 1] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
-                let lane = i * simd::I16_LANES;
-                let w1 = simd::load_i8_as_i16(row1.add(lane));
-                let w2 = simd::load_i8_as_i16(row2.add(lane));
-                *reg = simd::add_i16(*reg, simd::add_i16(w1, w2));
+                let lane = i * simd::i16::LANES;
+                let add_weight1 = simd::i16::load_i8(row1.add(lane));
+                let add_weight2 = simd::i16::load_i8(row2.add(lane));
+                *reg = simd::i16::add(*reg, simd::i16::add(add_weight1, add_weight2));
             }
             added += 2;
         }
@@ -423,7 +478,8 @@ unsafe fn accumulate(
         while added < adds.len() {
             let row = weights.add(adds[added] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
-                *reg = simd::add_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+                let add_weight = simd::i16::load_i8(row.add(i * simd::i16::LANES));
+                *reg = simd::i16::add(*reg, add_weight);
             }
             added += 1;
         }
@@ -431,13 +487,14 @@ unsafe fn accumulate(
         while subtracted < subs.len() {
             let row = weights.add(subs[subtracted] as usize * L1_SIZE + offset);
             for (i, reg) in regs.iter_mut().enumerate() {
-                *reg = simd::sub_i16(*reg, simd::load_i8_as_i16(row.add(i * simd::I16_LANES)));
+                let sub_weight = simd::i16::load_i8(row.add(i * simd::i16::LANES));
+                *reg = simd::i16::sub(*reg, sub_weight);
             }
             subtracted += 1;
         }
 
         for (i, reg) in regs.iter().enumerate() {
-            simd::store_i16(out_ptr.add(offset + i * simd::I16_LANES), *reg);
+            simd::i16::store(out_ptr.add(offset + i * simd::i16::LANES), *reg);
         }
     }
 }

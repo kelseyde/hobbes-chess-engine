@@ -1,4 +1,5 @@
 use crate::board::bitboard::Bitboard;
+use crate::board::square::Square;
 use crate::tools::utils;
 use utils::slide;
 
@@ -26,17 +27,19 @@ impl MagicLookup {
 }
 
 pub fn gen_bishop_attacks(square: usize, blockers: u64) -> u64 {
-    slide(square, blockers,  7, |s| s % 8 == 0 || s / 8 == 7)   // north-west
-    | slide(square, blockers,  9, |s| s % 8 == 7 || s / 8 == 7) // north-east
-    | slide(square, blockers, -9, |s| s % 8 == 0 || s / 8 == 0) // south-west
-    | slide(square, blockers, -7, |s| s % 8 == 7 || s / 8 == 0) // south-east
+    (slide(Square(square as u8), Bitboard(blockers),  7, |s| s.0 % 8 == 0 || s.0 / 8 == 7)   // north-west
+    | slide(Square(square as u8), Bitboard(blockers),  9, |s| s.0 % 8 == 7 || s.0 / 8 == 7) // north-east
+    | slide(Square(square as u8), Bitboard(blockers), -9, |s| s.0 % 8 == 0 || s.0 / 8 == 0) // south-west
+    | slide(Square(square as u8), Bitboard(blockers), -7, |s| s.0 % 8 == 7 || s.0 / 8 == 0))
+    .0 // south-east
 }
 
 pub fn gen_rook_attacks(square: usize, blockers: u64) -> u64 {
-    slide(square, blockers,  8, |s| s / 8 == 7) // north
-    | slide(square, blockers,  1, |s| s % 8 == 7) // east
-    | slide(square, blockers, -8, |s| s / 8 == 0) // south
-    | slide(square, blockers, -1, |s| s % 8 == 0) // west
+    (slide(Square(square as u8), Bitboard(blockers),  8, |s| s.0 / 8 == 7) // north
+    | slide(Square(square as u8), Bitboard(blockers),  1, |s| s.0 % 8 == 7) // east
+    | slide(Square(square as u8), Bitboard(blockers), -8, |s| s.0 / 8 == 0) // south
+    | slide(Square(square as u8), Bitboard(blockers), -1, |s| s.0 % 8 == 0))
+    .0 // west
 }
 
 fn gen_attacks_table(

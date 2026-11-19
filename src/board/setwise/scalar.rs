@@ -13,16 +13,16 @@ pub fn knights_and_sliders_setwise(
 fn knights_setwise(knights: Bitboard) -> Bitboard {
     knights
         .into_iter()
-        .fold(Bitboard::empty(), |bb, n| bb | attacks::knight(n))
+        .fold(Bitboard::NONE, |bb, n| bb | attacks::knight(n))
 }
 
 fn sliders_setwise(ortho: Bitboard, diag: Bitboard, blockers: Bitboard) -> Bitboard {
     let ortho_attacks = ortho
         .into_iter()
-        .fold(Bitboard::empty(), |bb, o| bb | attacks::rook(o, blockers));
+        .fold(Bitboard::NONE, |bb, o| bb | attacks::rook(o, blockers));
     let diag_attacks = diag
         .into_iter()
-        .fold(Bitboard::empty(), |bb, d| bb | attacks::bishop(d, blockers));
+        .fold(Bitboard::NONE, |bb, d| bb | attacks::bishop(d, blockers));
 
     ortho_attacks | diag_attacks
 }
