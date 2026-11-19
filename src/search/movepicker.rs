@@ -136,41 +136,37 @@ impl MovePicker {
     /// Generate all the quiet moves in the current position, and add them to the move list.
     #[inline(always)]
     fn gen_quiet_moves(&mut self, board: &Board, td: &ThreadData) {
-        let mut temp = MoveList::new();
-        board.gen_moves::<Quiet>(&mut temp);
-        for entry in temp.iter_mut() {
-            if entry.mv == self.tt_move {
-                continue;
-            }
-            score_move(entry, board, td, self.ply, self.threats);
-            self.moves.add(*entry);
-        }
+        let mut quiets = MoveList::new();
+        board.gen_moves::<Quiet>(&mut quiets);
+        quiets.iter_mut()
+            .filter(|entry| entry.mv != self.tt_move)
+            .for_each(|entry| {
+                score_move(entry, board, td, self.ply, self.threats);
+                self.moves.add(*entry)
+            });
     }
 
     #[inline(always)]
     fn gen_noisy_moves(&mut self, board: &Board, td: &ThreadData) {
-        let mut temp = MoveList::new();
-        let mut bad_temp = MoveList::new();
+        let mut noisies = MoveList::new();
+        let mut bad_noisies = MoveList::new();
         if self.captures_only {
-            board.gen_moves::<Capture>(&mut temp);
+            board.gen_moves::<Capture>(&mut noisies);
         } else {
-            board.gen_moves::<Noisy>(&mut temp);
+            board.gen_moves::<Noisy>(&mut noisies);
         }
-        for entry in temp.iter_mut() {
-            if entry.mv == self.tt_move {
-                continue;
-            }
-            score_move(entry, board, td, self.ply, self.threats);
-            if is_good_noisy(entry, board, self.split_noisies) {
-                self.moves.add(*entry);
-            } else {
-                bad_temp.add(*entry);
-            }
-        }
+        noisies.iter_mut()
+            .filter(|entry| entry.mv != self.tt_move)
+            .for_each(|entry| {
+                score_move(entry, board, td, self.ply, self.threats);
+                if is_good_noisy(entry, board, self.split_noisies) {
+                    self.moves.add(*entry);
+                } else {
+                    bad_noisies.add(*entry);
+                }
+            });
         self.bad_noisy_start = self.moves.len();
-        for entry in bad_temp.iter() {
-            self.moves.add(*entry);
-        }
+        bad_noisies.iter().for_each(|entry| self.moves.add(*entry));
         self.quiet_start = self.moves.len();
     }
 
