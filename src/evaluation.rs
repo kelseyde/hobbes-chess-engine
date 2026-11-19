@@ -1,7 +1,7 @@
 mod accumulator;
 mod cache;
+mod inference;
 pub mod feature;
-mod forward;
 pub mod sparse;
 pub mod stats;
 
@@ -37,7 +37,6 @@ use crate::board::square::Square;
 use crate::board::{castling, Board};
 use crate::evaluation::accumulator::{should_mirror, Accumulator};
 use crate::evaluation::cache::InputBucketCache;
-use crate::evaluation::forward::{inference, Forward};
 use crate::search::parameters::{
     material_scaling_base, scale_value_bishop, scale_value_knight, scale_value_pawn,
     scale_value_queen, scale_value_rook,
