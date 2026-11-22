@@ -515,6 +515,15 @@ fn alpha_beta<NODE: NodeType>(
 
                 let triple_margin = se_text_margin(is_quiet) + se_text_pv_margin() * pv_node as i32;
                 extension += (is_quiet && singular_score < s_beta - triple_margin) as i32;
+
+                td.history.update_continuation_history(
+                    board,
+                    &td.stack,
+                    ply,
+                    &tt_move,
+                    pc,
+                    &se_cont_bonuses(depth)
+                );
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
             } else if tt_score >= beta {
@@ -770,28 +779,14 @@ fn alpha_beta<NODE: NodeType>(
                     if is_quiet && (score <= alpha || score >= beta) {
                         let good = score >= beta;
                         let bonus_depth = depth + 3 * (good as i32);
-                        let bonus_1 = if good {
-                            lmr_conthist_1_bonus(bonus_depth)
-                        } else {
-                            lmr_conthist_1_malus(bonus_depth)
-                        };
-                        let bonus_2 = if good {
-                            lmr_conthist_2_bonus(bonus_depth)
-                        } else {
-                            lmr_conthist_2_malus(bonus_depth)
-                        };
-                        let bonus_4 = if good {
-                            lmr_conthist_4_bonus(bonus_depth)
-                        } else {
-                            lmr_conthist_4_malus(bonus_depth)
-                        };
+                        let lmr_cont_bonuses = lmr_cont_bonuses(bonus_depth, good);
                         td.history.update_continuation_history(
                             original_board,
                             &td.stack,
                             ply,
                             &mv,
                             pc,
-                            &[bonus_1, bonus_2, bonus_4],
+                            &lmr_cont_bonuses,
                         );
                     }
                 }

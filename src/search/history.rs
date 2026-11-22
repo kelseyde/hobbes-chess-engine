@@ -275,7 +275,7 @@ impl CaptureHistory {
 
 impl ContinuationHistory {
     const PLIES: [usize; 3] = [1, 2, 4];
-    const PLY_COUNT: usize = Self::PLIES.len();
+    pub const PLY_COUNT: usize = Self::PLIES.len();
     const MAX: i32 = 16384;
     const BONUS_MAX: i16 = Self::MAX as i16 / 4;
 
@@ -403,6 +403,12 @@ use super::*;
                      lmr_conthist_2_malus      (lmr_cont_2_malus_scale,    lmr_cont_2_malus_offset,    lmr_cont_2_malus_max));
     history_bonuses!(lmr_conthist_4_bonus      (lmr_cont_4_bonus_scale,    lmr_cont_4_bonus_offset,    lmr_cont_4_bonus_max),
                      lmr_conthist_4_malus      (lmr_cont_4_malus_scale,    lmr_cont_4_malus_offset,    lmr_cont_4_malus_max));
+    history_bonuses!(se_conthist_1_bonus       (se_cont_1_bonus_scale,     se_cont_1_bonus_offset,     se_cont_1_bonus_max),
+                     se_conthist_1_malus       (se_cont_1_bonus_scale,     se_cont_1_bonus_offset,     se_cont_1_bonus_max));
+    history_bonuses!(se_conthist_2_bonus       (se_cont_2_bonus_scale,     se_cont_2_bonus_offset,     se_cont_2_bonus_max),
+                     se_conthist_2_malus       (se_cont_2_bonus_scale,     se_cont_2_bonus_offset,     se_cont_2_bonus_max));
+    history_bonuses!(se_conthist_4_bonus       (se_cont_4_bonus_scale,     se_cont_4_bonus_offset,     se_cont_4_bonus_max),
+                     se_conthist_4_malus       (se_cont_4_bonus_scale,     se_cont_4_bonus_offset,     se_cont_4_bonus_max));
     history_bonuses!(prior_countermove_bonus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max),
                      prior_countermove_malus   (pcm_bonus_scale,           pcm_bonus_offset,           pcm_bonus_max));
 }

@@ -1,3 +1,4 @@
+use crate::search::history::{lmr_conthist_1_bonus, lmr_conthist_1_malus, lmr_conthist_2_bonus, lmr_conthist_2_malus, lmr_conthist_4_bonus, lmr_conthist_4_malus, se_conthist_1_bonus, se_conthist_2_bonus, se_conthist_4_bonus, ContinuationHistory};
 use crate::tunable_arrays;
 use crate::tunable_params;
 
@@ -146,6 +147,15 @@ tunable_params! {
     lmr_cont_4_malus_scale       = 203, 80..=280,          true;
     lmr_cont_4_malus_offset      = 66, 0..=200,            true;
     lmr_cont_4_malus_max         = 1213, 1000..=1600,      true;
+    se_cont_1_bonus_scale       = 229, 80..=280,          true;
+    se_cont_1_bonus_offset      = 152, 0..=200,           true;
+    se_cont_1_bonus_max         = 1187, 1000..=1600,      true;
+    se_cont_2_bonus_scale       = 172, 80..=280,          true;
+    se_cont_2_bonus_offset      = 119, 0..=200,           true;
+    se_cont_2_bonus_max         = 1061, 1000..=1600,      true;
+    se_cont_4_bonus_scale       = 168, 80..=280,          true;
+    se_cont_4_bonus_offset      = 119, 0..=200,           true;
+    se_cont_4_bonus_max         = 1080, 1000..=1600,      true;
     alpha_raise_min_depth        = 2, 0..=6,               false;
     alpha_raise_max_depth        = 12, 8..=16,             false;
     quiet_hist_bonus_scale       = 218, 80..=280,          true;
@@ -355,4 +365,29 @@ pub fn se_text_margin(is_quiet: bool) -> i32 {
     } else {
         se_text_noisy_margin()
     }
+}
+
+#[inline]
+pub fn lmr_cont_bonuses(depth: i32, good: bool) -> [i16; ContinuationHistory::PLY_COUNT] {
+    let bonus_1 = if good {
+        lmr_conthist_1_bonus(depth)
+    } else {
+        lmr_conthist_1_malus(depth)
+    };
+    let bonus_2 = if good {
+        lmr_conthist_2_bonus(depth)
+    } else {
+        lmr_conthist_2_malus(depth)
+    };
+    let bonus_4 = if good {
+        lmr_conthist_4_bonus(depth)
+    } else {
+        lmr_conthist_4_malus(depth)
+    };
+    [bonus_1, bonus_2, bonus_4]
+}
+
+#[inline]
+pub fn se_cont_bonuses(depth: i32) -> [i16; ContinuationHistory::PLY_COUNT] {
+    [se_conthist_1_bonus(depth), se_conthist_2_bonus(depth), se_conthist_4_bonus(depth)]
 }
