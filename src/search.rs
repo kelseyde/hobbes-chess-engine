@@ -16,6 +16,7 @@ use crate::board::moves::{Move, MoveList};
 use crate::board::piece::Piece;
 use crate::board::Board;
 use crate::search::history::*;
+use crate::search::lmr::LMR_QUANTISATION;
 use crate::search::movepicker::MovePicker;
 use crate::search::movepicker::Stage::{BadNoisies, GoodNoisies};
 use crate::search::node::{NodeType, NonPV, Root, PV};
@@ -384,7 +385,9 @@ fn alpha_beta<NODE: NodeType>(
         // Null Move Pruning
         // Skip nodes where giving the opponent an extra move (making a 'null move') still fails high.
         if depth >= nmp_min_depth()
-            && static_eval >= beta + nmp_margin()
+            && static_eval
+                >= beta + nmp_margin_base() + nmp_margin_scale() * depth / 128
+                    - nmp_margin_improving() * improving as i32
             && ply as i32 > td.nmp_min_ply
             && board.has_non_pawns()
             && tt_flag != Upper
@@ -586,7 +589,7 @@ fn alpha_beta<NODE: NodeType>(
             .history_score(board, &td.stack, &mv, ply, threats, pc, captured);
         let base_reduction = td.lmr.base(depth, legal_moves, is_quiet);
         let lmr_depth = depth
-            .saturating_sub(base_reduction)
+            .saturating_sub(base_reduction / LMR_QUANTISATION)
             .saturating_sub(cut_node as i32);
         let to_threatened = threats.contains(mv.to());
 
@@ -634,7 +637,7 @@ fn alpha_beta<NODE: NodeType>(
             && !is_killer
             && is_quiet
             && depth <= hp_max_depth()
-            && history_score < hp_scale() * depth * depth
+            && history_score < hp_base() + hp_scale() * depth * depth
         {
             move_picker.skip_quiets();
             continue;
@@ -642,7 +645,7 @@ fn alpha_beta<NODE: NodeType>(
 
         // Bad Noisy Pruning
         // Skip bad noisies when the static evaluation + some margin is still below alpha.
-        let futility_margin = static_eval + bnp_scale() * lmr_depth;
+        let futility_margin = static_eval + bnp_base() + bnp_scale() * lmr_depth;
         if !pv_node
             && !in_check
             && lmr_depth < bnp_max_depth()
@@ -655,13 +658,13 @@ fn alpha_beta<NODE: NodeType>(
         // SEE Pruning
         // Skip moves that lose material once all the pieces have been exchanged.
         let see_threshold = if is_quiet {
-            (see_quiet_mult1() * depth * depth + see_quiet_mult2() * depth
+            ((see_quiet_mult1() * depth * depth) / 128 + see_quiet_mult2() * depth
                 - history_score / see_quiet_history_div()
                 - tt_pv as i32 * lmr_depth * see_quiet_ttpv_scale()
                 + see_quiet_offset())
             .min(0)
         } else {
-            (see_noisy_mult1() * depth * depth
+            ((see_noisy_mult1() * depth * depth) / 128
                 - see_noisy_mult2() * depth
                 - history_score / see_noisy_history_div()
                 - tt_pv as i32 * lmr_depth * see_noisy_ttpv_scale()
@@ -699,7 +702,7 @@ fn alpha_beta<NODE: NodeType>(
         {
             // Late Move Reductions
             // Moves ordered late in the list are less likely to be good, so we reduce the depth.
-            let mut r = base_reduction * 1024;
+            let mut r = base_reduction;
             r += td.lmr.factorised([
                 tt_pv,
                 tt_pv && has_tt_score && tt_score > alpha,
@@ -716,11 +719,12 @@ fn alpha_beta<NODE: NodeType>(
             r += lmr_fail_highs() * (td.stack[ply + 1].num_fail_highs > 2) as i32;
             r -= lmr_complex() * (correction > lmr_complexity_margin()) as i32;
             if is_quiet {
-                r -= ((history_score - lmr_hist_offset()) / lmr_hist_divisor()) * 1024;
+                r -= ((history_score - lmr_hist_offset()) * 1024 / lmr_hist_divisor())
+                    .clamp(lmr_hist_min(), lmr_hist_max());
                 r += (to_threatened && !see::see(original_board, &mv, 0, Ordering)) as i32
                     * lmr_quiet_see();
             } else {
-                r -= captured.map_or(0, |c| see::value(c, Ordering) / lmr_mvv_divisor());
+                r -= captured.map_or(0, |c| see::value(c, Ordering) * 128 / lmr_mvv_divisor());
             }
             if is_defined(tt_mv_score) && is_defined(singular_score) {
                 let margin = tt_mv_score - singular_score;
@@ -731,7 +735,7 @@ fn alpha_beta<NODE: NodeType>(
             let min_reduced_depth = 1;
             let max_reduced_depth = new_depth + (1 + (legal_moves <= 3) as i32);
             let reduced_depth =
-                (new_depth - (r / 1024)).clamp(min_reduced_depth, max_reduced_depth);
+                (new_depth - (r / LMR_QUANTISATION)).clamp(min_reduced_depth, max_reduced_depth);
 
             // For moves eligible for reduction, we apply the reduction and search with a null window.
             td.stack[ply].reduction = r;

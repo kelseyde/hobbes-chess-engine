@@ -39,11 +39,9 @@ fn load_network_from_bytes(bytes: &[u8]) -> Box<UntransposedNetwork> {
     let target_size = size_of::<UntransposedNetwork>();
     let actual_size = bytes.len();
     assert_eq!(
-        actual_size,
-        target_size,
+        actual_size, target_size,
         "Network size {} does not match the desired {}",
-        actual_size,
-        target_size
+        actual_size, target_size
     );
     unsafe {
         let mut b: Box<UntransposedNetwork> = boxed_and_zeroed();

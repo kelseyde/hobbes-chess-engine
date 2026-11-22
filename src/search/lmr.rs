@@ -6,6 +6,7 @@ use crate::search::MAX_PLY;
 use crate::tools::utils::{boxed_and_zeroed, convolve};
 
 // The number of LMR features included in the factorised LMR table.
+pub const LMR_QUANTISATION: i32 = 1024;
 pub const LMR_FEATURES: usize = 9;
 pub const LMR_COMBINATIONS: usize = 1 << LMR_FEATURES;
 
@@ -39,7 +40,8 @@ impl LmrTable {
                     };
                     let ln_depth = (depth as f32).ln();
                     let ln_move_count = (move_count as f32).ln();
-                    let reduction = (base + (ln_depth * ln_move_count / divisor)) as i32;
+                    let reduction = ((base + ln_depth * ln_move_count / divisor)
+                        * LMR_QUANTISATION as f32) as i32;
                     self.base[depth as usize][move_count as usize][is_quiet as usize] = reduction;
                 }
             }
