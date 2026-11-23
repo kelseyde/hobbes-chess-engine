@@ -379,7 +379,25 @@ fn alpha_beta<NODE: NodeType>(
         // Razoring
         // Drop into q-search for nodes where the eval is far below alpha, and will likely fail low.
         if static_eval < alpha - razor_base() - razor_scale() * depth * depth {
-            return qs(board, td, alpha, beta, ply);
+            let razor_score = qs(board, td, alpha, beta, ply);
+            if razor_score < alpha {
+                // Prior Countermove Bonus (razoring)
+                if !root_node && td.stack[ply - 1].captured.is_none() {
+                    if let (Some(prev_mv), Some(prev_pc)) = td.stack[ply - 1].piece_move() {
+                        let prev_threats = td.stack[ply - 1].threats;
+                        let quiet_bonus = prior_countermove_bonus(depth);
+                        td.history.quiet_history.update(
+                            !board.stm,
+                            &prev_mv,
+                            prev_pc,
+                            prev_threats,
+                            quiet_bonus,
+                            quiet_bonus,
+                        );
+                    }
+                }
+                return razor_score;
+            }
         }
 
         // Null Move Pruning
@@ -1014,7 +1032,7 @@ fn alpha_beta<NODE: NodeType>(
     // quiet it will receive a quiet history bonus - but we give it one here too, which ensures the
     // best move is updated also during PVS re-searches, hopefully leading to better move ordering.
     if !root_node && flag == Upper && td.stack[ply - 1].captured.is_none() {
-        if let (Some(prev_mv), Some(prev_pc)) = (td.stack[ply - 1].mv, td.stack[ply - 1].pc) {
+        if let (Some(prev_mv), Some(prev_pc)) = td.stack[ply - 1].piece_move() {
             let prev_threats = td.stack[ply - 1].threats;
             let quiet_bonus = prior_countermove_bonus(depth);
             td.history.quiet_history.update(

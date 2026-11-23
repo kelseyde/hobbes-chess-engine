@@ -69,6 +69,13 @@ impl Default for NodeStack {
     }
 }
 
+impl Node {
+    #[inline(always)]
+    pub fn piece_move(&self) -> (Option<Move>, Option<Piece>) {
+        (self.mv, self.pc)
+    }
+}
+
 impl Index<usize> for NodeStack {
     type Output = Node;
 
