@@ -312,7 +312,8 @@ fn alpha_beta<NODE: NodeType>(
         && match tt_flag {
             Upper => tt_score < static_eval,
             Lower => tt_score > static_eval,
-        _ => true
+            TTFlag::None => false,
+            TTFlag::Exact => true
     } {
         tt_score
     } else {
