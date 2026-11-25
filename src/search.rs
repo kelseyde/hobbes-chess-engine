@@ -310,8 +310,8 @@ fn alpha_beta<NODE: NodeType>(
         && !singular_search
         && is_defined(tt_score)
         && match tt_flag {
-            Upper => tt_score < static_eval,
-            Lower => tt_score > static_eval,
+            TTFlag::Upper => tt_score < static_eval,
+            TTFlag::Lower => tt_score > static_eval,
             TTFlag::None => false,
             TTFlag::Exact => true
     } {
