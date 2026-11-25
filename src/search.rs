@@ -304,6 +304,21 @@ fn alpha_beta<NODE: NodeType>(
     let opponent_worsening_rate = calc_opponent_worsening(td, ply, static_eval, in_check);
     let opponent_worsening = opponent_worsening_rate > 0;
 
+    // Use the search score from the TT as a more accurate static evaluation
+    let estimated_score = if tt_hit
+        && !in_check
+        && !singular_search
+        && is_defined(tt_score)
+        && match tt_flag {
+            Upper => tt_score < static_eval,
+            Lower => tt_score > static_eval,
+        _ => true
+    } {
+        tt_score
+    } else {
+        static_eval
+    };
+
     // Hindsight history updates
     // Use the difference between the static eval in the current node and parent node to update the
     // history score for the parent move.
@@ -358,16 +373,17 @@ fn alpha_beta<NODE: NodeType>(
     // Pre-move-loop pruning: If the static eval indicates a fail-high or fail-low, there are several
     // heuristics we can employ to prune the node and its entire subtree, without searching any moves.
     if !pv_node && !in_check && !singular_search {
+
         // Reverse Futility Pruning
         // Skip nodes where the static eval is far above beta and will thus likely fail high.
         let futility_margin = rfp_base() + rfp_scale() * depth
             - rfp_improving_scale() * improving as i32
             - rfp_opp_worsening_scale() * opponent_worsening as i32
             - rfp_tt_move_noisy_scale() * tt_move_noisy as i32;
-        if static_eval - futility_margin >= beta {
+        if estimated_score - futility_margin >= beta {
             let rfp_depth = rfp_max_depth() + 2 * improving as i32;
             if depth <= rfp_depth {
-                return lerp(beta, static_eval, rfp_lerp_factor());
+                return lerp(beta, estimated_score, rfp_lerp_factor());
             } else if depth <= rfp_depth + 8 {
                 let score = qs(board, td, beta - 1, beta, ply);
                 if score >= beta {
