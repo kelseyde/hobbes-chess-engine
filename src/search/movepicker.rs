@@ -21,17 +21,18 @@ use Stage::{GenerateNoisies, GenerateQuiets, Quiets, TTMove};
 /// Range boundaries are tracked by `bad_noisy_start` and `quiet_start`.
 #[rustfmt::skip]
 pub struct MovePicker {
-    moves: MoveList,        // List of moves to pick from in the current stage
-    stage: Stage,           // The current stage of move picking, e.g. generating quiets, trying captures.
-    idx: usize,             // The index of the current move being searched.
-    captures_only: bool,    // Whether the noisy stage generates only captures, rather than all noisies (i.e. captures and promotions).
-    tt_move: Move,          // The move from the transposition table, which is tried first if it exists.
-    ply: usize,             // The ply of the current search, used for history heuristics.
-    threats: Bitboard,      // The squares threatened by the opponent, used for history heuristics.
-    skip_quiets: bool,      // Whether we should skip the remaining quiet moves.
-    split_noisies: bool,    // Whether to split noisy moves into good and bad based on a SEE threshold.
-    bad_noisy_start: usize, // Index where bad noisies begin in the list.
-    quiet_start: usize,     // Index where quiets begin in the list.
+    moves: MoveList,            // List of moves to pick from in the current stage
+    stage: Stage,               // The current stage of move picking, e.g. generating quiets, trying captures.
+    idx: usize,                 // The index of the current move being searched.
+    captures_only: bool,        // Whether the noisy stage generates only captures, rather than all noisies (i.e. captures and promotions).
+    tt_move: Move,              // The move from the transposition table, which is tried first if it exists.
+    ply: usize,                 // The ply of the current search, used for history heuristics.
+    threats: Bitboard,          // The squares threatened by the opponent, used for history heuristics.
+    skip_quiets: bool,          // Whether we should skip the remaining quiet moves.
+    split_noisies: bool,        // Whether to split noisy moves into good and bad based on a SEE threshold.
+    see_threshold: Option<i32>, // Static SEE threshold used for separating good/bad noisies; if omitted, a dynamic threshold based on move score is used.
+    bad_noisy_start: usize,     // Index where bad noisies begin in the list.
+    quiet_start: usize,         // Index where quiets begin in the list.
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,11 +48,15 @@ pub enum Stage {
 
 impl MovePicker {
     pub fn new(tt_move: Move, ply: usize, threats: Bitboard) -> Self {
-        Self::init(tt_move, false, ply, threats, false, true)
+        Self::init(tt_move, false, ply, threats, false, true, None)
     }
 
     pub fn new_qsearch(tt_move: Move, ply: usize, threats: Bitboard, skip_quiets: bool) -> Self {
-        Self::init(tt_move, !skip_quiets, ply, threats, skip_quiets, false)
+        Self::init(tt_move, !skip_quiets, ply, threats, skip_quiets, false, None)
+    }
+
+    pub fn new_probcut(tt_move: Move, ply: usize, threats: Bitboard, see_threshold: i32) -> Self {
+        Self::init(tt_move, )
     }
 
     pub fn init(
@@ -61,6 +66,7 @@ impl MovePicker {
         threats: Bitboard,
         skip_quiets: bool,
         split_noisies: bool,
+        see_threshold: Option<i32>
     ) -> Self {
         let stage = if tt_move.exists() {
             TTMove
@@ -79,6 +85,7 @@ impl MovePicker {
             split_noisies,
             bad_noisy_start: 0,
             quiet_start: 0,
+            see_threshold,
         }
     }
 
@@ -159,7 +166,7 @@ impl MovePicker {
             .filter(|entry| entry.mv != self.tt_move)
             .for_each(|entry| {
                 score_move(entry, board, td, self.ply, self.threats);
-                if is_good_noisy(entry, board, self.split_noisies) {
+                if is_good_noisy(entry, board, self.split_noisies, self.see_threshold) {
                     self.moves.add(*entry);
                 } else {
                     bad_noisies.add(*entry);
@@ -244,7 +251,7 @@ fn score_move(
 /// Captures are sorted based on whether they pass a SEE threshold, which takes into account the
 /// move's history score.
 #[inline(always)]
-fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool {
+fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool, see_threshold: Option<i32>) -> bool {
     if entry.mv.is_promo() {
         // Queen and knight promos are treated as good noisies
         entry
@@ -256,7 +263,8 @@ fn is_good_noisy(entry: &ScoredMove, board: &Board, split_noisies: bool) -> bool
         if !split_noisies || entry.score >= KILLER_BONUS {
             true
         } else {
-            let threshold = -entry.score / movepick_see_divisor() + movepick_see_offset();
+            let threshold = see_threshold
+                .unwrap_or(-entry.score / movepick_see_divisor() + movepick_see_offset());
             match threshold {
                 t if t > see::value(Queen, SeeType::Ordering) => false,
                 t if t < -see::value(Queen, SeeType::Ordering) => true,
