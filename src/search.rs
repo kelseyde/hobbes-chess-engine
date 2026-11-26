@@ -502,18 +502,30 @@ fn alpha_beta<NODE: NodeType>(
 
             // Do a reduced-depth search with the TT move excluded.
             td.stack[ply].singular = Some(tt_move);
+            let nodes_before = td.local_nodes();
             singular_score =
                 alpha_beta::<NonPV>(board, td, s_depth, ply, s_beta - 1, s_beta, cut_node);
             td.stack[ply].singular = None;
+            let nodes_after = td.local_nodes();
 
             if singular_score < s_beta {
                 // If the reduced search fails to beat s_beta, then we assume the TT move is singular.
                 extension = 1;
 
-                let double_margin = se_dext_margin(is_quiet) + se_dext_pv_margin() * pv_node as i32;
-                extension += (singular_score < s_beta - double_margin) as i32;
+                let mut double_margin = se_dext_margin(is_quiet) + se_dext_pv_margin() * pv_node as i32;
+                let mut triple_margin = se_text_margin(is_quiet) + se_text_pv_margin() * pv_node as i32;
 
-                let triple_margin = se_text_margin(is_quiet) + se_text_pv_margin() * pv_node as i32;
+                // (Idea from SF): If singular search explored more nodes than is expected for its
+                // depth, the other moves were harder to refute. This implies the excluded move is
+                // less likely to be singular; so, we increase the extension margins.
+                let nodes_spent = nodes_after.saturating_sub(nodes_before);
+                let sd = s_depth.min(14);
+                let surprise = (64.0 * (nodes_spent as f64).ln_1p()) as i32
+                    - (54 + 21 * sd - 4 * sd * sd / 5);
+                double_margin += surprise * 3 / 4 - 23;
+                triple_margin += surprise * 3 / 4 - 2;
+
+                extension += (singular_score < s_beta - double_margin) as i32;
                 extension += (is_quiet && singular_score < s_beta - triple_margin) as i32;
             } else if s_beta >= beta {
                 return (s_beta * s_depth + beta) / (s_depth + 1);
