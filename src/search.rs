@@ -290,6 +290,14 @@ fn alpha_beta<NODE: NodeType>(
         static_eval = raw_eval + correction;
     }
 
+    // Static Null Move Pruning: If we made a null move in the parent node, and now the static eval
+    // difference confirms this was a good idea, we skip the null move search and cut immediately.
+    if !root_node
+        && td.stack[ply - 1].mv.is_none()
+        && (td.stack[ply - 1].static_eval - static_eval) < static_nmp_margin() {
+        return beta;
+    }
+
     td.stack[ply].raw_eval = raw_eval;
     td.stack[ply].static_eval = static_eval;
     td.stack[ply + 1].killer = None;
@@ -402,6 +410,7 @@ fn alpha_beta<NODE: NodeType>(
 
             let mut new_board = *board;
             new_board.make_null_move();
+            td.stack[ply].mv = None;
             td.inc_nodes();
             td.keys.push(new_board.hash());
             td.tt().prefetch(new_board.hash_with_50mr_bucket());

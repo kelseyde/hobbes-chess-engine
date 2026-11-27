@@ -26,6 +26,7 @@ tunable_params! {
     nmp_red_eval_mult            = 597, 256..=1024,        true;
     nmp_red_eval_max             = 1116, 512..=2048,       true;
     nmp_red_div                  = 123, 64..=256,          true;
+    static_nmp_margin            = -16, -128..=0,          true;
     iir_min_depth                = 4, 1..=10,              false;
     iir_tt_depth_offset          = 4, 1..=6,               false;
     cutnode_red_min_depth        = 8, 4..=12,              false;
